@@ -1,5 +1,13 @@
-node_modules
-# Keep environment variables out of version control
+node_modules/
 .env
-
-/generated/prisma
+dev.db
+*.db
+error.log
+dist/
+update_active.js
+test_*.js
+create_student.js
+delete_empty_papers.js
+rename_papers.js
+verify_papers.js
+seed_bulk.js

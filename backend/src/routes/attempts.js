@@ -53,12 +53,12 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       id: { not: attempt.id }
     },
     include: { result: true },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { startedAt: 'desc' },
     take: 3
   });
 
   const previousResults = previousAttempts.map(a => ({
-    date: a.createdAt,
+    date: a.startedAt,
     score: a.result?.rawScore,
     band: a.result?.bandEstimate
   }));

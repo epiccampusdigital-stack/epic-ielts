@@ -279,10 +279,15 @@ export default function ReadingExam() {
       clearInterval(timerRef.current);
 
       try {
+         const formattedAnswers = Object.entries(answers).map(([key, value]) => ({
+            questionId: parseInt(key),
+            studentAnswer: value
+         }));
+
          await axios.post(
             `${API_URL}/api/attempts/${attemptId}/end`,
             {
-               answers,
+               answers: formattedAnswers,
                timeSpentSeconds: totalTime - timeLeft
             },
             api()

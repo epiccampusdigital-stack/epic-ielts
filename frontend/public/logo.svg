@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Shield/Book Background -->
+  <rect x="10" y="10" width="80" height="80" rx="16" fill="#1a1a2e" />
+  <path d="M 25 25 L 75 25 L 75 80 Q 50 70 25 80 Z" fill="#2a2a4e" opacity="0.5"/>
+  <!-- Gold 'E' -->
+  <text x="50" y="66" font-family="'Playfair Display', serif" font-weight="700" font-size="48" fill="#f59e0b" text-anchor="middle">E</text>
+</svg>

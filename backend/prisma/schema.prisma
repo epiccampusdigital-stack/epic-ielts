@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id       Int       @id @default(autoincrement())
+  email    String    @unique
+  password String
+  name     String
+  batch    String?
+  role     String    @default("STUDENT") // STUDENT or ADMIN
+  attempts Attempt[]
+}
+
+model Paper {
+  id              Int           @id @default(autoincrement())
+  paperCode       String        @unique
+  testType        String        // READING, WRITING
+  title           String
+  timeLimitMin    Int
+  instructions    String?
+  status          String        @default("PUBLISHED") // PUBLISHED, DRAFT
+  assignedBatches String        @default("ALL")
+  questions       Question[]
+  writingTasks    WritingTask[]
+  attempts        Attempt[]
+}
+
+model WritingTask {
+  id         Int     @id @default(autoincrement())
+  paperId    Int
+  paper      Paper   @relation(fields: [paperId], references: [id])
+  taskNumber Int     // 1 or 2
+  prompt     String
+  chartUrl   String?
+  minWords   Int     @default(150)
+}
+
+model Question {
+  id             Int      @id @default(autoincrement())
+  paperId        Int
+  paper          Paper    @relation(fields: [paperId], references: [id])
+  passageNumber  Int?     // For reading (1, 2, 3)
+  questionNumber Int 
+  questionType   String   // TFNG, MC, SA, etc.
+  content        String
+  options        String?  // JSON string
+  correctAnswer  String
+  explanation    String?
+  answers        Answer[]
+}
+
+model Attempt {
+  id                Int                @id @default(autoincrement())
+  studentId         Int
+  paperId           Int
+  student           Student            @relation(fields: [studentId], references: [id])
+  paper             Paper              @relation(fields: [paperId], references: [id])
+  startedAt         DateTime           @default(now())
+  endedAt           DateTime?
+  status            String             @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  answers           Answer[]
+  writingSubmission WritingSubmission?
+  result            Result?
+}
+
+model Answer {
+  id            Int      @id @default(autoincrement())
+  attemptId     Int
+  questionId    Int
+  studentAnswer String
+  isCorrect     Boolean?
+  attempt       Attempt  @relation(fields: [attemptId], references: [id])
+  question      Question @relation(fields: [questionId], references: [id])
+}
+
+model WritingSubmission {
+  id             Int     @id @default(autoincrement())
+  attemptId      Int     @unique
+  attempt        Attempt @relation(fields: [attemptId], references: [id])
+  task1Response  String?
+  task2Response  String?
+  task1WordCount Int?
+  task2WordCount Int?
+  task1Band      Float?
+  task2Band      Float?
+  aiFeedback     String?
+  markingStatus  String?
+}
+
+model Result {
+  id                 Int      @id @default(autoincrement())
+  attemptId          Int      @unique
+  attempt            Attempt  @relation(fields: [attemptId], references: [id])
+  rawScore           Float?
+  bandEstimate       Float?
+  teacherReviewed    Boolean  @default(false)
+  overrideBand       Float?
+  strengths          String?
+  weaknesses         String?
+  improvementAdvice  String?
+}

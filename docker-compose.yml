@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: epic_admin
+      POSTGRES_PASSWORD: epic_password
+      POSTGRES_DB: epic_ielts
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      - DATABASE_URL=postgresql://epic_admin:epic_password@db:5432/epic_ielts
+      - FRONTEND_URL=https://epicielts.live
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    restart: always
+    ports:
+      - '5174:5174'
+    environment:
+      - VITE_API_URL=https://api.epicielts.live
+
+volumes:
+  pgdata:

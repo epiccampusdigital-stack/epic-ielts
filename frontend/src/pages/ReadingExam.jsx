@@ -17,6 +17,7 @@ export default function ReadingExam() {
    const [questions, setQuestions] = useState([]);
    const [answers, setAnswers] = useState({});
    const [timeLeft, setTimeLeft] = useState(null);
+   const [totalTime, setTotalTime] = useState(0);
    const [currentPassage, setCurrentPassage] = useState(1);
    const [questionPage, setQuestionPage] = useState(0);
    const [submitting, setSubmitting] = useState(false);
@@ -279,7 +280,7 @@ export default function ReadingExam() {
 
       try {
          await axios.post(
-            `${API_URL}/api/attempts/${attemptId}/submit`,
+            `${API_URL}/api/attempts/${attemptId}/end`,
             {
                answers,
                timeSpentSeconds: totalTime - timeLeft

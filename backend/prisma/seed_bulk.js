@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const paper1 = {
-  paperCode: 'R-MIX-001',
+  paperCode: '001',
   title: 'Mixed Academic Reading Test',
   testType: 'READING',
   timeLimitMin: 60,
@@ -74,7 +74,7 @@ Today, writing continues to evolve with technology. Digital communication has tr
 };
 
 const paper2 = {
-  paperCode: 'R-ADV-002',
+  paperCode: '002',
   title: 'Advanced Academic Reading Test',
   testType: 'READING',
   timeLimitMin: 60,

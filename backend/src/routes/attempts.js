@@ -1,4 +1,3 @@
-
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
@@ -26,10 +25,14 @@ function calculateBand(score) {
 function fallbackFeedback(rawScore, bandEstimate) {
   return {
     bandEstimate,
-    strengths: 'You completed the reading test and submitted your answers. This gives us a clear starting point for improvement.',
-    weaknesses: `Your score was ${rawScore}/40, so your main weakness is accuracy across question types. Focus especially on locating evidence in the passage before choosing an answer.`,
-    improvementAdvice: 'Review every wrong answer. Find the exact sentence in the passage that proves the correct answer. Practise TRUE/FALSE/NOT GIVEN, multiple choice, matching, and short-answer questions separately.',
-    aiDetailedFeedback: `Your estimated IELTS Reading band is ${bandEstimate}. To improve, slow down slightly, underline keywords, compare the question with the passage carefully, and avoid guessing without text evidence.`
+    strengths:
+      'You completed the reading test and submitted your answers. This gives us a clear starting point for improvement.',
+    weaknesses:
+      `Your score was ${rawScore}/40, so your main weakness is accuracy across question types. Focus especially on locating evidence in the passage before choosing an answer.`,
+    improvementAdvice:
+      'Review every wrong answer. Find the exact sentence in the passage that proves the correct answer. Practise TRUE/FALSE/NOT GIVEN, multiple choice, matching, and short-answer questions separately.',
+    aiDetailedFeedback:
+      `Your estimated IELTS Reading band is ${bandEstimate}. To improve, slow down slightly, underline keywords, compare the question with the passage carefully, and avoid guessing without text evidence.`
   };
 }
 
@@ -81,7 +84,10 @@ router.get('/history/mine', auth, async (req, res) => {
     res.json(attempts);
   } catch (error) {
     console.error('History error:', error);
-    res.status(500).json({ message: 'Error fetching history', details: error.message });
+    res.status(500).json({
+      message: 'Error fetching history',
+      details: error.message
+    });
   }
 });
 
@@ -107,7 +113,10 @@ router.post('/', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Create attempt error:', error);
-    res.status(500).json({ message: 'Error starting attempt', details: error.message });
+    res.status(500).json({
+      message: 'Error starting attempt',
+      details: error.message
+    });
   }
 });
 
@@ -134,7 +143,10 @@ router.post('/:id/start', auth, async (req, res) => {
     res.json(attempt);
   } catch (error) {
     console.error('Start exam error:', error);
-    res.status(500).json({ message: 'Error starting exam', details: error.message });
+    res.status(500).json({
+      message: 'Error starting exam',
+      details: error.message
+    });
   }
 });
 
@@ -180,7 +192,10 @@ router.get('/:id/result', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Result error:', error);
-    res.status(500).json({ message: 'Error fetching result', details: error.message });
+    res.status(500).json({
+      message: 'Error fetching result',
+      details: error.message
+    });
   }
 });
 
@@ -212,7 +227,10 @@ router.get('/:id', auth, async (req, res) => {
     res.json(attempt);
   } catch (error) {
     console.error('Attempt fetch error:', error);
-    res.status(500).json({ message: 'Error fetching attempt', details: error.message });
+    res.status(500).json({
+      message: 'Error fetching attempt',
+      details: error.message
+    });
   }
 });
 
@@ -285,30 +303,42 @@ router.post('/:id/end', auth, async (req, res) => {
 
     await prisma.attempt.update({
       where: { id: attemptId },
-      data: { status: 'COMPLETED' }
-    });
-
-    const savedAnswers = await prisma.answer.findMany({
-      where: { attemptId },
-      include: {
-        question: true
-      },
-      orderBy: {
-        questionId: 'asc'
+      data: {
+        status: 'COMPLETED',
+        endedAt: new Date()
       }
     });
 
-    const aiFeedback = await createAiFeedback(attempt, result, savedAnswers);
-    aiCache.set(attemptId, aiFeedback);
-
+    // IMPORTANT:
+    // Send response immediately so frontend can navigate to results fast.
+    // AI feedback will generate in the background.
     res.json({
       message: 'Exam submitted',
-      result,
-      aiFeedback
+      result
     });
+
+    try {
+      const savedAnswers = await prisma.answer.findMany({
+        where: { attemptId },
+        include: {
+          question: true
+        },
+        orderBy: {
+          questionId: 'asc'
+        }
+      });
+
+      const aiFeedback = await createAiFeedback(attempt, result, savedAnswers);
+      aiCache.set(attemptId, aiFeedback);
+    } catch (aiError) {
+      console.error('Background AI feedback error:', aiError);
+    }
   } catch (error) {
     console.error('Submit attempt error:', error);
-    res.status(500).json({ message: 'Error submitting attempt', details: error.message });
+    res.status(500).json({
+      message: 'Error submitting attempt',
+      details: error.message
+    });
   }
 });
 

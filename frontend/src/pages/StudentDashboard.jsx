@@ -760,7 +760,12 @@ export default function StudentDashboard() {
                   const bandStyle = getBandColor(band);
 
                   return (
-                    <div key={attempt.id} className="result-row">
+                    <div 
+                      key={attempt.id} 
+                      className="result-row"
+                      onClick={() => navigate(`/exam/${attempt.id}/results`)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div>
                         <div
                           style={{
@@ -798,16 +803,16 @@ export default function StudentDashboard() {
                               display: 'inline-block',
                               padding: '4px 12px',
                               borderRadius: '20px',
-                              fontSize: '13px',
-                              fontWeight: '700',
                               background: bandStyle.bg,
-                              color: bandStyle.color
+                              color: bandStyle.color,
+                              fontSize: '12px',
+                              fontWeight: '700'
                             }}
                           >
-                            {band.toFixed(1)}
+                            {Number(band).toFixed(1)}
                           </span>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '13px' }}>—</span>
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>Processing...</span>
                         )}
                       </div>
                     </div>

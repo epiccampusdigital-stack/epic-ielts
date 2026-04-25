@@ -12,9 +12,12 @@ export default function Results() {
    const attemptId = params.attemptId || params.id;
    const [data, setData] = useState(null);
    const [loading, setLoading] = useState(true);
-   const [retries, setRetries] = useState(0);
+   const [aiFeedback, setAiFeedback] = useState(null);
+   const [aiFeedbackLoading, setAiFeedbackLoading] = useState(true);
+   const [pollCount, setPollCount] = useState(0);
    const navigate = useNavigate();
 
+   // Load main result once
    useEffect(() => {
       const fetchResult = async () => {
          try {
@@ -23,6 +26,11 @@ export default function Results() {
                api()
             );
             setData(res.data);
+            // Use cached AI feedback if already in result
+            if (res.data.aiFeedback && Object.keys(res.data.aiFeedback).length > 0) {
+               setAiFeedback(res.data.aiFeedback);
+               setAiFeedbackLoading(false);
+            }
          } catch (err) {
             console.error('Result fetch error:', err);
          } finally {
@@ -30,12 +38,43 @@ export default function Results() {
          }
       };
       fetchResult();
-   }, [attemptId, retries]);
+   }, [attemptId, pollCount]);
 
-   const refreshFeedback = () => {
-      setLoading(true);
-      setRetries(r => r + 1);
-   };
+   // Poll for AI feedback separately
+   useEffect(() => {
+      if (!attemptId || aiFeedback) return;
+
+      let pollInterval;
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      const pollFeedback = async () => {
+         try {
+            const res = await axios.get(
+               `${API_URL}/api/attempts/${attemptId}/ai-feedback`,
+               api()
+            );
+            console.log('AI poll response:', res.data.status);
+            if (res.data.status === 'ready' && res.data.feedback) {
+               setAiFeedback(res.data.feedback);
+               setAiFeedbackLoading(false);
+               clearInterval(pollInterval);
+               return;
+            }
+         } catch (err) {
+            console.error('AI poll error:', err);
+         }
+         attempts++;
+         if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            setAiFeedbackLoading(false);
+         }
+      };
+
+      pollFeedback(); // immediate first call
+      pollInterval = setInterval(pollFeedback, 4000);
+      return () => clearInterval(pollInterval);
+   }, [attemptId, aiFeedback, pollCount]);
 
    if (loading) return (
       <div style={{
@@ -86,14 +125,14 @@ export default function Results() {
       </div>
    );
 
-   const result = data.result || {};
-   const answers = data.answers || [];
-   const ai = data.aiFeedback || {};
-   const rawScore = result.rawScore ?? 0;
-   const band = result.bandEstimate ?? 0;
-   const correct = answers.filter(a => a.isCorrect).length;
-   const wrong = answers.filter(a => a.isCorrect === false).length;
-   const hasAI = Object.keys(ai).length > 0 && ai.finalStudentReport;
+    const result = data.result || {};
+    const answers = data.answers || [];
+    const ai = aiFeedback || {};
+    const rawScore = result.rawScore ?? 0;
+    const band = result.bandEstimate ?? 0;
+    const correct = answers.filter(a => a.isCorrect).length;
+    const wrong = answers.filter(a => a.isCorrect === false).length;
+    const hasAI = aiFeedback && aiFeedback.finalStudentReport;
 
    const getBandColor = (b) => {
       if (b >= 7) return '#16a34a';
@@ -239,208 +278,209 @@ export default function Results() {
             </div>
 
             {/* AI Feedback */}
-            {hasAI ? (
-               <div className="result-section" style={{ border: '1px solid #bfdbfe', animationDelay: '0.1s' }}>
-                  <div style={{
-                     display: 'flex', alignItems: 'center',
-                     gap: 14, marginBottom: 24,
-                     paddingBottom: 16,
-                     borderBottom: '1px solid #dbeafe'
-                  }}>
-                     <div style={{
-                        width: 48, height: 48,
-                        borderRadius: '50%',
-                        background: '#eff6ff',
-                        display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 24
-                     }}>🤖</div>
-                     <div>
-                        <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 20, fontWeight: 800 }}>
-                           EPIC AI Examiner Feedback
-                        </h2>
-                        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
-                           Personalised analysis based on your answers and performance
-                        </p>
-                     </div>
-                  </div>
-
-                  {/* Final student report */}
-                  {ai.finalStudentReport && (
-                     <div style={{
-                        background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                        borderRadius: 14, padding: 22,
-                        border: '1px solid #bfdbfe',
-                        marginBottom: 18
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
-                           📜 Examiner's Report
-                        </h3>
-                        <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>
-                           {ai.finalStudentReport}
-                        </p>
-                     </div>
-                  )}
-
-                  {/* Progress */}
-                  {ai.progressComment && (
-                     <div style={{
-                        background: '#f0fdf4', borderRadius: 12, padding: 18,
-                        border: '1px solid #bbf7d0', marginBottom: 18
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-                           📈 Progress
-                        </h3>
-                        <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#15803d', fontSize: 13 }}>
-                           {ai.progressComment}
-                        </p>
-                     </div>
-                  )}
-
-                  {/* Strengths and weak areas */}
-                  <div style={{
-                     display: 'grid',
-                     gridTemplateColumns: '1fr 1fr',
-                     gap: 16, marginBottom: 18
-                  }}>
-                     <div style={{
-                        background: '#f8faff', borderRadius: 12, padding: 18,
-                        border: '1px solid #dbeafe'
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-                           ✅ Strengths
-                        </h3>
-                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-                           {Array.isArray(ai.strengths)
-                              ? ai.strengths.map((s, i) => (
-                                 <li key={i} style={{ color: '#1e3a5f', fontSize: 13 }}>{s}</li>
-                              ))
-                              : <li style={{ color: '#1e3a5f', fontSize: 13 }}>{ai.strengths || 'Good performance overall.'}</li>
-                           }
-                        </ul>
-                     </div>
-
-                     <div style={{
-                        background: '#fff7ed', borderRadius: 12, padding: 18,
-                        border: '1px solid #ffedd5'
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#9a3412', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-                           🎯 Areas to Improve
-                        </h3>
-                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-                           {Array.isArray(ai.weakAreas)
-                              ? ai.weakAreas.map((w, i) => (
-                                 <li key={i} style={{ color: '#7c2d12', fontSize: 13 }}>{w}</li>
-                              ))
-                              : <li style={{ color: '#7c2d12', fontSize: 13 }}>{ai.weakAreas || ai.weaknesses || 'Keep practising.'}</li>
-                           }
-                        </ul>
-                     </div>
-                  </div>
-
-                  {/* Question type analysis */}
-                  {ai.questionTypeAnalysis && Object.keys(ai.questionTypeAnalysis).length > 0 && (
-                     <div style={{
-                        background: '#faf5ff', borderRadius: 12, padding: 18,
-                        border: '1px solid #e9d5ff', marginBottom: 18
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#6b21a8', fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-                           🔬 Question Type Analysis
-                        </h3>
-                        <div style={{ display: 'grid', gap: 10 }}>
-                           {Object.entries(ai.questionTypeAnalysis).map(([type, analysis]) => (
-                              <div key={type} style={{
-                                 display: 'flex', gap: 12, alignItems: 'flex-start'
-                              }}>
-                                 <span style={{
-                                    background: '#ede9fe',
-                                    color: '#5b21b6',
-                                    padding: '3px 10px',
-                                    borderRadius: 20,
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    whiteSpace: 'nowrap',
-                                    flexShrink: 0
-                                 }}>
-                                    {type.replace(/_/g, ' ')}
-                                 </span>
-                                 <span style={{ fontSize: 13, color: '#4c1d95', lineHeight: 1.6 }}>
-                                    {analysis}
-                                 </span>
-                              </div>
-                           ))}
-                        </div>
-                     </div>
-                  )}
-
-                  {/* Mistake analysis */}
-                  {ai.mistakeAnalysis && ai.mistakeAnalysis.length > 0 && (
-                     <div style={{
-                        background: '#fef2f2', borderRadius: 12, padding: 18,
-                        border: '1px solid #fee2e2', marginBottom: 18
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#991b1b', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-                           🔍 Mistake Analysis
-                        </h3>
-                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-                           {Array.isArray(ai.mistakeAnalysis)
-                              ? ai.mistakeAnalysis.map((m, i) => (
-                                 <li key={i} style={{ color: '#7f1d1d', fontSize: 13 }}>{m}</li>
-                              ))
-                              : <li style={{ color: '#7f1d1d', fontSize: 13 }}>Analysis processing...</li>
-                           }
-                        </ul>
-                     </div>
-                  )}
-
-                  {/* Improvement advice */}
-                  {ai.improvementAdvice && ai.improvementAdvice.length > 0 && (
-                     <div style={{
-                        background: '#f0fdf4', borderRadius: 12, padding: 18,
-                        border: '1px solid #bbf7d0'
-                     }}>
-                        <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-                           💡 How to Improve Your Band
-                        </h3>
-                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-                           {Array.isArray(ai.improvementAdvice)
-                              ? ai.improvementAdvice.map((a, i) => (
-                                 <li key={i} style={{ color: '#14532d', fontSize: 13 }}>{a}</li>
-                              ))
-                              : <li style={{ color: '#14532d', fontSize: 13 }}>Keep practising regularly.</li>
-                           }
-                        </ul>
-                     </div>
-                  )}
-               </div>
-            ) : (
-               /* No AI feedback yet */
-               <div className="result-section" style={{
-                  textAlign: 'center', padding: '32px',
-                  border: '1px solid #dbeafe',
-                  animationDelay: '0.1s'
+            <div className="result-section" style={{ border: '1px solid #bfdbfe', animationDelay: '0.1s' }}>
+               <div style={{
+                  display: 'flex', alignItems: 'center',
+                  gap: 14, marginBottom: 24,
+                  paddingBottom: 16,
+                  borderBottom: '1px solid #dbeafe'
                }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
-                  <h3 style={{ color: '#1e3a5f', marginBottom: 8 }}>AI Feedback is being generated</h3>
-                  <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
-                     Your personalised EPIC AI examiner feedback will appear here shortly.
-                  </p>
-                  <button
-                     onClick={refreshFeedback}
-                     style={{
-                        padding: '10px 24px',
-                        background: '#2563eb',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 8,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        fontSize: 14
-                     }}
-                  >
-                     Refresh Feedback
-                  </button>
+                  <div style={{
+                     width: 48, height: 48,
+                     borderRadius: '50%',
+                     background: '#eff6ff',
+                     display: 'flex', alignItems: 'center',
+                     justifyContent: 'center', fontSize: 24
+                  }}>🤖</div>
+                  <div>
+                     <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 20, fontWeight: 800 }}>
+                        EPIC AI Examiner Feedback
+                     </h2>
+                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+                        Personalised analysis based on your answers and performance
+                     </p>
+                  </div>
                </div>
-            )}
+
+               <div style={{ display: 'grid', gap: 18 }}>
+                  {aiFeedbackLoading ? (
+                    <div style={{
+                      textAlign: 'center', padding: '32px',
+                      background: 'white', borderRadius: 16,
+                      border: '1px solid #dbeafe',
+                      marginBottom: 20
+                    }}>
+                      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                      <div style={{
+                        width: 40, height: 40,
+                        border: '3px solid #dbeafe',
+                        borderTopColor: '#2563eb',
+                        borderRadius: '50%',
+                        animation: 'spin 0.8s linear infinite',
+                        margin: '0 auto 16px'
+                      }} />
+                      <p style={{ color: '#2563eb', fontWeight: 600, marginBottom: 4 }}>
+                        EPIC AI is analysing your answers...
+                      </p>
+                      <p style={{ color: '#64748b', fontSize: 13 }}>
+                        This takes 10-20 seconds. Please wait.
+                      </p>
+                    </div>
+                  ) : !hasAI ? (
+                    <div style={{ textAlign: 'center', padding: 32, background: 'white', borderRadius: 16, border: '1px solid #dbeafe', marginBottom: 20 }}>
+                      <p style={{ color: '#64748b', marginBottom: 16 }}>AI feedback could not be generated. Check your API key.</p>
+                      <button onClick={() => { setAiFeedbackLoading(true); setPollCount(p => p + 1); }}
+                        style={{ padding: '10px 24px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                        Try Again
+                      </button>
+                    </div>
+                  ) : (
+                     <>
+                        {ai.finalStudentReport && (
+                           <div style={{
+                              background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                              borderRadius: 14, padding: 22,
+                              border: '1px solid #bfdbfe',
+                              marginBottom: 18
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
+                                 📜 Examiner's Report
+                              </h3>
+                              <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>
+                                 {ai.finalStudentReport}
+                              </p>
+                           </div>
+                        )}
+
+                        {ai.progressComment && (
+                           <div style={{
+                              background: '#f0fdf4', borderRadius: 12, padding: 18,
+                              border: '1px solid #bbf7d0', marginBottom: 18
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                                 📈 Progress
+                              </h3>
+                              <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#15803d', fontSize: 13 }}>
+                                 {ai.progressComment}
+                              </p>
+                           </div>
+                        )}
+
+                        <div style={{
+                           display: 'grid',
+                           gridTemplateColumns: '1fr 1fr',
+                           gap: 16, marginBottom: 18
+                        }}>
+                           <div style={{
+                              background: '#f8faff', borderRadius: 12, padding: 18,
+                              border: '1px solid #dbeafe'
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                                 ✅ Strengths
+                              </h3>
+                              <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                                 {Array.isArray(ai.strengths)
+                                    ? ai.strengths.map((s, i) => (
+                                       <li key={i} style={{ color: '#1e3a5f', fontSize: 13 }}>{s}</li>
+                                    ))
+                                    : <li style={{ color: '#1e3a5f', fontSize: 13 }}>{ai.strengths || 'Good performance overall.'}</li>
+                                 }
+                              </ul>
+                           </div>
+
+                           <div style={{
+                              background: '#fff7ed', borderRadius: 12, padding: 18,
+                              border: '1px solid #ffedd5'
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#9a3412', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                                 🎯 Areas to Improve
+                              </h3>
+                              <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                                 {Array.isArray(ai.weakAreas)
+                                    ? ai.weakAreas.map((w, i) => (
+                                       <li key={i} style={{ color: '#7c2d12', fontSize: 13 }}>{w}</li>
+                                    ))
+                                    : <li style={{ color: '#7c2d12', fontSize: 13 }}>{ai.weakAreas || ai.weaknesses || 'Keep practising.'}</li>
+                                 }
+                              </ul>
+                           </div>
+                        </div>
+
+                        {ai.questionTypeAnalysis && Object.keys(ai.questionTypeAnalysis).length > 0 && (
+                           <div style={{
+                              background: '#faf5ff', borderRadius: 12, padding: 18,
+                              border: '1px solid #e9d5ff', marginBottom: 18
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#6b21a8', fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
+                                 🔬 Question Type Analysis
+                              </h3>
+                              <div style={{ display: 'grid', gap: 10 }}>
+                                 {Object.entries(ai.questionTypeAnalysis).map(([type, analysis]) => (
+                                    <div key={type} style={{
+                                       display: 'flex', gap: 12, alignItems: 'flex-start'
+                                    }}>
+                                       <span style={{
+                                          background: '#ede9fe',
+                                          color: '#5b21b6',
+                                          padding: '3px 10px',
+                                          borderRadius: 20,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          whiteSpace: 'nowrap',
+                                          flexShrink: 0
+                                       }}>
+                                          {type.replace(/_/g, ' ')}
+                                       </span>
+                                       <span style={{ fontSize: 13, color: '#4c1d95', lineHeight: 1.6 }}>
+                                          {analysis}
+                                       </span>
+                                    </div>
+                                 ))}
+                              </div>
+                           </div>
+                        )}
+
+                        {ai.mistakeAnalysis && ai.mistakeAnalysis.length > 0 && (
+                           <div style={{
+                              background: '#fef2f2', borderRadius: 12, padding: 18,
+                              border: '1px solid #fee2e2', marginBottom: 18
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#991b1b', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                                 🔍 Mistake Analysis
+                              </h3>
+                              <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                                 {Array.isArray(ai.mistakeAnalysis)
+                                    ? ai.mistakeAnalysis.map((m, i) => (
+                                       <li key={i} style={{ color: '#7f1d1d', fontSize: 13 }}>{m}</li>
+                                    ))
+                                    : <li style={{ color: '#7f1d1d', fontSize: 13 }}>Analysis processing...</li>
+                                 }
+                              </ul>
+                           </div>
+                        )}
+
+                        {ai.improvementAdvice && ai.improvementAdvice.length > 0 && (
+                           <div style={{
+                              background: '#f0fdf4', borderRadius: 12, padding: 18,
+                              border: '1px solid #bbf7d0'
+                           }}>
+                              <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                                 💡 How to Improve Your Band
+                              </h3>
+                              <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                                 {Array.isArray(ai.improvementAdvice)
+                                    ? ai.improvementAdvice.map((a, i) => (
+                                       <li key={i} style={{ color: '#14532d', fontSize: 13 }}>{a}</li>
+                                    ))
+                                    : <li style={{ color: '#14532d', fontSize: 13 }}>Keep practising regularly.</li>
+                                 }
+                              </ul>
+                           </div>
+                        )}
+                     </>
+                  )}
+               </div>
+            </div>
 
             {/* Answer review table */}
             <div className="result-section" style={{ animationDelay: '0.2s' }}>

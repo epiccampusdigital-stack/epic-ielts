@@ -228,46 +228,46 @@ router.get('/:id/result', auth, async (req, res) => {
   }
 });
 
+// AI feedback polling endpoint
 router.get('/:id/ai-feedback', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-    let aiFeedback = aiCache.get(attemptId);
 
+    // Check cache first
+    let aiFeedback = aiCache.get(attemptId);
     if (aiFeedback) {
+      console.log('Returning cached AI feedback for attempt', attemptId);
       return res.json({ status: 'ready', feedback: aiFeedback });
     }
 
+    // Fetch attempt with all needed data
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
         student: true,
-        paper: {
-          include: {
-            questions: true
-          }
-        },
-        answers: {
-          include: {
-            question: true
-          }
-        },
+        paper: { include: { questions: true } },
+        answers: { include: { question: true } },
         result: true
       }
     });
 
     if (!attempt || !attempt.result) {
-      return res.json({ status: 'not_ready' });
+      return res.json({ status: 'not_ready', message: 'Result not ready yet' });
     }
 
-    // If result exists but cache is empty, trigger generation now
+    if (attempt.status !== 'COMPLETED') {
+      return res.json({ status: 'not_ready', message: 'Exam not completed' });
+    }
+
+    console.log('Generating AI feedback on demand for attempt', attemptId);
     aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
-    
+
     if (aiFeedback) {
       aiCache.set(attemptId, aiFeedback);
       return res.json({ status: 'ready', feedback: aiFeedback });
     }
 
-    res.json({ status: 'not_ready' });
+    res.json({ status: 'error', message: 'AI feedback generation failed' });
   } catch (err) {
     console.error('AI feedback endpoint error:', err);
     res.status(500).json({ status: 'error', message: err.message });

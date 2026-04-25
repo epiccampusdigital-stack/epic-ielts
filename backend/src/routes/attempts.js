@@ -185,6 +185,7 @@ router.get('/:id/result', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
+        student: true,
         paper: {
           include: {
             questions: {
@@ -234,6 +235,7 @@ router.get('/:id', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
+        student: true,
         paper: {
           include: {
             questions: {

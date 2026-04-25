@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { getAuthHeaders } from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
-// Using centralized api and getAuthHeaders
+const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 export default function PaperDetail() {
    const { id } = useParams();
@@ -11,7 +12,7 @@ export default function PaperDetail() {
    const [loading, setLoading] = useState(true);
 
    useEffect(() => {
-      api.get(`/api/papers/${id}`, getAuthHeaders())
+      axios.get(`${API_URL}/api/papers/${id}`, api())
          .then(res => {
             setPaper(res.data);
             setLoading(false);

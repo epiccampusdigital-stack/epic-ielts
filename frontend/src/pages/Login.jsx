@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
 const GOOGLE_CLIENT_ID =
    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
@@ -56,7 +57,7 @@ const finishLogin = (token, user) => {
                   setLoading(true);
                   setError('');
 
-                  const res = await api.post('/api/auth/google', {
+                  const res = await axios.post(`${API_URL}/api/auth/google`, {
                      credential: response.credential
                   });
 
@@ -103,7 +104,7 @@ const finishLogin = (token, user) => {
       setError('');
 
       try {
-         const res = await api.post('/api/auth/login', {
+         const res = await axios.post(`${API_URL}/api/auth/login`, {
             email: loginEmail,
             password: loginPassword
          });

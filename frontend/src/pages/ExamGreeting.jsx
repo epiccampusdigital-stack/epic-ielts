@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { getAuthHeaders } from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
-// Using centralized api and getAuthHeaders
+const api = () => ({
+   headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`
+   }
+});
 
 export default function ExamGreeting() {
    const params = useParams();
@@ -26,9 +31,9 @@ export default function ExamGreeting() {
             let res;
 
             try {
-               res = await api.get(`/api/attempts/${attemptId}`, getAuthHeaders());
+               res = await axios.get(`${API_URL}/api/attempts/${attemptId}`, api());
             } catch {
-               res = await api.get(`/api/attempts/${attemptId}/result`, getAuthHeaders());
+               res = await axios.get(`${API_URL}/api/attempts/${attemptId}/result`, api());
             }
 
             setAttempt(res.data);
@@ -48,10 +53,10 @@ export default function ExamGreeting() {
       setStarting(true);
 
       try {
-         await api.post(
-            `/api/attempts/${attemptId}/start`,
+         await axios.post(
+            `${API_URL}/api/attempts/${attemptId}/start`,
             {},
-            getAuthHeaders()
+            api()
          );
 
          navigate(`/exam/${attemptId}/reading`);

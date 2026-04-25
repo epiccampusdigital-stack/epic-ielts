@@ -1,8 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { getAuthHeaders } from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
-// Using centralized api and getAuthHeaders
+const api = () => ({
+   headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`
+   }
+});
 
 export default function ReadingExam() {
    const params = useParams();
@@ -23,14 +28,19 @@ export default function ReadingExam() {
    useEffect(() => {
       const loadExam = async () => {
          try {
-            const res = await api.get(`/api/attempts/${attemptId}`, getAuthHeaders());
+            const res = await axios.get(
+               `${API_URL}/api/attempts/${attemptId}`,
+               api()
+            );
 
             const loadedPaper = res.data.paper;
             const loadedQuestions = loadedPaper?.questions || [];
 
             setPaper(loadedPaper);
             setQuestions(loadedQuestions);
-            setTimeLeft((loadedPaper?.timeLimitMin || 60) * 60);
+            const timeInSeconds = (loadedPaper?.timeLimitMin || 60) * 60;
+            setTimeLeft(timeInSeconds);
+            setTotalTime(timeInSeconds);
          } catch (err) {
             console.error('Load exam error:', err);
             alert('Failed to load exam. Please go back and start again.');
@@ -267,16 +277,14 @@ export default function ReadingExam() {
       setSubmitting(true);
       clearInterval(timerRef.current);
 
-      const payload = Object.entries(answers).map(([questionId, studentAnswer]) => ({
-         questionId: parseInt(questionId),
-         studentAnswer: String(studentAnswer || '')
-      }));
-
       try {
-         await api.post(
-            `/api/attempts/${attemptId}/end`,
-            { answers: payload },
-            getAuthHeaders()
+         await axios.post(
+            `${API_URL}/api/attempts/${attemptId}/submit`,
+            {
+               answers,
+               timeSpentSeconds: totalTime - timeLeft
+            },
+            api()
          );
 
          navigate(`/exam/${attemptId}/results`);

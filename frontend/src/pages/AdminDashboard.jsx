@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getAuthHeaders } from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
-// Using centralized api and getAuthHeaders
+const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 export default function AdminDashboard() {
    const [activeTab, setActiveTab] = useState('students');
@@ -25,9 +26,9 @@ export default function AdminDashboard() {
       setLoading(true);
       try {
          const [s, p, r] = await Promise.all([
-            api.get('/api/admin/students', getAuthHeaders()),
-            api.get('/api/admin/papers', getAuthHeaders()),
-            api.get('/api/admin/results', getAuthHeaders())
+            axios.get(`${API_URL}/api/admin/students`, api()),
+            axios.get(`${API_URL}/api/admin/papers`, api()),
+            axios.get(`${API_URL}/api/admin/results`, api())
          ]);
          setStudents(s.data);
          setPapers(p.data);
@@ -43,7 +44,7 @@ export default function AdminDashboard() {
       }
       setSaving(true);
       try {
-         await api.post('/api/admin/students', newStudent, getAuthHeaders());
+         await axios.post(`${API_URL}/api/admin/students`, newStudent, api());
          setMessage('Student added successfully!');
          setNewStudent({ name: '', email: '', password: '', batch: '' });
          setShowAddStudent(false);
@@ -60,11 +61,11 @@ export default function AdminDashboard() {
       }
       setSaving(true);
       try {
-         await api.post('/api/admin/papers', {
+         await axios.post(`${API_URL}/api/admin/papers`, {
             ...newPaper,
             timeLimitMin: parseInt(newPaper.timeLimitMin),
             status: 'ACTIVE'
-         }, getAuthHeaders());
+         }, api());
          setMessage('Paper created successfully!');
          setNewPaper({ paperCode: '', testType: 'READING', title: '', timeLimitMin: 60 });
          setShowAddPaper(false);

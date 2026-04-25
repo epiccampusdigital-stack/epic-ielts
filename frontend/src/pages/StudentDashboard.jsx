@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getAuthHeaders } from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
-// Using centralized api and getAuthHeaders
+const api = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem('token')}`
+  }
+});
 
 export default function StudentDashboard() {
   const [papers, setPapers] = useState([]);
@@ -16,7 +21,7 @@ export default function StudentDashboard() {
       setLoading(true);
 
       try {
-        const papersRes = await api.get('/api/papers/assigned', getAuthHeaders());
+        const papersRes = await axios.get(`${API_URL}/api/papers/assigned`, api());
 
         console.log('PAPERS RESPONSE:', papersRes.data);
         setPapers(Array.isArray(papersRes.data) ? papersRes.data : []);
@@ -26,7 +31,7 @@ export default function StudentDashboard() {
       }
 
       try {
-        const historyRes = await api.get('/api/attempts/history/mine', getAuthHeaders());
+        const historyRes = await axios.get(`${API_URL}/api/attempts/history/mine`, api());
 
         console.log('HISTORY RESPONSE:', historyRes.data);
         setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
@@ -43,10 +48,10 @@ export default function StudentDashboard() {
 
   const startTest = async (paperId) => {
     try {
-      const res = await api.post(
-        '/api/attempts',
+      const res = await axios.post(
+        `${API_URL}/api/attempts`,
         { paperId },
-        getAuthHeaders()
+        api()
       );
 
       const attemptId = res.data.id || res.data.attemptId;

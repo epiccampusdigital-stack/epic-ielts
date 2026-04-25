@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { getAuthHeaders } from '../api';
+import axios from 'axios';
+import API_URL from '../api';
 
-// Using centralized api and getAuthHeaders
+const api = () => ({
+   headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`
+   }
+});
 
 export default function Results() {
    const params = useParams();
@@ -17,9 +22,9 @@ export default function Results() {
          setLoading(true);
 
          try {
-            const res = await api.get(
-               `/api/attempts/${attemptId}/result`,
-               getAuthHeaders()
+            const res = await axios.get(
+               `${API_URL}/api/attempts/${attemptId}/result`,
+               api()
             );
 
             setData(res.data);

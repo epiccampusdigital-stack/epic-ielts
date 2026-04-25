@@ -50,7 +50,7 @@ async function gradeAttempt(answers, paperStr) {
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-3-5-sonnet-latest',
       max_tokens: 2000,
       temperature: 0.2,
       system: systemPrompt,

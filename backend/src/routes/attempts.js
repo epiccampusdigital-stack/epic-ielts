@@ -22,21 +22,47 @@ function calculateBand(score) {
   return 4.0;
 }
 
-function fallbackFeedback(rawScore, bandEstimate) {
+function fallbackFeedback(rawScore, bandEstimate, studentName = 'Student', testType = 'Reading', paperCode = '') {
   return {
-    bandEstimate,
-    strengths:
-      'You completed the reading test and submitted your answers. This gives us a clear starting point for improvement.',
-    weaknesses:
-      `Your score was ${rawScore}/40, so your main weakness is accuracy across question types. Focus especially on locating evidence in the passage before choosing an answer.`,
-    improvementAdvice:
-      'Review every wrong answer. Find the exact sentence in the passage that proves the correct answer. Practise TRUE/FALSE/NOT GIVEN, multiple choice, matching, and short-answer questions separately.',
-    aiDetailedFeedback:
-      `Your estimated IELTS Reading band is ${bandEstimate}. To improve, slow down slightly, underline keywords, compare the question with the passage carefully, and avoid guessing without text evidence.`
+    studentName,
+    testType,
+    paperCode,
+    score: `${rawScore}/40`,
+    bandEstimate: String(bandEstimate),
+    criterionScores: {},
+    correctAnswers: [],
+    studentAnswers: [],
+    mistakeAnalysis: ["The AI is currently processing. Refresh in a few seconds for detailed analysis."],
+    strengths: ["Test completed successfully."],
+    weakAreas: ["Requires AI analysis."],
+    improvementAdvice: ["Practice regularly and review wrong answers."],
+    teacherSummary: "Student completed the test. Manual review recommended if AI remains unavailable.",
+    progressComment: "No previous data available for comparison.",
+    finalStudentReport: `You achieved a raw score of ${rawScore}/40 and a band estimate of ${bandEstimate}.`
   };
 }
 
 async function createAiFeedback(attempt, result, savedAnswers) {
+  const studentName = attempt.student?.name || 'Student';
+  
+  // Fetch previous 3 completed attempts for this student (excluding current one)
+  const previousAttempts = await prisma.attempt.findMany({
+    where: {
+      studentId: attempt.studentId,
+      status: 'COMPLETED',
+      id: { not: attempt.id }
+    },
+    include: { result: true },
+    orderBy: { createdAt: 'desc' },
+    take: 3
+  });
+
+  const previousResults = previousAttempts.map(a => ({
+    date: a.createdAt,
+    score: a.result?.rawScore,
+    band: a.result?.bandEstimate
+  }));
+
   const answerReview = savedAnswers.map((a) => ({
     questionNumber: a.question?.questionNumber,
     questionType: a.question?.questionType,
@@ -47,16 +73,18 @@ async function createAiFeedback(attempt, result, savedAnswers) {
   }));
 
   const paperSummary = {
+    studentName,
     title: attempt.paper?.title,
     paperCode: attempt.paper?.paperCode,
     testType: attempt.paper?.testType,
     rawScore: result.rawScore,
     bandEstimate: result.bandEstimate,
-    totalQuestions: attempt.paper?.questions?.length || 40
+    totalQuestions: attempt.paper?.questions?.length || 40,
+    previousResults
   };
 
   const ai = await gradeAttempt(answerReview, JSON.stringify(paperSummary));
-  return ai || fallbackFeedback(result.rawScore, result.bandEstimate);
+  return ai || fallbackFeedback(result.rawScore, result.bandEstimate, studentName, attempt.paper?.testType, attempt.paper?.paperCode);
 }
 
 router.get('/history/mine', auth, async (req, res) => {
@@ -242,6 +270,7 @@ router.post('/:id/end', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
+        student: true,
         paper: {
           include: {
             questions: true

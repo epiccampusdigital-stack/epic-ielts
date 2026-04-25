@@ -264,16 +264,17 @@ export default function ReadingExam() {
       return [];
    };
 
-   const [showConfirm, setShowConfirm] = useState(false);
-
-   const handleEndClick = () => {
-      setShowConfirm(true);
-   };
-
    const handleEnd = async (auto = false) => {
       if (submitting) return;
 
-      setShowConfirm(false);
+      if (!auto) {
+         const confirmed = window.confirm(
+            `Are you sure you want to end the test?\n\nYou have answered ${Object.keys(answers).length} of ${questions.length} questions.\n\nThis cannot be undone.`
+         );
+
+         if (!confirmed) return;
+      }
+
       setSubmitting(true);
       clearInterval(timerRef.current);
 

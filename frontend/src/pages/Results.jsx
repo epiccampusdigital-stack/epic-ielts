@@ -227,32 +227,54 @@ export default function Results() {
                </div>
 
                <div style={{ display: 'grid', gap: 18 }}>
-                  <section style={{ background: '#f8fafc', borderRadius: 14, padding: 18 }}>
-                     <h3 style={{ marginTop: 0, color: '#166534' }}>Strengths</h3>
-                     <p style={{ lineHeight: 1.7, marginBottom: 0 }}>
-                        {ai.strengths || 'AI feedback unavailable.'}
-                     </p>
+                  {ai.finalStudentReport && (
+                     <section style={{ background: '#f0fdf4', borderRadius: 14, padding: 20, border: '1px solid #dcfce7' }}>
+                        <h3 style={{ marginTop: 0, color: '#166534', display: 'flex', alignItems: 'center', gap: 8 }}>
+                           📜 Examiner's Final Report
+                        </h3>
+                        <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#14532d', fontWeight: 500 }}>
+                           {ai.finalStudentReport}
+                        </p>
+                     </section>
+                  )}
+
+                  {ai.progressComment && (
+                     <section style={{ background: '#eff6ff', borderRadius: 14, padding: 18, border: '1px solid #dbeafe' }}>
+                        <h3 style={{ marginTop: 0, color: '#1d4ed8' }}>📈 Progress Tracking</h3>
+                        <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#1e40af' }}>
+                           {ai.progressComment}
+                        </p>
+                     </section>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                     <section style={{ background: '#f8fafc', borderRadius: 14, padding: 18, border: '1px solid #e2e8f0' }}>
+                        <h3 style={{ marginTop: 0, color: '#0f172a' }}>✅ Strengths</h3>
+                        <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
+                           {Array.isArray(ai.strengths) ? ai.strengths.map((s, i) => <li key={i}>{s}</li>) : <li>{ai.strengths || 'No strengths noted.'}</li>}
+                        </ul>
+                     </section>
+
+                     <section style={{ background: '#fff7ed', borderRadius: 14, padding: 18, border: '1px solid #ffedd5' }}>
+                        <h3 style={{ marginTop: 0, color: '#9a3412' }}>🎯 Weak Areas</h3>
+                        <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
+                           {Array.isArray(ai.weakAreas) ? ai.weakAreas.map((w, i) => <li key={i}>{w}</li>) : <li>{ai.weakAreas || ai.weaknesses || 'No weak areas noted.'}</li>}
+                        </ul>
+                     </section>
+                  </div>
+
+                  <section style={{ background: '#fef2f2', borderRadius: 14, padding: 18, border: '1px solid #fee2e2' }}>
+                     <h3 style={{ marginTop: 0, color: '#991b1b' }}>🔍 Mistake Analysis</h3>
+                     <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
+                        {Array.isArray(ai.mistakeAnalysis) ? ai.mistakeAnalysis.map((m, i) => <li key={i}>{m}</li>) : <li>Detailed analysis processing...</li>}
+                     </ul>
                   </section>
 
-                  <section style={{ background: '#fff7ed', borderRadius: 14, padding: 18 }}>
-                     <h3 style={{ marginTop: 0, color: '#c2410c' }}>Weak Areas</h3>
-                     <p style={{ lineHeight: 1.7, marginBottom: 0 }}>
-                        {ai.weaknesses || 'AI feedback unavailable.'}
-                     </p>
-                  </section>
-
-                  <section style={{ background: '#eff6ff', borderRadius: 14, padding: 18 }}>
-                     <h3 style={{ marginTop: 0, color: '#1d4ed8' }}>How to Improve</h3>
-                     <p style={{ lineHeight: 1.7, marginBottom: 0 }}>
-                        {ai.improvementAdvice || 'AI feedback unavailable.'}
-                     </p>
-                  </section>
-
-                  <section style={{ background: '#f5f3ff', borderRadius: 14, padding: 18 }}>
-                     <h3 style={{ marginTop: 0, color: '#6d28d9' }}>Detailed Examiner Analysis</h3>
-                     <p style={{ lineHeight: 1.8, marginBottom: 0 }}>
-                        {ai.aiDetailedFeedback || 'AI feedback unavailable.'}
-                     </p>
+                  <section style={{ background: '#f5f3ff', borderRadius: 14, padding: 18, border: '1px solid #ede9fe' }}>
+                     <h3 style={{ marginTop: 0, color: '#5b21b6' }}>💡 Improvement Advice</h3>
+                     <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
+                        {Array.isArray(ai.improvementAdvice) ? ai.improvementAdvice.map((a, i) => <li key={i}>{a}</li>) : <li>{ai.improvementAdvice || 'Keep practicing!'}</li>}
+                     </ul>
                   </section>
                </div>
             </div>

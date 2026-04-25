@@ -15,7 +15,7 @@ router.get('/students', auth, adminOnly, async (req, res) => {
   try {
     const students = await prisma.student.findMany({
       select: { id: true, name: true, email: true, batch: true, role: true },
-      orderBy: { id: 'desc' } // Changed from createdAt
+      orderBy: { id: 'desc' }
     });
     res.json(students);
   } catch (err) {
@@ -28,9 +28,20 @@ router.post('/students', auth, adminOnly, async (req, res) => {
     const { name, email, password, batch } = req.body;
     const hashed = await bcrypt.hash(password, 10);
     const student = await prisma.student.create({
-      data: { name, email: email.toLowerCase().trim(), password: hashed, batch: batch || 'GENERAL', role: 'STUDENT' }
+      data: {
+        name,
+        email: email.toLowerCase().trim(),
+        password: hashed,
+        batch: batch || 'GENERAL',
+        role: 'STUDENT'
+      }
     });
-    res.json({ id: student.id, name: student.name, email: student.email, batch: student.batch });
+    res.json({
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      batch: student.batch
+    });
   } catch (err) {
     console.error('Create student error:', err);
     res.status(500).json({ error: 'Failed to create student' });
@@ -40,7 +51,7 @@ router.post('/students', auth, adminOnly, async (req, res) => {
 router.get('/papers', auth, adminOnly, async (req, res) => {
   try {
     const papers = await prisma.paper.findMany({
-      orderBy: { id: 'desc' } // Changed from createdAt
+      orderBy: { id: 'desc' }
     });
     res.json(papers);
   } catch (err) {
@@ -72,7 +83,12 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
 
 router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   try {
-    await prisma.paper.delete({ where: { id: parseInt(req.params.id) } });
+    await prisma.question.deleteMany({
+      where: { paperId: parseInt(req.params.id) }
+    });
+    await prisma.paper.delete({
+      where: { id: parseInt(req.params.id) }
+    });
     res.json({ deleted: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete paper' });
@@ -90,16 +106,21 @@ router.post('/papers/:id/questions', auth, adminOnly, async (req, res) => {
   }
 });
 
+// FIXED: uses COMPLETED not COMPLETE
 router.get('/results', auth, adminOnly, async (req, res) => {
   try {
     const attempts = await prisma.attempt.findMany({
-      where: { status: 'COMPLETE' },
+      where: { status: 'COMPLETED' },
       include: {
-        student: { select: { name: true, batch: true, email: true } },
-        paper: { select: { paperCode: true, testType: true, title: true } },
+        student: {
+          select: { name: true, batch: true, email: true }
+        },
+        paper: {
+          select: { paperCode: true, testType: true, title: true }
+        },
         result: true
       },
-      orderBy: { endedAt: 'desc' }
+      orderBy: { id: 'desc' }
     });
     res.json(attempts);
   } catch (err) {

@@ -228,6 +228,52 @@ router.get('/:id/result', auth, async (req, res) => {
   }
 });
 
+router.get('/:id/ai-feedback', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    let aiFeedback = aiCache.get(attemptId);
+
+    if (aiFeedback) {
+      return res.json({ status: 'ready', feedback: aiFeedback });
+    }
+
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        student: true,
+        paper: {
+          include: {
+            questions: true
+          }
+        },
+        answers: {
+          include: {
+            question: true
+          }
+        },
+        result: true
+      }
+    });
+
+    if (!attempt || !attempt.result) {
+      return res.json({ status: 'not_ready' });
+    }
+
+    // If result exists but cache is empty, trigger generation now
+    aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
+    
+    if (aiFeedback) {
+      aiCache.set(attemptId, aiFeedback);
+      return res.json({ status: 'ready', feedback: aiFeedback });
+    }
+
+    res.json({ status: 'not_ready' });
+  } catch (err) {
+    console.error('AI feedback endpoint error:', err);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
@@ -267,7 +313,7 @@ router.get('/:id', auth, async (req, res) => {
 router.post('/:id/end', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-    const { answers } = req.body;
+    const { answers, writingSubmission } = req.body;
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
@@ -285,40 +331,66 @@ router.post('/:id/end', auth, async (req, res) => {
       return res.status(404).json({ message: 'Attempt not found' });
     }
 
-    await prisma.answer.deleteMany({
-      where: { attemptId }
-    });
-
+    const testType = String(attempt.paper.testType || '').toUpperCase();
     let correctCount = 0;
+    let bandEstimate = 0;
 
-    if (Array.isArray(answers) && answers.length > 0) {
-      const answerData = answers.map((a) => {
-        const question = attempt.paper.questions.find(
-          (q) => q.id === parseInt(a.questionId)
-        );
-
-        const studentAnswer = String(a.studentAnswer || '').trim();
-        const correctAnswer = String(question?.correctAnswer || '').trim();
-
-        const isCorrect =
-          correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
-
-        if (isCorrect) correctCount++;
-
-        return {
-          attemptId,
-          questionId: parseInt(a.questionId),
-          studentAnswer,
-          isCorrect
-        };
+    if (testType === 'WRITING') {
+      // Handle Writing Submission
+      if (writingSubmission) {
+        await prisma.writingSubmission.upsert({
+          where: { attemptId },
+          update: {
+            task1Response: writingSubmission.task1Response,
+            task2Response: writingSubmission.task2Response,
+            task1WordCount: writingSubmission.task1Response?.split(/\s+/).length || 0,
+            task2WordCount: writingSubmission.task2Response?.split(/\s+/).length || 0,
+            markingStatus: 'PENDING_AI'
+          },
+          create: {
+            attemptId,
+            task1Response: writingSubmission.task1Response,
+            task2Response: writingSubmission.task2Response,
+            task1WordCount: writingSubmission.task1Response?.split(/\s+/).length || 0,
+            task2WordCount: writingSubmission.task2Response?.split(/\s+/).length || 0,
+            markingStatus: 'PENDING_AI'
+          }
+        });
+      }
+    } else {
+      // Handle Reading/Listening (Question-based)
+      await prisma.answer.deleteMany({
+        where: { attemptId }
       });
 
-      await prisma.answer.createMany({
-        data: answerData
-      });
+      if (Array.isArray(answers) && answers.length > 0) {
+        const answerData = answers.map((a) => {
+          const question = attempt.paper.questions.find(
+            (q) => q.id === parseInt(a.questionId)
+          );
+
+          const studentAnswer = String(a.studentAnswer || '').trim();
+          const correctAnswer = String(question?.correctAnswer || '').trim();
+
+          const isCorrect =
+            correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
+
+          if (isCorrect) correctCount++;
+
+          return {
+            attemptId,
+            questionId: parseInt(a.questionId),
+            studentAnswer,
+            isCorrect
+          };
+        });
+
+        await prisma.answer.createMany({
+          data: answerData
+        });
+      }
+      bandEstimate = calculateBand(correctCount);
     }
-
-    const bandEstimate = calculateBand(correctCount);
 
     await prisma.result.deleteMany({
       where: { attemptId }
@@ -327,8 +399,8 @@ router.post('/:id/end', auth, async (req, res) => {
     const result = await prisma.result.create({
       data: {
         attemptId,
-        rawScore: correctCount,
-        bandEstimate
+        rawScore: testType === 'WRITING' ? null : correctCount,
+        bandEstimate: testType === 'WRITING' ? null : bandEstimate
       }
     });
 
@@ -349,17 +421,26 @@ router.post('/:id/end', auth, async (req, res) => {
     });
 
     try {
-      const savedAnswers = await prisma.answer.findMany({
-        where: { attemptId },
-        include: {
-          question: true
-        },
-        orderBy: {
-          questionId: 'asc'
-        }
-      });
+      let submissionData = [];
+      
+      if (testType === 'WRITING') {
+        const writingSub = await prisma.writingSubmission.findUnique({
+          where: { attemptId }
+        });
+        submissionData = writingSub;
+      } else {
+        submissionData = await prisma.answer.findMany({
+          where: { attemptId },
+          include: {
+            question: true
+          },
+          orderBy: {
+            questionId: 'asc'
+          }
+        });
+      }
 
-      const aiFeedback = await createAiFeedback(attempt, result, savedAnswers);
+      const aiFeedback = await createAiFeedback(attempt, result, submissionData);
       aiCache.set(attemptId, aiFeedback);
     } catch (aiError) {
       console.error('Background AI feedback error:', aiError);

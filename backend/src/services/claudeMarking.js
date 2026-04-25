@@ -72,10 +72,17 @@ async function gradeAttempt(answers, paperStr) {
   }
 
   try {
+    const summary = JSON.parse(paperStr);
+    const testType = String(summary.testType || '').toUpperCase();
+
+    if (testType === 'WRITING') {
+      return await gradeWritingAttempt(answers, paperStr);
+    }
+
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-latest',
-      max_tokens: 2000,
-      temperature: 0.2,
+      model: 'claude-3-5-sonnet-latest', // Ensure we use the latest stable model
+      max_tokens: 3000,
+      temperature: 0, // Lower temperature for more consistent marking
       system: systemPrompt,
       messages: [
         {
@@ -117,4 +124,94 @@ Give feedback to the student. Focus on:
   }
 }
 
-module.exports = { gradeAttempt };
+async function gradeWritingAttempt(submission, paperStr) {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-latest',
+      max_tokens: 4000,
+      temperature: 0,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `
+Analyze this IELTS Writing test submission.
+
+Paper/System Summary:
+${paperStr}
+
+Student Submission:
+${JSON.stringify(submission, null, 2)}
+
+Provide a strict, professional IELTS evaluation.
+Evaluate Task 1 and Task 2 separately but return one final consolidated JSON.
+Focus on:
+1. Task Achievement / Response
+2. Coherence and Cohesion
+3. Lexical Resource (Vocabulary)
+4. Grammatical Range and Accuracy
+
+Calculate a fair band score for each criterion and an overall band estimate.
+`
+        }
+      ]
+    });
+
+    const text = response.content?.[0]?.text || '';
+    return safeExtractJson(text);
+  } catch (error) {
+    console.error('Writing Grade Error:', error);
+    return null;
+  }
+}
+
+async function extractPaperData(rawText) {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-latest',
+      max_tokens: 4000,
+      temperature: 0,
+      system: `You are an IELTS paper extraction system. Extract the following from the provided text and return ONLY valid JSON.
+      
+      STRUCTURE:
+      {
+        "title": "string",
+        "testType": "READING | WRITING",
+        "timeLimitMin": number,
+        "passages": [{ "passageNumber": number, "title": "string", "text": "string" }],
+        "questions": [{
+          "passageNumber": number,
+          "questionNumber": number,
+          "questionType": "TRUE_FALSE_NOT_GIVEN | MULTIPLE_CHOICE | SHORT_ANSWER | SENTENCE_COMPLETION | MATCHING_HEADINGS | SUMMARY_COMPLETION",
+          "content": "string",
+          "options": ["list of strings or null"],
+          "correctAnswer": "string",
+          "explanation": "string or null"
+        }]
+      }
+      
+      RULES:
+      - Extract only what is explicitly in the text.
+      - If answer key is not provided, leave correctAnswer as empty string.
+      - Return ONLY JSON.`,
+      messages: [
+        {
+          role: 'user',
+          content: rawText
+        }
+      ]
+    });
+
+    const text = response.content?.[0]?.text || '';
+    return safeExtractJson(text);
+  } catch (error) {
+    console.error('Extraction Error:', error);
+    return null;
+  }
+}
+
+module.exports = { gradeAttempt, gradeWritingAttempt, extractPaperData };

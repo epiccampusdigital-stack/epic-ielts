@@ -6,6 +6,7 @@ import ReadingExam from './pages/ReadingExam';
 import Results from './pages/Results';
 import AdminDashboard from './pages/AdminDashboard';
 import PaperDetail from './pages/PaperDetail';
+import ImportPaper from './pages/ImportPaper';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/" element={<Login />} />
       <Route path="/student/dashboard" element={<StudentDashboard />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/papers/import" element={<ImportPaper />} />
       <Route path="/admin/papers/:id" element={<PaperDetail />} />
       <Route path="/exam/:attemptId/greeting" element={<ExamGreeting />} />
       <Route path="/exam/:attemptId/reading" element={<ReadingExam />} />

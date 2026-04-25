@@ -4,331 +4,563 @@ import axios from 'axios';
 import API_URL from '../api';
 
 const api = () => ({
-   headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
-   }
+   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
 });
 
 export default function Results() {
    const params = useParams();
    const attemptId = params.attemptId || params.id;
-
    const [data, setData] = useState(null);
    const [loading, setLoading] = useState(true);
+   const [retries, setRetries] = useState(0);
    const navigate = useNavigate();
 
    useEffect(() => {
       const fetchResult = async () => {
-         setLoading(true);
-
          try {
             const res = await axios.get(
                `${API_URL}/api/attempts/${attemptId}/result`,
                api()
             );
-
             setData(res.data);
          } catch (err) {
             console.error('Result fetch error:', err);
-            alert('Failed to load results.');
          } finally {
             setLoading(false);
          }
       };
-
       fetchResult();
-   }, [attemptId]);
+   }, [attemptId, retries]);
 
-   if (loading) {
-      return (
+   const refreshFeedback = () => {
+      setLoading(true);
+      setRetries(r => r + 1);
+   };
+
+   if (loading) return (
+      <div style={{
+         minHeight: '100vh',
+         background: '#f0f7ff',
+         display: 'flex',
+         alignItems: 'center',
+         justifyContent: 'center',
+         fontFamily: "'Inter', sans-serif"
+      }}>
+         <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+      `}</style>
          <div style={{
-            minHeight: '100vh',
-            background: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'Inter, sans-serif'
+            background: '#ffffff',
+            border: '1px solid #dbeafe',
+            borderRadius: 24,
+            padding: '48px 56px',
+            textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(37,99,235,0.1)'
          }}>
-            <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.55; }
-          }
-        `}</style>
-
             <div style={{
-               background: '#ffffff',
-               border: '1px solid #e2e8f0',
-               borderRadius: 24,
-               padding: '44px 54px',
-               textAlign: 'center',
-               boxShadow: '0 20px 60px rgba(15,23,42,0.08)'
+               width: 64, height: 64,
+               borderRadius: '50%',
+               border: '4px solid #dbeafe',
+               borderTopColor: '#2563eb',
+               animation: 'spin 0.85s linear infinite',
+               margin: '0 auto 24px'
+            }} />
+            <h2 style={{ color: '#1e3a5f', fontSize: 22, marginBottom: 8, fontWeight: 800 }}>
+               EPIC AI is analysing your test
+            </h2>
+            <p style={{
+               color: '#64748b', fontSize: 14, margin: 0,
+               animation: 'pulse 1.5s ease-in-out infinite'
             }}>
-               <div style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: '50%',
-                  border: '4px solid #e2e8f0',
-                  borderTopColor: '#4f46e5',
-                  animation: 'spin 0.85s linear infinite',
-                  margin: '0 auto 22px'
-               }} />
-
-               <h2 style={{
-                  color: '#1a1a2e',
-                  fontSize: 22,
-                  marginBottom: 8,
-                  fontWeight: 800
-               }}>
-                  EPIC AI is calculating
-               </h2>
-
-               <p style={{
-                  color: '#64748b',
-                  fontSize: 14,
-                  margin: 0,
-                  animation: 'pulse 1.5s ease-in-out infinite'
-               }}>
-                  Marking answers, estimating your band, and preparing examiner feedback...
-               </p>
-            </div>
+               Marking answers, calculating your band score, and preparing personalised examiner feedback...
+            </p>
          </div>
-      );
-   }
+      </div>
+   );
 
-   if (!data) {
-      return (
-         <div style={{ padding: 40 }}>
-            Results not found.
-            <button onClick={() => navigate('/student/dashboard')}>Back</button>
-         </div>
-      );
-   }
+   if (!data) return (
+      <div style={{ padding: 40, fontFamily: 'Inter, sans-serif' }}>
+         Results not found.
+         <button onClick={() => navigate('/student/dashboard')}>Back</button>
+      </div>
+   );
 
    const result = data.result || {};
    const answers = data.answers || [];
    const ai = data.aiFeedback || {};
-
    const rawScore = result.rawScore ?? 0;
-   const band = result.bandEstimate ?? ai.bandEstimate ?? 0;
-   const correct = answers.filter((a) => a.isCorrect).length;
-   const wrong = answers.filter((a) => a.isCorrect === false).length;
+   const band = result.bandEstimate ?? 0;
+   const correct = answers.filter(a => a.isCorrect).length;
+   const wrong = answers.filter(a => a.isCorrect === false).length;
+   const hasAI = Object.keys(ai).length > 0 && ai.finalStudentReport;
+
+   const getBandColor = (b) => {
+      if (b >= 7) return '#16a34a';
+      if (b >= 5.5) return '#d97706';
+      return '#dc2626';
+   };
+
+   const bandColor = getBandColor(band);
 
    return (
       <div style={{
          minHeight: '100vh',
-         background: '#f8fafc',
-         fontFamily: 'Inter, sans-serif'
+         background: '#f0f7ff',
+         fontFamily: "'Inter', sans-serif"
       }}>
-         <div style={{
-            background: '#1a1a2e',
-            color: 'white',
-            padding: '46px 40px',
-            textAlign: 'center'
-         }}>
-            <h1 style={{ margin: 0, fontSize: 30 }}>Test Complete 🎉</h1>
+         <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap');
+        @keyframes fadeUp {
+          from { opacity:0; transform:translateY(20px); }
+          to { opacity:1; transform:translateY(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity:0; transform:scale(0.6); }
+          to { opacity:1; transform:scale(1); }
+        }
+        @keyframes confetti {
+          0% { transform:translateY(-20px) rotate(0deg); opacity:1; }
+          100% { transform:translateY(100vh) rotate(720deg); opacity:0; }
+        }
+        .result-section {
+          background: white;
+          border-radius: 16px;
+          border: 1px solid #dbeafe;
+          padding: 24px;
+          margin-bottom: 20px;
+          animation: fadeUp 0.4s ease both;
+        }
+        .answer-row:hover { background: #f0f7ff; }
+      `}</style>
 
+         {/* Confetti for good scores */}
+         {band >= 6 && Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} style={{
+               position: 'fixed',
+               top: '-20px',
+               left: `${Math.random() * 100}%`,
+               width: '10px',
+               height: '10px',
+               background: ['#2563eb', '#f59e0b', '#10b981', '#ec4899', '#3b82f6'][i % 5],
+               borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+               animation: `confetti ${2 + Math.random() * 3}s ease-in ${Math.random() * 2}s forwards`,
+               pointerEvents: 'none',
+               zIndex: 1000
+            }} />
+         ))}
+
+         {/* Header */}
+         <div style={{
+            background: 'linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)',
+            padding: '48px 40px',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden'
+         }}>
+            <div style={{
+               position: 'absolute', top: -60, right: -60,
+               width: 250, height: 250, borderRadius: '50%',
+               background: 'rgba(255,255,255,0.05)'
+            }} />
             <p style={{
-               marginTop: 6,
-               color: 'rgba(255,255,255,0.75)',
-               fontWeight: 700
+               fontSize: 11, color: 'rgba(255,255,255,0.6)',
+               letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8
             }}>
+               EPIC IELTS CBT Platform
+            </p>
+            <h1 style={{
+               fontFamily: "'Playfair Display', serif",
+               fontSize: 32, fontWeight: 700, color: '#ffffff', marginBottom: 6
+            }}>
+               Test Complete! 🎉
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, marginBottom: 32 }}>
                EPIC IELTS — {data.paper?.testType} {data.paper?.paperCode}
             </p>
 
+            {/* Band circle */}
             <div style={{
-               margin: '30px auto 0',
-               width: 150,
-               height: 150,
+               width: 150, height: 150,
                borderRadius: '50%',
-               background: 'white',
-               color: '#4f46e5',
+               background: '#ffffff',
+               border: `6px solid ${bandColor}`,
                display: 'flex',
+               flexDirection: 'column',
                alignItems: 'center',
                justifyContent: 'center',
-               flexDirection: 'column',
-               fontWeight: 900,
-               fontSize: 44,
-               boxShadow: '0 16px 40px rgba(0,0,0,0.25)'
+               margin: '0 auto',
+               animation: 'scaleIn 0.6s ease',
+               boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
             }}>
-               {Number(band).toFixed(1)}
-               <span style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>BAND</span>
+               <span style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: 48, fontWeight: 700,
+                  color: bandColor, lineHeight: 1
+               }}>{Number(band).toFixed(1)}</span>
+               <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>
+                  IELTS BAND
+               </span>
             </div>
          </div>
 
-         <div style={{
-            maxWidth: 1100,
-            margin: '40px auto',
-            padding: '0 20px'
-         }}>
+         <div style={{ maxWidth: 900, margin: '0 auto', padding: '36px 20px' }}>
+
+            {/* Metric cards */}
             <div style={{
                display: 'grid',
                gridTemplateColumns: 'repeat(4, 1fr)',
-               gap: 16,
-               marginBottom: 30
+               gap: 14,
+               marginBottom: 24
             }}>
                {[
-                  ['Raw Score', `${rawScore}/40`],
-                  ['Correct', correct],
-                  ['Wrong', wrong],
-                  ['Band', Number(band).toFixed(1)]
-               ].map(([label, value]) => (
+                  { icon: '📊', label: 'Raw Score', value: `${rawScore}/40`, color: '#2563eb' },
+                  { icon: '✅', label: 'Correct', value: correct, color: '#16a34a' },
+                  { icon: '❌', label: 'Wrong', value: wrong, color: '#dc2626' },
+                  { icon: '⭐', label: 'Band', value: Number(band).toFixed(1), color: bandColor }
+               ].map(({ icon, label, value, color }) => (
                   <div key={label} style={{
                      background: 'white',
-                     padding: 24,
+                     border: '1px solid #dbeafe',
                      borderRadius: 16,
-                     border: '1px solid #e2e8f0',
-                     textAlign: 'center'
+                     padding: '20px 16px',
+                     textAlign: 'center',
+                     boxShadow: '0 2px 8px rgba(37,99,235,0.06)'
                   }}>
-                     <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{value}</div>
-                     <div style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>{label}</div>
+                     <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
+                     <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: 28, fontWeight: 700,
+                        color, marginBottom: 4
+                     }}>{value}</div>
+                     <div style={{ color: '#64748b', fontSize: 12, fontWeight: 500 }}>{label}</div>
                   </div>
                ))}
             </div>
 
-            <div style={{
-               background: 'white',
-               borderRadius: 18,
-               border: '1px solid #e2e8f0',
-               padding: 30,
-               marginBottom: 30,
-               boxShadow: '0 10px 30px rgba(15,23,42,0.04)'
-            }}>
-               <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  marginBottom: 20
-               }}>
+            {/* AI Feedback */}
+            {hasAI ? (
+               <div className="result-section" style={{ border: '1px solid #bfdbfe', animationDelay: '0.1s' }}>
                   <div style={{
-                     width: 42,
-                     height: 42,
-                     borderRadius: '50%',
-                     background: '#eef2ff',
-                     color: '#4f46e5',
-                     display: 'flex',
-                     alignItems: 'center',
-                     justifyContent: 'center',
-                     fontSize: 22
+                     display: 'flex', alignItems: 'center',
+                     gap: 14, marginBottom: 24,
+                     paddingBottom: 16,
+                     borderBottom: '1px solid #dbeafe'
                   }}>
-                     🤖
+                     <div style={{
+                        width: 48, height: 48,
+                        borderRadius: '50%',
+                        background: '#eff6ff',
+                        display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 24
+                     }}>🤖</div>
+                     <div>
+                        <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 20, fontWeight: 800 }}>
+                           EPIC AI Examiner Feedback
+                        </h2>
+                        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+                           Personalised analysis based on your answers and performance
+                        </p>
+                     </div>
                   </div>
 
-                  <div>
-                     <h2 style={{ margin: 0, color: '#1a1a2e' }}>EPIC AI Examiner Feedback</h2>
-                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
-                        Personal feedback based on your answers, mistakes, and band score.
-                     </p>
-                  </div>
-               </div>
-
-               <div style={{ display: 'grid', gap: 18 }}>
+                  {/* Final student report */}
                   {ai.finalStudentReport && (
-                     <section style={{ background: '#f0fdf4', borderRadius: 14, padding: 20, border: '1px solid #dcfce7' }}>
-                        <h3 style={{ marginTop: 0, color: '#166534', display: 'flex', alignItems: 'center', gap: 8 }}>
-                           📜 Examiner's Final Report
+                     <div style={{
+                        background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                        borderRadius: 14, padding: 22,
+                        border: '1px solid #bfdbfe',
+                        marginBottom: 18
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
+                           📜 Examiner's Report
                         </h3>
-                        <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#14532d', fontWeight: 500 }}>
+                        <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>
                            {ai.finalStudentReport}
                         </p>
-                     </section>
+                     </div>
                   )}
 
+                  {/* Progress */}
                   {ai.progressComment && (
-                     <section style={{ background: '#eff6ff', borderRadius: 14, padding: 18, border: '1px solid #dbeafe' }}>
-                        <h3 style={{ marginTop: 0, color: '#1d4ed8' }}>📈 Progress Tracking</h3>
-                        <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#1e40af' }}>
+                     <div style={{
+                        background: '#f0fdf4', borderRadius: 12, padding: 18,
+                        border: '1px solid #bbf7d0', marginBottom: 18
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                           📈 Progress
+                        </h3>
+                        <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#15803d', fontSize: 13 }}>
                            {ai.progressComment}
                         </p>
-                     </section>
+                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-                     <section style={{ background: '#f8fafc', borderRadius: 14, padding: 18, border: '1px solid #e2e8f0' }}>
-                        <h3 style={{ marginTop: 0, color: '#0f172a' }}>✅ Strengths</h3>
-                        <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
-                           {Array.isArray(ai.strengths) ? ai.strengths.map((s, i) => <li key={i}>{s}</li>) : <li>{ai.strengths || 'No strengths noted.'}</li>}
+                  {/* Strengths and weak areas */}
+                  <div style={{
+                     display: 'grid',
+                     gridTemplateColumns: '1fr 1fr',
+                     gap: 16, marginBottom: 18
+                  }}>
+                     <div style={{
+                        background: '#f8faff', borderRadius: 12, padding: 18,
+                        border: '1px solid #dbeafe'
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                           ✅ Strengths
+                        </h3>
+                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                           {Array.isArray(ai.strengths)
+                              ? ai.strengths.map((s, i) => (
+                                 <li key={i} style={{ color: '#1e3a5f', fontSize: 13 }}>{s}</li>
+                              ))
+                              : <li style={{ color: '#1e3a5f', fontSize: 13 }}>{ai.strengths || 'Good performance overall.'}</li>
+                           }
                         </ul>
-                     </section>
+                     </div>
 
-                     <section style={{ background: '#fff7ed', borderRadius: 14, padding: 18, border: '1px solid #ffedd5' }}>
-                        <h3 style={{ marginTop: 0, color: '#9a3412' }}>🎯 Weak Areas</h3>
-                        <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
-                           {Array.isArray(ai.weakAreas) ? ai.weakAreas.map((w, i) => <li key={i}>{w}</li>) : <li>{ai.weakAreas || ai.weaknesses || 'No weak areas noted.'}</li>}
+                     <div style={{
+                        background: '#fff7ed', borderRadius: 12, padding: 18,
+                        border: '1px solid #ffedd5'
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#9a3412', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                           🎯 Areas to Improve
+                        </h3>
+                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                           {Array.isArray(ai.weakAreas)
+                              ? ai.weakAreas.map((w, i) => (
+                                 <li key={i} style={{ color: '#7c2d12', fontSize: 13 }}>{w}</li>
+                              ))
+                              : <li style={{ color: '#7c2d12', fontSize: 13 }}>{ai.weakAreas || ai.weaknesses || 'Keep practising.'}</li>
+                           }
                         </ul>
-                     </section>
+                     </div>
                   </div>
 
-                  <section style={{ background: '#fef2f2', borderRadius: 14, padding: 18, border: '1px solid #fee2e2' }}>
-                     <h3 style={{ marginTop: 0, color: '#991b1b' }}>🔍 Mistake Analysis</h3>
-                     <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
-                        {Array.isArray(ai.mistakeAnalysis) ? ai.mistakeAnalysis.map((m, i) => <li key={i}>{m}</li>) : <li>Detailed analysis processing...</li>}
-                     </ul>
-                  </section>
+                  {/* Question type analysis */}
+                  {ai.questionTypeAnalysis && Object.keys(ai.questionTypeAnalysis).length > 0 && (
+                     <div style={{
+                        background: '#faf5ff', borderRadius: 12, padding: 18,
+                        border: '1px solid #e9d5ff', marginBottom: 18
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#6b21a8', fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
+                           🔬 Question Type Analysis
+                        </h3>
+                        <div style={{ display: 'grid', gap: 10 }}>
+                           {Object.entries(ai.questionTypeAnalysis).map(([type, analysis]) => (
+                              <div key={type} style={{
+                                 display: 'flex', gap: 12, alignItems: 'flex-start'
+                              }}>
+                                 <span style={{
+                                    background: '#ede9fe',
+                                    color: '#5b21b6',
+                                    padding: '3px 10px',
+                                    borderRadius: 20,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                 }}>
+                                    {type.replace(/_/g, ' ')}
+                                 </span>
+                                 <span style={{ fontSize: 13, color: '#4c1d95', lineHeight: 1.6 }}>
+                                    {analysis}
+                                 </span>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                  )}
 
-                  <section style={{ background: '#f5f3ff', borderRadius: 14, padding: 18, border: '1px solid #ede9fe' }}>
-                     <h3 style={{ marginTop: 0, color: '#5b21b6' }}>💡 Improvement Advice</h3>
-                     <ul style={{ paddingLeft: 20, margin: 0, lineHeight: 1.7 }}>
-                        {Array.isArray(ai.improvementAdvice) ? ai.improvementAdvice.map((a, i) => <li key={i}>{a}</li>) : <li>{ai.improvementAdvice || 'Keep practicing!'}</li>}
-                     </ul>
-                  </section>
+                  {/* Mistake analysis */}
+                  {ai.mistakeAnalysis && ai.mistakeAnalysis.length > 0 && (
+                     <div style={{
+                        background: '#fef2f2', borderRadius: 12, padding: 18,
+                        border: '1px solid #fee2e2', marginBottom: 18
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#991b1b', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                           🔍 Mistake Analysis
+                        </h3>
+                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                           {Array.isArray(ai.mistakeAnalysis)
+                              ? ai.mistakeAnalysis.map((m, i) => (
+                                 <li key={i} style={{ color: '#7f1d1d', fontSize: 13 }}>{m}</li>
+                              ))
+                              : <li style={{ color: '#7f1d1d', fontSize: 13 }}>Analysis processing...</li>
+                           }
+                        </ul>
+                     </div>
+                  )}
+
+                  {/* Improvement advice */}
+                  {ai.improvementAdvice && ai.improvementAdvice.length > 0 && (
+                     <div style={{
+                        background: '#f0fdf4', borderRadius: 12, padding: 18,
+                        border: '1px solid #bbf7d0'
+                     }}>
+                        <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                           💡 How to Improve Your Band
+                        </h3>
+                        <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                           {Array.isArray(ai.improvementAdvice)
+                              ? ai.improvementAdvice.map((a, i) => (
+                                 <li key={i} style={{ color: '#14532d', fontSize: 13 }}>{a}</li>
+                              ))
+                              : <li style={{ color: '#14532d', fontSize: 13 }}>Keep practising regularly.</li>
+                           }
+                        </ul>
+                     </div>
+                  )}
                </div>
-            </div>
+            ) : (
+               /* No AI feedback yet */
+               <div className="result-section" style={{
+                  textAlign: 'center', padding: '32px',
+                  border: '1px solid #dbeafe',
+                  animationDelay: '0.1s'
+               }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
+                  <h3 style={{ color: '#1e3a5f', marginBottom: 8 }}>AI Feedback is being generated</h3>
+                  <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
+                     Your personalised EPIC AI examiner feedback will appear here shortly.
+                  </p>
+                  <button
+                     onClick={refreshFeedback}
+                     style={{
+                        padding: '10px 24px',
+                        background: '#2563eb',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        fontSize: 14
+                     }}
+                  >
+                     Refresh Feedback
+                  </button>
+               </div>
+            )}
 
-            <div style={{
-               background: 'white',
-               borderRadius: 16,
-               border: '1px solid #e2e8f0',
-               overflow: 'hidden'
-            }}>
-               <div style={{ padding: 20, borderBottom: '1px solid #e2e8f0' }}>
-                  <h2 style={{ margin: 0 }}>Answer Review</h2>
+            {/* Answer review table */}
+            <div className="result-section" style={{ animationDelay: '0.2s' }}>
+               <div style={{
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 16,
+                  paddingBottom: 12,
+                  borderBottom: '1px solid #dbeafe'
+               }}>
+                  <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 18, fontWeight: 800 }}>
+                     Answer Review
+                  </h2>
+                  <span style={{ fontSize: 13, color: '#64748b' }}>
+                     {correct} correct · {wrong} wrong
+                  </span>
+               </div>
+
+               {/* Table header */}
+               <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '50px 1fr 140px 140px 60px',
+                  gap: 12,
+                  padding: '10px 16px',
+                  background: '#f0f7ff',
+                  borderRadius: 8,
+                  marginBottom: 4
+               }}>
+                  {['No.', 'Question', 'Your Answer', 'Correct Answer', '✓/✗'].map(h => (
+                     <span key={h} style={{
+                        fontSize: 11, fontWeight: 700,
+                        color: '#1d4ed8',
+                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                     }}>{h}</span>
+                  ))}
                </div>
 
                {answers.length === 0 ? (
-                  <div style={{ padding: 30, color: '#64748b' }}>
+                  <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>
                      No answers were submitted.
                   </div>
                ) : (
-                  answers.map((a) => (
-                     <div key={a.id} style={{
-                        display: 'grid',
-                        gridTemplateColumns: '60px 1fr 150px 150px 80px',
-                        gap: 12,
-                        padding: 16,
-                        borderBottom: '1px solid #f1f5f9',
-                        alignItems: 'center'
-                     }}>
-                        <strong>{a.question?.questionNumber}</strong>
-                        <span>{a.question?.content}</span>
-                        <span>{a.studentAnswer || '—'}</span>
-                        <span>{a.question?.correctAnswer || '—'}</span>
-                        <span>{a.isCorrect ? '✅' : '❌'}</span>
+                  answers.map((a, i) => (
+                     <div
+                        key={a.id}
+                        className="answer-row"
+                        style={{
+                           display: 'grid',
+                           gridTemplateColumns: '50px 1fr 140px 140px 60px',
+                           gap: 12,
+                           padding: '13px 16px',
+                           borderBottom: i < answers.length - 1 ? '1px solid #f0f7ff' : 'none',
+                           alignItems: 'center',
+                           background: i % 2 === 0 ? '#ffffff' : '#f8fbff',
+                           transition: 'background 0.15s'
+                        }}
+                     >
+                        <span style={{
+                           fontSize: 13, fontWeight: 700, color: '#2563eb'
+                        }}>
+                           {a.question?.questionNumber}
+                        </span>
+                        <span style={{
+                           fontSize: 12, color: '#475569', lineHeight: 1.4,
+                           overflow: 'hidden',
+                           display: '-webkit-box',
+                           WebkitLineClamp: 2,
+                           WebkitBoxOrient: 'vertical'
+                        }}>
+                           {a.question?.content}
+                        </span>
+                        <span style={{
+                           fontSize: 13,
+                           color: a.isCorrect ? '#16a34a' : '#dc2626',
+                           fontWeight: 600
+                        }}>
+                           {a.studentAnswer || '(no answer)'}
+                        </span>
+                        <span style={{
+                           fontSize: 13, color: '#16a34a', fontWeight: 600
+                        }}>
+                           {a.question?.correctAnswer}
+                        </span>
+                        <div style={{
+                           width: 28, height: 28,
+                           borderRadius: '50%',
+                           background: a.isCorrect ? '#f0fdf4' : '#fef2f2',
+                           border: `2px solid ${a.isCorrect ? '#16a34a' : '#ef4444'}`,
+                           display: 'flex', alignItems: 'center',
+                           justifyContent: 'center', fontSize: 14
+                        }}>
+                           {a.isCorrect ? '✓' : '✗'}
+                        </div>
                      </div>
                   ))
                )}
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 30 }}>
+            {/* Back button */}
+            <div style={{ textAlign: 'center', marginTop: 8, paddingBottom: 40 }}>
                <button
                   onClick={() => navigate('/student/dashboard')}
                   style={{
-                     padding: '12px 24px',
-                     background: '#4f46e5',
+                     padding: '13px 32px',
+                     background: '#2563eb',
                      color: 'white',
                      border: 'none',
                      borderRadius: 10,
-                     fontWeight: 800,
-                     cursor: 'pointer'
+                     fontWeight: 700,
+                     cursor: 'pointer',
+                     fontSize: 15,
+                     transition: 'all 0.2s'
                   }}
+                  onMouseEnter={e => e.target.style.background = '#1d4ed8'}
+                  onMouseLeave={e => e.target.style.background = '#2563eb'}
                >
-                  Back to Dashboard
+                  ← Back to Dashboard
                </button>
             </div>
+
          </div>
       </div>
    );

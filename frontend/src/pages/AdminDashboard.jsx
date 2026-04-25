@@ -351,9 +351,14 @@ export default function AdminDashboard() {
                         </button>
                      )}
                      {activeTab === 'papers' && (
-                        <button className="action-btn primary" onClick={() => setShowAddPaper(true)}>
-                           + Create Paper
-                        </button>
+                        <>
+                           <button className="action-btn outline" onClick={() => navigate('/admin/papers/import')}>
+                              ✨ Import Paper (AI)
+                           </button>
+                           <button className="action-btn primary" onClick={() => setShowAddPaper(true)}>
+                              + Create Paper
+                           </button>
+                        </>
                      )}
                   </div>
                </div>

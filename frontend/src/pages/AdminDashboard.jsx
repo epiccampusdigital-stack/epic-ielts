@@ -7,6 +7,10 @@ const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('t
 
 export default function AdminDashboard() {
    const [activeTab, setActiveTab] = useState('students');
+   const [settings, setSettings] = useState(() => {
+      const saved = localStorage.getItem('siteSettings');
+      return saved ? JSON.parse(saved) : { siteName: 'EPIC IELTS', logoUrl: '/logo.png' };
+   });
    const [students, setStudents] = useState([]);
    const [papers, setPapers] = useState([]);
    const [results, setResults] = useState([]);
@@ -61,7 +65,7 @@ export default function AdminDashboard() {
       }
       setSaving(true);
       try {
-         await axios.post(`${API_URL}/api/admin/papers`, {
+         const res = await axios.post(`${API_URL}/api/admin/papers`, {
             ...newPaper,
             timeLimitMin: parseInt(newPaper.timeLimitMin),
             status: 'ACTIVE'
@@ -69,7 +73,7 @@ export default function AdminDashboard() {
          setMessage('Paper created successfully!');
          setNewPaper({ paperCode: '', testType: 'READING', title: '', timeLimitMin: 60 });
          setShowAddPaper(false);
-         fetchAll();
+         navigate(`/admin/papers/${res.data.id}`);
       } catch {
          setMessage('Failed to create paper.');
       } finally { setSaving(false); }
@@ -105,133 +109,88 @@ export default function AdminDashboard() {
 
    return (
       <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>
-         <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .tab-btn {
-          padding: 10px 24px;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          border: none;
-          background: transparent;
-          color: #64748b;
-          font-family: 'Inter', sans-serif;
-          transition: all 0.2s;
-        }
+        
+        .tab-btn { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: transparent; color: #64748b; font-family: 'Inter', sans-serif; transition: all 0.2s; }
         .tab-btn:hover { background: #f1f5f9; color: #1e293b; }
         .tab-btn.active { background: #4f46e5; color: #ffffff; font-weight: 600; }
-        .action-btn {
-          padding: 9px 18px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Inter', sans-serif;
-          transition: all 0.2s;
-          border: none;
-        }
+        
+        .action-btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; border: none; }
         .action-btn.primary { background: #4f46e5; color: white; }
         .action-btn.primary:hover { background: #4338ca; transform: translateY(-1px); }
         .action-btn.danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
         .action-btn.danger:hover { background: #fee2e2; }
         .action-btn.outline { background: white; color: #475569; border: 1px solid #e2e8f0; }
         .action-btn.outline:hover { border-color: #4f46e5; color: #4f46e5; }
-        .form-input {
-          width: 100%;
-          padding: 11px 14px;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 14px;
-          font-family: 'Inter', sans-serif;
-          color: #1e293b;
-          outline: none;
-          transition: border-color 0.2s;
-          box-sizing: border-box;
-          background: white;
-        }
+        
+        .form-input { width: 100%; padding: 11px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: #1e293b; outline: none; transition: border-color 0.2s; box-sizing: border-box; background: white; }
         .form-input:focus { border-color: #4f46e5; }
-        .table-row {
-          display: grid;
-          padding: 14px 20px;
-          border-bottom: 1px solid #f1f5f9;
-          align-items: center;
-          transition: background 0.15s;
-        }
+        
+        .table-row { display: grid; padding: 14px 20px; border-bottom: 1px solid #f1f5f9; align-items: center; transition: background 0.15s; }
         .table-row:hover { background: #f8fafc; }
-        .modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justifyContent: center;
-          z-index: 1000;
-          animation: fadeIn 0.2s ease;
-        }
-        .modal-box {
-          background: white;
-          border-radius: 20px;
-          padding: 36px;
-          width: 100%;
-          max-width: 480px;
-          box-shadow: 0 24px 64px rgba(0,0,0,0.2);
-          animation: fadeUp 0.3s ease;
-        }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s ease; }
+        .modal-box { background: white; border-radius: 20px; padding: 36px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(0,0,0,0.2); animation: fadeUp 0.3s ease; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+        @media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; } }
+        
+        .admin-nav { background: #1a1a2e; padding: 0 16px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+        @media (min-width: 768px) { .admin-nav { padding: 0 40px; height: 64px; } }
+        
+        .admin-container { max-width: 1280px; margin: 0 auto; padding: 20px 16px; }
+        @media (min-width: 768px) { .admin-container { padding: 32px 40px; } }
+        
+        .table-container { width: 100%; overflow-x: auto; }
+        .admin-table { min-width: 700px; }
+        
+        .mobile-hide { display: none !important; }
+        @media (min-width: 768px) { .mobile-hide { display: block !important; } }
+        
+        .tab-bar { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-bottom: 1px solid #f1f5f9; background: #fafafa; }
+        @media (min-width: 768px) { .tab-bar { flex-direction: row; align-items: center; justify-content: space-between; padding: 16px 20px; } }
       `}</style>
 
          {/* NAVBAR */}
-         <nav style={{
-            background: '#1a1a2e',
-            padding: '0 40px',
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-         }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-               <img src="/logo.png" alt="EPIC" style={{ height: '34px', filter: 'brightness(0) invert(1)' }} />
-               <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)' }} />
-               <span style={{ color: '#f59e0b', fontSize: '12px', fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  Admin Panel
+         <nav className="admin-nav">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               <img src={settings.logoUrl} alt="Logo" style={{ height: '28px', maxWidth: '120px', objectFit: 'contain' }} />
+               <div className="mobile-hide" style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)' }} />
+               <span className="mobile-hide" style={{ color: '#f59e0b', fontSize: '11px', fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {settings.siteName} Panel
                </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>{user.name}</div>
-                  <div style={{ fontSize: '11px', color: '#f59e0b' }}>Administrator</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+               <div className="mobile-hide" style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#ffffff' }}>{user.name}</div>
+                  <div style={{ fontSize: '10px', color: '#f59e0b' }}>Administrator</div>
                </div>
                <div style={{
-                  width: '36px', height: '36px', borderRadius: '50%',
+                  width: '32px', height: '32px', borderRadius: '50%',
                   background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#1a1a2e', fontSize: '14px', fontWeight: '700'
+                  color: '#1a1a2e', fontSize: '12px', fontWeight: '700'
                }}>
                   {user.name?.charAt(0) || 'A'}
                </div>
                <button
                   onClick={() => { localStorage.clear(); navigate('/login'); }}
                   style={{
-                     padding: '7px 16px',
+                     padding: '6px 12px',
                      background: 'rgba(255,255,255,0.08)',
                      color: 'rgba(255,255,255,0.7)',
                      border: '1px solid rgba(255,255,255,0.15)',
-                     borderRadius: '8px',
-                     fontSize: '13px',
+                     borderRadius: '6px',
+                     fontSize: '12px',
                      cursor: 'pointer',
-                     fontFamily: "'Inter', sans-serif",
-                     transition: 'all 0.2s'
+                     fontFamily: "'Inter', sans-serif"
                   }}
                >Logout</button>
             </div>
          </nav>
 
-         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 40px' }}>
+         <div className="admin-container">
 
             {/* Message */}
             {message && (
@@ -253,13 +212,7 @@ export default function AdminDashboard() {
             )}
 
             {/* STAT CARDS */}
-            <div style={{
-               display: 'grid',
-               gridTemplateColumns: 'repeat(4, 1fr)',
-               gap: '16px',
-               marginBottom: '32px',
-               animation: 'fadeUp 0.4s ease'
-            }}>
+            <div className="stats-grid">
                {[
                   { icon: '👨‍🎓', label: 'Total Students', value: students.length, color: '#4f46e5', bg: '#eff0fe' },
                   { icon: '📋', label: 'Active Papers', value: papers.filter(p => p.status === 'ACTIVE').length, color: '#16a34a', bg: '#f0fdf4' },
@@ -311,19 +264,13 @@ export default function AdminDashboard() {
             }}>
 
                {/* Tab bar */}
-               <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px 20px',
-                  borderBottom: '1px solid #f1f5f9',
-                  background: '#fafafa'
-               }}>
+               <div className="tab-bar">
                   <div style={{ display: 'flex', gap: '4px' }}>
                      {[
                         { id: 'students', label: '👨‍🎓 Students', count: students.length },
                         { id: 'papers', label: '📋 Papers', count: papers.length },
-                        { id: 'results', label: '📊 Results', count: results.length }
+                        { id: 'results', label: '📊 Results', count: results.length },
+                        { id: 'settings', label: '⚙️ Settings', count: null }
                      ].map(tab => (
                         <button
                            key={tab.id}
@@ -331,15 +278,17 @@ export default function AdminDashboard() {
                            onClick={() => setActiveTab(tab.id)}
                         >
                            {tab.label}
-                           <span style={{
-                              marginLeft: '8px',
-                              background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
-                              color: activeTab === tab.id ? '#ffffff' : '#64748b',
-                              borderRadius: '12px',
-                              padding: '1px 8px',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                           }}>{tab.count}</span>
+                           {tab.count !== null && (
+                              <span style={{
+                                 marginLeft: '8px',
+                                 background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                                 color: activeTab === tab.id ? '#ffffff' : '#64748b',
+                                 borderRadius: '12px',
+                                 padding: '1px 8px',
+                                 fontSize: '11px',
+                                 fontWeight: '700'
+                              }}>{tab.count}</span>
+                           )}
                         </button>
                      ))}
                   </div>
@@ -365,169 +314,174 @@ export default function AdminDashboard() {
 
                {/* STUDENTS TAB */}
                {activeTab === 'students' && (
-                  <div>
-                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 2fr 1fr 1fr',
-                        gap: '12px',
-                        padding: '12px 20px',
-                        background: '#f8fafc',
-                        borderBottom: '1px solid #f1f5f9'
-                     }}>
-                        {['Name', 'Email', 'Batch', 'Actions'].map(h => (
-                           <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                  <div className="table-container">
+                     <div className="admin-table">
+                        <div style={{
+                           display: 'grid',
+                           gridTemplateColumns: '2fr 2fr 1fr 1fr',
+                           gap: '12px',
+                           padding: '12px 20px',
+                           background: '#f8fafc',
+                           borderBottom: '1px solid #f1f5f9'
+                        }}>
+                           {['Name', 'Email', 'Batch', 'Actions'].map(h => (
+                              <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                           ))}
+                        </div>
+                        {loading ? (
+                           <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
+                        ) : students.length === 0 ? (
+                           <div style={{ padding: '48px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '40px', marginBottom: '12px' }}>👨‍🎓</div>
+                              <p style={{ color: '#94a3b8', fontSize: '14px' }}>No students yet. Add your first student!</p>
+                           </div>
+                        ) : students.map((s, i) => (
+                           <div key={s.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                 <div style={{
+                                    width: '34px', height: '34px', borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: 'white', fontSize: '13px', fontWeight: '600', flexShrink: 0
+                                 }}>
+                                    {s.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                 </div>
+                                 <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{s.name}</span>
+                              </div>
+                              <span style={{ fontSize: '13px', color: '#64748b' }}>{s.email}</span>
+                              <span style={{
+                                 display: 'inline-block',
+                                 background: '#eff6ff',
+                                 color: '#1d4ed8',
+                                 padding: '3px 10px',
+                                 borderRadius: '20px',
+                                 fontSize: '12px',
+                                 fontWeight: '500'
+                              }}>{s.batch || 'General'}</span>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                 <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }}>View</button>
+                              </div>
+                           </div>
                         ))}
                      </div>
-                     {loading ? (
-                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
-                     ) : students.length === 0 ? (
-                        <div style={{ padding: '48px', textAlign: 'center' }}>
-                           <div style={{ fontSize: '40px', marginBottom: '12px' }}>👨‍🎓</div>
-                           <p style={{ color: '#94a3b8', fontSize: '14px' }}>No students yet. Add your first student!</p>
-                        </div>
-                     ) : students.map((s, i) => (
-                        <div key={s.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr' }}>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{
-                                 width: '34px', height: '34px', borderRadius: '50%',
-                                 background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                 color: 'white', fontSize: '13px', fontWeight: '600', flexShrink: 0
-                              }}>
-                                 {s.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                              </div>
-                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{s.name}</span>
-                           </div>
-                           <span style={{ fontSize: '13px', color: '#64748b' }}>{s.email}</span>
-                           <span style={{
-                              display: 'inline-block',
-                              background: '#eff6ff',
-                              color: '#1d4ed8',
-                              padding: '3px 10px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: '500'
-                           }}>{s.batch || 'General'}</span>
-                           <div style={{ display: 'flex', gap: '6px' }}>
-                              <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }}>View</button>
-                           </div>
-                        </div>
-                     ))}
                   </div>
                )}
 
                {/* PAPERS TAB */}
                {activeTab === 'papers' && (
-                  <div>
-                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 2fr 1fr 1fr',
-                        gap: '12px',
-                        padding: '12px 20px',
-                        background: '#f8fafc',
-                        borderBottom: '1px solid #f1f5f9'
-                     }}>
-                        {['Code', 'Type', 'Title', 'Status', 'Actions'].map(h => (
-                           <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
-                        ))}
-                     </div>
-                     {loading ? (
-                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
-                     ) : papers.length === 0 ? (
-                        <div style={{ padding: '48px', textAlign: 'center' }}>
-                           <div style={{ fontSize: '40px', marginBottom: '12px' }}>📋</div>
-                           <p style={{ color: '#94a3b8', fontSize: '14px' }}>No papers yet. Create your first paper!</p>
+                  <div className="table-container">
+                     <div className="admin-table">
+                        <div style={{
+                           display: 'grid',
+                           gridTemplateColumns: '1fr 1fr 2fr 1fr 1fr',
+                           gap: '12px',
+                           padding: '12px 20px',
+                           background: '#f8fafc',
+                           borderBottom: '1px solid #f1f5f9'
+                        }}>
+                           {['Code', 'Type', 'Title', 'Status', 'Actions'].map(h => (
+                              <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                           ))}
                         </div>
-                     ) : papers.map((p, i) => {
-                        const tc = getTypeColor(p.testType);
-                        return (
-                           <div key={p.id} className="table-row" style={{ gridTemplateColumns: '1fr 1fr 2fr 1fr 1fr' }}>
-                              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>{p.paperCode}</span>
-                              <span style={{
-                                 display: 'inline-block',
-                                 background: tc.bg, color: tc.color,
-                                 padding: '3px 10px', borderRadius: '20px',
-                                 fontSize: '12px', fontWeight: '600'
-                              }}>{p.testType}</span>
-                              <span style={{ fontSize: '13px', color: '#475569' }}>{p.title}</span>
-                              <span style={{
-                                 display: 'inline-block',
-                                 background: p.status === 'ACTIVE' ? '#f0fdf4' : '#f1f5f9',
-                                 color: p.status === 'ACTIVE' ? '#16a34a' : '#64748b',
-                                 padding: '3px 10px', borderRadius: '20px',
-                                 fontSize: '12px', fontWeight: '500'
-                              }}>{p.status}</span>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                 <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => navigate(`/admin/papers/${p.id}`)}>Edit</button>
-                                 <button className="action-btn danger" style={{ padding: '6px 12px', fontSize: '12px' }}>Delete</button>
-                              </div>
+                        {loading ? (
+                           <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
+                        ) : papers.length === 0 ? (
+                           <div style={{ padding: '48px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📋</div>
+                              <p style={{ color: '#94a3b8', fontSize: '14px' }}>No papers yet. Create your first paper!</p>
                            </div>
-                        );
-                     })}
+                        ) : papers.map((p, i) => {
+                           const tc = getTypeColor(p.testType);
+                           return (
+                              <div key={p.id} className="table-row" style={{ gridTemplateColumns: '1fr 1fr 2fr 1fr 1fr' }}>
+                                 <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>{p.paperCode}</span>
+                                 <span style={{
+                                    display: 'inline-block',
+                                    background: tc.bg, color: tc.color,
+                                    padding: '3px 10px', borderRadius: '20px',
+                                    fontSize: '12px', fontWeight: '600'
+                                 }}>{p.testType}</span>
+                                 <span style={{ fontSize: '13px', color: '#475569' }}>{p.title}</span>
+                                 <span style={{
+                                    display: 'inline-block',
+                                    background: p.status === 'ACTIVE' ? '#f0fdf4' : '#f1f5f9',
+                                    color: p.status === 'ACTIVE' ? '#16a34a' : '#64748b',
+                                    padding: '3px 10px', borderRadius: '20px',
+                                    fontSize: '12px', fontWeight: '500'
+                                 }}>{p.status}</span>
+                                 <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => navigate(`/admin/papers/${p.id}`)}>Edit</button>
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
                   </div>
                )}
 
                {/* RESULTS TAB */}
                {activeTab === 'results' && (
-                  <div>
-                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 2fr 1fr 80px 100px',
-                        gap: '12px',
-                        padding: '12px 20px',
-                        background: '#f8fafc',
-                        borderBottom: '1px solid #f1f5f9'
-                     }}>
-                        {['Student', 'Paper', 'Date', 'Score', 'Band'].map(h => (
-                           <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
-                        ))}
-                     </div>
-                     {loading ? (
-                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
-                     ) : results.length === 0 ? (
-                        <div style={{ padding: '48px', textAlign: 'center' }}>
-                           <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
-                           <p style={{ color: '#94a3b8', fontSize: '14px' }}>No results yet.</p>
+                  <div className="table-container">
+                     <div className="admin-table">
+                        <div style={{
+                           display: 'grid',
+                           gridTemplateColumns: '2fr 2fr 1fr 80px 100px',
+                           gap: '12px',
+                           padding: '12px 20px',
+                           background: '#f8fafc',
+                           borderBottom: '1px solid #f1f5f9'
+                        }}>
+                           {['Student', 'Paper', 'Date', 'Score', 'Band'].map(h => (
+                              <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                           ))}
                         </div>
-                     ) : results.map((r, i) => {
-                        const band = r.result?.bandEstimate;
-                        const bc = getBandColor(band);
-                        return (
-                           <div key={r.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 80px 100px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                 <div style={{
-                                    width: '30px', height: '30px', borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: 'white', fontSize: '11px', fontWeight: '600', flexShrink: 0
-                                 }}>
-                                    {r.student?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        {loading ? (
+                           <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
+                        ) : results.length === 0 ? (
+                           <div style={{ padding: '48px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+                              <p style={{ color: '#94a3b8', fontSize: '14px' }}>No results yet.</p>
+                           </div>
+                        ) : results.map((r, i) => {
+                           const band = r.result?.bandEstimate;
+                           const bc = getBandColor(band);
+                           return (
+                              <div key={r.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 80px 100px' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{
+                                       width: '30px', height: '30px', borderRadius: '50%',
+                                       background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                       color: 'white', fontSize: '11px', fontWeight: '600', flexShrink: 0
+                                    }}>
+                                       {r.student?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </div>
+                                    <div>
+                                       <div style={{ fontSize: '13px', fontWeight: '500', color: '#1e293b' }}>{r.student?.name}</div>
+                                       <div style={{ fontSize: '11px', color: '#94a3b8' }}>{r.student?.batch}</div>
+                                    </div>
                                  </div>
                                  <div>
-                                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#1e293b' }}>{r.student?.name}</div>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{r.student?.batch}</div>
+                                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#1e293b' }}>
+                                       EPIC IELTS — {r.paper?.testType} {r.paper?.paperCode}
+                                    </div>
                                  </div>
+                                 <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                    {r.endedAt ? new Date(r.endedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '—'}
+                                 </span>
+                                 <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+                                    {r.result?.rawScore ?? '—'}/40
+                                 </span>
+                                 <span style={{
+                                    display: 'inline-block',
+                                    background: bc.bg, color: bc.color,
+                                    padding: '4px 12px', borderRadius: '20px',
+                                    fontSize: '13px', fontWeight: '700'
+                                 }}>{band?.toFixed(1) || '—'}</span>
                               </div>
-                              <div>
-                                 <div style={{ fontSize: '13px', fontWeight: '500', color: '#1e293b' }}>
-                                    EPIC IELTS — {r.paper?.testType} {r.paper?.paperCode}
-                                 </div>
-                              </div>
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                 {r.endedAt ? new Date(r.endedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '—'}
-                              </span>
-                              <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
-                                 {r.result?.rawScore ?? '—'}/40
-                              </span>
-                              <span style={{
-                                 display: 'inline-block',
-                                 background: bc.bg, color: bc.color,
-                                 padding: '4px 12px', borderRadius: '20px',
-                                 fontSize: '13px', fontWeight: '700'
-                              }}>{band?.toFixed(1) || '—'}</span>
-                           </div>
-                        );
-                     })}
+                           );
+                        })}
+                     </div>
                   </div>
                )}
             </div>
@@ -624,6 +578,56 @@ export default function AdminDashboard() {
                </div>
             </div>
          )}
+            {/* SETTINGS TAB */}
+            {activeTab === 'settings' && (
+               <div className="table-container" style={{ padding: '32px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a2e', marginBottom: '24px' }}>Platform Settings</h3>
+                  
+                  <div style={{ display: 'grid', gap: '20px', maxWidth: '500px' }}>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Site Name</label>
+                        <input 
+                           type="text" 
+                           className="input-field" 
+                           value={settings.siteName} 
+                           onChange={e => setSettings(prev => ({ ...prev, siteName: e.target.value }))}
+                        />
+                     </div>
+                     
+                     <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Logo URL</label>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                           <input 
+                              type="text" 
+                              className="input-field" 
+                              value={settings.logoUrl} 
+                              onChange={e => setSettings(prev => ({ ...prev, logoUrl: e.target.value }))}
+                           />
+                           <img src={settings.logoUrl} alt="Preview" style={{ height: '32px', maxWidth: '100px', objectFit: 'contain', background: '#1a1a2e', padding: '4px', borderRadius: '4px' }} />
+                        </div>
+                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Tip: You can use a direct image URL or a local path like /logo.png</p>
+                     </div>
+
+                     <button 
+                        onClick={() => {
+                           localStorage.setItem('siteSettings', JSON.stringify(settings));
+                           setMessage('Settings saved successfully!');
+                           setTimeout(() => setMessage(''), 3000);
+                        }}
+                        style={{
+                           marginTop: '12px',
+                           padding: '12px 24px',
+                           background: '#4f46e5',
+                           color: 'white',
+                           border: 'none',
+                           borderRadius: '10px',
+                           fontWeight: '700',
+                           cursor: 'pointer'
+                        }}
+                     >Save Settings</button>
+                  </div>
+               </div>
+            )}
 
       </div>
    );

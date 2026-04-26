@@ -51,6 +51,9 @@ router.get('/:id', async (req, res) => {
         id: parseInt(req.params.id)
       },
       include: {
+        passages: {
+          orderBy: { passageNumber: 'asc' }
+        },
         questions: {
           orderBy: {
             questionNumber: 'asc'

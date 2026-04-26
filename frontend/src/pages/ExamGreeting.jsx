@@ -51,15 +51,14 @@ export default function ExamGreeting() {
 
    const handleStart = async () => {
       setStarting(true);
-
       try {
-         await axios.post(
-            `${API_URL}/api/attempts/${attemptId}/start`,
-            {},
-            api()
-         );
-
-         navigate(`/exam/${attemptId}/reading`);
+         await axios.post(`${API_URL}/api/attempts/${attemptId}/start`, {}, api());
+         const type = paper?.testType?.toLowerCase();
+         if (type === 'writing') {
+            navigate(`/exam/${attemptId}/writing`);
+         } else {
+            navigate(`/exam/${attemptId}/reading`);
+         }
       } catch (err) {
          console.error('Start exam error:', err);
          alert('Failed to start exam. Please try again.');
@@ -177,45 +176,41 @@ export default function ExamGreeting() {
           opacity: 0.7;
           cursor: not-allowed;
         }
+        .info-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
+        @media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; } }
+        
+        .exam-nav { background: #1a1a2e; padding: 0 16px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+        @media (min-width: 768px) { .exam-nav { padding: 0 40px; } }
+        
+        .greeting-card { background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+        .greeting-content { padding: 24px; }
+        @media (min-width: 768px) { .greeting-content { padding: 44px; } }
       `}</style>
 
-         <nav style={{
-            background: '#1a1a2e',
-            padding: '0 40px',
-            height: '60px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-         }}>
+         <nav className="exam-nav">
             <img
                src="/logo.png"
                alt="EPIC"
-               style={{ height: '32px', filter: 'brightness(0) invert(1)' }}
+               style={{ height: '28px', filter: 'brightness(0) invert(1)' }}
             />
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
+            <span className="mobile-hide" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
                Exam Registration
             </span>
          </nav>
 
          <div style={{
             maxWidth: '680px',
-            margin: '50px auto',
-            padding: '0 20px',
+            margin: '30px auto',
+            padding: '0 16px',
             animation: 'fadeUp 0.5s ease'
          }}>
-            <div style={{
-               background: '#ffffff',
-               borderRadius: '20px',
-               border: '1px solid #e2e8f0',
-               overflow: 'hidden',
-               boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
-            }}>
+            <div className="greeting-card">
                <div style={{
                   height: '5px',
                   background: 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
                }} />
 
-               <div style={{ padding: '44px' }}>
+               <div className="greeting-content">
                   <div style={{ textAlign: 'center', marginBottom: '36px' }}>
                      <p style={{
                         fontSize: '11px',
@@ -242,12 +237,7 @@ export default function ExamGreeting() {
                      <p style={{ fontSize: '15px', color: '#64748b' }}>{paper.title}</p>
                   </div>
 
-                  <div style={{
-                     display: 'grid',
-                     gridTemplateColumns: '1fr 1fr',
-                     gap: '12px',
-                     marginBottom: '28px'
-                  }}>
+                  <div className="info-grid">
                      {[
                         { icon: '⏱', label: 'Time Allowed', value: `${paper.timeLimitMin || 60} minutes` },
                         { icon: '❓', label: 'Total Questions', value: `${paper.questions?.length || 40} questions` },

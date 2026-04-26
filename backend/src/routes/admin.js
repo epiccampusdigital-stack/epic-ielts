@@ -70,14 +70,70 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
 });
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
+  const paperId = parseInt(req.params.id);
+  const { questions, passages, ...paperData } = req.body;
+
   try {
-    const paper = await prisma.paper.update({
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update basic paper data
+      const updatedPaper = await tx.paper.update({
+        where: { id: paperId },
+        data: paperData
+      });
+
+      // 2. Update questions if provided
+      if (questions && Array.isArray(questions)) {
+        for (const q of questions) {
+          const { id, paperId: qPaperId, ...qData } = q;
+          if (id) {
+            await tx.question.update({
+              where: { id },
+              data: qData
+            });
+          }
+        }
+      }
+
+      // 3. Update passages if provided
+      if (passages && Array.isArray(passages)) {
+        for (const p of passages) {
+          const { id, paperId: pPaperId, ...pData } = p;
+          if (id) {
+            await tx.passage.update({
+              where: { id },
+              data: pData
+            });
+          } else {
+            await tx.passage.create({
+              data: { ...pData, paperId }
+            });
+          }
+        }
+      }
+
+      return updatedPaper;
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Update paper error:', err);
+    res.status(500).json({ error: 'Failed to update paper: ' + err.message });
+  }
+});
+
+// Update the GET detail route as well to include passages
+router.get('/papers/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const paper = await prisma.paper.findUnique({
       where: { id: parseInt(req.params.id) },
-      data: req.body
+      include: { 
+        questions: { orderBy: { questionNumber: 'asc' } },
+        passages: { orderBy: { passageNumber: 'asc' } }
+      }
     });
     res.json(paper);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update paper' });
+    res.status(500).json({ error: 'Failed to get paper' });
   }
 });
 
@@ -125,6 +181,38 @@ router.get('/results', auth, adminOnly, async (req, res) => {
     res.json(attempts);
   } catch (err) {
     res.status(500).json({ error: 'Failed to get results' });
+  }
+});
+
+// Add writing task to paper
+router.post('/papers/:id/writing-tasks', auth, adminOnly, async (req, res) => {
+  try {
+    const { taskNumber, prompt, chartUrl, minWords } = req.body;
+    const task = await prisma.writingTask.create({
+      data: {
+        paperId: parseInt(req.params.id),
+        taskNumber: parseInt(taskNumber),
+        prompt,
+        chartUrl: chartUrl || null,
+        minWords: parseInt(minWords) || (taskNumber === 1 ? 150 : 250)
+      }
+    });
+    res.json(task);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create writing task' });
+  }
+});
+
+// Get paper with writing tasks
+router.get('/papers/:id/full', auth, adminOnly, async (req, res) => {
+  try {
+    const paper = await prisma.paper.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: { questions: true, writingTasks: { orderBy: { taskNumber: 'asc' } } }
+    });
+    res.json(paper);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get paper' });
   }
 });
 

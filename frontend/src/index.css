@@ -1,7 +1,11 @@
-* {
+html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape on iPhone */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -9,6 +13,7 @@ body {
   background: #f8fafc;
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 h1,
@@ -40,66 +45,89 @@ input:-webkit-autofill {
   background: #94a3b8;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+/* Responsive Utilities */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.mobile-hide {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-hide {
+    display: block !important;
+  }
+}
+
+.mobile-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .mobile-stack {
+    flex-direction: row;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-@keyframes confetti {
-  0% {
-    transform: translateY(-10px) rotate(0deg);
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(100vh) rotate(720deg);
-    opacity: 0;
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 @keyframes timerPulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.6;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }

@@ -103,7 +103,7 @@ Now provide detailed, specific, personal IELTS feedback. Return ONLY this JSON s
   try {
     console.log('Calling Claude API...');
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-latest',
+      model: 'claude-sonnet-4-5',
       max_tokens: 2000,
       temperature: 0.3,
       messages: [
@@ -187,7 +187,7 @@ Return ONLY this JSON:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-latest',
+      model: 'claude-sonnet-4-5',
       max_tokens: 2000,
       temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]

@@ -120,22 +120,24 @@ export default function StudentDashboard() {
         }
 
         @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes shimmer {
-          0% {
-            background-position: -200px 0;
-          }
-          100% {
-            background-position: 200px 0;
+          0% { background-position: -200px 0; }
+          100% { background-position: 200px 0; }
+        }
+
+        .dashboard-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 24px 16px;
+        }
+
+        @media (min-width: 768px) {
+          .dashboard-container {
+            padding: 40px 40px;
           }
         }
 
@@ -225,114 +227,157 @@ export default function StudentDashboard() {
 
         .result-row {
           display: grid;
-          grid-template-columns: 2fr 1fr 80px 80px;
-          gap: 16px;
-          padding: 14px 20px;
+          grid-template-columns: 1.5fr 1fr 60px 60px;
+          gap: 12px;
+          padding: 14px 16px;
           align-items: center;
           border-bottom: 1px solid #f1f5f9;
           transition: background 0.15s;
         }
 
+        @media (min-width: 768px) {
+          .result-row {
+            grid-template-columns: 2fr 1fr 80px 80px;
+            gap: 16px;
+            padding: 14px 20px;
+          }
+        }
+
         .result-row:hover {
           background: #f8fafc;
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        @media (min-width: 640px) {
+          .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+          }
+        }
+
+        .navbar {
+          background: #ffffff;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 0 16px;
+          height: auto;
+          min-height: 64px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          gap: 12px;
+          padding-bottom: 12px;
+          padding-top: 12px;
+        }
+
+        @media (min-width: 768px) {
+          .navbar {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            height: 64px;
+            padding-bottom: 0;
+            padding-top: 0;
+          }
+        }
+
+        .hero-section {
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+          padding: 32px 16px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+          .hero-section {
+            padding: 48px 40px;
+          }
         }
       `}</style>
 
       <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <nav
-          style={{
-            background: '#ffffff',
-            borderBottom: '1px solid #e2e8f0',
-            padding: '0 40px',
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img
-              src="/logo.png"
-              alt="EPIC Campus"
-              style={{ height: '36px', objectFit: 'contain' }}
-            />
-            <div
-              style={{
-                width: '1px',
-                height: '24px',
-                background: '#e2e8f0'
-              }}
-            />
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#4f46e5',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase'
-              }}
-            >
-              IELTS CBT
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span className="nav-link">Dashboard</span>
-            <span className="nav-link">My Results</span>
-            <span className="nav-link">Help</span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
-                {user.name || 'Student'}
-              </div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                {user.batch || 'General'}
-              </div>
+        <nav className="navbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img
+                src="/logo.png"
+                alt="EPIC Campus"
+                style={{ height: '32px', objectFit: 'contain' }}
+              />
+              <div
+                style={{
+                  width: '1px',
+                  height: '24px',
+                  background: '#e2e8f0'
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: '#4f46e5',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase'
+                }}
+              >
+                IELTS CBT
+              </span>
+            </div>
+            
+            <div className="mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className="nav-link">Dashboard</span>
+              <span className="nav-link">My Results</span>
             </div>
 
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              {initials}
-            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ textAlign: 'right' }} className="mobile-hide">
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#1e293b' }}>
+                  {user.name || 'Student'}
+                </div>
+              </div>
 
-            <button
-              className="logout-btn"
-              onClick={() => {
-                localStorage.clear();
-                navigate('/login');
-              }}
-            >
-              Logout
-            </button>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}
+              >
+                {initials}
+              </div>
+
+              <button
+                className="logout-btn"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={() => {
+                  localStorage.clear();
+                  navigate('/login');
+                }}
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </nav>
 
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-            padding: '48px 40px',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-        >
+        <div className="hero-section">
           <div
             style={{
               position: 'absolute',
@@ -374,7 +419,7 @@ export default function StudentDashboard() {
               <span style={{ fontSize: '10px' }}>🎓</span>
               <span
                 style={{
-                  fontSize: '11px',
+                  fontSize: '10px',
                   color: '#f59e0b',
                   fontWeight: '500',
                   letterSpacing: '0.08em',
@@ -388,19 +433,20 @@ export default function StudentDashboard() {
             <h1
               style={{
                 fontFamily: "'Playfair Display', serif",
-                fontSize: '38px',
+                fontSize: '28px',
                 fontWeight: '700',
                 color: '#ffffff',
                 marginBottom: '8px',
                 lineHeight: '1.2'
               }}
+              className="responsive-text"
             >
               Welcome back, {user.name?.split(' ')[0] || 'Student'} 👋
             </h1>
 
             <p
               style={{
-                fontSize: '15px',
+                fontSize: '14px',
                 color: 'rgba(255,255,255,0.6)',
                 marginBottom: '28px'
               }}
@@ -408,7 +454,7 @@ export default function StudentDashboard() {
               Ready for your next IELTS practice test?
             </p>
 
-            <div style={{ display: 'flex', gap: '24px' }}>
+            <div className="stats-grid">
               {[
                 { label: 'Tests Available', value: papers.length, icon: '📋' },
                 { label: 'Tests Taken', value: history.length, icon: '✅' },
@@ -427,17 +473,17 @@ export default function StudentDashboard() {
                     background: 'rgba(255,255,255,0.08)',
                     border: '1px solid rgba(255,255,255,0.12)',
                     borderRadius: '12px',
-                    padding: '16px 24px',
+                    padding: '12px 20px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px'
                   }}
                 >
-                  <span style={{ fontSize: '22px' }}>{stat.icon}</span>
+                  <span style={{ fontSize: '20px' }}>{stat.icon}</span>
                   <div>
                     <div
                       style={{
-                        fontSize: '22px',
+                        fontSize: '20px',
                         fontWeight: '700',
                         color: '#ffffff',
                         fontFamily: "'Playfair Display', serif"
@@ -445,7 +491,7 @@ export default function StudentDashboard() {
                     >
                       {stat.value}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
                       {stat.label}
                     </div>
                   </div>
@@ -455,7 +501,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 40px' }}>
+        <div className="dashboard-container">
           <div style={{ marginBottom: '48px' }}>
             <div
               style={{
@@ -484,13 +530,7 @@ export default function StudentDashboard() {
             </div>
 
             {loading ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-                  gap: '20px'
-                }}
-              >
+              <div className="responsive-grid">
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
@@ -509,35 +549,29 @@ export default function StudentDashboard() {
               <div
                 style={{
                   textAlign: 'center',
-                  padding: '60px 40px',
+                  padding: '40px 20px',
                   background: '#ffffff',
                   borderRadius: '16px',
                   border: '1px solid #e2e8f0'
                 }}
               >
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                <div style={{ fontSize: '32px', marginBottom: '16px' }}>📋</div>
                 <h3
                   style={{
                     fontFamily: "'Playfair Display', serif",
-                    fontSize: '20px',
+                    fontSize: '18px',
                     color: '#1e293b',
                     marginBottom: '8px'
                   }}
                 >
                   You're all caught up!
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '14px' }}>
+                <p style={{ color: '#94a3b8', fontSize: '12px' }}>
                   No tests assigned yet. Check back later or contact your teacher.
                 </p>
               </div>
             ) : (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-                  gap: '20px'
-                }}
-              >
+              <div className="responsive-grid">
                 {papers.map((paper, i) => {
                   const typeColor = getTypeColor(paper.testType);
 
@@ -555,14 +589,14 @@ export default function StudentDashboard() {
                           background: typeColor.bg,
                           border: `1px solid ${typeColor.border}`,
                           borderRadius: '20px',
-                          padding: '4px 12px',
-                          marginBottom: '14px'
+                          padding: '4px 10px',
+                          marginBottom: '12px'
                         }}
                       >
                         <span
                           style={{
-                            width: '6px',
-                            height: '6px',
+                            width: '5px',
+                            height: '5px',
                             borderRadius: '50%',
                             background: typeColor.color,
                             display: 'inline-block'
@@ -570,7 +604,7 @@ export default function StudentDashboard() {
                         />
                         <span
                           style={{
-                            fontSize: '11px',
+                            fontSize: '10px',
                             fontWeight: '600',
                             color: typeColor.color,
                             letterSpacing: '0.06em',
@@ -584,7 +618,7 @@ export default function StudentDashboard() {
                       <h3
                         style={{
                           fontFamily: "'Inter', sans-serif",
-                          fontSize: '17px',
+                          fontSize: '16px',
                           fontWeight: '700',
                           color: '#1a1a2e',
                           marginBottom: '4px',
@@ -596,9 +630,9 @@ export default function StudentDashboard() {
 
                       <p
                         style={{
-                          fontSize: '13px',
+                          fontSize: '12px',
                           color: '#64748b',
-                          marginBottom: '18px'
+                          marginBottom: '16px'
                         }}
                       >
                         {paper.title}
@@ -607,14 +641,14 @@ export default function StudentDashboard() {
                       <div
                         style={{
                           display: 'flex',
-                          gap: '8px',
-                          marginBottom: '20px',
+                          gap: '6px',
+                          marginBottom: '18px',
                           flexWrap: 'wrap'
                         }}
                       >
                         {[
                           { icon: '⏱', text: `${paper.timeLimitMin} min` },
-                          { icon: '❓', text: '40 Questions' },
+                          { icon: '❓', text: '40 Qs' },
                           { icon: '📚', text: 'Academic' }
                         ].map((pill, j) => (
                           <div
@@ -626,8 +660,8 @@ export default function StudentDashboard() {
                               background: '#f8fafc',
                               border: '1px solid #e2e8f0',
                               borderRadius: '20px',
-                              padding: '4px 10px',
-                              fontSize: '11px',
+                              padding: '3px 8px',
+                              fontSize: '10px',
                               color: '#64748b',
                               fontWeight: '500'
                             }}
@@ -653,13 +687,13 @@ export default function StudentDashboard() {
                             background: '#f0fdf4',
                             border: '1px solid #bbf7d0',
                             borderRadius: '20px',
-                            padding: '4px 12px'
+                            padding: '4px 10px'
                           }}
                         >
                           <span
                             style={{
-                              width: '6px',
-                              height: '6px',
+                              width: '5px',
+                              height: '5px',
                               borderRadius: '50%',
                               background: '#16a34a',
                               display: 'inline-block'
@@ -667,7 +701,7 @@ export default function StudentDashboard() {
                           />
                           <span
                             style={{
-                              fontSize: '11px',
+                              fontSize: '10px',
                               fontWeight: '500',
                               color: '#16a34a'
                             }}
@@ -678,6 +712,7 @@ export default function StudentDashboard() {
 
                         <button
                           className="start-btn"
+                          style={{ padding: '8px 16px', fontSize: '12px' }}
                           onClick={() => startTest(paper.id)}
                         >
                           Start Test →

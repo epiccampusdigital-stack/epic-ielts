@@ -556,6 +556,74 @@ export default function ReadingExam() {
           font-size: 12px;
           font-weight: 700;
         }
+        .exam-layout {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        @media (min-width: 1024px) {
+          .exam-layout {
+            display: grid;
+            grid-template-columns: 55% 45%;
+          }
+        }
+
+        .passage-section {
+          background: #fafaf7;
+          border-right: 1px solid #e2e8f0;
+          overflow-y: auto;
+          padding: 20px;
+          min-height: 40vh;
+        }
+
+        @media (min-width: 1024px) {
+          .passage-section {
+            padding: 32px;
+            height: auto;
+          }
+        }
+
+        .questions-section {
+          background: #ffffff;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          min-height: 60vh;
+        }
+
+        @media (min-width: 1024px) {
+          .questions-section {
+            height: auto;
+          }
+        }
+
+        .exam-header {
+          background: #1a1a2e;
+          padding: 0 16px;
+          height: auto;
+          min-height: 60px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding-top: 12px;
+          padding-bottom: 12px;
+          flex-shrink: 0;
+        }
+
+        @media (min-width: 768px) {
+          .exam-header {
+            flex-direction: row;
+            justify-content: space-between;
+            height: 60px;
+            padding: 0 24px;
+            padding-top: 0;
+            padding-bottom: 0;
+          }
+        }
       `}</style>
 
          {showWarning && (
@@ -585,18 +653,10 @@ export default function ReadingExam() {
             </div>
          )}
 
-         <div style={{
-            background: '#1a1a2e',
-            padding: '0 24px',
-            height: '60px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexShrink: 0
-         }}>
+         <div className="exam-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                <img src="/logo.png" alt="EPIC" style={{ height: '28px', filter: 'brightness(0) invert(1)' }} />
-               <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)' }} />
+               <div className="mobile-hide" style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)' }} />
                <div>
                   <div style={{ color: '#ffffff', fontSize: '13px', fontWeight: '600' }}>
                      EPIC IELTS — {paper.testType} {paper.paperCode}
@@ -607,7 +667,7 @@ export default function ReadingExam() {
                </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="mobile-hide" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                {safePassages.map((p) => (
                   <div
                      key={p}
@@ -636,18 +696,8 @@ export default function ReadingExam() {
             </div>
          </div>
 
-         <div style={{
-            flex: 1,
-            display: 'grid',
-            gridTemplateColumns: '55% 45%',
-            overflow: 'hidden'
-         }}>
-            <div style={{
-               background: '#fafaf7',
-               borderRight: '1px solid #e2e8f0',
-               overflowY: 'auto',
-               padding: '32px'
-            }}>
+         <div className="exam-layout">
+            <div className="passage-section">
                <div style={{
                   borderLeft: '4px solid #4f46e5',
                   paddingLeft: '20px',
@@ -689,12 +739,7 @@ export default function ReadingExam() {
                </div>
             </div>
 
-            <div style={{
-               background: '#ffffff',
-               overflowY: 'auto',
-               display: 'flex',
-               flexDirection: 'column'
-            }}>
+            <div className="questions-section">
                <div style={{
                   padding: '20px 24px 0',
                   borderBottom: '1px solid #f1f5f9',

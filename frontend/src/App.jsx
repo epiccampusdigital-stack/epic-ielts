@@ -8,6 +8,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import PaperDetail from './pages/PaperDetail';
 import ImportPaper from './pages/ImportPaper';
 
+import WritingExam from './pages/WritingExam';
+import WritingResults from './pages/WritingResults';
+
 function App() {
   return (
     <Routes>
@@ -19,6 +22,8 @@ function App() {
       <Route path="/exam/:attemptId/greeting" element={<ExamGreeting />} />
       <Route path="/exam/:attemptId/reading" element={<ReadingExam />} />
       <Route path="/exam/:attemptId/results" element={<Results />} />
+      <Route path="/exam/:attemptId/writing" element={<WritingExam />} />
+      <Route path="/exam/:attemptId/writing-results" element={<WritingResults />} />
     </Routes>
   );
 }

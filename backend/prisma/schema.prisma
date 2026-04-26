@@ -8,13 +8,18 @@ datasource db {
 }
 
 model Student {
-  id       Int       @id @default(autoincrement())
-  email    String    @unique
-  password String
-  name     String
-  batch    String?
-  role     String    @default("STUDENT") // STUDENT or ADMIN
-  attempts Attempt[]
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  password      String
+  name          String
+  address       String?
+  age           Int?
+  city          String?
+  phone         String?
+  expectedBand  Float?
+  batch         String?
+  role          String    @default("STUDENT")
+  attempts      Attempt[]
 }
 
 model Paper {
@@ -27,8 +32,17 @@ model Paper {
   status          String        @default("PUBLISHED") // PUBLISHED, DRAFT
   assignedBatches String        @default("ALL")
   questions       Question[]
+  passages        Passage[]
   writingTasks    WritingTask[]
   attempts        Attempt[]
+}
+
+model Passage {
+  id            Int     @id @default(autoincrement())
+  paperId       Int
+  paper         Paper   @relation(fields: [paperId], references: [id])
+  passageNumber Int
+  text          String
 }
 
 model WritingTask {
@@ -80,17 +94,18 @@ model Answer {
 }
 
 model WritingSubmission {
-  id             Int     @id @default(autoincrement())
-  attemptId      Int     @unique
-  attempt        Attempt @relation(fields: [attemptId], references: [id])
-  task1Response  String?
-  task2Response  String?
-  task1WordCount Int?
-  task2WordCount Int?
-  task1Band      Float?
-  task2Band      Float?
-  aiFeedback     String?
-  markingStatus  String?
+  id              Int     @id @default(autoincrement())
+  attemptId       Int     @unique
+  attempt         Attempt @relation(fields: [attemptId], references: [id])
+  task1Response   String?
+  task2Response   String?
+  task1WordCount  Int?
+  task2WordCount  Int?
+  task1Band       Float?
+  task2Band       Float?
+  overallBand     Float?
+  aiFeedback      String?
+  markingStatus   String  @default("PENDING")
 }
 
 model Result {

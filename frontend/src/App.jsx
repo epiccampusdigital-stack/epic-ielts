@@ -24,6 +24,7 @@ function App() {
       <Route path="/exam/:attemptId/results" element={<Results />} />
       <Route path="/exam/:attemptId/writing" element={<WritingExam />} />
       <Route path="/exam/:attemptId/writing-results" element={<WritingResults />} />
+      <Route path="*" element={<Login />} />
     </Routes>
   );
 }

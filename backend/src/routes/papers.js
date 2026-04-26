@@ -5,23 +5,18 @@ const prisma = new PrismaClient();
 
 router.get('/assigned', async (req, res) => {
   try {
+    const { type } = req.query;
+    const where = { status: 'ACTIVE' };
+    if (type && type !== 'ALL') where.testType = type.toUpperCase();
+    
     const papers = await prisma.paper.findMany({
-      where: {
-        status: 'ACTIVE'
-      },
+      where,
       select: {
-        id: true,
-        paperCode: true,
-        testType: true,
-        title: true,
-        timeLimitMin: true,
-        status: true,
+        id: true, paperCode: true, testType: true,
+        title: true, timeLimitMin: true, status: true
       },
-      orderBy: {
-        id: 'desc'
-      }
+      orderBy: { id: 'desc' }
     });
-
     res.json(papers);
   } catch (err) {
     console.error('Papers error:', err);

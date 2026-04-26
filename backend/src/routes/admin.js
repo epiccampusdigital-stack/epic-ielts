@@ -11,6 +11,19 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+router.get('/test-ai', auth, adminOnly, async (req, res) => {
+  try {
+    const { gradeAttempt } = require('../services/claudeMarking');
+    const testResult = await gradeAttempt(
+      [{ questionNumber: 1, questionType: 'MULTIPLE_CHOICE', question: 'Test question', studentAnswer: 'A', correctAnswer: 'B', isCorrect: false }],
+      JSON.stringify({ studentName: 'Test', rawScore: 20, bandEstimate: 5.5, testType: 'READING', paperCode: 'TEST' })
+    );
+    res.json({ working: !!testResult, result: testResult });
+  } catch (err) {
+    res.status(500).json({ working: false, error: err.message });
+  }
+});
+
 router.get('/students', auth, adminOnly, async (req, res) => {
   try {
     const students = await prisma.student.findMany({
@@ -59,13 +72,133 @@ router.get('/papers', auth, adminOnly, async (req, res) => {
   }
 });
 
+router.post('/papers/import-ai', auth, adminOnly, async (req, res) => {
+  try {
+    const { rawText, testType, paperCode, title } = req.body;
+    if (!rawText) return res.status(400).json({ error: 'rawText is required' });
+
+    let anthropic;
+    try {
+      const sdk = require('@anthropic-ai/sdk');
+      anthropic = new (sdk.default || sdk.Anthropic)({ apiKey: process.env.ANTHROPIC_API_KEY });
+    } catch (e) {
+      return res.status(500).json({ error: 'AI SDK not available' });
+    }
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: `You are an IELTS paper parser. Extract all content from this IELTS paper and return ONLY valid JSON.
+
+Extract:
+- All passages with their text
+- All questions with question number, type, content, options (if MC), correct answer, and explanation
+- Question types must be one of: TRUE_FALSE_NOT_GIVEN, MULTIPLE_CHOICE, SHORT_ANSWER, SENTENCE_COMPLETION, MATCHING_HEADINGS, SUMMARY_COMPLETION, MATCHING_INFORMATION
+
+Return this exact JSON structure:
+{
+  "title": "paper title",
+  "testType": "READING",
+  "timeLimitMin": 60,
+  "passages": [
+    { "passageNumber": 1, "title": "passage title", "text": "full passage text" }
+  ],
+  "questions": [
+    {
+      "passageNumber": 1,
+      "questionNumber": 1,
+      "questionType": "TRUE_FALSE_NOT_GIVEN",
+      "content": "question text",
+      "options": null,
+      "correctAnswer": "TRUE",
+      "explanation": "The passage states X which means the answer is TRUE because..."
+    }
+  ]
+}
+
+For MULTIPLE_CHOICE questions, options should be an array like ["A. option one", "B. option two", "C. option three", "D. option four"]
+For TRUE_FALSE_NOT_GIVEN the correctAnswer must be TRUE, FALSE, or NOT GIVEN
+For SHORT_ANSWER the correctAnswer should be the exact word or phrase from the passage
+
+PAPER TEXT:
+${rawText.substring(0, 8000)}`
+      }]
+    });
+
+    const text = response.content[0].text;
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) parsed = JSON.parse(match[0]);
+      else return res.status(500).json({ error: 'AI could not parse the paper structure' });
+    }
+
+    // Create the paper
+    const paper = await prisma.paper.create({
+      data: {
+        paperCode: paperCode || `AI-${Date.now()}`,
+        testType: (testType || parsed.testType || 'READING').toUpperCase(),
+        title: title || parsed.title || 'Imported Paper',
+        timeLimitMin: parsed.timeLimitMin || 60,
+        instructions: 'Read the passages carefully and answer all questions.',
+        status: 'ACTIVE',
+        assignedBatches: 'ALL'
+      }
+    });
+
+    // Create questions
+    if (parsed.questions && parsed.questions.length > 0) {
+      const questionsData = parsed.questions.map(q => ({
+        paperId: paper.id,
+        passageNumber: q.passageNumber || 1,
+        questionNumber: q.questionNumber,
+        questionType: q.questionType || 'SHORT_ANSWER',
+        content: q.content,
+        options: q.options ? JSON.stringify(q.options) : null,
+        correctAnswer: q.correctAnswer || '',
+        explanation: q.explanation || null
+      }));
+      await prisma.question.createMany({ data: questionsData });
+    }
+
+    res.json({
+      success: true,
+      paper,
+      questionsCreated: parsed.questions?.length || 0,
+      passagesFound: parsed.passages?.length || 0
+    });
+  } catch (err) {
+    console.error('Import AI error:', err);
+    res.status(500).json({ error: 'Import failed: ' + err.message });
+  }
+});
+
 router.post('/papers', auth, adminOnly, async (req, res) => {
   try {
-    const paper = await prisma.paper.create({ data: req.body });
+    const { paperCode, testType, title, timeLimitMin, instructions, status } = req.body;
+    const paper = await prisma.paper.create({
+      data: {
+        paperCode: String(paperCode),
+        testType: String(testType).toUpperCase(),
+        title: String(title),
+        timeLimitMin: parseInt(timeLimitMin) || 60,
+        instructions: instructions || '',
+        status: status || 'ACTIVE',
+        assignedBatches: 'ALL'
+      }
+    });
     res.json(paper);
   } catch (err) {
     console.error('Create paper error:', err);
-    res.status(500).json({ error: 'Failed to create paper' });
+    if (err.code === 'P2002') {
+      res.status(400).json({ error: 'A paper with this code already exists' });
+    } else {
+      res.status(500).json({ error: 'Failed to create paper: ' + err.message });
+    }
   }
 });
 
@@ -215,5 +348,6 @@ router.get('/papers/:id/full', auth, adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Failed to get paper' });
   }
 });
+
 
 module.exports = router;

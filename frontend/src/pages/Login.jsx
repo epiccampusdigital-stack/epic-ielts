@@ -197,7 +197,6 @@ export default function Login() {
         .form-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 60px 24px 40px; }
         @media (min-width: 768px) { .form-container { padding: 60px 64px 40px; } }
       `}</style>
-      `}</style>
 
       <div className="login-container">
 

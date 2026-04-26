@@ -1,8 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
-
-const anthropic = new Anthropic.default({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function safeExtractJson(text) {
   if (!text) return null;
@@ -103,7 +100,7 @@ Now provide detailed, specific, personal IELTS feedback. Return ONLY this JSON s
   try {
     console.log('Calling Claude API...');
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       temperature: 0.3,
       messages: [
@@ -187,7 +184,7 @@ Return ONLY this JSON:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]

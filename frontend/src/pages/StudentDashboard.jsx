@@ -13,6 +13,8 @@ export default function StudentDashboard() {
   const [papers, setPapers] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(null);
+  const [filter, setFilter] = useState('ALL');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -38,6 +40,13 @@ export default function StudentDashboard() {
       } catch (err) {
         console.error('History fetch error:', err);
         setHistory([]);
+      }
+
+      try {
+        const summaryRes = await axios.get(`${API_URL}/api/attempts/dashboard/summary`, api());
+        setSummary(summaryRes.data);
+      } catch (err) {
+        console.error('Summary fetch error:', err);
       }
 
       setLoading(false);
@@ -459,12 +468,9 @@ export default function StudentDashboard() {
                 { label: 'Tests Available', value: papers.length, icon: '📋' },
                 { label: 'Tests Taken', value: history.length, icon: '✅' },
                 {
-                  label: 'Best Band',
-                  value:
-                    history.length > 0
-                      ? Math.max(...history.map((h) => h.result?.bandEstimate || 0)).toFixed(1)
-                      : '—',
-                  icon: '⭐'
+                  label: 'Average Band',
+                  value: summary?.overall || '—',
+                  icon: '📈'
                 }
               ].map((stat, i) => (
                 <div
@@ -498,6 +504,36 @@ export default function StudentDashboard() {
                 </div>
               ))}
             </div>
+
+            {summary?.summary && Object.keys(summary.summary).length > 0 && (
+              <div 
+                style={{ 
+                  marginTop: '24px', 
+                  background: 'rgba(255,255,255,0.1)', 
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px', 
+                  padding: '20px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  animation: 'fadeUp 0.6s ease both'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '18px' }}>🤖</span>
+                  <h3 style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>AI Progress Insights</h3>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                  {Object.entries(summary.summary).map(([type, data]) => (
+                    <div key={type} style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px', textTransform: 'uppercase' }}>{type}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                        <span style={{ fontSize: '20px', fontWeight: '700', color: 'white' }}>{data.average}</span>
+                        <span style={{ fontSize: '11px', color: '#10b981' }}>Best: {data.best}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -526,6 +562,29 @@ export default function StudentDashboard() {
                 <p style={{ fontSize: '13px', color: '#94a3b8' }}>
                   {papers.length} test{papers.length !== 1 ? 's' : ''} available for your batch
                 </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                {['ALL', 'READING', 'WRITING', 'LISTENING', 'SPEAKING'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setFilter(t)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      border: '1px solid',
+                      borderColor: filter === t ? '#4f46e5' : '#e2e8f0',
+                      background: filter === t ? '#4f46e5' : 'white',
+                      color: filter === t ? 'white' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -572,7 +631,7 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <div className="responsive-grid">
-                {papers.map((paper, i) => {
+                {papers.filter(p => filter === 'ALL' || p.testType === filter).map((paper, i) => {
                   const typeColor = getTypeColor(paper.testType);
 
                   return (

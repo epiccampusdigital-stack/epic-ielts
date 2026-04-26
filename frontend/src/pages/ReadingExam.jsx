@@ -61,7 +61,7 @@ export default function ReadingExam() {
 
             if (t <= 1) {
                clearInterval(timerRef.current);
-               handleEnd(true);
+               setTimeout(() => handleEnd(true), 100);
                return 0;
             }
 
@@ -71,6 +71,26 @@ export default function ReadingExam() {
 
       return () => clearInterval(timerRef.current);
    }, [timeLeft === null, submitting]);
+
+   const saveAnswers = async () => {
+      const payload = Object.entries(answers).map(([questionId, answer]) => ({
+         questionId: parseInt(questionId),
+         studentAnswer: String(answer)
+      }));
+      if (payload.length === 0) return;
+      try {
+         await axios.put(`${API_URL}/api/attempts/${attemptId}/autosave`, { answers: payload }, api());
+         console.log('Autosaved', payload.length, 'answers');
+      } catch (e) {
+         console.error('Autosave failed:', e.message);
+      }
+   };
+
+   useEffect(() => {
+      if (submitting || !timeLeft) return;
+      const interval = setInterval(saveAnswers, 30000);
+      return () => clearInterval(interval);
+   }, [answers, submitting, timeLeft]);
 
    const splitPassageText = (text) => {
       const full = text || '';
@@ -278,7 +298,7 @@ export default function ReadingExam() {
       clearInterval(timerRef.current);
 
       try {
-         const formattedAnswers = Object.entries(answers).map(([key, value]) => ({
+         const formattedAnswers = auto ? [] : Object.entries(answers).map(([key, value]) => ({
             questionId: parseInt(key),
             studentAnswer: value
          }));

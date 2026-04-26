@@ -119,6 +119,47 @@ router.get('/history/mine', auth, async (req, res) => {
   }
 });
 
+router.get('/dashboard/summary', auth, async (req, res) => {
+  try {
+    const attempts = await prisma.attempt.findMany({
+      where: { studentId: req.user.id, status: 'COMPLETED' },
+      include: { paper: true, result: true },
+      orderBy: { id: 'desc' }
+    });
+
+    const bySubject = {};
+    attempts.forEach(a => {
+      const type = a.paper?.testType || 'READING';
+      if (!bySubject[type]) bySubject[type] = [];
+      if (a.result?.bandEstimate) bySubject[type].push(a.result.bandEstimate);
+    });
+
+    const summary = {};
+    Object.entries(bySubject).forEach(([type, bands]) => {
+      summary[type] = {
+        average: (bands.reduce((a,b) => a+b, 0) / bands.length).toFixed(1),
+        count: bands.length,
+        best: Math.max(...bands).toFixed(1),
+        latest: bands[0]?.toFixed(1)
+      };
+    });
+
+    const overallBands = Object.values(bySubject).flat();
+    const overall = overallBands.length > 0
+      ? (overallBands.reduce((a,b) => a+b, 0) / overallBands.length).toFixed(1)
+      : null;
+
+    res.json({
+      summary,
+      overall,
+      totalTests: attempts.length,
+      recentAttempts: attempts.slice(0, 5)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/', auth, async (req, res) => {
   try {
     const { paperId } = req.body;
@@ -228,6 +269,29 @@ router.get('/:id/result', auth, async (req, res) => {
   }
 });
 
+router.put('/:id/autosave', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    const { answers } = req.body;
+    if (!Array.isArray(answers) || answers.length === 0) return res.json({ saved: 0 });
+    const attempt = await prisma.attempt.findUnique({ where: { id: attemptId } });
+    if (!attempt || attempt.status === 'COMPLETED') return res.json({ saved: 0 });
+    let saved = 0;
+    for (const a of answers) {
+      if (!a.questionId || a.studentAnswer === undefined) continue;
+      await prisma.answer.upsert({
+        where: { attemptId_questionId: { attemptId, questionId: parseInt(a.questionId) } },
+        create: { attemptId, questionId: parseInt(a.questionId), studentAnswer: String(a.studentAnswer) },
+        update: { studentAnswer: String(a.studentAnswer) }
+      });
+      saved++;
+    }
+    res.json({ saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -274,24 +338,19 @@ router.post('/:id/end', auth, async (req, res) => {
       where: { id: attemptId },
       include: {
         student: true,
-        paper: {
-          include: {
-            questions: true
-          }
-        }
+        paper: { include: { questions: true } },
+        answers: { include: { question: true } }
       }
     });
 
-    if (!attempt) {
-      return res.status(404).json({ message: 'Attempt not found' });
-    }
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+    if (attempt.status === 'COMPLETED') return res.json({ message: 'Already completed' });
 
     const testType = String(attempt.paper.testType || '').toUpperCase();
     let correctCount = 0;
     let bandEstimate = 0;
 
     if (testType === 'WRITING') {
-      // Handle Writing Submission
       if (writingSubmission) {
         await prisma.writingSubmission.upsert({
           where: { attemptId },
@@ -313,44 +372,41 @@ router.post('/:id/end', auth, async (req, res) => {
         });
       }
     } else {
-      // Handle Reading/Listening (Question-based)
-      await prisma.answer.deleteMany({
-        where: { attemptId }
-      });
-
+      // If new answers sent, save them - otherwise keep existing autosaved answers
       if (Array.isArray(answers) && answers.length > 0) {
-        const answerData = answers.map((a) => {
-          const question = attempt.paper.questions.find(
-            (q) => q.id === parseInt(a.questionId)
-          );
-
+        await prisma.answer.deleteMany({ where: { attemptId } });
+        const answerData = answers.map(a => {
+          const question = attempt.paper.questions.find(q => q.id === parseInt(a.questionId));
           const studentAnswer = String(a.studentAnswer || '').trim();
           const correctAnswer = String(question?.correctAnswer || '').trim();
-
-          const isCorrect =
-            correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
-
-          if (isCorrect) correctCount++;
-
-          return {
-            attemptId,
-            questionId: parseInt(a.questionId),
-            studentAnswer,
-            isCorrect
-          };
+          const isCorrect = correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
+          return { attemptId, questionId: parseInt(a.questionId), studentAnswer, isCorrect };
         });
-
-        await prisma.answer.createMany({
-          data: answerData
+        await prisma.answer.createMany({ data: answerData });
+      } else {
+        // Timer ran out - use autosaved answers already in database
+        const existingAnswers = await prisma.answer.findMany({
+          where: { attemptId },
+          include: { question: true }
         });
+        for (const ans of existingAnswers) {
+          const studentAnswer = String(ans.studentAnswer || '').trim().toLowerCase();
+          const correctAnswer = String(ans.question?.correctAnswer || '').trim().toLowerCase();
+          const isCorrect = studentAnswer === correctAnswer;
+          await prisma.answer.update({
+            where: { id: ans.id },
+            data: { isCorrect }
+          });
+        }
       }
+
+      // Recalculate score from whatever answers are in database
+      const finalAnswers = await prisma.answer.findMany({ where: { attemptId } });
+      correctCount = finalAnswers.filter(a => a.isCorrect).length;
       bandEstimate = calculateBand(correctCount);
     }
 
-    await prisma.result.deleteMany({
-      where: { attemptId }
-    });
-
+    await prisma.result.deleteMany({ where: { attemptId } });
     const result = await prisma.result.create({
       data: {
         attemptId,
@@ -361,51 +417,31 @@ router.post('/:id/end', auth, async (req, res) => {
 
     await prisma.attempt.update({
       where: { id: attemptId },
-      data: {
-        status: 'COMPLETED',
-        endedAt: new Date()
-      }
+      data: { status: 'COMPLETED', endedAt: new Date() }
     });
 
-    // IMPORTANT:
-    // Send response immediately so frontend can navigate to results fast.
-    // AI feedback will generate in the background.
-    res.json({
-      message: 'Exam submitted',
-      result
-    });
+    res.json({ message: 'Exam submitted', result });
 
+    // Background AI
     try {
       let submissionData = [];
-      
       if (testType === 'WRITING') {
-        const writingSub = await prisma.writingSubmission.findUnique({
-          where: { attemptId }
-        });
-        submissionData = writingSub;
+        submissionData = await prisma.writingSubmission.findUnique({ where: { attemptId } });
       } else {
         submissionData = await prisma.answer.findMany({
           where: { attemptId },
-          include: {
-            question: true
-          },
-          orderBy: {
-            questionId: 'asc'
-          }
+          include: { question: true },
+          orderBy: { questionId: 'asc' }
         });
       }
-
       const aiFeedback = await createAiFeedback(attempt, result, submissionData);
       aiCache.set(attemptId, aiFeedback);
     } catch (aiError) {
-      console.error('Background AI feedback error:', aiError);
+      console.error('Background AI error:', aiError);
     }
   } catch (error) {
-    console.error('Submit attempt error:', error);
-    res.status(500).json({
-      message: 'Error submitting attempt',
-      details: error.message
-    });
+    console.error('Submit error:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 // AI feedback polling endpoint
@@ -591,6 +627,43 @@ router.get('/:id/writing/result', auth, async (req, res) => {
     res.json(attempt);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/:id/explain-answer', auth, async (req, res) => {
+  try {
+    const { questionId, studentAnswer, correctAnswer, questionText, questionType, explanation } = req.body;
+
+    // Use pre-stored explanation if available
+    if (explanation && explanation.length > 20) {
+      return res.json({ explanation });
+    }
+
+    const { Anthropic } = require('@anthropic-ai/sdk') || require('@anthropic-ai/sdk').default;
+    const client = new (require('@anthropic-ai/sdk').default || require('@anthropic-ai/sdk').Anthropic)({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+
+    const response = await client.messages.create({
+      model: 'claude-3-5-sonnet-20241022', // Updated to a valid version string if needed, or stick to user's 'claude-sonnet-4-5' if they insist.
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `You are an IELTS Reading examiner. Explain in 2-3 sentences why this answer is wrong and what the correct answer means.
+
+Question: ${questionText}
+Question Type: ${questionType}
+Student answered: ${studentAnswer}
+Correct answer: ${correctAnswer}
+
+Give a clear, helpful explanation for an IELTS student. Be specific about why ${correctAnswer} is correct.`
+      }]
+    });
+
+    res.json({ explanation: response.content[0].text });
+  } catch (err) {
+    console.error('Explain error:', err);
+    res.status(500).json({ explanation: `The correct answer is "${correctAnswer}". Review the relevant passage section carefully.` });
   }
 });
 

@@ -3,194 +3,135 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 
-const api = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('token')}`
-  }
-});
+const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 export default function ImportPaper() {
-  const [rawText, setRawText] = useState('');
-  const [extracting, setExtracting] = useState(false);
-  const [extractedData, setExtractedData] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const navigate = useNavigate();
+   const [rawText, setRawText] = useState('');
+   const [testType, setTestType] = useState('READING');
+   const [paperCode, setPaperCode] = useState('');
+   const [title, setTitle] = useState('');
+   const [loading, setLoading] = useState(false);
+   const [result, setResult] = useState(null);
+   const [error, setError] = useState('');
+   const navigate = useNavigate();
 
-  const handleExtract = async () => {
-    if (!rawText.trim()) return;
-    setExtracting(true);
-    setExtractedData(null);
-
-    try {
-      const res = await axios.post(`${API_URL}/api/admin/papers/extract`, { rawText }, api());
-      setExtractedData(res.data);
-    } catch (err) {
-      console.error('Extraction error:', err);
-      alert('Failed to extract paper data. Please check the text format.');
-    } finally {
-      setExtracting(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!extractedData) return;
-    setSaving(true);
-
-    try {
-      // 1. Create Paper
-      const paperRes = await axios.post(`${API_URL}/api/admin/papers`, {
-        title: extractedData.title || 'Extracted Paper',
-        testType: extractedData.testType || 'READING',
-        paperCode: `SMART-${Date.now().toString().slice(-6)}`,
-        timeLimitMin: extractedData.timeLimitMin || 60,
-        instructions: extractedData.passages?.map(p => `PASSAGE ${p.passageNumber}: ${p.title}\n${p.text}`).join('\n\n') || ''
-      }, api());
-
-      const paperId = paperRes.data.id;
-
-      // 2. Create Questions
-      const questions = extractedData.questions || [];
-      for (const q of questions) {
-        await axios.post(`${API_URL}/api/admin/papers/${paperId}/questions`, {
-          passageNumber: q.passageNumber || 1,
-          questionNumber: q.questionNumber,
-          questionType: q.questionType || 'MC',
-          content: q.content,
-          options: q.options ? JSON.stringify(q.options) : null,
-          correctAnswer: q.correctAnswer || '',
-          explanation: q.explanation || ''
-        }, api());
+   const handleImport = async () => {
+      if (!rawText) {
+         setError('Please paste some paper text first.');
+         return;
       }
+      setLoading(true);
+      setError('');
+      try {
+         const res = await axios.post(`${API_URL}/api/admin/papers/import-ai`, {
+            rawText, testType, paperCode, title
+         }, api());
+         setResult(res.data);
+         if (res.data.success) {
+            setTimeout(() => {
+               navigate(`/admin/papers/${res.data.paper.id}`);
+            }, 2000);
+         }
+      } catch (err) {
+         setError(err.response?.data?.error || 'Import failed. Check console.');
+      } finally {
+         setLoading(false);
+      }
+   };
 
-      alert('Paper imported successfully!');
-      navigate('/admin/dashboard');
-    } catch (err) {
-      console.error('Save error:', err);
-      alert('Failed to save paper. Please check the data.');
-    } finally {
-      setSaving(false);
-    }
-  };
+   return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px', fontFamily: 'Inter, sans-serif' }}>
+         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <button 
+               onClick={() => navigate('/admin/dashboard')}
+               style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: '600', cursor: 'pointer', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+               ← Back to Dashboard
+            </button>
 
-  return (
-    <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', color: '#1a1a2e', marginBottom: '8px' }}>Smart Paper Import</h1>
-        <p style={{ color: '#64748b' }}>Paste raw IELTS paper text or PDF content to automatically generate a digital exam.</p>
+            <div style={{ background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+               <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#1a1a2e', marginBottom: '8px' }}>✨ AI Paper Import</h1>
+               <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '32px' }}>Paste raw text from a PDF or website. Our AI will automatically detect passages, questions, and answers.</p>
+
+               {error && (
+                  <div style={{ background: '#fef2f2', color: '#dc2626', padding: '12px', borderRadius: '8px', border: '1px solid #fecaca', marginBottom: '24px', fontSize: '14px' }}>
+                     {error}
+                  </div>
+               )}
+
+               {result?.success && (
+                  <div style={{ background: '#f0fdf4', color: '#16a34a', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '24px' }}>
+                     <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '4px' }}>Success!</h3>
+                     <p style={{ fontSize: '14px' }}>Created paper with {result.questionsCreated} questions. Redirecting to editor...</p>
+                  </div>
+               )}
+
+               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                  <div>
+                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Paper Code</label>
+                     <input 
+                        className="form-input" 
+                        placeholder="e.g. 005" 
+                        value={paperCode} 
+                        onChange={e => setPaperCode(e.target.value)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                     />
+                  </div>
+                  <div>
+                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Test Type</label>
+                     <select 
+                        className="form-input" 
+                        value={testType} 
+                        onChange={e => setTestType(e.target.value)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                     >
+                        <option value="READING">Reading</option>
+                        <option value="LISTENING">Listening</option>
+                     </select>
+                  </div>
+               </div>
+
+               <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Paste Paper Content Here</label>
+                  <textarea 
+                     value={rawText}
+                     onChange={e => setRawText(e.target.value)}
+                     placeholder="Paste the full text of the exam here..."
+                     style={{ 
+                        width: '100%', 
+                        height: '300px', 
+                        padding: '16px', 
+                        borderRadius: '12px', 
+                        border: '1.5px solid #e2e8f0', 
+                        fontFamily: 'monospace', 
+                        fontSize: '13px',
+                        outline: 'none',
+                        resize: 'vertical'
+                     }}
+                  />
+               </div>
+
+               <button 
+                  onClick={handleImport}
+                  disabled={loading}
+                  style={{ 
+                     width: '100%', 
+                     padding: '14px', 
+                     background: '#4f46e5', 
+                     color: 'white', 
+                     border: 'none', 
+                     borderRadius: '12px', 
+                     fontWeight: '700', 
+                     fontSize: '16px',
+                     cursor: loading ? 'not-allowed' : 'pointer',
+                     opacity: loading ? 0.7 : 1,
+                     transition: 'all 0.2s'
+                  }}
+               >
+                  {loading ? '🤖 AI is processing... (up to 30s)' : '🚀 Magic Import with AI'}
+               </button>
+            </div>
+         </div>
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ marginBottom: '12px', fontSize: '16px' }}>1. Paste Raw Source</h3>
-          <textarea
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            placeholder="Paste your paper content here (including passages, questions, and answer key)..."
-            style={{
-              width: '100%',
-              height: '500px',
-              padding: '20px',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              fontFamily: 'inherit',
-              fontSize: '14px',
-              lineHeight: '1.6',
-              outline: 'none',
-              resize: 'none'
-            }}
-          />
-          <button
-            onClick={handleExtract}
-            disabled={extracting || !rawText.trim()}
-            style={{
-              marginTop: '16px',
-              width: '100%',
-              padding: '14px',
-              background: '#4f46e5',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              opacity: extracting ? 0.7 : 1
-            }}
-          >
-            {extracting ? 'AI is extracting data...' : '✨ Extract Questions with AI'}
-          </button>
-        </div>
-
-        <div>
-          <h3 style={{ marginBottom: '12px', fontSize: '16px' }}>2. AI Extraction Preview</h3>
-          <div style={{
-            height: '500px',
-            background: '#f8fafc',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            padding: '20px',
-            overflowY: 'auto'
-          }}>
-            {!extractedData && !extracting && (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', textAlign: 'center' }}>
-                Extracted data will appear here.<br />Click the extract button to begin.
-              </div>
-            )}
-
-            {extracting && (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <p style={{ marginTop: '16px', color: '#64748b' }}>Claude is parsing the paper structure...</p>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              </div>
-            )}
-
-            {extractedData && (
-              <div>
-                <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
-                  <h4 style={{ margin: '0 0 4px', fontSize: '18px' }}>{extractedData.title}</h4>
-                  <span style={{ fontSize: '12px', color: '#4f46e5', fontWeight: '600' }}>{extractedData.testType} • {extractedData.timeLimitMin} MIN</span>
-                </div>
-
-                <div style={{ display: 'grid', gap: '16px' }}>
-                  {extractedData.questions?.map((q, i) => (
-                    <div key={i} style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <strong style={{ fontSize: '14px' }}>Q{q.questionNumber}</strong>
-                        <span style={{ fontSize: '11px', background: '#eef2ff', color: '#4f46e5', padding: '2px 8px', borderRadius: '4px' }}>{q.questionType}</span>
-                      </div>
-                      <p style={{ fontSize: '13px', margin: '0 0 8px', color: '#334155' }}>{q.content}</p>
-                      {q.options && (
-                        <div style={{ fontSize: '12px', color: '#64748b', display: 'grid', gap: '4px', marginBottom: '8px' }}>
-                          {q.options.map((opt, j) => <div key={j}>• {opt}</div>)}
-                        </div>
-                      )}
-                      <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '600' }}>Ans: {q.correctAnswer}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={handleSave}
-            disabled={saving || !extractedData}
-            style={{
-              marginTop: '16px',
-              width: '100%',
-              padding: '14px',
-              background: '#16a34a',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              opacity: saving ? 0.7 : 1
-            }}
-          >
-            {saving ? 'Saving to database...' : '💾 Confirm & Save All'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+   );
 }

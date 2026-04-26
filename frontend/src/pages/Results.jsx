@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -15,6 +15,8 @@ const [loading, setLoading] = useState(true);
 const [aiFeedback, setAiFeedback] = useState(null);
 const [aiFeedbackLoading, setAiFeedbackLoading] = useState(true);
 const [pollCount, setPollCount] = useState(0);
+const [explanations, setExplanations] = useState({});
+const [explaining, setExplaining] = useState(null);
 const navigate = useNavigate();
 
 // Load main result once
@@ -75,6 +77,26 @@ useEffect(() => {
   pollInterval = setInterval(pollFeedback, 4000);
   return () => clearInterval(pollInterval);
 }, [attemptId, aiFeedback]);
+
+const handleExplain = async (answer) => {
+  if (explaining === answer.id) return;
+  setExplaining(answer.id);
+  try {
+    const res = await axios.post(`${API_URL}/api/attempts/${attemptId}/explain-answer`, {
+      questionId: answer.questionId,
+      studentAnswer: answer.studentAnswer,
+      correctAnswer: answer.question?.correctAnswer,
+      questionText: answer.question?.content,
+      questionType: answer.question?.questionType,
+      explanation: answer.question?.explanation
+    }, api());
+    setExplanations(prev => ({ ...prev, [answer.id]: res.data.explanation }));
+  } catch (err) {
+    console.error('Explain error:', err);
+  } finally {
+    setExplaining(null);
+  }
+};
 
    if (loading) return (
       <div style={{
@@ -185,6 +207,19 @@ useEffect(() => {
         
         .result-header { padding: 32px 20px; }
         @media (min-width: 768px) { .result-header { padding: 48px 40px; } }
+        
+        .explain-btn {
+          font-size: 10px;
+          background: #eff6ff;
+          color: #2563eb;
+          border: 1px solid #bfdbfe;
+          border-radius: 4px;
+          padding: 2px 6px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+        .explain-btn:hover { background: #dbeafe; }
       `}</style>
 
          {/* Confetti for good scores */}
@@ -523,8 +558,8 @@ useEffect(() => {
                         </div>
                      ) : (
                         answers.map((a, i) => (
-                           <div
-                              key={a.id}
+                           <React.Fragment key={a.id}>
+                            <div
                               className="answer-row"
                               style={{
                                  display: 'grid',
@@ -563,22 +598,31 @@ useEffect(() => {
                               }}>
                                  {a.question?.correctAnswer}
                               </span>
-                              <div style={{
-                                 width: 24, height: 24,
-                                 borderRadius: '50%',
-                                 background: a.isCorrect ? '#f0fdf4' : '#fef2f2',
-                                 border: `1.5px solid ${a.isCorrect ? '#16a34a' : '#ef4444'}`,
-                                 display: 'flex', alignItems: 'center',
-                                 justifyContent: 'center', fontSize: 12
-                              }}>
                                  {a.isCorrect ? '✓' : '✗'}
                               </div>
-                           </div>
+                            {!a.isCorrect && (
+                              <div style={{ padding: '0 16px 12px 62px', background: i % 2 === 0 ? '#ffffff' : '#f8fbff' }}>
+                                {explanations[a.id] ? (
+                                  <div style={{ fontSize: '11px', color: '#1e40af', background: '#eff6ff', padding: '8px 12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                    <strong>AI Explanation:</strong> {explanations[a.id]}
+                                  </div>
+                                ) : (
+                                  <button 
+                                    className="explain-btn" 
+                                    onClick={() => handleExplain(a)}
+                                    disabled={explaining === a.id}
+                                  >
+                                    {explaining === a.id ? 'Thinking...' : '💡 Why is this wrong? Explain with AI'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </React.Fragment>
                         ))
-                     )}
+                      )}
+                    </div>
                   </div>
-               </div>
-            </div>
+                </div>
 
             {/* Back button */}
             <div style={{ textAlign: 'center', marginTop: 8, paddingBottom: 40 }}>

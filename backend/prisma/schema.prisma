@@ -42,6 +42,7 @@ model Passage {
   paperId       Int
   paper         Paper   @relation(fields: [paperId], references: [id])
   passageNumber Int
+  title         String?
   text          String
 }
 

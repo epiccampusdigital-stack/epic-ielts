@@ -388,12 +388,9 @@ export default function ReadingExam() {
       currentQuestions[0]?.questionType
    );
 
-   const passageMap = splitPassageText(paper.instructions || paper.content || '');
-   const currentPassageText =
-      paper.passages?.[currentPassage - 1]?.text ||
-      paper.passageTexts?.[currentPassage - 1] ||
-      passageMap[currentPassage] ||
-      'Passage text will appear here.';
+   const currentPassageData = paper?.passages?.find(p => p.passageNumber === currentPassage);
+   const passageTitle = currentPassageData?.title || `Reading Passage ${currentPassage}`;
+   const passageText = currentPassageData?.text || paper?.instructions || 'Passage text not available.';
 
    return (
       <div style={{
@@ -743,7 +740,7 @@ export default function ReadingExam() {
                      color: '#1a1a2e',
                      lineHeight: '1.3'
                   }}>
-                     Reading Passage {currentPassage}
+                     {passageTitle}
                   </h2>
                </div>
 
@@ -755,7 +752,9 @@ export default function ReadingExam() {
                   textAlign: 'justify',
                   whiteSpace: 'pre-wrap'
                }}>
-                  {currentPassageText}
+                  {passageText.split('\n\n').map((para, i) => (
+                    <p key={i} style={{ marginBottom: 16 }}>{para}</p>
+                  ))}
                </div>
             </div>
 

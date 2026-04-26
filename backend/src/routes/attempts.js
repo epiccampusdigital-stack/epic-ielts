@@ -307,6 +307,11 @@ router.get('/:id', auth, async (req, res) => {
               orderBy: {
                 questionNumber: 'asc'
               }
+            },
+            passages: {
+              orderBy: {
+                passageNumber: 'asc'
+              }
             }
           }
         },

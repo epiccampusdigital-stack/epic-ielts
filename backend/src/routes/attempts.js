@@ -5,6 +5,21 @@ const { gradeAttempt } = require('../services/claudeMarking');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const speakingStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/speaking');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `speaking_${Date.now()}_${file.fieldname}${path.extname(file.originalname)}`);
+  }
+});
+const uploadSpeaking = multer({ storage: speakingStorage });
 
 const aiCache = new Map();
 
@@ -50,9 +65,9 @@ async function createAiFeedback(attempt, result, savedAnswers) {
   console.log(`Generating ${testType} feedback for attempt ${attemptId}...`);
 
   // If already in DB, return it
-  if (result.aiFeedback && result.finalStudentReport) {
+  if (result.aiFeedbackJson) {
     try {
-      return JSON.parse(result.aiFeedback);
+      return JSON.parse(result.aiFeedbackJson);
     } catch (e) {
       console.error('Failed to parse existing AI feedback:', e.message);
     }
@@ -120,8 +135,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     await prisma.result.update({
       where: { attemptId },
       data: {
-        aiFeedback: JSON.stringify(aiFeedback),
-        finalStudentReport: aiFeedback.finalStudentReport || null,
+        aiFeedbackJson: JSON.stringify(aiFeedback),
         strengths: Array.isArray(aiFeedback.strengths) ? aiFeedback.strengths.join(', ') : (aiFeedback.strengths || null),
         weaknesses: Array.isArray(aiFeedback.weakAreas) ? aiFeedback.weakAreas.join(', ') : (aiFeedback.weakAreas || null),
         improvementAdvice: Array.isArray(aiFeedback.improvementAdvice) ? aiFeedback.improvementAdvice.join(', ') : (aiFeedback.improvementAdvice || null)
@@ -142,6 +156,16 @@ async function createAiFeedback(attempt, result, savedAnswers) {
         }
       });
       aiCache.set(`writing_${attemptId}`, aiFeedback);
+    } else if (testType === 'SPEAKING') {
+      await prisma.speakingSubmission.update({
+        where: { attemptId },
+        data: {
+          overallBand: aiFeedback.overallBand || aiFeedback.band,
+          aiFeedback: JSON.stringify(aiFeedback),
+          markingStatus: 'COMPLETE'
+        }
+      });
+      aiCache.set(`speaking_${attemptId}`, aiFeedback);
     } else {
       aiCache.set(attemptId, aiFeedback);
     }
@@ -315,7 +339,11 @@ router.get('/:id/result', auth, async (req, res) => {
     let aiFeedback = aiCache.get(attemptId);
 
     if (!aiFeedback && attempt.status === 'COMPLETED' && attempt.result) {
-      aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
+      if (attempt.result.aiFeedbackJson) {
+        aiFeedback = JSON.parse(attempt.result.aiFeedbackJson);
+      } else {
+        aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
+      }
       aiCache.set(attemptId, aiFeedback);
     }
 
@@ -441,32 +469,26 @@ router.post('/:id/end', auth, async (req, res) => {
       }
     } else {
       // If new answers sent, save them - otherwise keep existing autosaved answers
-      if (Array.isArray(answers) && answers.length > 0) {
-        await prisma.answer.deleteMany({ where: { attemptId } });
-        const answerData = answers.map(a => {
-          const question = attempt.paper.questions.find(q => q.id === parseInt(a.questionId));
-          const studentAnswer = String(a.studentAnswer || '').trim();
-          const correctAnswer = String(question?.correctAnswer || '').trim();
-          const isCorrect = correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
-          return { attemptId, questionId: parseInt(a.questionId), studentAnswer, isCorrect };
-        });
-        await prisma.answer.createMany({ data: answerData });
-      } else {
-        // Timer ran out - use autosaved answers already in database
-        const existingAnswers = await prisma.answer.findMany({
-          where: { attemptId },
-          include: { question: true }
-        });
-        for (const ans of existingAnswers) {
-          const studentAnswer = String(ans.studentAnswer || '').trim().toLowerCase();
-          const correctAnswer = String(ans.question?.correctAnswer || '').trim().toLowerCase();
-          const isCorrect = studentAnswer === correctAnswer;
-          await prisma.answer.update({
-            where: { id: ans.id },
-            data: { isCorrect }
-          });
-        }
-      }
+      await prisma.answer.deleteMany({ where: { attemptId } });
+      let correctCount = 0;
+      const allQuestions = attempt.paper.questions;
+      const answerData = allQuestions.map(question => {
+        const submitted = Array.isArray(answers)
+          ? answers.find(a => parseInt(a.questionId) === question.id)
+          : null;
+        const studentAnswer = String(submitted?.studentAnswer || '').trim();
+        const correctAnswer = String(question.correctAnswer || '').trim();
+        const isCorrect = studentAnswer.length > 0 &&
+          correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
+        if (isCorrect) correctCount++;
+        return {
+          attemptId,
+          questionId: question.id,
+          studentAnswer,
+          isCorrect: studentAnswer.length === 0 ? false : isCorrect
+        };
+      });
+      await prisma.answer.createMany({ data: answerData });
 
       // Recalculate score from whatever answers are in database
       const finalAnswers = await prisma.answer.findMany({ where: { attemptId } });
@@ -516,12 +538,15 @@ router.post('/:id/end', auth, async (req, res) => {
 router.get('/:id/ai-feedback', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-    console.log('AI feedback requested for attempt:', attemptId);
-
     let aiFeedback = aiCache.get(attemptId);
-    if (aiFeedback) {
-      console.log('Returning cached AI feedback');
-      return res.json({ status: 'ready', feedback: aiFeedback });
+    if (aiFeedback) return res.json({ status: 'ready', feedback: aiFeedback });
+
+    const existingResult = await prisma.result.findUnique({ where: { attemptId } });
+    if (existingResult?.aiFeedbackJson) {
+      console.log('AI feedback from database - no API call');
+      const feedback = JSON.parse(existingResult.aiFeedbackJson);
+      aiCache.set(attemptId, feedback);
+      return res.json({ status: 'ready', feedback });
     }
 
     const attempt = await prisma.attempt.findUnique({
@@ -534,29 +559,188 @@ router.get('/:id/ai-feedback', auth, async (req, res) => {
       }
     });
 
-    if (!attempt) return res.json({ status: 'error', message: 'Attempt not found' });
-    if (attempt.status !== 'COMPLETED') return res.json({ status: 'not_ready', message: 'Not completed yet' });
-    if (!attempt.result) return res.json({ status: 'not_ready', message: 'No result yet' });
-
-    console.log('Generating AI feedback for student:', attempt.student?.name, 'Score:', attempt.result?.rawScore);
-    aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
-
-    if (aiFeedback) {
-      aiCache.set(attemptId, aiFeedback);
-      console.log('AI feedback generated and cached successfully');
-      return res.json({ status: 'ready', feedback: aiFeedback });
+    if (!attempt || attempt.status !== 'COMPLETED' || !attempt.result) {
+      return res.json({ status: 'not_ready' });
     }
 
-    console.error('createAiFeedback returned null - Claude API failed');
-    res.json({ status: 'error', message: 'AI generation failed - check API key' });
+    console.log('Generating AI feedback for:', attempt.student?.name);
+    const aiFeedbackData = await createAiFeedback(attempt, attempt.result, attempt.answers);
+
+    if (aiFeedbackData) {
+      aiCache.set(attemptId, aiFeedbackData);
+      await prisma.result.update({
+        where: { attemptId },
+        data: { aiFeedbackJson: JSON.stringify(aiFeedbackData) }
+      });
+      return res.json({ status: 'ready', feedback: aiFeedbackData });
+    }
+
+    res.json({ status: 'error', message: 'AI generation failed' });
   } catch (err) {
-    console.error('AI feedback endpoint error:', err.message);
+    console.error('AI feedback error:', err.message);
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
 
 
-// Submit writing exam
+const speakingStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/speaking');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `speaking_${req.params.id}_${Date.now()}.webm`);
+  }
+});
+
+const uploadSpeaking = multer({
+  storage: speakingStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+router.post('/:id/speaking/upload', auth, uploadSpeaking.single('audio'), async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    const { partNumber } = req.body;
+    if (!req.file) return res.status(400).json({ error: 'No audio file' });
+
+    const audioUrl = '/uploads/speaking/' + req.file.filename;
+    const updateData = {};
+    updateData[`part${partNumber}AudioUrl`] = audioUrl;
+
+    await prisma.speakingSubmission.upsert({
+      where: { attemptId },
+      create: { attemptId, ...updateData, markingStatus: 'PENDING' },
+      update: updateData
+    });
+
+    console.log('Speaking Part', partNumber, 'audio saved:', audioUrl);
+    res.json({ success: true, audioUrl, partNumber });
+  } catch (err) {
+    console.error('Speaking upload error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/speaking/submit', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: { student: true, speakingSubmission: true }
+    });
+
+    if (!attempt) return res.status(404).json({ error: 'Attempt not found' });
+
+    await prisma.attempt.update({
+      where: { id: attemptId },
+      data: { status: 'COMPLETED', endedAt: new Date() }
+    });
+
+    await prisma.result.upsert({
+      where: { attemptId },
+      create: { attemptId, rawScore: 0, bandEstimate: 0 },
+      update: {}
+    });
+
+    res.json({ success: true, message: 'Speaking submitted. AI marking in progress.' });
+
+    // Background transcription and marking
+    try {
+      const sub = attempt.speakingSubmission;
+      if (!sub) return;
+
+      const { transcribeAudioFile, markSpeaking } = require('../services/speakingService');
+      const transcripts = {};
+
+      for (const part of ['part1', 'part2', 'part3']) {
+        const audioUrl = sub[`${part}AudioUrl`];
+        if (audioUrl) {
+          const filePath = path.join(__dirname, '../../', audioUrl);
+          if (fs.existsSync(filePath)) {
+            const transcript = await transcribeAudioFile(filePath);
+            if (transcript) {
+              transcripts[part] = transcript;
+              await prisma.speakingSubmission.update({
+                where: { attemptId },
+                data: { [`${part}Transcript`]: transcript }
+              });
+            }
+          }
+        }
+      }
+
+      if (Object.keys(transcripts).length > 0) {
+        const results = await markSpeaking(
+          transcripts,
+          attempt.student?.name,
+          attempt.student?.expectedBand
+        );
+
+        const bands = Object.values(results).map(r => r.feedback?.band).filter(Boolean);
+        const overallBand = bands.length > 0
+          ? (bands.reduce((a, b) => a + b, 0) / bands.length).toFixed(1)
+          : null;
+
+        await prisma.speakingSubmission.update({
+          where: { attemptId },
+          data: {
+            part1Band: results.part1?.feedback?.band,
+            part2Band: results.part2?.feedback?.band,
+            part3Band: results.part3?.feedback?.band,
+            overallBand: overallBand ? parseFloat(overallBand) : null,
+            aiFeedback: JSON.stringify(results),
+            markingStatus: 'COMPLETE'
+          }
+        });
+
+        if (overallBand) {
+          await prisma.result.update({
+            where: { attemptId },
+            data: { bandEstimate: parseFloat(overallBand) }
+          });
+        }
+
+        console.log('Speaking marked. Overall band:', overallBand);
+      }
+    } catch (bgErr) {
+      console.error('Speaking background error:', bgErr.message);
+    }
+  } catch (err) {
+    console.error('Speaking submit error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:id/speaking/result', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: { paper: true, speakingSubmission: true, result: true, student: true }
+    });
+    if (!attempt) return res.status(404).json({ error: 'Not found' });
+    res.json(attempt);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:id/speaking/feedback', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    const sub = await prisma.speakingSubmission.findUnique({ where: { attemptId } });
+    if (!sub) return res.json({ status: 'not_ready' });
+    if (sub.markingStatus === 'COMPLETE' && sub.aiFeedback) {
+      return res.json({ status: 'ready', feedback: JSON.parse(sub.aiFeedback), overallBand: sub.overallBand });
+    }
+    res.json({ status: 'pending', markingStatus: sub.markingStatus });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
 router.post('/:id/writing/submit', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);

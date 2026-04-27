@@ -58,6 +58,8 @@ export default function ExamGreeting() {
             navigate(`/exam/${attemptId}/writing`);
          } else if (type === 'listening') {
             navigate(`/exam/${attemptId}/listening`);
+         } else if (type === 'speaking') {
+            navigate(`/exam/${attemptId}/speaking`);
          } else {
             navigate(`/exam/${attemptId}/reading`);
          }

@@ -599,11 +599,12 @@ const fetchExplanation = async (answer) => {
                                  {a.question?.content}
                               </span>
                               <span style={{
-                                 fontSize: 12,
-                                 color: a.isCorrect ? '#16a34a' : '#dc2626',
-                                 fontWeight: 600
+                                fontSize: 13,
+                                color: !a.studentAnswer ? '#94a3b8' : a.isCorrect ? '#16a34a' : '#dc2626',
+                                fontWeight: a.studentAnswer ? 600 : 400,
+                                fontStyle: !a.studentAnswer ? 'italic' : 'normal'
                               }}>
-                                 {a.studentAnswer || '(no answer)'}
+                                {a.studentAnswer || '— Not answered'}
                               </span>
                               <span style={{
                                  fontSize: 12, color: '#16a34a', fontWeight: 600

@@ -17,34 +17,34 @@ function adminOnly(req, res, next) {
 
 const audioStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = 'uploads/audio';
+    const dir = path.join(__dirname, '../../uploads/audio');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    cb(null, `audio_${Date.now()}${path.extname(file.originalname)}`);
+    cb(null, 'audio_' + Date.now() + path.extname(file.originalname).toLowerCase());
   }
 });
 
 const uploadAudio = multer({
   storage: audioStorage,
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['.mp3', '.wav', '.ogg', '.m4a'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) cb(null, true);
+    const allowed = ['.mp3', '.wav', '.ogg', '.m4a', '.aac'];
+    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
     else cb(new Error('Only audio files allowed'));
-  },
-  limits: { fileSize: 50 * 1024 * 1024 }
+  }
 });
 
 router.post('/papers/:id/upload-audio', auth, adminOnly, uploadAudio.single('audio'), async (req, res) => {
   try {
-    const audioUrl = `/uploads/audio/${req.file.filename}`;
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const audioUrl = '/uploads/audio/' + req.file.filename;
     const paper = await prisma.paper.update({
       where: { id: parseInt(req.params.id) },
-      data: { audioUrl, audioScript: req.body.script || null }
+      data: { audioUrl }
     });
-    res.json({ audioUrl, paper });
+    res.json({ success: true, audioUrl, paper });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

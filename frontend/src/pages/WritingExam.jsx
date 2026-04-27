@@ -383,6 +383,12 @@ export default function WritingExam() {
             className="writing-area"
             value={currentText}
             onChange={e => setCurrentText(e.target.value)}
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+            data-gramm="false"
+            data-gramm_editor="false"
+            data-enable-grammarly="false"
             placeholder={`Write your Task ${task} response here...\n\nMinimum ${minWords} words required.`}
           />
 

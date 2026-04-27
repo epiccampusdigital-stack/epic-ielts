@@ -76,16 +76,17 @@ model Question {
 }
 
 model Attempt {
-  id                Int                @id @default(autoincrement())
+  id                Int                 @id @default(autoincrement())
   studentId         Int
   paperId           Int
-  student           Student            @relation(fields: [studentId], references: [id])
-  paper             Paper              @relation(fields: [paperId], references: [id])
-  startedAt         DateTime           @default(now())
+  student           Student             @relation(fields: [studentId], references: [id])
+  paper             Paper               @relation(fields: [paperId], references: [id])
+  startedAt         DateTime            @default(now())
   endedAt           DateTime?
-  status            String             @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  status            String              @default("IN_PROGRESS")
   answers           Answer[]
   writingSubmission WritingSubmission?
+  speakingSubmission SpeakingSubmission?
   result            Result?
 }
 
@@ -115,16 +116,34 @@ model WritingSubmission {
 }
 
 model Result {
-  id                 Int      @id @default(autoincrement())
-  attemptId          Int      @unique
-  attempt            Attempt  @relation(fields: [attemptId], references: [id])
-  rawScore           Float?
-  bandEstimate       Float?
-  teacherReviewed    Boolean  @default(false)
-  overrideBand       Float?
-  strengths          String?
+  id                Int      @id @default(autoincrement())
+  attemptId         Int      @unique
+  attempt           Attempt  @relation(fields: [attemptId], references: [id])
+  rawScore          Float?
+  bandEstimate      Float?
+  teacherReviewed   Boolean  @default(false)
+  overrideBand      Float?
+  strengths         String?
   weaknesses         String?
-  improvementAdvice  String?
-  aiFeedback         String?   // JSON string of full analysis
-  finalStudentReport String?
+  improvementAdvice String?
+  aiFeedbackJson    String?
+}
+
+model SpeakingSubmission {
+  id               Int      @id @default(autoincrement())
+  attemptId        Int      @unique
+  attempt          Attempt  @relation(fields: [attemptId], references: [id])
+  part1AudioUrl    String?
+  part2AudioUrl    String?
+  part3AudioUrl    String?
+  part1Transcript  String?
+  part2Transcript  String?
+  part3Transcript  String?
+  part1Band        Float?
+  part2Band        Float?
+  part3Band        Float?
+  overallBand      Float?
+  aiFeedback       String?
+  markingStatus    String   @default("PENDING")
+  createdAt        DateTime @default(now())
 }

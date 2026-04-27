@@ -24,8 +24,13 @@ export default function StudentDashboard() {
       try {
         const papersRes = await axios.get(`${API_URL}/api/papers/assigned`, api());
         const allPapers = Array.isArray(papersRes.data) ? papersRes.data : [];
-        // Sort papers by paperCode ascending (READING001, READING002, etc.)
-        allPapers.sort((a, b) => (a.paperCode || '').localeCompare(b.paperCode || ''));
+        // Sort papers by order (custom) then by paperCode ascending
+        allPapers.sort((a, b) => {
+          if ((a.order || 0) !== (b.order || 0)) {
+            return (a.order || 0) - (b.order || 0);
+          }
+          return (a.paperCode || '').localeCompare(b.paperCode || '');
+        });
         console.log('All papers from API:', allPapers.length, allPapers.map(p => p.paperCode + ' ' + p.testType));
         setPapers(allPapers);
       } catch (err) {

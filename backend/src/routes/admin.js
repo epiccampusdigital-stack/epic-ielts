@@ -63,6 +63,26 @@ router.get('/test-ai', auth, adminOnly, async (req, res) => {
   }
 });
 
+// Reorder papers
+router.post('/papers/reorder', auth, adminOnly, async (req, res) => {
+  const { orders } = req.body; // Array of { id, order }
+
+  try {
+    await prisma.$transaction(
+      orders.map((o) =>
+        prisma.paper.update({
+          where: { id: o.id },
+          data: { order: o.order }
+        })
+      )
+    );
+    res.json({ message: 'Order updated successfully' });
+  } catch (err) {
+    console.error('Reorder error:', err);
+    res.status(500).json({ error: 'Failed to reorder papers' });
+  }
+});
+
 router.get('/students', auth, adminOnly, async (req, res) => {
   try {
     const students = await prisma.student.findMany({
@@ -103,7 +123,10 @@ router.post('/students', auth, adminOnly, async (req, res) => {
 router.get('/papers', auth, adminOnly, async (req, res) => {
   try {
     const papers = await prisma.paper.findMany({
-      orderBy: { id: 'desc' }
+      orderBy: [
+        { order: 'asc' },
+        { paperCode: 'asc' }
+      ]
     });
     res.json(papers);
   } catch (err) {
@@ -243,11 +266,24 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  const { id: _, questions, passages, ...paperData } = req.body;
+  const { questions, passages, ...rawPaperData } = req.body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update basic paper data
+      // 1. Sanitize basic paper data
+      const paperData = {
+        paperCode: rawPaperData.paperCode,
+        testType: rawPaperData.testType,
+        title: rawPaperData.title,
+        timeLimitMin: parseInt(rawPaperData.timeLimitMin) || 60,
+        instructions: rawPaperData.instructions,
+        status: rawPaperData.status,
+        assignedBatches: rawPaperData.assignedBatches,
+        audioUrl: rawPaperData.audioUrl,
+        audioScript: rawPaperData.audioScript,
+        order: rawPaperData.order !== undefined ? parseInt(rawPaperData.order) : undefined
+      };
+
       const updatedPaper = await tx.paper.update({
         where: { id: paperId },
         data: paperData
@@ -256,20 +292,22 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       // 2. Update questions if provided
       if (questions && Array.isArray(questions)) {
         for (const q of questions) {
-          const { id, paperId: qPaperId, ...qData } = q;
-          
-          // Handle options if it's an array
-          if (qData.options && Array.isArray(qData.options)) {
-            qData.options = JSON.stringify(qData.options);
-          }
+          const qData = {
+            passageNumber: q.passageNumber,
+            questionNumber: parseInt(q.questionNumber),
+            questionType: q.questionType,
+            content: q.content,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            options: Array.isArray(q.options) ? JSON.stringify(q.options) : q.options
+          };
 
-          if (id && typeof id === 'number') {
+          if (q.id && typeof q.id === 'number') {
             await tx.question.update({
-              where: { id },
+              where: { id: q.id },
               data: qData
             });
           } else {
-            // New question (temp ID or no ID)
             await tx.question.create({
               data: { ...qData, paperId }
             });
@@ -280,10 +318,15 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       // 3. Update passages if provided
       if (passages && Array.isArray(passages)) {
         for (const p of passages) {
-          const { id, paperId: pPaperId, ...pData } = p;
-          if (id && typeof id === 'number') {
+          const pData = {
+            passageNumber: p.passageNumber,
+            title: p.title,
+            text: p.text
+          };
+
+          if (p.id && typeof p.id === 'number') {
             await tx.passage.update({
-              where: { id },
+              where: { id: p.id },
               data: pData
             });
           } else {

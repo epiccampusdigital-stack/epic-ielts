@@ -21,6 +21,8 @@ export default function AdminDashboard() {
    const [loading, setLoading] = useState(true);
    const [saving, setSaving] = useState(false);
    const [message, setMessage] = useState('');
+   const [reorderMode, setReorderMode] = useState(false);
+   const [draggedItem, setDraggedItem] = useState(null);
    const navigate = useNavigate();
    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -302,12 +304,39 @@ export default function AdminDashboard() {
                      )}
                      {activeTab === 'papers' && (
                         <>
-                           <button className="action-btn outline" onClick={() => navigate('/admin/papers/import')}>
-                              ✨ Import Paper (AI)
-                           </button>
-                           <button className="action-btn primary" onClick={() => setShowAddPaper(true)}>
-                              + Create Paper
-                           </button>
+                           {!reorderMode ? (
+                              <>
+                                 <button className="action-btn outline" onClick={() => setReorderMode(true)}>
+                                    ↕️ Reorder Papers
+                                 </button>
+                                 <button className="action-btn outline" onClick={() => navigate('/admin/papers/import')}>
+                                    ✨ Import Paper (AI)
+                                 </button>
+                                 <button className="action-btn primary" onClick={() => setShowAddPaper(true)}>
+                                    + Create Paper
+                                 </button>
+                              </>
+                           ) : (
+                              <>
+                                 <button className="action-btn outline" onClick={() => { setReorderMode(false); fetchAll(); }}>
+                                    Cancel
+                                 </button>
+                                 <button className="action-btn primary" onClick={async () => {
+                                    setSaving(true);
+                                    try {
+                                       const orders = papers.map((p, i) => ({ id: p.id, order: i }));
+                                       await axios.post(`${API_URL}/api/admin/papers/reorder`, { orders }, api());
+                                       setMessage('Order updated successfully! ✨');
+                                       setReorderMode(false);
+                                       fetchAll();
+                                    } catch (e) {
+                                       setMessage('Failed to update order.');
+                                    } finally { setSaving(false); }
+                                 }}>
+                                    Save New Order
+                                 </button>
+                              </>
+                           )}
                         </>
                      )}
                   </div>
@@ -374,12 +403,13 @@ export default function AdminDashboard() {
                      <div className="admin-table">
                         <div style={{
                            display: 'grid',
-                           gridTemplateColumns: '1fr 1fr 2fr 1fr 1fr',
+                           gridTemplateColumns: reorderMode ? '40px 1fr 1fr 2fr 1fr 1fr' : '1fr 1fr 2fr 1fr 1fr',
                            gap: '12px',
                            padding: '12px 20px',
                            background: '#f8fafc',
                            borderBottom: '1px solid #f1f5f9'
                         }}>
+                           {reorderMode && <span />}
                            {['Code', 'Type', 'Title', 'Status', 'Actions'].map(h => (
                               <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
                            ))}
@@ -394,7 +424,34 @@ export default function AdminDashboard() {
                         ) : papers.map((p, i) => {
                            const tc = getTypeColor(p.testType);
                            return (
-                              <div key={p.id} className="table-row" style={{ gridTemplateColumns: '1fr 1fr 2fr 1fr 1fr' }}>
+                              <div 
+                                 key={p.id} 
+                                 className="table-row" 
+                                 style={{ 
+                                    gridTemplateColumns: reorderMode ? '40px 1fr 1fr 2fr 1fr 1fr' : '1fr 1fr 2fr 1fr 1fr',
+                                    cursor: reorderMode ? 'move' : 'default',
+                                    opacity: draggedItem === i ? 0.4 : 1,
+                                    border: reorderMode && draggedItem === i ? '2px dashed #4f46e5' : ''
+                                 }}
+                                 draggable={reorderMode}
+                                 onDragStart={(e) => {
+                                    setDraggedItem(i);
+                                    e.dataTransfer.effectAllowed = 'move';
+                                 }}
+                                 onDragOver={(e) => {
+                                    e.preventDefault();
+                                    if (draggedItem === null || draggedItem === i) return;
+                                    const newPapers = [...papers];
+                                    const item = newPapers.splice(draggedItem, 1)[0];
+                                    newPapers.splice(i, 0, item);
+                                    setDraggedItem(i);
+                                    setPapers(newPapers);
+                                 }}
+                                 onDragEnd={() => setDraggedItem(null)}
+                              >
+                                 {reorderMode && (
+                                    <span style={{ color: '#94a3b8', fontSize: '18px' }}>☰</span>
+                                 )}
                                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>{p.paperCode}</span>
                                  <span style={{
                                     display: 'inline-block',
@@ -411,7 +468,9 @@ export default function AdminDashboard() {
                                     fontSize: '12px', fontWeight: '500'
                                  }}>{p.status}</span>
                                  <div style={{ display: 'flex', gap: '6px' }}>
-                                    <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => navigate(`/admin/papers/${p.id}`)}>Edit</button>
+                                    {!reorderMode && (
+                                       <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => navigate(`/admin/papers/${p.id}`)}>Edit</button>
+                                    )}
                                  </div>
                               </div>
                            );

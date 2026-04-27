@@ -24,7 +24,7 @@ model Student {
 
 model Paper {
   id              Int           @id @default(autoincrement())
-  paperCode       String        @unique
+  paperCode       String
   testType        String        // READING, WRITING, LISTENING
   title           String
   timeLimitMin    Int
@@ -37,6 +37,8 @@ model Paper {
   passages        Passage[]
   writingTasks    WritingTask[]
   attempts        Attempt[]
+
+  @@unique([paperCode, testType])
 }
 
 model Passage {
@@ -122,4 +124,6 @@ model Result {
   strengths          String?
   weaknesses         String?
   improvementAdvice  String?
+  aiFeedback         String?   // JSON string of full analysis
+  finalStudentReport String?
 }

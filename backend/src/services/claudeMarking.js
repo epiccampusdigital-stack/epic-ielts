@@ -13,10 +13,27 @@ const MODEL = 'claude-sonnet-4-5-20250929';
 
 function safeExtractJson(text) {
   if (!text) return null;
+  // Try direct parse first
   try { return JSON.parse(text); } catch {}
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try { return JSON.parse(match[0]); } catch { return null; }
+  
+  // Find first { and last }
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  
+  if (start === -1 || end === -1 || end < start) {
+    console.error('No JSON block found in Claude response');
+    return null;
+  }
+  
+  const jsonStr = text.substring(start, end + 1);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error('JSON parse failed for extracted string:', e.message);
+    // Try to fix common issues like trailing commas or single quotes if needed
+    // But for now, just return null
+    return null;
+  }
 }
 
 async function gradeAttempt(answerReview, paperSummaryStr) {

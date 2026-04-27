@@ -16,7 +16,8 @@ const [aiFeedback, setAiFeedback] = useState(null);
 const [aiFeedbackLoading, setAiFeedbackLoading] = useState(true);
 const [pollCount, setPollCount] = useState(0);
 const [explanations, setExplanations] = useState({});
-const [explaining, setExplaining] = useState(null);
+const [loadingExplanation, setLoadingExplanation] = useState({});
+const [openExplanations, setOpenExplanations] = useState({});
 const navigate = useNavigate();
 
 // Load main result once
@@ -78,9 +79,19 @@ useEffect(() => {
   return () => clearInterval(pollInterval);
 }, [attemptId, aiFeedback]);
 
-const handleExplain = async (answer) => {
-  if (explaining === answer.id) return;
-  setExplaining(answer.id);
+const fetchExplanation = async (answer) => {
+  const qId = answer.question?.id;
+  if (!qId) return;
+  
+  if (openExplanations[qId]) {
+    setOpenExplanations(prev => ({ ...prev, [qId]: false }));
+    return;
+  }
+
+  setOpenExplanations(prev => ({ ...prev, [qId]: true }));
+  if (explanations[qId]) return;
+
+  setLoadingExplanation(prev => ({ ...prev, [qId]: true }));
   try {
     const res = await axios.post(`${API_URL}/api/attempts/${attemptId}/explain-answer`, {
       questionId: answer.questionId,
@@ -90,11 +101,12 @@ const handleExplain = async (answer) => {
       questionType: answer.question?.questionType,
       explanation: answer.question?.explanation
     }, api());
-    setExplanations(prev => ({ ...prev, [answer.id]: res.data.explanation }));
+    setExplanations(prev => ({ ...prev, [qId]: res.data.explanation }));
   } catch (err) {
     console.error('Explain error:', err);
+    setExplanations(prev => ({ ...prev, [qId]: 'Failed to load AI explanation. Please try again.' }));
   } finally {
-    setExplaining(null);
+    setLoadingExplanation(prev => ({ ...prev, [qId]: false }));
   }
 };
 
@@ -601,47 +613,74 @@ const handleExplain = async (answer) => {
                                  {a.isCorrect ? '✓' : '✗'}
                               </div>
                             {!a.isCorrect && (
-                              <div style={{ padding: '0 16px 12px 62px', background: i % 2 === 0 ? '#ffffff' : '#f8fbff' }}>
-                                {explanations[a.id] || explaining === a.id ? (
-                                  <div style={{
-                                    gridColumn: '1 / -1',
-                                    marginTop: 8,
-                                    marginBottom: 12,
-                                    background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                                    border: '1px solid #bfdbfe',
-                                    borderRadius: 12,
-                                    padding: '16px 20px',
-                                    fontSize: 14,
-                                    color: '#1e3a5f',
-                                    lineHeight: 1.9,
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word',
-                                    maxHeight: 'none',
-                                    overflow: 'visible'
-                                  }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #bfdbfe' }}>
-                                      <span style={{ fontSize: 20 }}>🤖</span>
-                                      <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                        EPIC AI Explanation
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: 14, color: '#1e3a5f', lineHeight: 1.9 }}>
-                                      {explaining === a.id
-                                        ? 'Generating AI explanation...'
-                                        : explanations[a.id] || 'Loading...'}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <button 
-                                    className="explain-btn" 
-                                    onClick={() => handleExplain(a)}
-                                    disabled={explaining === a.id}
-                                  >
-                                    💡 Why is this wrong? Explain with AI
-                                  </button>
-                                )}
-                              </div>
-                            )}
+  <>
+    <div style={{ gridColumn: '1 / -1', paddingLeft: 16, paddingTop: 4 }}>
+      <button
+        onClick={() => fetchExplanation(a)}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: '#2563eb',
+          fontSize: 13,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 0',
+          fontFamily: 'Inter, sans-serif'
+        }}
+      >
+        <span style={{ fontSize: 10 }}>{openExplanations[a.question?.id] ? '▼' : '▶'}</span>
+        {loadingExplanation[a.question?.id] ? '⏳ Loading AI explanation...' : '🤖 Why is this wrong? See AI explanation'}
+      </button>
+    </div>
+    {openExplanations[a.question?.id] && (
+      <div style={{
+        gridColumn: '1 / -1',
+        margin: '0 0 16px 16px',
+        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+        border: '1px solid #93c5fd',
+        borderLeft: '4px solid #2563eb',
+        borderRadius: '0 12px 12px 12px',
+        padding: '18px 22px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: 20 }}>🤖</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            EPIC AI Examiner Explanation
+          </span>
+        </div>
+        <div style={{
+          fontSize: 14,
+          color: '#1e3a5f',
+          lineHeight: 1.9,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          maxHeight: 'none',
+          overflow: 'visible',
+          display: 'block',
+          width: '100%'
+        }}>
+          {loadingExplanation[a.question?.id]
+            ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#2563eb' }}>
+                <div style={{ width: 16, height: 16, border: '2px solid #dbeafe', borderTop: '2px solid #2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+                Generating personalised explanation...
+              </div>
+            )
+            : explanations[a.question?.id]
+          }
+        </div>
+        {!loadingExplanation[a.question?.id] && explanations[a.question?.id] && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #bfdbfe', fontSize: 12, color: '#3b82f6', fontStyle: 'italic' }}>
+            💡 Tip: Use this explanation to improve your understanding of {a.question?.questionType?.replace(/_/g, ' ')} questions.
+          </div>
+        )}
+      </div>
+    )}
+  </>
+)}
                           </React.Fragment>
                         ))
                       )}

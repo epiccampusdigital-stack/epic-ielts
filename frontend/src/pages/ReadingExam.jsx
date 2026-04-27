@@ -389,8 +389,9 @@ export default function ReadingExam() {
    );
 
    const currentPassageData = paper?.passages?.find(p => p.passageNumber === currentPassage);
+   const splitTextMap = splitPassageText(paper?.instructions);
    const passageTitle = currentPassageData?.title || `Reading Passage ${currentPassage}`;
-   const passageText = currentPassageData?.text || paper?.instructions || 'Passage text not available.';
+   const passageText = currentPassageData?.text || splitTextMap[currentPassage] || paper?.instructions || 'Passage text not available.';
 
    return (
       <div style={{

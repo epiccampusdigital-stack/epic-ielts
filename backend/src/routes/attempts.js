@@ -43,9 +43,22 @@ function fallbackFeedback(rawScore, bandEstimate, studentName = 'Student', testT
 }
 
 async function createAiFeedback(attempt, result, savedAnswers) {
+  const attemptId = attempt.id;
   const studentName = attempt.student?.name || 'Student';
+  const testType = String(attempt.paper?.testType || '').toUpperCase();
   
-  // Fetch previous 3 completed attempts for this student (excluding current one)
+  console.log(`Generating ${testType} feedback for attempt ${attemptId}...`);
+
+  // If already in DB, return it
+  if (result.aiFeedback && result.finalStudentReport) {
+    try {
+      return JSON.parse(result.aiFeedback);
+    } catch (e) {
+      console.error('Failed to parse existing AI feedback:', e.message);
+    }
+  }
+
+  // Fetch previous 3 completed attempts for context
   const previousAttempts = await prisma.attempt.findMany({
     where: {
       studentId: attempt.studentId,
@@ -63,28 +76,78 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     band: a.result?.bandEstimate
   }));
 
-  const answerReview = savedAnswers.map((a) => ({
-    questionNumber: a.question?.questionNumber,
-    questionType: a.question?.questionType,
-    question: a.question?.content,
-    studentAnswer: a.studentAnswer,
-    correctAnswer: a.question?.correctAnswer,
-    isCorrect: a.isCorrect
-  }));
+  let aiFeedback = null;
 
-  const paperSummary = {
-    studentName,
-    title: attempt.paper?.title,
-    paperCode: attempt.paper?.paperCode,
-    testType: attempt.paper?.testType,
-    rawScore: result.rawScore,
-    bandEstimate: result.bandEstimate,
-    totalQuestions: attempt.paper?.questions?.length || 40,
-    previousResults
-  };
+  if (testType === 'WRITING') {
+    const sub = await prisma.writingSubmission.findUnique({ where: { attemptId } });
+    if (!sub) return null;
 
-  const ai = await gradeAttempt(answerReview, JSON.stringify(paperSummary));
-  return ai || fallbackFeedback(result.rawScore, result.bandEstimate, studentName, attempt.paper?.testType, attempt.paper?.paperCode);
+    const task1Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 1)?.prompt || '';
+    const task2Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
+
+    const { gradeWritingAttempt } = require('../services/claudeMarking');
+    aiFeedback = await gradeWritingAttempt(
+      sub.task1Response, task1Prompt,
+      sub.task2Response, task2Prompt,
+      studentName
+    );
+  } else {
+    const answerReview = savedAnswers.map((a) => ({
+      questionNumber: a.question?.questionNumber,
+      questionType: a.question?.questionType,
+      question: a.question?.content,
+      studentAnswer: a.studentAnswer,
+      correctAnswer: a.question?.correctAnswer,
+      isCorrect: a.isCorrect
+    }));
+
+    const paperSummary = {
+      studentName,
+      title: attempt.paper?.title,
+      paperCode: attempt.paper?.paperCode,
+      testType,
+      rawScore: result.rawScore,
+      bandEstimate: result.bandEstimate,
+      totalQuestions: attempt.paper?.questions?.length || 40,
+      previousResults
+    };
+
+    aiFeedback = await gradeAttempt(answerReview, JSON.stringify(paperSummary));
+  }
+
+  if (aiFeedback) {
+    // Persist to Result table
+    await prisma.result.update({
+      where: { attemptId },
+      data: {
+        aiFeedback: JSON.stringify(aiFeedback),
+        finalStudentReport: aiFeedback.finalStudentReport || null,
+        strengths: Array.isArray(aiFeedback.strengths) ? aiFeedback.strengths.join(', ') : (aiFeedback.strengths || null),
+        weaknesses: Array.isArray(aiFeedback.weakAreas) ? aiFeedback.weakAreas.join(', ') : (aiFeedback.weakAreas || null),
+        improvementAdvice: Array.isArray(aiFeedback.improvementAdvice) ? aiFeedback.improvementAdvice.join(', ') : (aiFeedback.improvementAdvice || null)
+      }
+    });
+
+    // If writing, also update writingSubmission
+    if (testType === 'WRITING') {
+      const overall = parseFloat(((aiFeedback.task1?.band || 0) * 0.34 + (aiFeedback.task2?.band || 0) * 0.66).toFixed(1));
+      await prisma.writingSubmission.update({
+        where: { attemptId },
+        data: {
+          task1Band: aiFeedback.task1?.band,
+          task2Band: aiFeedback.task2?.band,
+          overallBand: overall,
+          aiFeedback: JSON.stringify(aiFeedback),
+          markingStatus: 'COMPLETE'
+        }
+      });
+      aiCache.set(`writing_${attemptId}`, aiFeedback);
+    } else {
+      aiCache.set(attemptId, aiFeedback);
+    }
+  }
+
+  return aiFeedback || fallbackFeedback(result.rawScore, result.bandEstimate, studentName, testType, attempt.paper?.paperCode);
 }
 
 router.get('/history/mine', auth, async (req, res) => {
@@ -453,15 +516,14 @@ router.post('/:id/end', auth, async (req, res) => {
 router.get('/:id/ai-feedback', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
+    console.log('AI feedback requested for attempt:', attemptId);
 
-    // Check cache first
     let aiFeedback = aiCache.get(attemptId);
     if (aiFeedback) {
-      console.log('Returning cached AI feedback for attempt', attemptId);
+      console.log('Returning cached AI feedback');
       return res.json({ status: 'ready', feedback: aiFeedback });
     }
 
-    // Fetch attempt with all needed data
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
@@ -472,25 +534,23 @@ router.get('/:id/ai-feedback', auth, async (req, res) => {
       }
     });
 
-    if (!attempt || !attempt.result) {
-      return res.json({ status: 'not_ready', message: 'Result not ready yet' });
-    }
+    if (!attempt) return res.json({ status: 'error', message: 'Attempt not found' });
+    if (attempt.status !== 'COMPLETED') return res.json({ status: 'not_ready', message: 'Not completed yet' });
+    if (!attempt.result) return res.json({ status: 'not_ready', message: 'No result yet' });
 
-    if (attempt.status !== 'COMPLETED') {
-      return res.json({ status: 'not_ready', message: 'Exam not completed' });
-    }
-
-    console.log('Generating AI feedback on demand for attempt', attemptId);
+    console.log('Generating AI feedback for student:', attempt.student?.name, 'Score:', attempt.result?.rawScore);
     aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
 
     if (aiFeedback) {
       aiCache.set(attemptId, aiFeedback);
+      console.log('AI feedback generated and cached successfully');
       return res.json({ status: 'ready', feedback: aiFeedback });
     }
 
-    res.json({ status: 'error', message: 'AI feedback generation failed' });
+    console.error('createAiFeedback returned null - Claude API failed');
+    res.json({ status: 'error', message: 'AI generation failed - check API key' });
   } catch (err) {
-    console.error('AI feedback endpoint error:', err);
+    console.error('AI feedback endpoint error:', err.message);
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
@@ -552,39 +612,29 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
     res.json({ message: 'Writing submitted', task1Words, task2Words });
 
     // Background AI marking
-    try {
-      const task1Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 1)?.prompt || '';
-      const task2Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
-
-      const { gradeWritingAttempt } = require('../services/claudeMarking');
-      const feedback = await gradeWritingAttempt(
-        task1Response, task1Prompt,
-        task2Response, task2Prompt,
-        attempt.student?.name
-      );
-
-      if (feedback) {
-        const overall = ((feedback.task1?.band || 0) * 0.34 + (feedback.task2?.band || 0) * 0.66).toFixed(1);
-        await prisma.writingSubmission.update({
-          where: { attemptId },
-          data: {
-            task1Band: feedback.task1?.band,
-            task2Band: feedback.task2?.band,
-            overallBand: parseFloat(overall),
-            aiFeedback: JSON.stringify(feedback),
-            markingStatus: 'COMPLETE'
+    setTimeout(async () => {
+      try {
+        const updatedAttempt = await prisma.attempt.findUnique({
+          where: { id: attemptId },
+          include: { 
+            student: true, 
+            paper: { include: { writingTasks: true } },
+            result: true
           }
         });
-        await prisma.result.update({
+
+        if (updatedAttempt && updatedAttempt.result) {
+          await createAiFeedback(updatedAttempt, updatedAttempt.result, []);
+          console.log(`Background Writing AI complete for attempt ${attemptId}`);
+        }
+      } catch (aiErr) {
+        console.error(`Writing AI background error for ${attemptId}:`, aiErr);
+        await prisma.writingSubmission.update({
           where: { attemptId },
-          data: { bandEstimate: parseFloat(overall) }
-        });
-        aiCache.set(`writing_${attemptId}`, feedback);
-        console.log('Writing marked — Overall band:', overall);
+          data: { markingStatus: 'FAILED' }
+        }).catch(() => {});
       }
-    } catch (aiErr) {
-      console.error('Writing AI error:', aiErr);
-    }
+    }, 500);
   } catch (err) {
     console.error('Writing submit error:', err);
     res.status(500).json({ message: err.message });

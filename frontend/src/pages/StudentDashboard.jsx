@@ -21,37 +21,30 @@ export default function StudentDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-
       try {
         const papersRes = await axios.get(`${API_URL}/api/papers/assigned`, api());
-
-        console.log('PAPERS RESPONSE:', papersRes.data);
-        setPapers(Array.isArray(papersRes.data) ? papersRes.data : []);
+        const allPapers = Array.isArray(papersRes.data) ? papersRes.data : [];
+        console.log('All papers from API:', allPapers.length, allPapers.map(p => p.paperCode + ' ' + p.testType));
+        setPapers(allPapers);
       } catch (err) {
-        console.error('Papers fetch error:', err);
+        console.error('Papers fetch error:', err.response?.status, err.message);
         setPapers([]);
       }
-
       try {
         const historyRes = await axios.get(`${API_URL}/api/attempts/history/mine`, api());
-
-        console.log('HISTORY RESPONSE:', historyRes.data);
         setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
       } catch (err) {
-        console.error('History fetch error:', err);
+        console.error('History fetch error:', err.message);
         setHistory([]);
       }
-
       try {
         const summaryRes = await axios.get(`${API_URL}/api/attempts/dashboard/summary`, api());
         setSummary(summaryRes.data);
       } catch (err) {
         console.error('Summary fetch error:', err);
       }
-
       setLoading(false);
     };
-
     fetchData();
   }, []);
 
@@ -631,7 +624,10 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <div className="responsive-grid">
-                {papers.filter(p => filter === 'ALL' || p.testType === filter).map((paper, i) => {
+                {(filter === 'ALL'
+                  ? papers.slice(0, 6)
+                  : papers.filter(p => p.testType === filter).slice(0, 3)
+                ).map((paper, i) => {
                   const typeColor = getTypeColor(paper.testType);
 
                   return (

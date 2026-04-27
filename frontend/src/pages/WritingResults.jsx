@@ -19,27 +19,57 @@ export default function WritingResults() {
       .catch(() => setLoading(false));
   }, [attemptId]);
 
-  useEffect(() => {
+  const pollAI = async () => {
     if (!attemptId) return;
-    let interval;
-    let tries = 0;
-    const poll = async () => {
+    setFeedbackLoading(true);
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    const check = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/attempts/${attemptId}/writing/feedback`, api());
         if (res.data.status === 'ready' && res.data.feedback) {
           setFeedback(res.data.feedback);
           setFeedbackLoading(false);
-          clearInterval(interval);
-          return;
+          return true;
         }
-      } catch (e) { console.error(e); }
-      tries++;
-      if (tries >= 25) { setFeedbackLoading(false); clearInterval(interval); }
+        if (res.data.status === 'error' || res.data.markingStatus === 'FAILED') {
+          setFeedbackLoading(false);
+          return true;
+        }
+      } catch (err) {
+        console.error('AI poll error:', err);
+      }
+      return false;
     };
-    poll();
-    interval = setInterval(poll, 4000);
-    return () => clearInterval(interval);
+
+    const interval = setInterval(async () => {
+      const done = await check();
+      attempts++;
+      if (done || attempts >= maxAttempts) {
+        clearInterval(interval);
+        setFeedbackLoading(false);
+      }
+    }, 4000);
+
+    await check();
+  };
+
+  useEffect(() => {
+    pollAI();
   }, [attemptId]);
+
+  const handleRetryAI = async () => {
+    setFeedbackLoading(true);
+    try {
+      // Trigger fresh marking via the common AI feedback endpoint
+      await axios.get(`${API_URL}/api/attempts/${attemptId}/ai-feedback`, api());
+      pollAI();
+    } catch (err) {
+      console.error('Retry error:', err);
+      setFeedbackLoading(false);
+    }
+  };
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f7ff', fontFamily: 'Inter, sans-serif' }}>
@@ -174,7 +204,11 @@ export default function WritingResults() {
             {feedback.finalStudentReport && (
               <div style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', borderRadius: 14, padding: 22, border: '1px solid #bfdbfe', marginBottom: 20 }}>
                 <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 15, fontWeight: 700, marginBottom: 10 }}>📜 Examiner's Report</h3>
-                <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>{feedback.finalStudentReport}</p>            {/* Task 1 and Task 2 breakdown */}
+                <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>{feedback.finalStudentReport}</p>
+              </div>
+            )}
+
+            {/* Task 1 and Task 2 breakdown */}
             <div className="feedback-split">
               {[
                 { label: 'Task 1 Analysis', taskData: feedback.task1, criteria: ['taskAchievement', 'coherenceCohesion', 'lexicalResource', 'grammaticalRange'], criteriaLabels: ['Task Achievement', 'Coherence & Cohesion', 'Lexical Resource', 'Grammatical Range'] },
@@ -312,10 +346,13 @@ export default function WritingResults() {
           </div>
         ) : (
           <div style={{ background: 'white', borderRadius: 16, border: '1px solid #dbeafe', padding: 32, textAlign: 'center', marginBottom: 24 }}>
-            <p style={{ color: '#64748b', marginBottom: 16 }}>AI feedback could not be generated.</p>
-            <button onClick={() => { setFeedbackLoading(true); }}
-              style={{ padding: '10px 24px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-              Try Again
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🤖</div>
+            <p style={{ color: '#64748b', marginBottom: 16, fontSize: 15 }}>AI feedback could not be generated at this moment.</p>
+            <button 
+              onClick={handleRetryAI}
+              style={{ padding: '10px 24px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+            >
+              Retry AI Analysis
             </button>
           </div>
         )}

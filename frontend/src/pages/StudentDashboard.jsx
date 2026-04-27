@@ -630,11 +630,18 @@ export default function StudentDashboard() {
                 </p>
               </div>
             ) : (
-              <div className="responsive-grid">
-                {(filter === 'ALL'
-                  ? papers
-                  : papers.filter(p => p.testType === filter)
-                ).map((paper, i) => {
+              <div style={{ 
+                maxHeight: '600px', 
+                overflowY: 'auto', 
+                paddingRight: '12px',
+                paddingBottom: '20px',
+                marginRight: '-12px'
+              }}>
+                <div className="responsive-grid">
+                  {(filter === 'ALL'
+                    ? papers
+                    : papers.filter(p => p.testType === filter)
+                  ).map((paper, i) => {
                   const typeColor = getTypeColor(paper.testType);
 
                   return (
@@ -783,6 +790,7 @@ export default function StudentDashboard() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
           </div>

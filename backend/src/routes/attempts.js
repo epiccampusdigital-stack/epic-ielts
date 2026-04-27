@@ -9,17 +9,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const speakingStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../../uploads/speaking');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `speaking_${Date.now()}_${file.fieldname}${path.extname(file.originalname)}`);
-  }
-});
-const uploadSpeaking = multer({ storage: speakingStorage });
+
 
 const aiCache = new Map();
 

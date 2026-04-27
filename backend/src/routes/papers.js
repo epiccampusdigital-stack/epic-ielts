@@ -2,6 +2,72 @@ const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// One-shot seed endpoint — call POST /api/papers/seed-reading005 on Render to insert the paper
+router.post('/seed-reading005', async (req, res) => {
+  try {
+    const paperData = require('../data/papers/reading005');
+
+    // Remove if already exists
+    const existing = await prisma.paper.findFirst({
+      where: { paperCode: paperData.code, testType: 'READING' }
+    });
+    if (existing) {
+      await prisma.answer.deleteMany({ where: { question: { paperId: existing.id } } });
+      await prisma.question.deleteMany({ where: { paperId: existing.id } });
+      await prisma.passage.deleteMany({ where: { paperId: existing.id } });
+      await prisma.attempt.deleteMany({ where: { paperId: existing.id } });
+      await prisma.paper.delete({ where: { id: existing.id } });
+    }
+
+    // Create paper
+    const paper = await prisma.paper.create({
+      data: {
+        paperCode: paperData.code,
+        testType: 'READING',
+        title: paperData.title,
+        timeLimitMin: paperData.timeAllowed,
+        instructions: 'Read the passages carefully and answer all questions.',
+        status: 'ACTIVE',
+        assignedBatches: 'ALL'
+      }
+    });
+
+    // Create passages
+    for (const p of paperData.passages) {
+      await prisma.passage.create({
+        data: { paperId: paper.id, passageNumber: p.number, title: p.title, text: p.text }
+      });
+    }
+
+    // Create questions
+    for (const q of paperData.questions) {
+      let optionsStr = null;
+      if (q.options) {
+        optionsStr = JSON.stringify(Object.entries(q.options).map(([k, v]) => `${k}. ${v}`));
+      } else if (q.paragraphOptions) {
+        optionsStr = JSON.stringify(q.paragraphOptions);
+      }
+      await prisma.question.create({
+        data: {
+          paperId: paper.id,
+          passageNumber: q.passageNumber,
+          questionNumber: q.number,
+          questionType: q.type,
+          content: q.text,
+          options: optionsStr,
+          correctAnswer: q.answer,
+          explanation: q.explanation || null
+        }
+      });
+    }
+
+    res.json({ success: true, paperId: paper.id, code: paper.paperCode, questions: paperData.questions.length });
+  } catch (err) {
+    console.error('Seed error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/assigned', async (req, res) => {
   try {
     const { type } = req.query;

@@ -6,6 +6,15 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const prisma = new PrismaClient();
+
+function adminOnly(req, res, next) {
+  if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'TEACHER')) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
 const audioStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = 'uploads/audio';
@@ -40,15 +49,6 @@ router.post('/papers/:id/upload-audio', auth, adminOnly, uploadAudio.single('aud
     res.status(500).json({ error: err.message });
   }
 });
-
-const prisma = new PrismaClient();
-
-const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'TEACHER') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
 
 router.get('/test-ai', auth, adminOnly, async (req, res) => {
   try {
@@ -387,6 +387,5 @@ router.get('/papers/:id/full', auth, adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Failed to get paper' });
   }
 });
-
 
 module.exports = router;

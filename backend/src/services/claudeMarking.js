@@ -1,125 +1,139 @@
 require('dotenv').config();
-const Anthropic = require('@anthropic-ai/sdk');
 
-let client;
-try {
-  client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  console.log('Claude client initialized OK');
-} catch (e) {
-  console.error('Claude init failed:', e.message);
+let client = null;
+
+function getClient() {
+  if (client) return client;
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    console.error('ANTHROPIC_API_KEY not found in environment');
+    return null;
+  }
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    client = new Anthropic({ apiKey: key });
+    console.log('Claude client created successfully');
+    return client;
+  } catch (e) {
+    console.error('Failed to create Claude client:', e.message);
+    return null;
+  }
 }
 
 const MODEL = 'claude-sonnet-4-5-20250929';
 
 function safeExtractJson(text) {
   if (!text) return null;
-  // Try direct parse first
   try { return JSON.parse(text); } catch {}
-  
-  // Find first { and last }
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  
-  if (start === -1 || end === -1 || end < start) {
-    console.error('No JSON block found in Claude response');
-    return null;
-  }
-  
-  const jsonStr = text.substring(start, end + 1);
-  try {
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.error('JSON parse failed for extracted string:', e.message);
-    // Try to fix common issues like trailing commas or single quotes if needed
-    // But for now, just return null
-    return null;
-  }
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
 }
 
 async function gradeAttempt(answerReview, paperSummaryStr) {
-  console.log('=== GRADE READING CALLED ===');
-  if (!client) { console.error('No Claude client'); return null; }
-  if (!process.env.ANTHROPIC_API_KEY) { console.error('No API key'); return null; }
+  console.log('gradeAttempt called');
+  const claude = getClient();
+  if (!claude) {
+    console.error('No Claude client available');
+    return null;
+  }
+
   let paperSummary = {};
   try { paperSummary = JSON.parse(paperSummaryStr); } catch {}
-  const wrongAnswers = (answerReview || []).filter(a => !a.isCorrect);
-  const correctAnswers = (answerReview || []).filter(a => a.isCorrect);
-  const typeBreakdown = {};
+
+  const wrong = (answerReview || []).filter(a => !a.isCorrect);
+  const correct = (answerReview || []).filter(a => a.isCorrect);
+
+  const typeStats = {};
   (answerReview || []).forEach(a => {
     const t = a.questionType || 'UNKNOWN';
-    if (!typeBreakdown[t]) typeBreakdown[t] = { total: 0, correct: 0, wrong: 0 };
-    typeBreakdown[t].total++;
-    if (a.isCorrect) typeBreakdown[t].correct++;
-    else typeBreakdown[t].wrong++;
+    if (!typeStats[t]) typeStats[t] = { total: 0, correct: 0, wrong: 0 };
+    typeStats[t].total++;
+    if (a.isCorrect) typeStats[t].correct++;
+    else typeStats[t].wrong++;
   });
-  const prompt = `You are the EPIC IELTS AI Examiner. Analyze this student's IELTS Reading test and give detailed personal feedback.
+
+  const prompt = `You are the EPIC IELTS AI Examiner. Analyze this student's IELTS Reading test result and give detailed personal feedback.
 
 STUDENT: ${paperSummary.studentName || 'Student'}
-SCORE: ${paperSummary.rawScore || 0}/40
-BAND: ${paperSummary.bandEstimate || 4}
-PAPER: ${paperSummary.paperCode || 'N/A'}
+PAPER: ${paperSummary.paperCode || 'N/A'} - ${paperSummary.testType || 'READING'}
+RAW SCORE: ${paperSummary.rawScore || 0}/40
+BAND ESTIMATE: ${paperSummary.bandEstimate || 4}
 
-PERFORMANCE BY QUESTION TYPE:
-${Object.entries(typeBreakdown).map(([t, d]) => `${t}: ${d.correct}/${d.total} correct (${d.wrong} wrong)`).join('\n')}
+QUESTION TYPE PERFORMANCE:
+${Object.entries(typeStats).map(([t, s]) => `${t}: ${s.correct}/${s.total} correct`).join('\n')}
 
-WRONG ANSWERS (${wrongAnswers.length} mistakes):
-${wrongAnswers.map(a => `Q${a.questionNumber} [${a.questionType}]: "${String(a.question || '').substring(0, 120)}"
-  Student answered: "${a.studentAnswer || '(blank)'}"
-  Correct answer: "${a.correctAnswer}"`).join('\n\n')}
+WRONG ANSWERS (${wrong.length} mistakes):
+${wrong.slice(0, 15).map(a => `Q${a.questionNumber} [${a.questionType}]: "${String(a.question || '').substring(0, 100)}"
+  Student: "${a.studentAnswer || 'blank'}" → Correct: "${a.correctAnswer}"`).join('\n\n')}
 
-CORRECT QUESTION TYPES STUDENT GOT RIGHT: ${[...new Set(correctAnswers.map(a => a.questionType))].join(', ') || 'None'}
+CORRECT TYPES: ${[...new Set(correct.map(a => a.questionType))].join(', ') || 'None'}
 
-Return ONLY valid JSON:
+PREVIOUS ATTEMPTS: ${paperSummary.previousResults?.length > 0 ? JSON.stringify(paperSummary.previousResults) : 'First attempt'}
+
+Return ONLY valid JSON, no extra text:
 {
   "bandEstimate": ${paperSummary.bandEstimate || 4},
-  "strengths": ["specific strength 1", "specific strength 2", "specific strength 3"],
-  "weakAreas": ["specific weak area mentioning question type 1", "weak area 2", "weak area 3"],
-  "mistakeAnalysis": ["specific analysis of mistake pattern 1", "analysis 2", "analysis 3"],
+  "strengths": ["strength 1 based on correct answers", "strength 2", "strength 3"],
+  "weakAreas": ["weak area 1 mentioning question type", "weak area 2", "weak area 3"],
+  "mistakeAnalysis": ["specific mistake analysis 1", "analysis 2", "analysis 3"],
   "questionTypeAnalysis": {
-    "TRUE_FALSE_NOT_GIVEN": "specific performance analysis",
-    "MULTIPLE_CHOICE": "specific performance analysis",
-    "SHORT_ANSWER": "specific performance analysis"
+    "TRUE_FALSE_NOT_GIVEN": "how they performed on this type",
+    "MULTIPLE_CHOICE": "how they performed",
+    "SHORT_ANSWER": "how they performed"
   },
-  "improvementAdvice": ["specific actionable advice 1", "advice 2", "advice 3"],
-  "progressComment": "comment on this attempt and progress",
-  "teacherSummary": "2 sentence professional teacher summary",
-  "finalStudentReport": "Personal 4-5 sentence message directly to ${paperSummary.studentName || 'the student'} about their score, specific mistakes, strengths, and one clear improvement tip."
+  "improvementAdvice": ["specific IELTS tip 1", "tip 2", "tip 3"],
+  "progressComment": "comment on this attempt vs previous",
+  "teacherSummary": "2 sentence summary for teacher",
+  "finalStudentReport": "4-5 sentence personal message to ${paperSummary.studentName || 'the student'} about their score of ${paperSummary.rawScore}/40 (Band ${paperSummary.bandEstimate}), what they did well, their main weakness, and one specific improvement tip."
 }`;
+
   try {
-    console.log('Calling Claude for Reading...');
-    const response = await client.messages.create({
-      model: MODEL, max_tokens: 2000, temperature: 0.3,
+    console.log('Calling Claude API for Reading...');
+    const response = await claude.messages.create({
+      model: MODEL,
+      max_tokens: 2000,
+      temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     });
-    console.log('Claude Reading response OK');
-    const parsed = safeExtractJson(response.content?.[0]?.text || '');
-    if (!parsed) { console.error('JSON parse failed'); return null; }
-    console.log('=== READING GRADE COMPLETE ===');
+    console.log('Claude responded for Reading');
+    const text = response.content?.[0]?.text || '';
+    const parsed = safeExtractJson(text);
+    if (!parsed) {
+      console.error('Failed to parse Claude JSON:', text.substring(0, 200));
+      return null;
+    }
+    console.log('Reading AI complete. Band:', parsed.bandEstimate);
     return parsed;
   } catch (e) {
-    console.error('Reading Claude error:', e.message, e.status);
+    console.error('Claude API error:', e.message, 'Status:', e.status);
     return null;
   }
 }
 
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
-  console.log('=== GRADE WRITING CALLED ===');
-  if (!client) { console.error('No Claude client'); return null; }
-  if (!process.env.ANTHROPIC_API_KEY) { console.error('No API key'); return null; }
+  console.log('gradeWritingAttempt called for:', studentName);
+  const claude = getClient();
+  if (!claude) {
+    console.error('No Claude client for writing');
+    return null;
+  }
+
   const t1Words = (task1Response || '').trim().split(/\s+/).filter(Boolean).length;
   const t2Words = (task2Response || '').trim().split(/\s+/).filter(Boolean).length;
-  const prompt = `You are a certified IELTS Writing examiner and teacher. Mark these writing tasks and give detailed teaching feedback that helps the student improve.
+
+  const prompt = `You are a certified IELTS Writing examiner. Mark these writing tasks and give detailed teaching feedback.
 
 STUDENT: ${studentName || 'Student'}
 TARGET BAND: ${expectedBand || 'Not specified'}
 
-TASK 1 QUESTION: ${task1Prompt}
+TASK 1 QUESTION: ${task1Prompt || 'Describe the visual information'}
 TASK 1 RESPONSE (${t1Words} words):
-${task1Response || '(No response provided)'}
+${task1Response || '(No response)'}
 
-TASK 2 QUESTION: ${task2Prompt}
+TASK 2 QUESTION: ${task2Prompt || 'Write an essay'}
 TASK 2 RESPONSE (${t2Words} words):
-${task2Response || '(No response provided)'}
+${task2Response || '(No response)'}
 
 Return ONLY valid JSON:
 {
@@ -129,13 +143,13 @@ Return ONLY valid JSON:
     "coherenceCohesion": 6.0,
     "lexicalResource": 6.0,
     "grammaticalRange": 6.0,
-    "feedback": "Detailed specific feedback on what this student wrote",
-    "strengths": ["specific strength from their text", "another"],
-    "improvements": ["specific improvement needed", "another"],
-    "rewrittenExample": "Take one weak sentence and rewrite at Band 8 level",
-    "keyTricks": ["IELTS Task 1 trick for their mistakes", "trick 2", "trick 3"],
-    "grammarMistakes": [{"mistake": "exact text from essay", "correction": "fixed version", "rule": "grammar rule"}],
-    "vocabularyUpgrades": [{"original": "their word", "better": "better word", "example": "example sentence"}]
+    "feedback": "Specific feedback on Task 1 response",
+    "strengths": ["strength 1", "strength 2"],
+    "improvements": ["improvement 1", "improvement 2"],
+    "rewrittenExample": "One weak sentence rewritten at Band 8",
+    "keyTricks": ["IELTS Task 1 trick 1", "trick 2"],
+    "grammarMistakes": [{"mistake": "text from essay", "correction": "fixed", "rule": "grammar rule"}],
+    "vocabularyUpgrades": [{"original": "basic word", "better": "advanced word", "example": "example sentence"}]
   },
   "task2": {
     "band": 6.0,
@@ -143,66 +157,72 @@ Return ONLY valid JSON:
     "coherenceCohesion": 6.0,
     "lexicalResource": 6.0,
     "grammaticalRange": 6.0,
-    "feedback": "Detailed specific feedback on their essay",
-    "strengths": ["specific strength", "another"],
-    "improvements": ["specific improvement", "another"],
-    "essayStructureFeedback": "Comment on their intro, body paragraphs, and conclusion",
-    "rewrittenExample": "Take one weak sentence and rewrite at Band 8 level",
-    "keyTricks": ["IELTS Task 2 trick for their topic and mistakes", "trick 2", "trick 3"],
-    "grammarMistakes": [{"mistake": "exact text", "correction": "fixed", "rule": "the rule"}],
-    "vocabularyUpgrades": [{"original": "their word", "better": "better word", "example": "sentence"}]
+    "feedback": "Specific feedback on Task 2 essay",
+    "strengths": ["strength 1", "strength 2"],
+    "improvements": ["improvement 1", "improvement 2"],
+    "essayStructureFeedback": "Comment on structure",
+    "rewrittenExample": "One weak sentence rewritten at Band 8",
+    "keyTricks": ["IELTS Task 2 trick 1", "trick 2"],
+    "grammarMistakes": [{"mistake": "text", "correction": "fixed", "rule": "rule"}],
+    "vocabularyUpgrades": [{"original": "word", "better": "better word", "example": "sentence"}]
   },
   "overallBand": 6.0,
-  "studyPlan": ["study action for next week", "action 2", "action 3"],
-  "progressToTarget": "How close to target band and what to focus on",
-  "finalStudentReport": "Personal 5-6 sentence message to ${studentName || 'the student'} referencing their actual writing, their bands, what impressed you, their biggest mistake, and one specific technique to improve."
+  "studyPlan": ["study action 1", "action 2", "action 3"],
+  "progressToTarget": "How close to target and what to focus on",
+  "finalStudentReport": "5-6 sentence personal message to ${studentName || 'the student'} about their writing performance, bands, strengths, main weakness, and improvement tip."
 }`;
+
   try {
-    console.log('Calling Claude for Writing...');
-    const response = await client.messages.create({
-      model: MODEL, max_tokens: 3000, temperature: 0.3,
+    console.log('Calling Claude API for Writing...');
+    const response = await claude.messages.create({
+      model: MODEL,
+      max_tokens: 3000,
+      temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     });
-    console.log('Claude Writing response OK');
-    const parsed = safeExtractJson(response.content?.[0]?.text || '');
-    if (!parsed) { console.error('Writing JSON parse failed'); return null; }
-    console.log('=== WRITING GRADE COMPLETE - Overall:', parsed.overallBand, '===');
+    console.log('Claude responded for Writing');
+    const text = response.content?.[0]?.text || '';
+    const parsed = safeExtractJson(text);
+    if (!parsed) {
+      console.error('Writing JSON parse failed:', text.substring(0, 200));
+      return null;
+    }
+    console.log('Writing AI complete. Overall band:', parsed.overallBand);
     return parsed;
   } catch (e) {
-    console.error('Writing Claude error:', e.message, e.status);
+    console.error('Writing Claude error:', e.message);
     return null;
   }
 }
 
 async function explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, existingExplanation) {
-  console.log('=== EXPLAIN ANSWER CALLED ===');
-  if (!client) return 'AI explanation unavailable.';
+  console.log('explainWrongAnswer called');
   if (existingExplanation && existingExplanation.length > 20) {
-    console.log('Using stored explanation');
     return existingExplanation;
   }
+  const claude = getClient();
+  if (!claude) return `The correct answer is "${correctAnswer}". Review the passage carefully.`;
+
   try {
-    const response = await client.messages.create({
-      model: MODEL, max_tokens: 400,
+    const response = await claude.messages.create({
+      model: MODEL,
+      max_tokens: 400,
       messages: [{
         role: 'user',
-        content: `You are an IELTS Reading examiner. Explain clearly and fully why this answer is wrong.
+        content: `You are an IELTS Reading examiner. Explain in 3-4 sentences why this answer is wrong and what the correct answer means.
 
 Question: ${questionText}
 Question Type: ${questionType}
-Student answered: "${studentAnswer || '(no answer)'}"
+Student answered: "${studentAnswer || 'no answer'}"
 Correct answer: "${correctAnswer}"
 
-Write 3-4 sentences that:
-1. Explain why the student answer is wrong
-2. Explain what evidence supports the correct answer
-3. Give a specific tip for this question type`
+Explain: 1) Why student answer is wrong 2) What evidence in the passage supports the correct answer 3) A tip for this question type`
       }]
     });
     return response.content[0].text;
   } catch (e) {
     console.error('Explain error:', e.message);
-    return `The correct answer is "${correctAnswer}". Look for keywords in the passage that directly match the question. For ${questionType} questions, always check if the passage explicitly states, contradicts, or does not mention the statement.`;
+    return `The correct answer is "${correctAnswer}". For ${questionType} questions, look for exact keywords in the passage that confirm or contradict the statement.`;
   }
 }
 

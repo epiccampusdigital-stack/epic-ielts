@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npx prisma generate && node prisma/fix_accounts.js && node src/index.js",
+    "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npx prisma generate"
   },
   "keywords": [],
   "author": "",

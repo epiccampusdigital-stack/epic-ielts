@@ -243,7 +243,7 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  const { questions, passages, ...paperData } = req.body;
+  const { id: _, questions, passages, ...paperData } = req.body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -257,10 +257,21 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       if (questions && Array.isArray(questions)) {
         for (const q of questions) {
           const { id, paperId: qPaperId, ...qData } = q;
-          if (id) {
+          
+          // Handle options if it's an array
+          if (qData.options && Array.isArray(qData.options)) {
+            qData.options = JSON.stringify(qData.options);
+          }
+
+          if (id && typeof id === 'number') {
             await tx.question.update({
               where: { id },
               data: qData
+            });
+          } else {
+            // New question (temp ID or no ID)
+            await tx.question.create({
+              data: { ...qData, paperId }
             });
           }
         }
@@ -270,7 +281,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       if (passages && Array.isArray(passages)) {
         for (const p of passages) {
           const { id, paperId: pPaperId, ...pData } = p;
-          if (id) {
+          if (id && typeof id === 'number') {
             await tx.passage.update({
               where: { id },
               data: pData

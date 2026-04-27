@@ -627,8 +627,8 @@ export default function StudentDashboard() {
             ) : (
               <div className="responsive-grid">
                 {(filter === 'ALL'
-                  ? papers.slice(0, 6)
-                  : papers.filter(p => p.testType === filter).slice(0, 3)
+                  ? papers
+                  : papers.filter(p => p.testType === filter)
                 ).map((paper, i) => {
                   const typeColor = getTypeColor(paper.testType);
 

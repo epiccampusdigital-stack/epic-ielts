@@ -206,6 +206,66 @@ export default function PaperDetail() {
                )}
             </div>
 
+            {/* Audio Settings (Listening Only) */}
+            {(currentData.testType === 'LISTENING' || paper.testType === 'LISTENING') && (
+               <div className="section-card" style={{ borderLeft: '4px solid #7c3aed' }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: '16px', color: '#1e3a5f', fontWeight: '800' }}>🎧 Listening Audio Settings</h3>
+                  
+                  <div style={{ background: '#f5f3ff', padding: '20px', borderRadius: '12px', border: '1px solid #ddd6fe' }}>
+                     {paper.audioUrl ? (
+                        <div style={{ marginBottom: '16px' }}>
+                           <p style={{ fontSize: '12px', color: '#7c3aed', fontWeight: '700', marginBottom: '8px' }}>Current Audio:</p>
+                           <audio controls src={`${API_URL}${paper.audioUrl}`} style={{ width: '100%', height: '40px' }} />
+                           <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Path: {paper.audioUrl}</p>
+                        </div>
+                     ) : (
+                        <div style={{ padding: '16px', textAlign: 'center', background: '#ffffff', border: '1.5px dashed #ddd6fe', borderRadius: '10px', marginBottom: '16px' }}>
+                           <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>No audio file uploaded yet.</p>
+                        </div>
+                     )}
+
+                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <input 
+                           type="file" 
+                           accept="audio/*" 
+                           id="audio-upload"
+                           style={{ display: 'none' }}
+                           onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              
+                              const formData = new FormData();
+                              formData.append('audio', file);
+                              
+                              setMessage('Uploading audio...');
+                              try {
+                                 await axios.post(`${API_URL}/api/admin/papers/${id}/upload-audio`, formData, {
+                                    headers: { 
+                                       ...api().headers,
+                                       'Content-Type': 'multipart/form-data' 
+                                    }
+                                 });
+                                 setMessage('Audio uploaded successfully! 🎉');
+                                 fetchPaper();
+                              } catch (err) {
+                                 setMessage('Upload failed: ' + (err.response?.data?.error || err.message));
+                              }
+                           }}
+                        />
+                        <button 
+                           onClick={() => document.getElementById('audio-upload').click()}
+                           style={{ flex: 1, padding: '12px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        >
+                           📤 {paper.audioUrl ? 'Replace Audio' : 'Upload Audio File'}
+                        </button>
+                     </div>
+                     <p style={{ fontSize: '11px', color: '#7c3aed', marginTop: '10px', textAlign: 'center' }}>
+                        Allowed: MP3, WAV, OGG, M4A (Max 50MB)
+                     </p>
+                  </div>
+               </div>
+            )}
+
             {passageNumbers.map(pNum => {
                const qs = questionsByPassage[pNum]?.sort((a,b) => a.questionNumber - b.questionNumber) || [];
                const passageText = currentData.passages?.[pNum - 1]?.text || currentData.passageTexts?.[pNum - 1] || currentData.instructions || currentData.content || '';

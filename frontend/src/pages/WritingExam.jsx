@@ -274,47 +274,70 @@ export default function WritingExam() {
 
           {/* Chart for Task 1 */}
           {task === 1 && (
-            <div style={{ background: '#ffffff', borderRadius: 14, padding: 16, border: '1px solid #dbeafe' }}>
+            <div style={{ background: '#ffffff', borderRadius: 14, padding: 20, border: '1px solid #dbeafe', marginTop: 16 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
+                Figure 1: Percentage of daily internet users by age group and country, 2022
+              </p>
               {currentTask?.chartUrl ? (
-                <img src={currentTask.chartUrl} alt="Task 1 Chart" style={{ width: '100%', borderRadius: 8 }} />
+                <img
+                  src={currentTask.chartUrl}
+                  alt="Task 1 Bar Chart"
+                  style={{ width: '100%', height: 'auto', borderRadius: 8 }}
+                />
               ) : (
-                /* Built-in bar chart for WRITING 001 */
-                <div style={{ overflowX: 'auto' }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
-                    Daily Internet Users by Age Group and Country, 2022
-                  </p>
-                  {[
-                    { country: 'UK', data: [92, 78, 54] },
-                    { country: 'Japan', data: [88, 72, 41] },
-                    { country: 'Brazil', data: [85, 68, 38] },
-                    { country: 'South Africa', data: [76, 55, 29] }
-                  ].map(({ country, data }) => (
-                    <div key={country} style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#1e3a5f', marginBottom: 4 }}>{country}</div>
-                      {[
-                        { label: 'Age 18-34', value: data[0], color: '#2563eb' },
-                        { label: 'Age 35-54', value: data[1], color: '#60a5fa' },
-                        { label: 'Age 55+', value: data[2], color: '#93c5fd' }
-                      ].map(({ label, value, color }) => (
-                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                          <span style={{ width: 60, fontSize: 10, color: '#64748b', flexShrink: 0 }}>{label}</span>
-                          <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 16, overflow: 'hidden' }}>
-                            <div style={{ width: `${value}%`, background: color, height: '100%', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 6 }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: '#ffffff' }}>{value}%</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', gap: 12, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {[['#2563eb', '18-34'], ['#60a5fa', '35-54'], ['#93c5fd', '55+']].map(([color, label]) => (
-                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
-                        <span style={{ fontSize: 10, color: '#64748b' }}>{label}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420" style={{ width: '100%', height: 'auto' }}>
+                    <rect width="700" height="420" fill="#ffffff"/>
+                    <text x="350" y="30" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e3a5f">Daily Internet Users by Age Group and Country, 2022</text>
+                    <line x1="50" y1="320" x2="670" y2="320" stroke="#e2e8f0" strokeWidth="1"/>
+                    <line x1="50" y1="270" x2="670" y2="270" stroke="#e2e8f0" strokeWidth="1"/>
+                    <line x1="50" y1="220" x2="670" y2="220" stroke="#e2e8f0" strokeWidth="1"/>
+                    <line x1="50" y1="170" x2="670" y2="170" stroke="#e2e8f0" strokeWidth="1"/>
+                    <line x1="50" y1="120" x2="670" y2="120" stroke="#e2e8f0" strokeWidth="1"/>
+                    <line x1="50" y1="70" x2="670" y2="70" stroke="#e2e8f0" strokeWidth="1"/>
+                    <text x="45" y="324" fontSize="10" fill="#64748b" textAnchor="end">0%</text>
+                    <text x="45" y="274" fontSize="10" fill="#64748b" textAnchor="end">20%</text>
+                    <text x="45" y="224" fontSize="10" fill="#64748b" textAnchor="end">40%</text>
+                    <text x="45" y="174" fontSize="10" fill="#64748b" textAnchor="end">60%</text>
+                    <text x="45" y="124" fontSize="10" fill="#64748b" textAnchor="end">80%</text>
+                    <text x="45" y="74" fontSize="10" fill="#64748b" textAnchor="end">100%</text>
+                    <rect x="65" y="73" width="30" height="247" fill="#1d4ed8" rx="2"/>
+                    <rect x="98" y="124" width="30" height="196" fill="#60a5fa" rx="2"/>
+                    <rect x="131" y="184" width="30" height="136" fill="#bfdbfe" rx="2"/>
+                    <text x="113" y="345" fontSize="11" fontWeight="600" fill="#1e3a5f" textAnchor="middle">UK</text>
+                    <text x="80" y="68" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">92%</text>
+                    <text x="113" y="119" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">78%</text>
+                    <text x="146" y="179" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">54%</text>
+                    <rect x="205" y="96" width="30" height="224" fill="#1d4ed8" rx="2"/>
+                    <rect x="238" y="139" width="30" height="181" fill="#60a5fa" rx="2"/>
+                    <rect x="271" y="216" width="30" height="104" fill="#bfdbfe" rx="2"/>
+                    <text x="253" y="345" fontSize="11" fontWeight="600" fill="#1e3a5f" textAnchor="middle">Japan</text>
+                    <text x="220" y="91" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">88%</text>
+                    <text x="253" y="134" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">72%</text>
+                    <text x="286" y="211" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">41%</text>
+                    <rect x="345" y="108" width="30" height="212" fill="#1d4ed8" rx="2"/>
+                    <rect x="378" y="150" width="30" height="170" fill="#60a5fa" rx="2"/>
+                    <rect x="411" y="225" width="30" height="95" fill="#bfdbfe" rx="2"/>
+                    <text x="393" y="345" fontSize="11" fontWeight="600" fill="#1e3a5f" textAnchor="middle">Brazil</text>
+                    <text x="360" y="103" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">85%</text>
+                    <text x="393" y="145" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">68%</text>
+                    <text x="426" y="220" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">38%</text>
+                    <rect x="485" y="132" width="30" height="188" fill="#1d4ed8" rx="2"/>
+                    <rect x="518" y="183" width="30" height="137" fill="#60a5fa" rx="2"/>
+                    <rect x="551" y="247" width="30" height="73" fill="#bfdbfe" rx="2"/>
+                    <text x="533" y="345" fontSize="10" fontWeight="600" fill="#1e3a5f" textAnchor="middle">South Africa</text>
+                    <text x="500" y="127" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">76%</text>
+                    <text x="533" y="178" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">55%</text>
+                    <text x="566" y="242" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">29%</text>
+                    <rect x="150" y="375" width="12" height="12" fill="#1d4ed8" rx="2"/>
+                    <text x="166" y="385" fontSize="10" fill="#475569">Age 18-34</text>
+                    <rect x="270" y="375" width="12" height="12" fill="#60a5fa" rx="2"/>
+                    <text x="286" y="385" fontSize="10" fill="#475569">Age 35-54</text>
+                    <rect x="390" y="375" width="12" height="12" fill="#bfdbfe" rx="2"/>
+                    <text x="406" y="385" fontSize="10" fill="#475569">Age 55+</text>
+                    <line x1="50" y1="320" x2="670" y2="320" stroke="#1e293b" strokeWidth="1.5"/>
+                    <line x1="50" y1="50" x2="50" y2="320" stroke="#1e293b" strokeWidth="1.5"/>
+                  </svg>
                 </div>
               )}
             </div>

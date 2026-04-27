@@ -10,6 +10,7 @@ import ImportPaper from './pages/ImportPaper';
 
 import WritingExam from './pages/WritingExam';
 import WritingResults from './pages/WritingResults';
+import ListeningExam from './pages/ListeningExam';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
       <Route path="/exam/:attemptId/results" element={<Results />} />
       <Route path="/exam/:attemptId/writing" element={<WritingExam />} />
       <Route path="/exam/:attemptId/writing-results" element={<WritingResults />} />
+      <Route path="/exam/:attemptId/listening" element={<ListeningExam />} />
       <Route path="*" element={<Login />} />
     </Routes>
   );

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420" font-family="Inter, sans-serif">
+  <rect width="700" height="420" fill="#ffffff"/>
+  <text x="350" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a5f">Daily Internet Users by Age Group and Country, 2022</text>
+  <!-- Y axis labels -->
+  <text x="45" y="320" font-size="11" fill="#64748b" text-anchor="end">0%</text>
+  <text x="45" y="270" font-size="11" fill="#64748b" text-anchor="end">20%</text>
+  <text x="45" y="220" font-size="11" fill="#64748b" text-anchor="end">40%</text>
+  <text x="45" y="170" font-size="11" fill="#64748b" text-anchor="end">60%</text>
+  <text x="45" y="120" font-size="11" fill="#64748b" text-anchor="end">80%</text>
+  <text x="45" y="70" font-size="11" fill="#64748b" text-anchor="end">100%</text>
+  <!-- Grid lines -->
+  <line x1="50" y1="320" x2="670" y2="320" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="50" y1="270" x2="670" y2="270" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="50" y1="220" x2="670" y2="220" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="50" y1="170" x2="670" y2="170" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="50" y1="120" x2="670" y2="120" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="50" y1="70" x2="670" y2="70" stroke="#e2e8f0" stroke-width="1"/>
+  <!-- UK bars -->
+  <rect x="65" y="73" width="32" height="247" fill="#1d4ed8"/>
+  <rect x="100" y="124" width="32" height="196" fill="#60a5fa"/>
+  <rect x="135" y="184" width="32" height="136" fill="#bfdbfe"/>
+  <text x="116" y="345" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">UK</text>
+  <text x="81" y="68" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">92%</text>
+  <text x="116" y="119" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">78%</text>
+  <text x="151" y="179" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">54%</text>
+  <!-- Japan bars -->
+  <rect x="205" y="96" width="32" height="224" fill="#1d4ed8"/>
+  <rect x="240" y="139" width="32" height="181" fill="#60a5fa"/>
+  <rect x="275" y="216" width="32" height="104" fill="#bfdbfe"/>
+  <text x="256" y="345" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">Japan</text>
+  <text x="221" y="91" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">88%</text>
+  <text x="256" y="134" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">72%</text>
+  <text x="291" y="211" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">41%</text>
+  <!-- Brazil bars -->
+  <rect x="345" y="108" width="32" height="212" fill="#1d4ed8"/>
+  <rect x="380" y="150" width="32" height="170" fill="#60a5fa"/>
+  <rect x="415" y="225" width="32" height="95" fill="#bfdbfe"/>
+  <text x="396" y="345" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">Brazil</text>
+  <text x="361" y="103" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">85%</text>
+  <text x="396" y="145" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">68%</text>
+  <text x="431" y="220" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">38%</text>
+  <!-- South Africa bars -->
+  <rect x="485" y="132" width="32" height="188" fill="#1d4ed8"/>
+  <rect x="520" y="183" width="32" height="137" fill="#60a5fa"/>
+  <rect x="555" y="247" width="32" height="73" fill="#bfdbfe"/>
+  <text x="536" y="345" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">South Africa</text>
+  <text x="501" y="127" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">76%</text>
+  <text x="536" y="178" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">55%</text>
+  <text x="571" y="242" font-size="10" fill="#1d4ed8" text-anchor="middle" font-weight="700">29%</text>
+  <!-- Legend -->
+  <rect x="130" y="375" width="14" height="14" fill="#1d4ed8" rx="2"/>
+  <text x="148" y="386" font-size="11" fill="#475569">Age 18-34</text>
+  <rect x="260" y="375" width="14" height="14" fill="#60a5fa" rx="2"/>
+  <text x="278" y="386" font-size="11" fill="#475569">Age 35-54</text>
+  <rect x="390" y="375" width="14" height="14" fill="#bfdbfe" rx="2"/>
+  <text x="408" y="386" font-size="11" fill="#475569">Age 55+</text>
+  <!-- X axis -->
+  <line x1="50" y1="320" x2="670" y2="320" stroke="#1e293b" stroke-width="1.5"/>
+  <!-- Y axis -->
+  <line x1="50" y1="50" x2="50" y2="320" stroke="#1e293b" stroke-width="1.5"/>
+</svg>

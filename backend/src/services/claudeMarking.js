@@ -1,5 +1,15 @@
+require('dotenv').config();
 const Anthropic = require('@anthropic-ai/sdk');
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+let client;
+try {
+  client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  console.log('Claude client initialized OK');
+} catch (e) {
+  console.error('Claude init failed:', e.message);
+}
+
+const MODEL = 'claude-sonnet-4-5-20250929';
 
 function safeExtractJson(text) {
   if (!text) return null;
@@ -10,153 +20,91 @@ function safeExtractJson(text) {
 }
 
 async function gradeAttempt(answerReview, paperSummaryStr) {
-  console.log('=== CLAUDE MARKING STARTED ===');
-  console.log('API Key loaded:', process.env.ANTHROPIC_API_KEY ? 'YES - ' + process.env.ANTHROPIC_API_KEY.substring(0, 15) + '...' : 'NO - MISSING');
-  console.log('Total answers to analyze:', answerReview.length);
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ANTHROPIC_API_KEY is missing from .env');
-    return null;
-  }
-
-  let paperSummary;
-  try {
-    paperSummary = typeof paperSummaryStr === 'string' ? JSON.parse(paperSummaryStr) : paperSummaryStr;
-  } catch {
-    paperSummary = { rawScore: 0, bandEstimate: 4 };
-  }
-
-  const wrongAnswers = answerReview.filter(a => !a.isCorrect);
-  const correctAnswers = answerReview.filter(a => a.isCorrect);
-
-  const questionTypeBreakdown = {};
-  answerReview.forEach(a => {
-    const type = a.questionType || 'UNKNOWN';
-    if (!questionTypeBreakdown[type]) {
-      questionTypeBreakdown[type] = { total: 0, correct: 0, wrong: 0 };
-    }
-    questionTypeBreakdown[type].total++;
-    if (a.isCorrect) questionTypeBreakdown[type].correct++;
-    else questionTypeBreakdown[type].wrong++;
+  console.log('=== GRADE READING CALLED ===');
+  if (!client) { console.error('No Claude client'); return null; }
+  if (!process.env.ANTHROPIC_API_KEY) { console.error('No API key'); return null; }
+  let paperSummary = {};
+  try { paperSummary = JSON.parse(paperSummaryStr); } catch {}
+  const wrongAnswers = (answerReview || []).filter(a => !a.isCorrect);
+  const correctAnswers = (answerReview || []).filter(a => a.isCorrect);
+  const typeBreakdown = {};
+  (answerReview || []).forEach(a => {
+    const t = a.questionType || 'UNKNOWN';
+    if (!typeBreakdown[t]) typeBreakdown[t] = { total: 0, correct: 0, wrong: 0 };
+    typeBreakdown[t].total++;
+    if (a.isCorrect) typeBreakdown[t].correct++;
+    else typeBreakdown[t].wrong++;
   });
-
-  const prompt = `You are the official EPIC IELTS AI Examiner. Analyze this student's IELTS Reading test performance and give detailed personal feedback.
+  const prompt = `You are the EPIC IELTS AI Examiner. Analyze this student's IELTS Reading test and give detailed personal feedback.
 
 STUDENT: ${paperSummary.studentName || 'Student'}
-PAPER: ${paperSummary.paperCode || 'N/A'} - ${paperSummary.title || 'IELTS Reading Test'}
-RAW SCORE: ${paperSummary.rawScore || 0}/40
-IELTS BAND ESTIMATE: ${paperSummary.bandEstimate || 4}
+SCORE: ${paperSummary.rawScore || 0}/40
+BAND: ${paperSummary.bandEstimate || 4}
+PAPER: ${paperSummary.paperCode || 'N/A'}
 
 PERFORMANCE BY QUESTION TYPE:
-${Object.entries(questionTypeBreakdown).map(([type, data]) => 
-  `- ${type}: ${data.correct}/${data.total} correct (${data.wrong} wrong)`
-).join('\n')}
+${Object.entries(typeBreakdown).map(([t, d]) => `${t}: ${d.correct}/${d.total} correct (${d.wrong} wrong)`).join('\n')}
 
-WRONG ANSWERS (${wrongAnswers.length} mistakes to analyze):
-${wrongAnswers.map(a => 
-  `Q${a.questionNumber} [${a.questionType}]: "${a.question?.substring(0, 100) || 'N/A'}"
-   Student wrote: "${a.studentAnswer || '(blank)'}" | Correct: "${a.correctAnswer}"`
-).join('\n\n')}
+WRONG ANSWERS (${wrongAnswers.length} mistakes):
+${wrongAnswers.map(a => `Q${a.questionNumber} [${a.questionType}]: "${String(a.question || '').substring(0, 120)}"
+  Student answered: "${a.studentAnswer || '(blank)'}"
+  Correct answer: "${a.correctAnswer}"`).join('\n\n')}
 
-CORRECT ANSWERS (${correctAnswers.length} correct):
-Question types the student got right: ${[...new Set(correctAnswers.map(a => a.questionType))].filter(Boolean).join(', ') || 'None'}
+CORRECT QUESTION TYPES STUDENT GOT RIGHT: ${[...new Set(correctAnswers.map(a => a.questionType))].join(', ') || 'None'}
 
-${paperSummary.previousResults?.length > 0 ? `PREVIOUS ATTEMPTS: ${paperSummary.previousResults.map(p => `Band ${p.band} (Score: ${p.score})`).join(', ')}` : 'PREVIOUS ATTEMPTS: This is the student\'s first attempt.'}
-
-Now provide detailed, specific, personal IELTS feedback. Return ONLY this JSON structure with no extra text:
-
+Return ONLY valid JSON:
 {
   "bandEstimate": ${paperSummary.bandEstimate || 4},
-  "strengths": [
-    "specific strength based on what the student got right",
-    "another specific strength",
-    "third specific strength"
-  ],
-  "weakAreas": [
-    "specific weak area based on wrong answers",
-    "another specific weakness with question type mentioned",
-    "third weakness"
-  ],
-  "mistakeAnalysis": [
-    "Analysis of specific wrong answer pattern you noticed",
-    "Another specific mistake pattern explanation",
-    "Third specific mistake with advice on how to avoid it"
-  ],
+  "strengths": ["specific strength 1", "specific strength 2", "specific strength 3"],
+  "weakAreas": ["specific weak area mentioning question type 1", "weak area 2", "weak area 3"],
+  "mistakeAnalysis": ["specific analysis of mistake pattern 1", "analysis 2", "analysis 3"],
   "questionTypeAnalysis": {
-    ${Object.keys(questionTypeBreakdown).map(type => 
-      `"${type}": "analysis of student performance on ${type} questions"`
-    ).join(',\n    ')}
+    "TRUE_FALSE_NOT_GIVEN": "specific performance analysis",
+    "MULTIPLE_CHOICE": "specific performance analysis",
+    "SHORT_ANSWER": "specific performance analysis"
   },
-  "improvementAdvice": [
-    "Specific actionable advice for IELTS Reading improvement",
-    "Second specific advice with technique",
-    "Third advice for the student's weakest area"
-  ],
-  "progressComment": "${paperSummary.previousResults?.length > 0 ? 'Compare to previous attempts and comment on progress' : 'This is the first attempt. Encourage and set expectations.'}",
-  "teacherSummary": "Professional 2-sentence summary for the teacher about this student's performance and recommended focus areas",
-  "finalStudentReport": "Write a warm, personal 4-5 sentence message directly to ${paperSummary.studentName || 'the student'}. Address them by name. Tell them their score, what they did well, what they struggled with specifically (mention question types and actual mistakes), and give them one clear next step to improve. Be encouraging but honest."
+  "improvementAdvice": ["specific actionable advice 1", "advice 2", "advice 3"],
+  "progressComment": "comment on this attempt and progress",
+  "teacherSummary": "2 sentence professional teacher summary",
+  "finalStudentReport": "Personal 4-5 sentence message directly to ${paperSummary.studentName || 'the student'} about their score, specific mistakes, strengths, and one clear improvement tip."
 }`;
-
   try {
-    console.log('Calling Claude API...');
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
-      temperature: 0.3,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
+    console.log('Calling Claude for Reading...');
+    const response = await client.messages.create({
+      model: MODEL, max_tokens: 2000, temperature: 0.3,
+      messages: [{ role: 'user', content: prompt }]
     });
-
-    console.log('Claude API responded successfully');
-    const text = response.content?.[0]?.text || '';
-    console.log('Response preview:', text.substring(0, 200));
-
-    const parsed = safeExtractJson(text);
-
-    if (!parsed) {
-      console.error('Failed to parse Claude response as JSON');
-      console.error('Raw response:', text);
-      return null;
-    }
-
-    console.log('=== CLAUDE MARKING COMPLETE ===');
+    console.log('Claude Reading response OK');
+    const parsed = safeExtractJson(response.content?.[0]?.text || '');
+    if (!parsed) { console.error('JSON parse failed'); return null; }
+    console.log('=== READING GRADE COMPLETE ===');
     return parsed;
-
-  } catch (error) {
-    console.error('=== CLAUDE API ERROR ===');
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    if (error.status) console.error('HTTP Status:', error.status);
-    if (error.error) console.error('API Error:', JSON.stringify(error.error));
+  } catch (e) {
+    console.error('Reading Claude error:', e.message, e.status);
     return null;
   }
 }
 
-async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName) {
-  console.log('=== CLAUDE WRITING MARKING STARTED ===');
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ANTHROPIC_API_KEY missing');
-    return null;
-  }
-
-  const prompt = `You are an official IELTS Writing examiner. Mark these two writing tasks using official IELTS band descriptors.
+async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
+  console.log('=== GRADE WRITING CALLED ===');
+  if (!client) { console.error('No Claude client'); return null; }
+  if (!process.env.ANTHROPIC_API_KEY) { console.error('No API key'); return null; }
+  const t1Words = (task1Response || '').trim().split(/\s+/).filter(Boolean).length;
+  const t2Words = (task2Response || '').trim().split(/\s+/).filter(Boolean).length;
+  const prompt = `You are a certified IELTS Writing examiner and teacher. Mark these writing tasks and give detailed teaching feedback that helps the student improve.
 
 STUDENT: ${studentName || 'Student'}
+TARGET BAND: ${expectedBand || 'Not specified'}
 
-TASK 1 PROMPT: ${task1Prompt || 'Describe the visual information'}
-TASK 1 RESPONSE (${task1Response?.split(' ').length || 0} words):
-${task1Response || '(No response)'}
+TASK 1 QUESTION: ${task1Prompt}
+TASK 1 RESPONSE (${t1Words} words):
+${task1Response || '(No response provided)'}
 
-TASK 2 PROMPT: ${task2Prompt || 'Write an essay'}
-TASK 2 RESPONSE (${task2Response?.split(' ').length || 0} words):
-${task2Response || '(No response)'}
+TASK 2 QUESTION: ${task2Prompt}
+TASK 2 RESPONSE (${t2Words} words):
+${task2Response || '(No response provided)'}
 
-Return ONLY this JSON:
+Return ONLY valid JSON:
 {
   "task1": {
     "band": 6.0,
@@ -164,9 +112,13 @@ Return ONLY this JSON:
     "coherenceCohesion": 6.0,
     "lexicalResource": 6.0,
     "grammaticalRange": 6.0,
-    "feedback": "Specific feedback on Task 1",
-    "strengths": ["strength 1", "strength 2"],
-    "improvements": ["improvement 1", "improvement 2"]
+    "feedback": "Detailed specific feedback on what this student wrote",
+    "strengths": ["specific strength from their text", "another"],
+    "improvements": ["specific improvement needed", "another"],
+    "rewrittenExample": "Take one weak sentence and rewrite at Band 8 level",
+    "keyTricks": ["IELTS Task 1 trick for their mistakes", "trick 2", "trick 3"],
+    "grammarMistakes": [{"mistake": "exact text from essay", "correction": "fixed version", "rule": "grammar rule"}],
+    "vocabularyUpgrades": [{"original": "their word", "better": "better word", "example": "example sentence"}]
   },
   "task2": {
     "band": 6.0,
@@ -174,30 +126,67 @@ Return ONLY this JSON:
     "coherenceCohesion": 6.0,
     "lexicalResource": 6.0,
     "grammaticalRange": 6.0,
-    "feedback": "Specific feedback on Task 2",
-    "strengths": ["strength 1", "strength 2"],
-    "improvements": ["improvement 1", "improvement 2"]
+    "feedback": "Detailed specific feedback on their essay",
+    "strengths": ["specific strength", "another"],
+    "improvements": ["specific improvement", "another"],
+    "essayStructureFeedback": "Comment on their intro, body paragraphs, and conclusion",
+    "rewrittenExample": "Take one weak sentence and rewrite at Band 8 level",
+    "keyTricks": ["IELTS Task 2 trick for their topic and mistakes", "trick 2", "trick 3"],
+    "grammarMistakes": [{"mistake": "exact text", "correction": "fixed", "rule": "the rule"}],
+    "vocabularyUpgrades": [{"original": "their word", "better": "better word", "example": "sentence"}]
   },
   "overallBand": 6.0,
-  "finalStudentReport": "Personal message to ${studentName || 'the student'} about their writing performance"
+  "studyPlan": ["study action for next week", "action 2", "action 3"],
+  "progressToTarget": "How close to target band and what to focus on",
+  "finalStudentReport": "Personal 5-6 sentence message to ${studentName || 'the student'} referencing their actual writing, their bands, what impressed you, their biggest mistake, and one specific technique to improve."
 }`;
-
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
-      temperature: 0.3,
+    console.log('Calling Claude for Writing...');
+    const response = await client.messages.create({
+      model: MODEL, max_tokens: 3000, temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     });
-
-    const text = response.content?.[0]?.text || '';
-    const parsed = safeExtractJson(text);
-    console.log('Writing marking complete');
+    console.log('Claude Writing response OK');
+    const parsed = safeExtractJson(response.content?.[0]?.text || '');
+    if (!parsed) { console.error('Writing JSON parse failed'); return null; }
+    console.log('=== WRITING GRADE COMPLETE - Overall:', parsed.overallBand, '===');
     return parsed;
-  } catch (error) {
-    console.error('Writing marking error:', error.message);
+  } catch (e) {
+    console.error('Writing Claude error:', e.message, e.status);
     return null;
   }
 }
 
-module.exports = { gradeAttempt, gradeWritingAttempt };
+async function explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, existingExplanation) {
+  console.log('=== EXPLAIN ANSWER CALLED ===');
+  if (!client) return 'AI explanation unavailable.';
+  if (existingExplanation && existingExplanation.length > 20) {
+    console.log('Using stored explanation');
+    return existingExplanation;
+  }
+  try {
+    const response = await client.messages.create({
+      model: MODEL, max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: `You are an IELTS Reading examiner. Explain clearly and fully why this answer is wrong.
+
+Question: ${questionText}
+Question Type: ${questionType}
+Student answered: "${studentAnswer || '(no answer)'}"
+Correct answer: "${correctAnswer}"
+
+Write 3-4 sentences that:
+1. Explain why the student answer is wrong
+2. Explain what evidence supports the correct answer
+3. Give a specific tip for this question type`
+      }]
+    });
+    return response.content[0].text;
+  } catch (e) {
+    console.error('Explain error:', e.message);
+    return `The correct answer is "${correctAnswer}". Look for keywords in the passage that directly match the question. For ${questionType} questions, always check if the passage explicitly states, contradicts, or does not mention the statement.`;
+  }
+}
+
+module.exports = { gradeAttempt, gradeWritingAttempt, explainWrongAnswer };

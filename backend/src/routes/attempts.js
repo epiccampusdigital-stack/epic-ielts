@@ -637,38 +637,13 @@ router.get('/:id/writing/result', auth, async (req, res) => {
 
 router.post('/:id/explain-answer', auth, async (req, res) => {
   try {
-    const { questionId, studentAnswer, correctAnswer, questionText, questionType, explanation } = req.body;
-
-    // Use pre-stored explanation if available
-    if (explanation && explanation.length > 20) {
-      return res.json({ explanation });
-    }
-
-    const { Anthropic } = require('@anthropic-ai/sdk') || require('@anthropic-ai/sdk').default;
-    const client = new (require('@anthropic-ai/sdk').default || require('@anthropic-ai/sdk').Anthropic)({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    });
-
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022', // Updated to a valid version string if needed, or stick to user's 'claude-sonnet-4-5' if they insist.
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: `You are an IELTS Reading examiner. Explain in 2-3 sentences why this answer is wrong and what the correct answer means.
-
-Question: ${questionText}
-Question Type: ${questionType}
-Student answered: ${studentAnswer}
-Correct answer: ${correctAnswer}
-
-Give a clear, helpful explanation for an IELTS student. Be specific about why ${correctAnswer} is correct.`
-      }]
-    });
-
-    res.json({ explanation: response.content[0].text });
+    const { studentAnswer, correctAnswer, questionText, questionType, explanation } = req.body;
+    const { explainWrongAnswer } = require('../services/claudeMarking');
+    const result = await explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, explanation);
+    res.json({ explanation: result });
   } catch (err) {
-    console.error('Explain error:', err);
-    res.status(500).json({ explanation: `The correct answer is "${correctAnswer}". Review the relevant passage section carefully.` });
+    console.error('Explain endpoint error:', err.message);
+    res.status(500).json({ explanation: `The correct answer is "${req.body.correctAnswer}". Review the passage carefully for keywords related to this question.` });
   }
 });
 

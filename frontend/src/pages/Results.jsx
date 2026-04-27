@@ -602,9 +602,34 @@ const handleExplain = async (answer) => {
                               </div>
                             {!a.isCorrect && (
                               <div style={{ padding: '0 16px 12px 62px', background: i % 2 === 0 ? '#ffffff' : '#f8fbff' }}>
-                                {explanations[a.id] ? (
-                                  <div style={{ fontSize: '11px', color: '#1e40af', background: '#eff6ff', padding: '8px 12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                    <strong>AI Explanation:</strong> {explanations[a.id]}
+                                {explanations[a.id] || explaining === a.id ? (
+                                  <div style={{
+                                    gridColumn: '1 / -1',
+                                    marginTop: 8,
+                                    marginBottom: 12,
+                                    background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                                    border: '1px solid #bfdbfe',
+                                    borderRadius: 12,
+                                    padding: '16px 20px',
+                                    fontSize: 14,
+                                    color: '#1e3a5f',
+                                    lineHeight: 1.9,
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                    maxHeight: 'none',
+                                    overflow: 'visible'
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #bfdbfe' }}>
+                                      <span style={{ fontSize: 20 }}>🤖</span>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                        EPIC AI Explanation
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: 14, color: '#1e3a5f', lineHeight: 1.9 }}>
+                                      {explaining === a.id
+                                        ? 'Generating AI explanation...'
+                                        : explanations[a.id] || 'Loading...'}
+                                    </div>
                                   </div>
                                 ) : (
                                   <button 
@@ -612,7 +637,7 @@ const handleExplain = async (answer) => {
                                     onClick={() => handleExplain(a)}
                                     disabled={explaining === a.id}
                                   >
-                                    {explaining === a.id ? 'Thinking...' : '💡 Why is this wrong? Explain with AI'}
+                                    💡 Why is this wrong? Explain with AI
                                   </button>
                                 )}
                               </div>

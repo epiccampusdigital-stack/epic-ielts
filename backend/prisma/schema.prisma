@@ -25,10 +25,12 @@ model Student {
 model Paper {
   id              Int           @id @default(autoincrement())
   paperCode       String        @unique
-  testType        String        // READING, WRITING
+  testType        String        // READING, WRITING, LISTENING
   title           String
   timeLimitMin    Int
   instructions    String?
+  audioUrl        String?
+  audioScript     String?
   status          String        @default("PUBLISHED") // PUBLISHED, DRAFT
   assignedBatches String        @default("ALL")
   questions       Question[]

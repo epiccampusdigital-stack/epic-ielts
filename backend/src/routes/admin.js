@@ -2,6 +2,45 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/audio';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `audio_${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const uploadAudio = multer({
+  storage: audioStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.mp3', '.wav', '.ogg', '.m4a'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('Only audio files allowed'));
+  },
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+router.post('/papers/:id/upload-audio', auth, adminOnly, uploadAudio.single('audio'), async (req, res) => {
+  try {
+    const audioUrl = `/uploads/audio/${req.file.filename}`;
+    const paper = await prisma.paper.update({
+      where: { id: parseInt(req.params.id) },
+      data: { audioUrl, audioScript: req.body.script || null }
+    });
+    res.json({ audioUrl, paper });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const prisma = new PrismaClient();
 
 const adminOnly = (req, res, next) => {

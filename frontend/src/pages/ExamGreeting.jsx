@@ -56,6 +56,8 @@ export default function ExamGreeting() {
          const type = paper?.testType?.toLowerCase();
          if (type === 'writing') {
             navigate(`/exam/${attemptId}/writing`);
+         } else if (type === 'listening') {
+            navigate(`/exam/${attemptId}/listening`);
          } else {
             navigate(`/exam/${attemptId}/reading`);
          }

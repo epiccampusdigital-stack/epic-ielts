@@ -325,6 +325,70 @@ const fetchExplanation = async (answer) => {
                ))}
             </div>
 
+            {/* Score Breakdown Section */}
+            <div className="result-section" style={{ animationDelay: '0.05s', padding: '20px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #dbeafe' }}>
+                <span style={{ fontSize: 20 }}>📊</span>
+                <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 18, fontWeight: 800 }}>Performance Breakdown</h2>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                {/* Passage Breakdown */}
+                <div>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Passage</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[1, 2, 3].map(pNum => {
+                      const pAnswers = answers.filter(a => a.question?.passageNumber === pNum);
+                      const pCorrect = pAnswers.filter(a => a.isCorrect).length;
+                      const pTotal = pAnswers.length || 1;
+                      const pct = Math.round((pCorrect / pTotal) * 100);
+                      
+                      return (
+                        <div key={pNum} style={{ background: '#f8faff', padding: '10px 14px', borderRadius: 10, border: '1px solid #eef2ff' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#1e3a5f' }}>Passage {pNum}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb' }}>{pCorrect}/{pAnswers.length}</span>
+                          </div>
+                          <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: pct > 70 ? '#16a34a' : pct > 40 ? '#f59e0b' : '#dc2626', transition: 'width 1s ease-out' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Question Type Breakdown */}
+                <div>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Question Type</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {Object.entries(
+                      answers.reduce((acc, a) => {
+                        const type = a.question?.questionType || 'Other';
+                        if (!acc[type]) acc[type] = { correct: 0, total: 0 };
+                        acc[type].total++;
+                        if (a.isCorrect) acc[type].correct++;
+                        return acc;
+                      }, {})
+                    ).map(([type, stats]) => {
+                      const pct = Math.round((stats.correct / stats.total) * 100);
+                      return (
+                        <div key={type} style={{ background: '#f8faff', padding: '10px 14px', borderRadius: 10, border: '1px solid #eef2ff' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#1e3a5f', textTransform: 'capitalize' }}>{type.toLowerCase().replace(/_/g, ' ')}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{stats.correct}/{stats.total}</span>
+                          </div>
+                          <div style={{ height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: '#2563eb' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* AI Feedback */}
             <div className="result-section" style={{ border: '1px solid #bfdbfe', animationDelay: '0.1s', padding: '20px' }}>
                <div style={{

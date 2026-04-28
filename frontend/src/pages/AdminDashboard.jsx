@@ -23,6 +23,15 @@ export default function AdminDashboard() {
    const [message, setMessage] = useState('');
    const [reorderMode, setReorderMode] = useState(false);
    const [draggedItem, setDraggedItem] = useState(null);
+   const [showImportModal, setShowImportModal] = useState(false);
+   const [showCreateModal, setShowCreateModal] = useState(false);
+   const [importText, setImportText] = useState('');
+   const [importType, setImportType] = useState('READING');
+   const [importCode, setImportCode] = useState('');
+   const [importTitle, setImportTitle] = useState('');
+   const [importLoading, setImportLoading] = useState(false);
+   const [importError, setImportError] = useState('');
+   const [importSuccess, setImportSuccess] = useState('');
    const navigate = useNavigate();
    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -399,83 +408,196 @@ export default function AdminDashboard() {
 
                {/* PAPERS TAB */}
                {activeTab === 'papers' && (
-                  <div className="table-container">
-                     <div className="admin-table">
-                        <div style={{
-                           display: 'grid',
-                           gridTemplateColumns: reorderMode ? '40px 1fr 1fr 2fr 1fr 1fr' : '1fr 1fr 2fr 1fr 1fr',
-                           gap: '12px',
-                           padding: '12px 20px',
-                           background: '#f8fafc',
-                           borderBottom: '1px solid #f1f5f9'
-                        }}>
-                           {reorderMode && <span />}
-                           {['Code', 'Type', 'Title', 'Status', 'Actions'].map(h => (
-                              <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
-                           ))}
+                  <div style={{ padding: '24px' }}>
+                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
+                        <h2 style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#1e3a5f', margin:0 }}>
+                           Papers ({papers.length})
+                        </h2>
+                        <div style={{ display:'flex', gap:10 }}>
+                           <button onClick={() => setShowImportModal(true)}
+                              style={{ padding:'10px 20px', background:'linear-gradient(135deg,#7c3aed,#2563eb)', color:'white', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>
+                              🤖 Import with AI
+                           </button>
+                           <button onClick={() => setShowAddPaper(true)}
+                              style={{ padding:'10px 20px', background:'linear-gradient(135deg,#1e3a5f,#2563eb)', color:'white', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>
+                              + Create Paper
+                           </button>
                         </div>
-                        {loading ? (
-                           <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
-                        ) : papers.length === 0 ? (
-                           <div style={{ padding: '48px', textAlign: 'center' }}>
-                              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📋</div>
-                              <p style={{ color: '#94a3b8', fontSize: '14px' }}>No papers yet. Create your first paper!</p>
-                           </div>
-                        ) : papers.map((p, i) => {
-                           const tc = getTypeColor(p.testType);
-                           return (
-                              <div 
-                                 key={p.id} 
-                                 className="table-row" 
-                                 style={{ 
-                                    gridTemplateColumns: reorderMode ? '40px 1fr 1fr 2fr 1fr 1fr' : '1fr 1fr 2fr 1fr 1fr',
-                                    cursor: reorderMode ? 'move' : 'default',
-                                    opacity: draggedItem === i ? 0.4 : 1,
-                                    border: reorderMode && draggedItem === i ? '2px dashed #4f46e5' : ''
-                                 }}
-                                 draggable={reorderMode}
-                                 onDragStart={(e) => {
-                                    setDraggedItem(i);
-                                    e.dataTransfer.effectAllowed = 'move';
-                                 }}
-                                 onDragOver={(e) => {
-                                    e.preventDefault();
-                                    if (draggedItem === null || draggedItem === i) return;
-                                    const newPapers = [...papers];
-                                    const item = newPapers.splice(draggedItem, 1)[0];
-                                    newPapers.splice(i, 0, item);
-                                    setDraggedItem(i);
-                                    setPapers(newPapers);
-                                 }}
-                                 onDragEnd={() => setDraggedItem(null)}
-                              >
-                                 {reorderMode && (
-                                    <span style={{ color: '#94a3b8', fontSize: '18px' }}>☰</span>
-                                 )}
-                                 <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>{p.paperCode}</span>
-                                 <span style={{
-                                    display: 'inline-block',
-                                    background: tc.bg, color: tc.color,
-                                    padding: '3px 10px', borderRadius: '20px',
-                                    fontSize: '12px', fontWeight: '600'
-                                 }}>{p.testType}</span>
-                                 <span style={{ fontSize: '13px', color: '#475569' }}>{p.title}</span>
-                                 <span style={{
-                                    display: 'inline-block',
-                                    background: p.status === 'ACTIVE' ? '#f0fdf4' : '#f1f5f9',
-                                    color: p.status === 'ACTIVE' ? '#16a34a' : '#64748b',
-                                    padding: '3px 10px', borderRadius: '20px',
-                                    fontSize: '12px', fontWeight: '500'
-                                 }}>{p.status}</span>
-                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                    {!reorderMode && (
-                                       <button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => navigate(`/admin/papers/${p.id}`)}>Edit</button>
+                     </div>
+
+                     {loading ? (
+                        <div style={{ textAlign:'center', padding:'60px 20px', color:'#94a3b8' }}>Loading...</div>
+                     ) : papers.length === 0 ? (
+                        <div style={{ textAlign:'center', padding:'60px 20px', background:'white', borderRadius:16, border:'1px solid #dbeafe' }}>
+                           <div style={{ fontSize:48, marginBottom:16 }}>📄</div>
+                           <h3 style={{ color:'#1e3a5f', marginBottom:8 }}>No papers yet</h3>
+                           <p style={{ color:'#64748b', marginBottom:20 }}>Import a paper with AI or create one manually</p>
+                           <button onClick={() => setShowImportModal(true)}
+                              style={{ padding:'12px 28px', background:'linear-gradient(135deg,#7c3aed,#2563eb)', color:'white', border:'none', borderRadius:10, fontSize:14, fontWeight:700, cursor:'pointer' }}>
+                              🤖 Import First Paper
+                           </button>
+                        </div>
+                     ) : (
+                        <div style={{ display:'grid', gap:12 }}>
+                           {papers.map(p => (
+                              <div key={p.id} style={{ background:'white', border:'1px solid #dbeafe', borderRadius:14, padding:'18px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+                                 <div style={{ display:'flex', alignItems:'center', gap:14, flex:1 }}>
+                                    <div style={{ width:44, height:44, borderRadius:10, background:
+                                       p.testType==='READING' ? '#eff6ff' :
+                                       p.testType==='WRITING' ? '#f5f3ff' :
+                                       p.testType==='LISTENING' ? '#fff7ed' : '#f0fdf4',
+                                       display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>
+                                       {p.testType==='READING'?'📖':p.testType==='WRITING'?'✍️':p.testType==='LISTENING'?'🎧':'🗣️'}
+                                    </div>
+                                    <div>
+                                       <div style={{ fontWeight:700, color:'#1e3a5f', fontSize:15, marginBottom:3 }}>
+                                          {p.testType} {p.paperCode} — {p.title}
+                                       </div>
+                                       <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+                                          <span style={{ fontSize:11, color:'#64748b' }}>⏱ {p.timeLimitMin} min</span>
+                                          <span style={{ fontSize:11, color:'#64748b' }}>ID: {p.id}</span>
+                                          <span style={{ fontSize:11, padding:'2px 8px', borderRadius:10, background: p.status==='ACTIVE'?'#f0fdf4':'#fef3c7', color: p.status==='ACTIVE'?'#16a34a':'#d97706', fontWeight:600 }}>
+                                             {p.status}
+                                          </span>
+                                          {p.audioUrl && <span style={{ fontSize:11, color:'#2563eb' }}>🎵 Audio</span>}
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                                    <button className="action-btn outline" style={{ padding:'7px 12px', fontSize:12 }} onClick={() => navigate(`/admin/papers/${p.id}`)}>✏️ Edit</button>
+                                    {p.testType === 'LISTENING' && (
+                                       <label style={{ padding:'7px 12px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, fontSize:12, fontWeight:600, color:'#2563eb', cursor:'pointer', whiteSpace:'nowrap', display:'flex', alignItems:'center' }}>
+                                          🎵 {p.audioUrl ? 'Change Audio' : 'Upload Audio'}
+                                          <input type="file" accept=".mp3,.wav,.ogg,.m4a" style={{ display:'none' }}
+                                             onChange={async (e) => {
+                                                const file = e.target.files[0];
+                                                if (!file) return;
+                                                const fd = new FormData();
+                                                fd.append('audio', file);
+                                                try {
+                                                   await axios.post(`${API_URL}/api/admin/papers/${p.id}/upload-audio`, fd, {
+                                                      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type':'multipart/form-data' }
+                                                   });
+                                                   setMessage('Audio uploaded successfully!');
+                                                   fetchAll();
+                                                } catch(err) { setMessage('Upload failed: ' + (err.response?.data?.error||err.message)); }
+                                             }} />
+                                       </label>
                                     )}
+                                    <button
+                                       onClick={() => {
+                                          if (window.confirm(`Delete ${p.testType} ${p.paperCode} — ${p.title}?\n\nThis will also delete all student attempts for this paper. This cannot be undone.`)) {
+                                             axios.delete(`${API_URL}/api/admin/papers/${p.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+                                                .then(() => { setMessage('Paper deleted successfully'); fetchAll(); })
+                                                .catch(err => setMessage('Delete failed: ' + (err.response?.data?.error||err.message)));
+                                          }
+                                       }}
+                                       style={{ padding:'7px 14px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:8, fontSize:12, fontWeight:600, color:'#dc2626', cursor:'pointer', fontFamily:'Inter,sans-serif' }}>
+                                       🗑 Delete
+                                    </button>
                                  </div>
                               </div>
-                           );
-                        })}
-                     </div>
+                           ))}
+                        </div>
+                     )}
+
+                     {/* IMPORT MODAL */}
+                     {showImportModal && (
+                        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+                           <div style={{ background:'white', borderRadius:20, padding:36, width:'90%', maxWidth:700, maxHeight:'92vh', overflowY:'auto' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+                                 <h2 style={{ fontFamily:'Playfair Display,serif', color:'#1e3a5f', margin:0, fontSize:22 }}>🤖 Import Paper with AI</h2>
+                                 <button onClick={() => { setShowImportModal(false); setImportError(''); setImportSuccess(''); }}
+                                    style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#94a3b8' }}>✕</button>
+                              </div>
+
+                              <div style={{ background:'#eff6ff', borderRadius:12, padding:14, marginBottom:20, border:'1px solid #bfdbfe' }}>
+                                 <p style={{ fontSize:13, color:'#1d4ed8', margin:0, lineHeight:1.7 }}>
+                                    <strong>How to use:</strong> Copy and paste the complete text of your IELTS paper below including passages, questions, and answer key. The AI will extract everything automatically.
+                                 </p>
+                              </div>
+
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:16 }}>
+                                 <div>
+                                    <label style={{ fontSize:11, fontWeight:700, color:'#475569', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Test Type *</label>
+                                    <select value={importType} onChange={e => setImportType(e.target.value)}
+                                       style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #dbeafe', borderRadius:8, fontSize:14, fontFamily:'Inter,sans-serif', outline:'none', background:'white' }}>
+                                       <option value="READING">📖 Reading</option>
+                                       <option value="WRITING">✍️ Writing</option>
+                                       <option value="LISTENING">🎧 Listening</option>
+                                       <option value="SPEAKING">🗣️ Speaking</option>
+                                    </select>
+                                 </div>
+                                 <div>
+                                    <label style={{ fontSize:11, fontWeight:700, color:'#475569', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Paper Code *</label>
+                                    <input value={importCode} onChange={e => setImportCode(e.target.value)}
+                                       placeholder="e.g. 004"
+                                       style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #dbeafe', borderRadius:8, fontSize:14, fontFamily:'Inter,sans-serif', outline:'none', boxSizing:'border-box' }} />
+                                 </div>
+                                 <div>
+                                    <label style={{ fontSize:11, fontWeight:700, color:'#475569', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Title (optional)</label>
+                                    <input value={importTitle} onChange={e => setImportTitle(e.target.value)}
+                                       placeholder="Paper title"
+                                       style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #dbeafe', borderRadius:8, fontSize:14, fontFamily:'Inter,sans-serif', outline:'none', boxSizing:'border-box' }} />
+                                 </div>
+                              </div>
+
+                              <div style={{ marginBottom:16 }}>
+                                 <label style={{ fontSize:11, fontWeight:700, color:'#475569', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                                    Paper Text * <span style={{ color:'#94a3b8', fontWeight:400, textTransform:'none', fontSize:12 }}>{importText.length} characters pasted</span>
+                                 </label>
+                                 <textarea value={importText} onChange={e => setImportText(e.target.value)}
+                                    placeholder={importType === 'READING' ? 'Paste the complete reading paper here — include all 3 passages and all 40 questions with the answer key...' :
+                                       importType === 'WRITING' ? 'Paste the complete writing paper here — include Task 1 and Task 2 questions...' :
+                                       importType === 'LISTENING' ? 'Paste the complete listening paper here — include all sections and questions...' :
+                                       'Paste the complete speaking paper here — include Part 1, 2, and 3 questions...'}
+                                    rows={14}
+                                    style={{ width:'100%', padding:'14px', border:'1.5px solid #dbeafe', borderRadius:10, fontSize:13, fontFamily:'Inter,sans-serif', outline:'none', resize:'vertical', lineHeight:1.7, boxSizing:'border-box' }} />
+                              </div>
+
+                              {importError && (
+                                 <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:10, padding:'14px 16px', marginBottom:16 }}>
+                                    <p style={{ color:'#dc2626', fontSize:13, margin:0, lineHeight:1.7, fontWeight:500 }}>❌ {importError}</p>
+                                 </div>
+                              )}
+
+                              {importSuccess && (
+                                 <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:10, padding:'14px 16px', marginBottom:16 }}>
+                                    <p style={{ color:'#16a34a', fontSize:13, margin:0, lineHeight:1.7, fontWeight:500 }}>✅ {importSuccess}</p>
+                                 </div>
+                              )}
+
+                              <button onClick={async () => {
+                                 if (!importText.trim()) { setImportError('Please paste the paper text.'); return; }
+                                 if (!importCode.trim()) { setImportError('Please enter a paper code like 004 or 002.'); return; }
+                                 setImportLoading(true);
+                                 setImportError('');
+                                 setImportSuccess('');
+                                 try {
+                                    const res = await axios.post(
+                                       `${API_URL}/api/admin/papers/import-ai`,
+                                       { rawText: importText, testType: importType, paperCode: importCode, title: importTitle },
+                                       { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, timeout: 120000 }
+                                    );
+                                    setImportSuccess(res.data.message || 'Paper imported successfully!');
+                                    setImportText('');
+                                    setImportCode('');
+                                    setImportTitle('');
+                                    fetchAll();
+                                    setTimeout(() => { setShowImportModal(false); setImportSuccess(''); }, 4000);
+                                 } catch(err) {
+                                    const msg = err.response?.data?.error || err.message || 'Import failed. Try again.';
+                                    setImportError(msg);
+                                 } finally {
+                                    setImportLoading(false);
+                                 }
+                              }} disabled={importLoading}
+                                 style={{ width:'100%', padding:'16px', background: importLoading ? '#94a3b8' : 'linear-gradient(135deg,#7c3aed,#2563eb)', color:'white', border:'none', borderRadius:12, fontSize:15, fontWeight:700, cursor: importLoading?'not-allowed':'pointer', fontFamily:'Inter,sans-serif', transition:'all 0.2s' }}>
+                                 {importLoading ? '🤖 AI is processing your paper... please wait 30-60 seconds' : '🤖 Import with AI'}
+                              </button>
+                           </div>
+                        </div>
+                     )}
                   </div>
                )}
 

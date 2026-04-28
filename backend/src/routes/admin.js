@@ -137,35 +137,37 @@ router.get('/papers', auth, adminOnly, async (req, res) => {
 router.post('/papers/import-ai', auth, adminOnly, async (req, res) => {
   try {
     const { rawText, testType, paperCode, title } = req.body;
-    if (!rawText) return res.status(400).json({ error: 'rawText is required' });
+    console.log('IMPORT AI CALLED - type:', testType, 'code:', paperCode, 'textLength:', rawText?.length);
 
-    let anthropic;
-    try {
-      const sdk = require('@anthropic-ai/sdk');
-      anthropic = new (sdk.default || sdk.Anthropic)({ apiKey: process.env.ANTHROPIC_API_KEY });
-    } catch (e) {
-      return res.status(500).json({ error: 'AI SDK not available' });
+    if (!rawText || rawText.trim().length < 10) {
+      return res.status(400).json({ error: 'Please paste the paper text.' });
     }
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: `You are an IELTS paper parser. Extract all content from this IELTS paper and return ONLY valid JSON.
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return res.status(500).json({ error: 'AI not configured on server. Check ANTHROPIC_API_KEY in Render environment.' });
 
-Extract:
-- All passages with their text
-- All questions with question number, type, content, options (if MC), correct answer, and explanation
-- Question types must be one of: TRUE_FALSE_NOT_GIVEN, MULTIPLE_CHOICE, SHORT_ANSWER, SENTENCE_COMPLETION, MATCHING_HEADINGS, SUMMARY_COMPLETION, MATCHING_INFORMATION
+    const type = (testType || 'READING').toUpperCase();
 
-Return this exact JSON structure:
+    let finalCode = String(paperCode || Date.now());
+    const conflict = await prisma.paper.findFirst({ where: { paperCode: finalCode, testType: type } });
+    if (conflict) finalCode = finalCode + '-' + Date.now().toString().slice(-4);
+
+    let Anthropic;
+    try { Anthropic = require('@anthropic-ai/sdk'); }
+    catch(e) { return res.status(500).json({ error: 'Anthropic SDK not installed. Run: npm install @anthropic-ai/sdk' }); }
+
+    const claude = new Anthropic({ apiKey: key });
+
+    const prompts = {
+      READING: `Extract this IELTS Reading paper. Return ONLY a raw JSON object, no markdown, no backticks, no explanation text before or after.
+
+JSON structure required:
 {
   "title": "paper title",
   "testType": "READING",
   "timeLimitMin": 60,
   "passages": [
-    { "passageNumber": 1, "title": "passage title", "text": "full passage text" }
+    { "passageNumber": 1, "title": "passage title", "text": "complete passage text" }
   ],
   "questions": [
     {
@@ -175,66 +177,215 @@ Return this exact JSON structure:
       "content": "question text",
       "options": null,
       "correctAnswer": "TRUE",
-      "explanation": "The passage states X which means the answer is TRUE because..."
+      "explanation": "2-3 sentences explaining why this answer is correct referencing the passage"
     }
   ]
 }
 
-For MULTIPLE_CHOICE questions, options should be an array like ["A. option one", "B. option two", "C. option three", "D. option four"]
-For TRUE_FALSE_NOT_GIVEN the correctAnswer must be TRUE, FALSE, or NOT GIVEN
-For SHORT_ANSWER the correctAnswer should be the exact word or phrase from the passage
+questionType options: TRUE_FALSE_NOT_GIVEN, MULTIPLE_CHOICE, SHORT_ANSWER, SENTENCE_COMPLETION, MATCHING_HEADINGS, SUMMARY_COMPLETION, MATCHING_INFORMATION
+For MULTIPLE_CHOICE options must be array like ["A. text", "B. text", "C. text", "D. text"] and correctAnswer must be A B C or D
+For TRUE_FALSE_NOT_GIVEN correctAnswer must be TRUE FALSE or NOT GIVEN
 
-PAPER TEXT:
-${rawText.substring(0, 8000)}`
-      }]
-    });
+PAPER:
+${rawText.substring(0, 14000)}`,
 
-    const text = response.content[0].text;
-    let parsed;
+      WRITING: `Extract this IELTS Writing paper. Return ONLY a raw JSON object, no markdown, no backticks.
+
+JSON structure required:
+{
+  "title": "IELTS Academic Writing Test",
+  "testType": "WRITING",
+  "timeLimitMin": 60,
+  "tasks": [
+    {
+      "taskNumber": 1,
+      "prompt": "complete task 1 question text",
+      "chartDescription": "describe the chart or graph if present, or null",
+      "minWords": 150
+    },
+    {
+      "taskNumber": 2,
+      "prompt": "complete task 2 essay question",
+      "chartDescription": null,
+      "minWords": 250
+    }
+  ]
+}
+
+PAPER:
+${rawText.substring(0, 6000)}`,
+
+      LISTENING: `Extract this IELTS Listening paper. Return ONLY a raw JSON object, no markdown, no backticks.
+
+JSON structure required:
+{
+  "title": "IELTS Academic Listening Test",
+  "testType": "LISTENING",
+  "timeLimitMin": 40,
+  "questions": [
+    {
+      "sectionNumber": 1,
+      "questionNumber": 1,
+      "questionType": "MULTIPLE_CHOICE",
+      "content": "question text",
+      "options": ["A. option", "B. option", "C. option"],
+      "correctAnswer": "A",
+      "explanation": "explanation of why this answer is correct"
+    }
+  ]
+}
+
+PAPER:
+${rawText.substring(0, 10000)}`,
+
+      SPEAKING: `Extract this IELTS Speaking paper. Return ONLY a raw JSON object, no markdown, no backticks.
+
+JSON structure required:
+{
+  "title": "IELTS Academic Speaking Test",
+  "testType": "SPEAKING",
+  "timeLimitMin": 15,
+  "parts": [
+    {
+      "partNumber": 1,
+      "title": "Introduction and Interview",
+      "questions": ["question 1", "question 2", "question 3"]
+    },
+    {
+      "partNumber": 2,
+      "title": "Individual Long Turn",
+      "questions": ["full cue card with bullet points"]
+    },
+    {
+      "partNumber": 3,
+      "title": "Two-way Discussion",
+      "questions": ["question 1", "question 2", "question 3"]
+    }
+  ]
+}
+
+PAPER:
+${rawText.substring(0, 6000)}`
+    };
+
+    const prompt = prompts[type] || prompts.READING;
+
+    console.log('Calling Claude for import type:', type);
+    let response;
     try {
-      parsed = JSON.parse(text);
-    } catch {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-      else return res.status(500).json({ error: 'AI could not parse the paper structure' });
+      response = await claude.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 8000,
+        temperature: 0,
+        messages: [{ role: 'user', content: prompt }]
+      });
+    } catch(aiErr) {
+      console.error('Claude API error:', aiErr.message, aiErr.status);
+      return res.status(500).json({ error: 'AI call failed: ' + aiErr.message + '. Check ANTHROPIC_API_KEY is valid.' });
     }
 
-    // Create the paper
+    const rawRes = response.content?.[0]?.text || '';
+    console.log('Claude responded, length:', rawRes.length);
+
+    let parsed;
+    const attempts = [
+      () => JSON.parse(rawRes),
+      () => JSON.parse(rawRes.match(/\{[\s\S]*\}/)?.[0]),
+      () => JSON.parse(rawRes.replace(/```json|```/g, '').trim()),
+      () => JSON.parse(rawRes.substring(rawRes.indexOf('{'), rawRes.lastIndexOf('}') + 1))
+    ];
+
+    for (const attempt of attempts) {
+      try { parsed = attempt(); if (parsed) break; } catch {}
+    }
+
+    if (!parsed) {
+      console.error('All JSON parse attempts failed. Raw:', rawRes.substring(0, 500));
+      return res.status(500).json({ error: 'AI returned invalid format. Please try again.', preview: rawRes.substring(0, 300) });
+    }
+
     const paper = await prisma.paper.create({
       data: {
-        paperCode: paperCode || `AI-${Date.now()}`,
-        testType: (testType || parsed.testType || 'READING').toUpperCase(),
-        title: title || parsed.title || 'Imported Paper',
-        timeLimitMin: parsed.timeLimitMin || 60,
-        instructions: 'Read the passages carefully and answer all questions.',
+        paperCode: finalCode,
+        testType: type,
+        title: String(title || parsed.title || 'Imported Paper'),
+        timeLimitMin: parseInt(parsed.timeLimitMin) || 60,
+        instructions: 'Read carefully and answer all questions.',
         status: 'ACTIVE',
         assignedBatches: 'ALL'
       }
     });
+    console.log('Paper created:', paper.id, paper.paperCode);
 
-    // Create questions
-    if (parsed.questions && parsed.questions.length > 0) {
-      const questionsData = parsed.questions.map(q => ({
-        paperId: paper.id,
-        passageNumber: q.passageNumber || 1,
-        questionNumber: q.questionNumber,
-        questionType: q.questionType || 'SHORT_ANSWER',
-        content: q.content,
-        options: q.options ? JSON.stringify(q.options) : null,
-        correctAnswer: q.correctAnswer || '',
-        explanation: q.explanation || null
-      }));
-      await prisma.question.createMany({ data: questionsData });
+    let questionsCreated = 0, passagesCreated = 0, tasksCreated = 0;
+
+    if (type === 'READING') {
+      for (const p of (parsed.passages || [])) {
+        try {
+          await prisma.passage.create({
+            data: { paperId: paper.id, passageNumber: parseInt(p.passageNumber)||1, title: String(p.title||'Passage'), text: String(p.text||'') }
+          });
+          passagesCreated++;
+        } catch(e) { console.error('Passage error:', e.message); }
+      }
+      if ((parsed.questions||[]).length > 0) {
+        const qData = parsed.questions.map(q => ({
+          paperId: paper.id,
+          passageNumber: parseInt(q.passageNumber)||1,
+          questionNumber: parseInt(q.questionNumber)||1,
+          questionType: q.questionType||'SHORT_ANSWER',
+          content: String(q.content||''),
+          options: q.options ? JSON.stringify(q.options) : null,
+          correctAnswer: String(q.correctAnswer||''),
+          explanation: q.explanation ? String(q.explanation) : null
+        }));
+        await prisma.question.createMany({ data: qData });
+        questionsCreated = qData.length;
+      }
+    }
+
+    if (type === 'WRITING') {
+      for (const task of (parsed.tasks||[])) {
+        try {
+          await prisma.writingTask.create({
+            data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
+          });
+          tasksCreated++;
+        } catch(e) { console.error('Task error:', e.message); }
+      }
+    }
+
+    if (type === 'LISTENING') {
+      if ((parsed.questions||[]).length > 0) {
+        const qData = parsed.questions.map(q => ({
+          paperId: paper.id,
+          passageNumber: parseInt(q.sectionNumber)||1,
+          questionNumber: parseInt(q.questionNumber)||1,
+          questionType: q.questionType||'SHORT_ANSWER',
+          content: String(q.content||''),
+          options: q.options ? JSON.stringify(q.options) : null,
+          correctAnswer: String(q.correctAnswer||''),
+          explanation: q.explanation ? String(q.explanation) : null
+        }));
+        await prisma.question.createMany({ data: qData });
+        questionsCreated = qData.length;
+      }
     }
 
     res.json({
       success: true,
-      paper,
-      questionsCreated: parsed.questions?.length || 0,
-      passagesFound: parsed.passages?.length || 0
+      paperId: paper.id,
+      paperCode: finalCode,
+      testType: type,
+      title: paper.title,
+      passagesCreated,
+      questionsCreated,
+      tasksCreated,
+      message: `✅ ${type} paper "${finalCode}" imported! ${questionsCreated} questions, ${passagesCreated} passages, ${tasksCreated} writing tasks created.`
     });
+
   } catch (err) {
-    console.error('Import AI error:', err);
+    console.error('IMPORT FATAL:', err.message);
     res.status(500).json({ error: 'Import failed: ' + err.message });
   }
 });
@@ -365,15 +516,24 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
 
 router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   try {
-    await prisma.question.deleteMany({
-      where: { paperId: parseInt(req.params.id) }
-    });
-    await prisma.paper.delete({
-      where: { id: parseInt(req.params.id) }
-    });
-    res.json({ deleted: true });
+    const paperId = parseInt(req.params.id);
+    console.log('Deleting paper:', paperId);
+
+    await prisma.answer.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.result.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.attempt.deleteMany({ where: { paperId } });
+    await prisma.question.deleteMany({ where: { paperId } });
+    await prisma.passage.deleteMany({ where: { paperId } });
+    await prisma.writingTask.deleteMany({ where: { paperId } });
+    await prisma.paper.delete({ where: { id: paperId } });
+
+    console.log('Paper deleted:', paperId);
+    res.json({ success: true, message: 'Paper deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete paper' });
+    console.error('Delete paper error:', err.message);
+    res.status(500).json({ error: 'Failed to delete: ' + err.message });
   }
 });
 

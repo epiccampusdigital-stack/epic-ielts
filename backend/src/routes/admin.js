@@ -625,6 +625,8 @@ router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
     await prisma.question.deleteMany({ where: { paperId } });
     await prisma.passage.deleteMany({ where: { paperId } });
     await prisma.writingTask.deleteMany({ where: { paperId } });
+    await prisma.questionGroup.deleteMany({ where: { section: { paperId } } });
+    await prisma.section.deleteMany({ where: { paperId } });
     await prisma.paper.delete({ where: { id: paperId } });
 
     console.log('Paper deleted:', paperId);

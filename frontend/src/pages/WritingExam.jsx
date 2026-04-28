@@ -310,11 +310,13 @@ export default function WritingExam() {
                 Figure 1: Percentage of daily internet users by age group and country, 2022
               </p>
               {currentTask?.chartImageUrl ? (
-                <img
-                  src={getFullUrl(currentTask.chartImageUrl)}
-                  alt="Task 1 Bar Chart"
-                  style={{ width: '100%', height: 'auto', borderRadius: 8 }}
-                />
+                <div style={{ marginBottom: '24px', animation: 'fadeIn 0.5s ease' }}>
+                  <img 
+                    src={getFullUrl(currentTask.chartImageUrl)} 
+                    alt="Task Chart"
+                    style={{ width: '100%', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }} 
+                  />
+                </div>
               ) : currentTask?.chartDescription ? (
                 <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12 }}>🖼️ CHART PLACEHOLDER</div>

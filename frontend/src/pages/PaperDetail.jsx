@@ -8,13 +8,17 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 const Q_TYPES = [
   { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice' },
   { value: 'SHORT_ANSWER', label: 'Short Answer' },
-  { value: 'FORM_COMPLETION', label: 'Form Completion' },
-  { value: 'MAP_LABELING', label: 'Map Labeling' },
+  { value: 'FILL_BLANK', label: 'Fill in the blank' },
+  { value: 'TRUE_FALSE_NOT_GIVEN', label: 'True / False / Not Given' },
+  { value: 'YES_NO_NOT_GIVEN', label: 'Yes / No / Not Given' },
+  { value: 'HEADING_MATCHING', label: 'Heading Matching' },
+  { value: 'MATCHING', label: 'Matching' },
+  { value: 'SENTENCE_COMPLETION', label: 'Sentence Completion' },
+  { value: 'SUMMARY_COMPLETION', label: 'Summary Completion' },
   { value: 'TABLE_COMPLETION', label: 'Table Completion' },
   { value: 'NOTE_COMPLETION', label: 'Note Completion' },
-  { value: 'SENTENCE_COMPLETION', label: 'Sentence Completion' },
-  { value: 'MATCHING', label: 'Matching' },
-  { value: 'TRUE_FALSE_NOT_GIVEN', label: 'True / False / Not Given (Reading Only)' },
+  { value: 'FORM_COMPLETION', label: 'Form Completion' },
+  { value: 'MAP_LABELING', label: 'Map / Diagram Labeling' },
 ];
 
 const lbl = { display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' };
@@ -195,6 +199,12 @@ export default function PaperDetail() {
     setEdited({ ...edited, sections: nextSections });
   };
 
+  const addPassageGroup = (pIdx) => {
+    const nextPassages = [...edited.passages];
+    nextPassages[pIdx].groups = [...(nextPassages[pIdx].groups || []), { groupType: 'SHORT_ANSWER', instruction: '', questions: [] }];
+    setEdited({ ...edited, passages: nextPassages });
+  };
+
   const addQuestion = (sIdx, gIdx) => {
     const nextSections = [...edited.sections];
     const group = nextSections[sIdx].groups[gIdx];
@@ -210,10 +220,31 @@ export default function PaperDetail() {
     setEdited({ ...edited, sections: nextSections });
   };
 
+  const addPassageQuestion = (pIdx, gIdx) => {
+    const nextPassages = [...edited.passages];
+    const group = nextPassages[pIdx].groups[gIdx];
+    const maxNo = edited.questions?.length ? Math.max(...edited.questions.map(q => q.questionNumber || 0)) : 0;
+    
+    group.questions = [...(group.questions || []), {
+      questionNumber: maxNo + 1,
+      questionType: group.groupType,
+      content: '',
+      correctAnswer: '',
+      explanation: ''
+    }];
+    setEdited({ ...edited, passages: nextPassages });
+  };
+
   const updateQ = (sIdx, gIdx, qIdx, field, val) => {
     const nextSections = [...edited.sections];
     nextSections[sIdx].groups[gIdx].questions[qIdx][field] = val;
     setEdited({ ...edited, sections: nextSections });
+  };
+
+  const updatePassageQ = (pIdx, gIdx, qIdx, field, val) => {
+    const nextPassages = [...edited.passages];
+    nextPassages[pIdx].groups[gIdx].questions[qIdx][field] = val;
+    setEdited({ ...edited, passages: nextPassages });
   };
 
   const removeQ = (sIdx, gIdx, qIdx) => {
@@ -224,12 +255,28 @@ export default function PaperDetail() {
     setEdited({ ...edited, sections: nextSections });
   };
 
+  const removePassageQ = (pIdx, gIdx, qIdx) => {
+    const nextPassages = [...edited.passages];
+    const q = nextPassages[pIdx].groups[gIdx].questions[qIdx];
+    if (q.id) setDelQIds(prev => [...prev, q.id]);
+    nextPassages[pIdx].groups[gIdx].questions.splice(qIdx, 1);
+    setEdited({ ...edited, passages: nextPassages });
+  };
+
   const removeGroup = (sIdx, gIdx) => {
     const nextSections = [...edited.sections];
     const g = nextSections[sIdx].groups[gIdx];
     if (g.id) setDelGIds(prev => [...prev, g.id]);
     nextSections[sIdx].groups.splice(gIdx, 1);
     setEdited({ ...edited, sections: nextSections });
+  };
+
+  const removePassageGroup = (pIdx, gIdx) => {
+    const nextPassages = [...edited.passages];
+    const g = nextPassages[pIdx].groups[gIdx];
+    if (g.id) setDelGIds(prev => [...prev, g.id]);
+    nextPassages[pIdx].groups.splice(gIdx, 1);
+    setEdited({ ...edited, passages: nextPassages });
   };
 
   const addPassage = () => {
@@ -537,45 +584,89 @@ export default function PaperDetail() {
 
                 <div style={{ marginTop: '32px', borderTop: '2px solid #f1f5f9', paddingTop: '24px' }}>
                   <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5', marginBottom: '16px' }}>QUESTIONS FOR PASSAGE {psg.passageNumber}</h4>
-                  <div style={{ display: 'grid', gap: '12px' }}>
-                    {(edited.questions || []).filter(q => q.passageNumber === psg.passageNumber).sort((a,b)=>a.questionNumber-b.questionNumber).map((q, idx) => {
-                      const realIdx = edited.questions.findIndex(x => x.questionNumber === q.questionNumber && x.passageNumber === q.passageNumber);
-                      return (
-                        <div key={idx} style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                          {editMode ? (
-                            <div style={{ display: 'grid', gap: '12px' }}>
-                              <div style={{ display: 'flex', gap: '12px' }}>
-                                <input type="number" style={{ ...inp, width: '60px' }} value={q.questionNumber} onChange={e => updateFlatQ(realIdx, 'questionNumber', parseInt(e.target.value))} />
-                                <select style={{ ...inp, width: '200px' }} value={q.questionType} onChange={e => updateFlatQ(realIdx, 'questionType', e.target.value)}>
+                  <div style={{ display: 'grid', gap: '24px' }}>
+                    {(psg.groups || []).map((group, gIdx) => (
+                      <div key={gIdx} style={{ background: '#f8fafc', borderRadius: '20px', padding: '24px', border: '1.5px solid #e2e8f0' }}>
+                        {editMode ? (
+                          <div style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <div style={{ width: '45%' }}>
+                                <label style={lbl}>Type</label>
+                                <select style={inp} value={group.groupType} onChange={e => {
+                                  const next = [...edited.passages]; next[pIdx].groups[gIdx].groupType = e.target.value;
+                                  setEdited({ ...edited, passages: next });
+                                }}>
                                   {Q_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
-                                <button onClick={() => removeFlatQ(realIdx)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑</button>
                               </div>
-                              <input style={inp} value={q.content} onChange={e => updateFlatQ(realIdx, 'content', e.target.value)} placeholder="Question content..." />
-                              {(q.questionType === 'MULTIPLE_CHOICE' || q.questionType === 'MATCHING') && (
-                                <div>
-                                  <label style={lbl}>Options (comma separated or JSON array)</label>
-                                  <input style={inp} value={typeof q.options === 'string' ? q.options : JSON.stringify(q.options)} onChange={e => updateFlatQ(realIdx, 'options', e.target.value)} placeholder="A. text, B. text..." />
+                              <div style={{ width: '45%' }}>
+                                <label style={lbl}>Word Limit</label>
+                                <input style={inp} value={group.wordLimit || ''} onChange={e => {
+                                  const next = [...edited.passages]; next[pIdx].groups[gIdx].wordLimit = e.target.value;
+                                  setEdited({ ...edited, passages: next });
+                                }} placeholder="e.g. NO MORE THAN TWO WORDS" />
+                              </div>
+                            </div>
+                            <div>
+                              <label style={lbl}>Instruction</label>
+                              <input style={inp} value={group.instruction || ''} onChange={e => {
+                                const next = [...edited.passages]; next[pIdx].groups[gIdx].instruction = e.target.value;
+                                setEdited({ ...edited, passages: next });
+                              }} />
+                            </div>
+                            
+                            {group.groupType === 'TABLE_COMPLETION' && (
+                              <TableEditor data={group.tableData} onChange={val => {
+                                const next = [...edited.passages]; next[pIdx].groups[gIdx].tableData = val;
+                                setEdited({ ...edited, passages: next });
+                              }} />
+                            )}
+
+                            <button onClick={() => removePassageGroup(pIdx, gIdx)} style={{ width: 'fit-content', background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>🗑 REMOVE GROUP</button>
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: '16px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5' }}>{group.instruction}</div>
+                            <div style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8' }}>LIMIT: {group.wordLimit}</div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                          {(group.questions || []).map((q, qIdx) => (
+                            <div key={qIdx} style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                              {editMode ? (
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                  <div style={{ width: '30px', textAlign: 'center' }}>
+                                    <input type="number" style={{ ...inp, padding: '4px', textAlign: 'center' }} value={q.questionNumber} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'questionNumber', parseInt(e.target.value))} />
+                                    <button onClick={() => removePassageQ(pIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
+                                  </div>
+                                  <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
+                                    <input style={inp} value={q.content} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question content..." />
+                                    {(group.groupType === 'MULTIPLE_CHOICE' || group.groupType === 'MATCHING' || group.groupType === 'HEADING_MATCHING') && (
+                                      <input style={inp} value={q.options || ''} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'options', e.target.value)} placeholder="Options (A. Text, B. Text...)" />
+                                    )}
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                      <input style={{ ...inp, flex: 1 }} value={q.correctAnswer} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'correctAnswer', e.target.value)} placeholder="Correct Answer" />
+                                      <input style={{ ...inp, flex: 1 }} value={q.explanation || ''} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'explanation', e.target.value)} placeholder="Explanation" />
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                  <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
+                                  <div style={{ fontSize: '14px' }}>
+                                    <div>{q.content}</div>
+                                    <div style={{ fontWeight: '700', color: '#10b981', marginTop: '4px' }}>{q.correctAnswer}</div>
+                                  </div>
                                 </div>
                               )}
-                              <div style={{ display: 'flex', gap: '12px' }}>
-                                <input style={{ ...inp, flex: 1 }} value={q.correctAnswer} onChange={e => updateFlatQ(realIdx, 'correctAnswer', e.target.value)} placeholder="Correct Answer" />
-                                <input style={{ ...inp, flex: 1 }} value={q.explanation || ''} onChange={e => updateFlatQ(realIdx, 'explanation', e.target.value)} placeholder="Explanation" />
-                              </div>
                             </div>
-                          ) : (
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                              <span style={{ fontWeight: '900', color: '#4f46e5' }}>{q.questionNumber}.</span>
-                              <div style={{ fontSize: '14px' }}>
-                                <div>{q.content}</div>
-                                <div style={{ fontWeight: '700', color: '#10b981', marginTop: '4px' }}>{q.correctAnswer}</div>
-                              </div>
-                            </div>
-                          )}
+                          ))}
+                          {editMode && <button onClick={() => addPassageQuestion(pIdx, gIdx)} style={{ width: '100%', padding: '8px', border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>}
                         </div>
-                      );
-                    })}
-                    {editMode && <button onClick={() => addFlatQuestion(psg.passageNumber)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '12px', fontSize: '12px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>}
+                      </div>
+                    ))}
+                    {editMode && <button onClick={() => addPassageGroup(pIdx)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#eff6ff', color: '#4f46e5', borderRadius: '16px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION GROUP</button>}
                   </div>
                 </div>
               </div>
@@ -603,7 +694,7 @@ export default function PaperDetail() {
                         <div>
                           <label style={lbl}>Chart/Image</label>
                           {task.chartImageUrl && <img src={getFullUrl(task.chartImageUrl)} style={{ maxHeight: '200px', display: 'block', marginBottom: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />}
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor:'pointer', fontSize: '13px', fontWeight: '800' }}>
                             {task.chartImageUrl ? '🔄 REPLACE IMAGE' : '🖼️ UPLOAD CHART'}
                             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
                               const url = await uploadAsset(e.target.files[0], 'image');
@@ -621,9 +712,15 @@ export default function PaperDetail() {
                         </div>
                       </div>
                     )}
-                    <div>
-                      <label style={lbl}>Minimum Word Count</label>
-                      <input type="number" style={{ ...inp, width: '120px' }} value={task.minWords} onChange={e => updateWT(idx, 'minWords', parseInt(e.target.value))} />
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div>
+                        <label style={lbl}>Min Words</label>
+                        <input type="number" style={{ ...inp, width: '120px' }} value={task.minWords} onChange={e => updateWT(idx, 'minWords', parseInt(e.target.value))} />
+                      </div>
+                      <div>
+                        <label style={lbl}>Time (Minutes)</label>
+                        <input type="number" style={{ ...inp, width: '120px' }} value={task.timeMinutes || (task.taskNumber===1?20:40)} onChange={e => updateWT(idx, 'timeMinutes', parseInt(e.target.value))} />
+                      </div>
                     </div>
                   </div>
                 ) : (

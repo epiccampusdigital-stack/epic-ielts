@@ -22,22 +22,16 @@ model Student {
   attempts      Attempt[]
 }
 
-enum PaperType {
-  READING
-  WRITING
-  LISTENING
-}
-
 model Paper {
   id              Int           @id @default(autoincrement())
   paperCode       String
-  testType        PaperType     // READING, WRITING, LISTENING
+  testType        String        // Keep as String to avoid data loss during migration
   title           String
   timeLimitMin    Int           @default(60)
   instructions    String?       @db.Text
   audioUrl        String?
   audioScript     String?       @db.Text
-  status          String        @default("PUBLISHED") // PUBLISHED, DRAFT
+  status          String        @default("PUBLISHED") 
   assignedBatches String        @default("ALL")
   order           Int           @default(0)
   practiceMode    Boolean       @default(false)
@@ -67,7 +61,7 @@ model WritingTask {
   paper            Paper              @relation(fields: [paperId], references: [id], onDelete: Cascade)
   taskNumber       Int                // 1 or 2
   prompt           String             @db.Text
-  chartImageUrl    String?            // Renamed from chartUrl
+  chartUrl         String?            // Reverting to chartUrl to avoid data loss, we can rename later
   chartDescription String?            @db.Text
   minWords         Int                @default(150)
   timeMinutes      Int                @default(20)
@@ -172,7 +166,7 @@ model Result {
   teacherReviewed    Boolean  @default(false)
   overrideBand       Float?
   strengths          String?  @db.Text
-  weaknesses         String?  @db.Text
+  weaknesses          String?  @db.Text
   improvementAdvice  String?  @db.Text
   aiFeedbackJson     String?  @db.Text
   aiFeedback         String?  @db.Text

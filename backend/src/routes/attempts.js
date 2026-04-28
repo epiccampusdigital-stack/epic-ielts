@@ -748,45 +748,67 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
       }
     });
 
+    console.log(`Step 1: Attempt ${attemptId} data fetched`);
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
 
-    const task1Words = task1Response?.trim().split(/\s+/).filter(Boolean).length || 0;
-    const task2Words = task2Response?.trim().split(/\s+/).filter(Boolean).length || 0;
+    const task1Words = (task1Response || '').trim().split(/\s+/).filter(Boolean).length;
+    const task2Words = (task2Response || '').trim().split(/\s+/).filter(Boolean).length;
+
+    console.log(`Step 2: Word counts calculated (${task1Words}, ${task2Words})`);
 
     // Save submission
-    await prisma.writingSubmission.upsert({
-      where: { attemptId },
-      create: {
-        attemptId,
-        task1Response: task1Response || '',
-        task2Response: task2Response || '',
-        task1WordCount: task1Words,
-        task2WordCount: task2Words,
-        markingStatus: 'PENDING_AI'
-      },
-      update: {
-        task1Response: task1Response || '',
-        task2Response: task2Response || '',
-        task1WordCount: task1Words,
-        task2WordCount: task2Words,
-        markingStatus: 'PENDING_AI'
-      }
-    });
+    try {
+      await prisma.writingSubmission.upsert({
+        where: { attemptId },
+        create: {
+          attemptId,
+          task1Response: task1Response || '',
+          task2Response: task2Response || '',
+          task1WordCount: task1Words,
+          task2WordCount: task2Words,
+          markingStatus: 'PENDING_AI'
+        },
+        update: {
+          task1Response: task1Response || '',
+          task2Response: task2Response || '',
+          task1WordCount: task1Words,
+          task2WordCount: task2Words,
+          markingStatus: 'PENDING_AI'
+        }
+      });
+      console.log(`Step 3: WritingSubmission upserted`);
+    } catch (wsErr) {
+      console.error('WritingSubmission Error:', wsErr);
+      throw new Error('Failed to save writing submission to DB: ' + wsErr.message);
+    }
 
     // Mark attempt complete
-    await prisma.attempt.update({
-      where: { id: attemptId },
-      data: { status: 'COMPLETED', endedAt: new Date() }
-    });
+    try {
+      await prisma.attempt.update({
+        where: { id: attemptId },
+        data: { status: 'COMPLETED', endedAt: new Date() }
+      });
+      console.log(`Step 4: Attempt marked COMPLETED`);
+    } catch (attErr) {
+      console.error('Attempt Update Error:', attErr);
+      throw new Error('Failed to update attempt status: ' + attErr.message);
+    }
 
     // Create placeholder result - use same logic as generic /submit for consistency
-    await prisma.result.deleteMany({ where: { attemptId } });
-    await prisma.result.create({
-      data: { attemptId, rawScore: null, bandEstimate: null }
-    });
+    try {
+      await prisma.result.deleteMany({ where: { attemptId } });
+      await prisma.result.create({
+        data: { attemptId, rawScore: null, bandEstimate: null }
+      });
+      console.log(`Step 5: Result placeholder created`);
+    } catch (resErr) {
+      console.error('Result Creation Error:', resErr);
+      throw new Error('Failed to create result placeholder: ' + resErr.message);
+    }
 
     // Send response immediately
     res.json({ message: 'Writing submitted', task1Words, task2Words });
+    console.log(`Step 6: Submission response sent`);
 
     // Background AI marking
     setTimeout(async () => {

@@ -112,8 +112,10 @@ export default function WritingExam() {
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);
-    } catch {
-      alert('Failed to submit.');
+    } catch (err) {
+      console.error('Submit error:', err);
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Unknown error';
+      alert('Failed to submit: ' + msg);
       setSubmitting(false);
     }
   };

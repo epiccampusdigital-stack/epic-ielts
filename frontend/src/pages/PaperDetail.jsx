@@ -5,21 +5,23 @@ import API_URL from '../api';
 
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
-const Q_TYPES = [
-  { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice' },
-  { value: 'SHORT_ANSWER', label: 'Short Answer' },
-  { value: 'FILL_BLANK', label: 'Fill in the blank' },
-  { value: 'TRUE_FALSE_NOT_GIVEN', label: 'True / False / Not Given' },
-  { value: 'YES_NO_NOT_GIVEN', label: 'Yes / No / Not Given' },
-  { value: 'HEADING_MATCHING', label: 'Heading Matching' },
-  { value: 'MATCHING', label: 'Matching' },
-  { value: 'SENTENCE_COMPLETION', label: 'Sentence Completion' },
-  { value: 'SUMMARY_COMPLETION', label: 'Summary Completion' },
-  { value: 'TABLE_COMPLETION', label: 'Table Completion' },
-  { value: 'NOTE_COMPLETION', label: 'Note Completion' },
-  { value: 'FORM_COMPLETION', label: 'Form Completion' },
-  { value: 'MAP_LABELING', label: 'Map / Diagram Labeling' },
-];
+const QUESTION_TYPE_MAP = {
+  "Multiple Choice":          "MULTIPLE_CHOICE",
+  "Short Answer":             "SHORT_ANSWER",
+  "Fill in the blank":        "FILL_IN_THE_BLANK",
+  "True / False / Not Given": "TRUE_FALSE_NOT_GIVEN",
+  "Yes / No / Not Given":     "YES_NO_NOT_GIVEN",
+  "Heading Matching":         "HEADING_MATCHING",
+  "Matching":                 "MATCHING",
+  "Sentence Completion":      "SENTENCE_COMPLETION",
+  "Summary Completion":       "SUMMARY_COMPLETION",
+  "Table Completion":         "TABLE_COMPLETION",
+  "Note Completion":          "NOTE_COMPLETION",
+  "Form Completion":          "FORM_COMPLETION",
+  "Map / Diagram Labeling":   "MAP_LABELING",
+};
+
+const Q_TYPES = Object.keys(QUESTION_TYPE_MAP).map(k => ({ value: QUESTION_TYPE_MAP[k], label: k }));
 
 const lbl = { display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' };
 const inp = { width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box', background: '#fff' };
@@ -421,6 +423,29 @@ export default function PaperDetail() {
                       </div>
                       <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
                         <input style={inp} value={q.content} onChange={e => updateQ(sIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question prompt (e.g. Name: Sarah ___)" />
+                        {group.groupType === 'MULTIPLE_CHOICE' && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            {['A', 'B', 'C', 'D'].map((letter, i) => {
+                              const opts = Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? q.options.split('\n') : ['', '', '', '']);
+                              return (
+                                <div key={letter} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#4f46e5' }}>{letter}.</span>
+                                  <input 
+                                    style={{ ...inp, padding: '6px 10px' }} 
+                                    value={opts[i]?.replace(/^[A-D][\.\)]\s*/, '') || ''} 
+                                    onChange={e => {
+                                      const next = [...opts];
+                                      for(let j=0; j<4; j++) if(!next[j]) next[j] = '';
+                                      next[i] = `${letter}. ${e.target.value}`;
+                                      updateQ(sIdx, gIdx, qIdx, 'options', next);
+                                    }} 
+                                    placeholder={`Option ${letter}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <input style={{ ...inp, flex: 1 }} value={q.correctAnswer} onChange={e => updateQ(sIdx, gIdx, qIdx, 'correctAnswer', e.target.value)} placeholder="Correct Answer (Sarah|Sarah Smith)" />
                           <input style={{ ...inp, flex: 1 }} value={q.explanation || ''} onChange={e => updateQ(sIdx, gIdx, qIdx, 'explanation', e.target.value)} placeholder="Explanation" />
@@ -430,7 +455,19 @@ export default function PaperDetail() {
                   ) : (
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
-                      <span style={{ fontSize: '14px' }}>{q.content} — <span style={{ fontWeight: '800', color: '#10b981' }}>{q.correctAnswer}</span></span>
+                      <div style={{ fontSize: '14px', flex: 1 }}>
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{q.content}</div>
+                        {group.groupType === 'MULTIPLE_CHOICE' && Array.isArray(q.options) && (
+                          <div style={{ display: 'grid', gap: '4px', marginLeft: '12px', marginBottom: '8px' }}>
+                            {q.options.map((opt, i) => (
+                              <div key={i} style={{ fontSize: '13px', color: '#64748b' }}>
+                                {opt}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <span style={{ fontWeight: '800', color: '#10b981' }}>{q.correctAnswer}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -642,7 +679,29 @@ export default function PaperDetail() {
                                   </div>
                                   <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
                                     <input style={inp} value={q.content} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question content..." />
-                                    {(group.groupType === 'MULTIPLE_CHOICE' || group.groupType === 'MATCHING' || group.groupType === 'HEADING_MATCHING') && (
+                                    {group.groupType === 'MULTIPLE_CHOICE' ? (
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        {['A', 'B', 'C', 'D'].map((letter, i) => {
+                                          const opts = Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? q.options.split('\n') : ['', '', '', '']);
+                                          return (
+                                            <div key={letter} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                              <span style={{ fontSize: '11px', fontWeight: '800', color: '#4f46e5' }}>{letter}.</span>
+                                              <input 
+                                                style={{ ...inp, padding: '6px 10px' }} 
+                                                value={opts[i]?.replace(/^[A-D][\.\)]\s*/, '') || ''} 
+                                                onChange={e => {
+                                                  const next = [...opts];
+                                                  for(let j=0; j<4; j++) if(!next[j]) next[j] = '';
+                                                  next[i] = `${letter}. ${e.target.value}`;
+                                                  updatePassageQ(pIdx, gIdx, qIdx, 'options', next);
+                                                }} 
+                                                placeholder={`Option ${letter}`}
+                                              />
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : (group.groupType === 'MATCHING' || group.groupType === 'HEADING_MATCHING') && (
                                       <input style={inp} value={q.options || ''} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'options', e.target.value)} placeholder="Options (A. Text, B. Text...)" />
                                     )}
                                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -655,8 +714,17 @@ export default function PaperDetail() {
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                   <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
                                   <div style={{ fontSize: '14px' }}>
-                                    <div>{q.content}</div>
-                                    <div style={{ fontWeight: '700', color: '#10b981', marginTop: '4px' }}>{q.correctAnswer}</div>
+                                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>{q.content}</div>
+                                    {group.groupType === 'MULTIPLE_CHOICE' && Array.isArray(q.options) && (
+                                      <div style={{ display: 'grid', gap: '4px', marginLeft: '12px', marginBottom: '8px' }}>
+                                        {q.options.map((opt, i) => (
+                                          <div key={i} style={{ fontSize: '13px', color: '#64748b' }}>
+                                            {opt}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div style={{ fontWeight: '700', color: '#10b981' }}>{q.correctAnswer}</div>
                                   </div>
                                 </div>
                               )}

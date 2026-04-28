@@ -354,10 +354,7 @@ export default function AdminDashboard() {
                                     ↕️ Reorder Papers
                                  </button>
                                  <button className="action-btn outline" onClick={() => navigate('/admin/papers/import')}>
-                                    ✨ Import Paper (AI)
-                                 </button>
-                                 <button className="action-btn outline" onClick={() => navigate('/admin/papers/import-json')}>
-                                    📄 Import Paper (JSON)
+                                    ✨ Import Paper (AI / JSON)
                                  </button>
                                  <button className="action-btn primary" onClick={() => navigate('/admin/papers/create')}>
                                     + Create Paper
@@ -454,11 +451,7 @@ export default function AdminDashboard() {
                         <div style={{ display:'flex', gap:10 }}>
                            <button onClick={() => navigate('/admin/papers/import')}
                               style={{ padding:'10px 20px', background:'white', border:'1px solid #e2e8f0', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', color:'#475569' }}>
-                              ✨ AI Import
-                           </button>
-                           <button onClick={() => navigate('/admin/papers/import-json')}
-                              style={{ padding:'10px 20px', background:'white', border:'1px solid #e2e8f0', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', color:'#475569' }}>
-                              📄 JSON Import
+                              ✨ Import Paper (AI / JSON)
                            </button>
                            <button onClick={() => navigate('/admin/papers/create')}
                               style={{ padding:'10px 20px', background:'linear-gradient(135deg,#1e3a5f,#2563eb)', color:'white', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>

@@ -858,25 +858,40 @@ export default function ReadingExam() {
                            </div>
 
                            {options.length > 0 ? (
-                              <div style={{ display: 'flex', gap: '8px', paddingLeft: '40px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingLeft: '40px' }}>
                                  {options.map((opt) => {
                                     const selected = answers[q.id] === opt.value;
 
                                     return (
-                                       <button
+                                       <label
                                           key={`${q.id}-${opt.value}`}
-                                          className={`pill-btn ${selected ? 'selected' : ''}`}
-                                          onClick={() => selectAnswer(q.id, opt.value)}
+                                          style={{
+                                             display: 'flex',
+                                             alignItems: 'center',
+                                             gap: '12px',
+                                             padding: '12px 16px',
+                                             background: selected ? '#eff6ff' : '#ffffff',
+                                             border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`,
+                                             borderRadius: '12px',
+                                             cursor: 'pointer',
+                                             transition: 'all 0.2s',
+                                             fontSize: '14px',
+                                             fontWeight: selected ? '700' : '500',
+                                             color: selected ? '#1e40af' : '#475569'
+                                          }}
                                        >
-                                          <span className="option-content">
-                                             {opt.letter && (
-                                                <span className="option-letter">
-                                                   {opt.letter}
-                                                </span>
-                                             )}
+                                          <input
+                                             type="radio"
+                                             name={`q${q.id}`}
+                                             checked={selected}
+                                             onChange={() => selectAnswer(q.id, opt.value)}
+                                             style={{ accentColor: '#4f46e5', width: '18px', height: '18px' }}
+                                          />
+                                          <span style={{ display: 'flex', gap: '8px' }}>
+                                             {opt.letter && <span style={{ fontWeight: '800', color: '#4f46e5' }}>{opt.letter}.</span>}
                                              <span>{opt.text || opt.value}</span>
                                           </span>
-                                       </button>
+                                       </label>
                                     );
                                  })}
                               </div>

@@ -232,13 +232,33 @@ export default function ListeningExam() {
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#475569', flexShrink: 0 }}>{q.questionNumber}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 15, color: '#1e293b', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
-                          {q.questionType === 'MULTIPLE_CHOICE' ? (
-                            <div style={{ display: 'grid', gap: 8 }}>
-                              {(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []).map((opt, i) => (
-                                <button key={i} className={`choice-btn ${answers[q.id] === opt ? 'selected' : ''}`} onClick={() => setAnswers({ ...answers, [q.id]: opt })}>
-                                  <span style={{ fontSize: 14, fontWeight: 600 }}>{opt}</span>
-                                </button>
-                              ))}
+                           {q.questionType === 'MULTIPLE_CHOICE' ? (
+                            <div style={{ display: 'grid', gap: '8px' }}>
+                              {(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []).map((opt, i) => {
+                                const selected = answers[q.id] === opt;
+                                return (
+                                  <label key={i} style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '12px', 
+                                    padding: '12px 16px', 
+                                    background: selected ? '#f5f3ff' : '#fff', 
+                                    border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, 
+                                    borderRadius: '12px', 
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                  }}>
+                                    <input 
+                                      type="radio" 
+                                      name={`q${q.id}`} 
+                                      checked={selected} 
+                                      onChange={() => setAnswers({ ...answers, [q.id]: opt })}
+                                      style={{ accentColor: '#4f46e5' }}
+                                    />
+                                    <span style={{ fontSize: 14, fontWeight: selected ? 700 : 500, color: selected ? '#4f46e5' : '#475569' }}>{opt}</span>
+                                  </label>
+                                );
+                              })}
                             </div>
                           ) : (
                             <input className="listen-input" style={{ maxWidth: 300 }} value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} placeholder="Your answer..." />

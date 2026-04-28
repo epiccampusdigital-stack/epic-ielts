@@ -317,7 +317,7 @@ ${rawText.substring(0, 6000)}`
     let response;
     try {
       response = await claude.messages.create({
-        model: 'claude-3-5-sonnet-20240620',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: 8000,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }]

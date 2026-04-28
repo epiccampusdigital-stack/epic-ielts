@@ -25,19 +25,37 @@ router.post('/', auth, adminOnly, async (req, res) => {
       return res.status(400).json({ error: `Paper code ${data.code} already exists for ${data.testType}` });
     }
 
-    // Validate group types
-    const validTypes = [
-      'MULTIPLE_CHOICE', 'SHORT_ANSWER', 'FORM_COMPLETION', 'MAP_LABELING',
-      'TABLE_COMPLETION', 'NOTE_COMPLETION', 'SENTENCE_COMPLETION', 'MATCHING',
-      'TRUE_FALSE_NOT_GIVEN'
-    ];
+    // Validate group types (accept internal values or display labels)
+    const QUESTION_TYPE_MAP = {
+      "Multiple Choice":          "MULTIPLE_CHOICE",
+      "Short Answer":             "SHORT_ANSWER",
+      "Fill in the blank":        "FILL_IN_THE_BLANK",
+      "True / False / Not Given": "TRUE_FALSE_NOT_GIVEN",
+      "Yes / No / Not Given":     "YES_NO_NOT_GIVEN",
+      "Heading Matching":         "HEADING_MATCHING",
+      "Matching":                 "MATCHING",
+      "Sentence Completion":      "SENTENCE_COMPLETION",
+      "Summary Completion":       "SUMMARY_COMPLETION",
+      "Table Completion":         "TABLE_COMPLETION",
+      "Note Completion":          "NOTE_COMPLETION",
+      "Form Completion":          "FORM_COMPLETION",
+      "Map / Diagram Labeling":   "MAP_LABELING",
+    };
+
+    const normalizeType = (t) => {
+      if (QUESTION_TYPE_MAP[t]) return QUESTION_TYPE_MAP[t];
+      if (Object.values(QUESTION_TYPE_MAP).includes(t)) return t;
+      return null;
+    };
 
     const qNumbers = new Set();
     const validateGroups = (groups) => {
       for (const g of groups) {
-        if (!validTypes.includes(g.type)) {
+        const type = normalizeType(g.type);
+        if (!type) {
           throw new Error(`Unknown group type: ${g.type}`);
         }
+        g.type = type; // Normalize for DB
         if (g.type === 'TABLE_COMPLETION' && !g.tableData) {
           throw new Error('TABLE_COMPLETION group missing tableData');
         }

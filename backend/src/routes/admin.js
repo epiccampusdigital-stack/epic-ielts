@@ -521,11 +521,53 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
         }
       }
 
-      // Passages
+      // Passages (hierarchical - Reading)
       if (Array.isArray(passages)) {
         for (const p of passages) {
-          if (p.id) await tx.passage.update({ where: { id: p.id }, data: { passageNumber: p.passageNumber, title: p.title, text: p.text } });
-          else await tx.passage.create({ data: { ...p, paperId, id: undefined } });
+          let pId = p.id;
+          if (pId) {
+            await tx.passage.update({ where: { id: pId }, data: { passageNumber: p.passageNumber, title: p.title, text: p.text } });
+          } else {
+            const newP = await tx.passage.create({ data: { paperId, passageNumber: p.passageNumber, title: p.title, text: p.text } });
+            pId = newP.id;
+          }
+
+          if (Array.isArray(p.groups)) {
+            for (const g of p.groups) {
+              let gId = g.id;
+              const gData = { 
+                passageId: pId, 
+                groupType: g.groupType, 
+                instruction: g.instruction, 
+                wordLimit: g.wordLimit, 
+                tableData: g.tableData, 
+                imageUrl: g.imageUrl 
+              };
+              if (gId) {
+                await tx.questionGroup.update({ where: { id: gId }, data: gData });
+              } else {
+                const newG = await tx.questionGroup.create({ data: gData });
+                gId = newG.id;
+              }
+
+              if (Array.isArray(g.questions)) {
+                for (const q of g.questions) {
+                  const qData = {
+                    paperId,
+                    groupId: gId,
+                    questionNumber: q.questionNumber,
+                    questionType: q.questionType,
+                    content: q.content,
+                    correctAnswer: q.correctAnswer,
+                    explanation: q.explanation,
+                    options: q.options ? (typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null
+                  };
+                  if (q.id) await tx.question.update({ where: { id: q.id }, data: qData });
+                  else await tx.question.create({ data: qData });
+                }
+              }
+            }
+          }
         }
       }
 
@@ -594,7 +636,14 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
       where: { id: parseInt(req.params.id) },
       include: {
         questions:    { orderBy: { questionNumber: 'asc' } },
-        passages:     { orderBy: { passageNumber:  'asc' } },
+        passages:     { 
+          include: {
+            groups: {
+              include: { questions: { orderBy: { questionNumber: 'asc' } } }
+            }
+          },
+          orderBy: { passageNumber:  'asc' } 
+        },
         sections: {
           include: {
             groups: {

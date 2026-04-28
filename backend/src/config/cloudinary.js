@@ -1,3 +1,4 @@
+require('dotenv').config();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -26,10 +27,25 @@ if (isLocal) {
   cloudinary = require('cloudinary').v2;
   const { CloudinaryStorage } = require('multer-storage-cloudinary');
   
+  console.log('=== Cloudinary Boot Check ===');
+  console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || '✗ UNDEFINED');
+  console.log('API_KEY exists:', !!process.env.CLOUDINARY_API_KEY);
+  console.log('API_SECRET exists:', !!process.env.CLOUDINARY_API_SECRET);
+  console.log('================================');
+
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.error('🚨 CRITICAL: Cloudinary env vars missing!');
+    console.error('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME ? 'set' : 'MISSING');
+    console.error('API_KEY:', process.env.CLOUDINARY_API_KEY ? 'set' : 'MISSING');
+    console.error('API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'set' : 'MISSING');
+    throw new Error('Cloudinary configuration incomplete - check Render env vars');
+  }
+
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
   });
 
   storage = new CloudinaryStorage({

@@ -35,11 +35,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const auth = require('./middleware/auth');
+const adminOnly = require('./middleware/adminOnly');
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/papers', require('./routes/papers'));
 app.use('/api/attempts', require('./routes/attempts'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/upload', require('./routes/uploads'));
+app.use('/api/admin/papers/import-json', auth, adminOnly, require('./routes/importJson'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'EPIC IELTS API running' });

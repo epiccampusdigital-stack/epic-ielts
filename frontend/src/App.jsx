@@ -14,6 +14,7 @@ import WritingResults from './pages/WritingResults';
 import ListeningExam from './pages/ListeningExam';
 import SpeakingExam from './pages/SpeakingExam';
 import SpeakingResults from './pages/SpeakingResults';
+import ImportJson from './pages/ImportJson';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="/admin/papers/create" element={<CreatePaper />} />
       <Route path="/admin/papers/import" element={<ImportPaper />} />
+      <Route path="/admin/papers/import-json" element={<ImportJson />} />
       <Route path="/admin/papers/:id" element={<PaperDetail />} />
       <Route path="/exam/:attemptId/greeting" element={<ExamGreeting />} />
       <Route path="/exam/:attemptId/reading" element={<ReadingExam />} />

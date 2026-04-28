@@ -107,7 +107,7 @@ model Question {
   questionNumber   Int
   questionType     String         // TFNG, MC, SA, etc.
   content          String         @db.Text
-  options          String?        @db.Text // JSON string
+  options          Json?
   correctAnswer    String         @db.Text
   explanation      String?        @db.Text
   imageUrl         String?

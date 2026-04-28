@@ -315,6 +315,14 @@ export default function WritingExam() {
                   alt="Task 1 Bar Chart"
                   style={{ width: '100%', height: 'auto', borderRadius: 8 }}
                 />
+              ) : currentTask?.chartDescription ? (
+                <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12 }}>🖼️ CHART PLACEHOLDER</div>
+                  <p style={{ fontSize: 14, color: '#475569', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
+                    "{currentTask.chartDescription}"
+                  </p>
+                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16 }}>[Admin: Please upload a chart image in the editor]</p>
+                </div>
               ) : (
                 <div>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420" style={{ width: '100%', height: 'auto' }}>

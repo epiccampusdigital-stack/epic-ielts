@@ -601,6 +601,10 @@ export default function PaperDetail() {
                           </label>
                         </div>
                         <div>
+                          <label style={lbl}>Chart/Image Description (Placeholder Text)</label>
+                          <textarea style={{ ...inp, minHeight: '60px' }} value={task.chartDescription || ''} onChange={e => updateWT(idx, 'chartDescription', e.target.value)} placeholder="e.g. A line graph showing the population growth in..." />
+                        </div>
+                        <div>
                           <label style={lbl}>Task 1 Table (Optional)</label>
                           <TableEditor data={task.tableData} onChange={val => updateWT(idx, 'tableData', val)} />
                         </div>

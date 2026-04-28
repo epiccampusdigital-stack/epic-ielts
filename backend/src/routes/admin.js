@@ -224,7 +224,7 @@ JSON structure required:
     {
       "taskNumber": 1,
       "prompt": "complete task 1 question text",
-      "chartDescription": "describe the chart or graph if present, or null",
+      "chartDescription": "detailed description of what the chart/table/diagram shows",
       "minWords": 150
     },
     {
@@ -382,7 +382,7 @@ ${rawText.substring(0, 6000)}`
     if (type === 'WRITING') {
       for (const task of (parsed.tasks||[])) {
         await prisma.writingTask.create({
-          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
+          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
         });
       }
     }
@@ -532,7 +532,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       // Writing Tasks
       if (Array.isArray(writingTasks)) {
         for (const wt of writingTasks) {
-          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, minWords: wt.minWords, tableData: wt.tableData } });
+          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, chartDescription: wt.chartDescription, minWords: wt.minWords, tableData: wt.tableData } });
           else await tx.writingTask.create({ data: { ...wt, paperId, id: undefined } });
         }
       }

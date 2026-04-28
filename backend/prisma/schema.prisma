@@ -60,6 +60,7 @@ model WritingTask {
   taskNumber Int     // 1 or 2
   prompt     String
   chartUrl   String?
+  chartDescription String?
   minWords   Int     @default(150)
   tableData  Json?
 }

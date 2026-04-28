@@ -417,11 +417,11 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  const { questions, passages, ...rawPaperData } = req.body;
+  const { questions, passages, deletedQuestionIds, deletedPassageIds, ...rawPaperData } = req.body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Sanitize basic paper data
+      // 1. Only update fields that exist in the schema (no audioScript)
       const paperData = {
         paperCode: rawPaperData.paperCode,
         testType: rawPaperData.testType,
@@ -431,59 +431,66 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
         status: rawPaperData.status,
         assignedBatches: rawPaperData.assignedBatches,
         audioUrl: rawPaperData.audioUrl,
-        audioScript: rawPaperData.audioScript,
         order: rawPaperData.order !== undefined ? parseInt(rawPaperData.order) : undefined
       };
+      // Strip undefined so Prisma doesn't nullify untouched fields
+      Object.keys(paperData).forEach(k => paperData[k] === undefined && delete paperData[k]);
 
-      const updatedPaper = await tx.paper.update({
-        where: { id: paperId },
-        data: paperData
-      });
+      const updatedPaper = await tx.paper.update({ where: { id: paperId }, data: paperData });
 
-      // 2. Update questions if provided
-      if (questions && Array.isArray(questions)) {
+      // 2. Delete questions the user removed
+      if (Array.isArray(deletedQuestionIds) && deletedQuestionIds.length > 0) {
+        const ids = deletedQuestionIds.filter(x => typeof x === 'number');
+        if (ids.length > 0) {
+          await tx.answer.deleteMany({ where: { questionId: { in: ids } } });
+          await tx.question.deleteMany({ where: { id: { in: ids }, paperId } });
+        }
+      }
+
+      // 3. Delete passages the user removed
+      if (Array.isArray(deletedPassageIds) && deletedPassageIds.length > 0) {
+        const ids = deletedPassageIds.filter(x => typeof x === 'number');
+        if (ids.length > 0) {
+          await tx.passage.deleteMany({ where: { id: { in: ids }, paperId } });
+        }
+      }
+
+      // 4. Upsert questions
+      if (Array.isArray(questions)) {
         for (const q of questions) {
-          const qData = {
-            passageNumber: q.passageNumber,
-            questionNumber: parseInt(q.questionNumber),
-            questionType: q.questionType,
-            content: q.content,
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation,
-            options: Array.isArray(q.options) ? JSON.stringify(q.options) : q.options
-          };
+          let optVal = null;
+          if (Array.isArray(q.options)) optVal = JSON.stringify(q.options);
+          else if (typeof q.options === 'string' && q.options.startsWith('[')) optVal = q.options;
 
+          const qData = {
+            passageNumber: parseInt(q.passageNumber) || 1,
+            questionNumber: parseInt(q.questionNumber) || 1,
+            questionType: q.questionType || 'SHORT_ANSWER',
+            content: String(q.content || ''),
+            correctAnswer: String(q.correctAnswer || ''),
+            explanation: q.explanation ? String(q.explanation) : null,
+            options: optVal
+          };
           if (q.id && typeof q.id === 'number') {
-            await tx.question.update({
-              where: { id: q.id },
-              data: qData
-            });
+            await tx.question.update({ where: { id: q.id }, data: qData });
           } else {
-            await tx.question.create({
-              data: { ...qData, paperId }
-            });
+            await tx.question.create({ data: { ...qData, paperId } });
           }
         }
       }
 
-      // 3. Update passages if provided
-      if (passages && Array.isArray(passages)) {
+      // 5. Upsert passages
+      if (Array.isArray(passages)) {
         for (const p of passages) {
           const pData = {
-            passageNumber: p.passageNumber,
-            title: p.title,
-            text: p.text
+            passageNumber: parseInt(p.passageNumber) || 1,
+            title: String(p.title || `Passage ${p.passageNumber || 1}`),
+            text: String(p.text || '')
           };
-
           if (p.id && typeof p.id === 'number') {
-            await tx.passage.update({
-              where: { id: p.id },
-              data: pData
-            });
+            await tx.passage.update({ where: { id: p.id }, data: pData });
           } else {
-            await tx.passage.create({
-              data: { ...pData, paperId }
-            });
+            await tx.passage.create({ data: { ...pData, paperId } });
           }
         }
       }
@@ -493,10 +500,11 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Update paper error:', err);
+    console.error('Update paper error:', err.message);
     res.status(500).json({ error: 'Failed to update paper: ' + err.message });
   }
 });
+
 
 // Update the GET detail route as well to include passages
 router.get('/papers/:id', auth, adminOnly, async (req, res) => {

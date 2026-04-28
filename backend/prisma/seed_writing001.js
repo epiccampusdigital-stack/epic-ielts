@@ -37,7 +37,7 @@ async function main() {
       paperId: paper.id,
       taskNumber: 1,
       prompt: 'The bar chart below shows the percentage of people in three age groups who used the internet daily in four different countries in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.',
-      chartUrl: '/charts/writing001-task1.svg',
+      chartImageUrl: '/charts/writing001-task1.svg',
       minWords: 150
     }
   });
@@ -53,7 +53,7 @@ async function main() {
 
   const verify = await prisma.writingTask.findMany({ where: { paperId: paper.id }, orderBy: { taskNumber: 'asc' } });
   console.log('Writing tasks created:', verify.length);
-  verify.forEach(t => console.log(' - Task', t.taskNumber, '| chartUrl:', t.chartUrl || 'none'));
+  verify.forEach(t => console.log(' - Task', t.taskNumber, '| chartImageUrl:', t.chartImageUrl || 'none'));
 
   await prisma.$disconnect();
   console.log('WRITING 001 ready!');

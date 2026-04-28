@@ -53,6 +53,7 @@ model Passage {
   passageNumber Int
   title         String?
   text          String  @db.Text
+  groups        QuestionGroup[]
 }
 
 model WritingTask {
@@ -83,8 +84,10 @@ model Section {
 
 model QuestionGroup {
   id           Int        @id @default(autoincrement())
-  sectionId    Int
-  section      Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId    Int?       // Optional: link to section (Listening)
+  section      Section?   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  passageId    Int?       // Optional: link to passage (Reading)
+  passage      Passage?   @relation(fields: [passageId], references: [id], onDelete: Cascade)
   groupType    String     // FORM_COMPLETION, MAP_LABELING, etc.
   instruction  String?    @db.Text
   imageUrl     String?

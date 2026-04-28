@@ -36,6 +36,41 @@ export default function AdminDashboard() {
    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
    useEffect(() => { fetchAll(); }, []);
+   
+   const handleDragStart = (e, index) => {
+      setDraggedItem(index);
+      e.dataTransfer.effectAllowed = 'move';
+      e.target.style.opacity = '0.5';
+   };
+
+   const handleDragOver = (e, index) => {
+      e.preventDefault();
+      if (draggedItem === null || draggedItem === index) return;
+      
+      const newPapers = [...papers];
+      const draggedPaper = newPapers[draggedItem];
+      newPapers.splice(draggedItem, 1);
+      newPapers.splice(index, 0, draggedPaper);
+      
+      setDraggedItem(index);
+      setPapers(newPapers);
+   };
+
+   const handleDragEnd = (e) => {
+      e.target.style.opacity = '1';
+      setDraggedItem(null);
+   };
+
+   const movePaper = (index, direction) => {
+      const newPapers = [...papers];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= newPapers.length) return;
+      
+      const item = newPapers[index];
+      newPapers.splice(index, 1);
+      newPapers.splice(targetIndex, 0, item);
+      setPapers(newPapers);
+   };
 
    const fetchAll = async () => {
       setLoading(true);
@@ -439,8 +474,43 @@ export default function AdminDashboard() {
                         </div>
                      ) : (
                         <div style={{ display:'grid', gap:12 }}>
-                           {papers.map(p => (
-                              <div key={p.id} style={{ background:'white', border:'1px solid #dbeafe', borderRadius:14, padding:'18px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+                           {papers.map((p, i) => (
+                              <div 
+                                 key={p.id} 
+                                 draggable={reorderMode}
+                                 onDragStart={(e) => handleDragStart(e, i)}
+                                 onDragOver={(e) => handleDragOver(e, i)}
+                                 onDragEnd={handleDragEnd}
+                                 style={{ 
+                                    background:'white', 
+                                    border: draggedItem === i ? '2px dashed #4f46e5' : '1px solid #dbeafe', 
+                                    borderRadius:14, 
+                                    padding:'18px 20px', 
+                                    display:'flex', 
+                                    alignItems:'center', 
+                                    justifyContent:'space-between', 
+                                    gap:16,
+                                    cursor: reorderMode ? 'move' : 'default',
+                                    transition: 'all 0.2s',
+                                    position: 'relative'
+                                 }}>
+                                 {reorderMode && (
+                                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                                       <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                                          <button 
+                                             onClick={(e) => { e.stopPropagation(); movePaper(i, -1); }}
+                                             style={{ width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center', background:'white', border:'1px solid #dbeafe', borderRadius:6, cursor:'pointer', color:'#4f46e5', fontSize:12 }}
+                                             disabled={i === 0}
+                                          >▲</button>
+                                          <button 
+                                             onClick={(e) => { e.stopPropagation(); movePaper(i, 1); }}
+                                             style={{ width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center', background:'white', border:'1px solid #dbeafe', borderRadius:6, cursor:'pointer', color:'#4f46e5', fontSize:12 }}
+                                             disabled={i === papers.length - 1}
+                                          >▼</button>
+                                       </div>
+                                       <div style={{ fontSize: 18, color: '#94a3b8', cursor: 'move' }}>⠿</div>
+                                    </div>
+                                 )}
                                  <div style={{ display:'flex', alignItems:'center', gap:14, flex:1 }}>
                                     <div style={{ width:44, height:44, borderRadius:10, background:
                                        p.testType==='READING' ? '#eff6ff' :

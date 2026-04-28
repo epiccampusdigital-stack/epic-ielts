@@ -82,9 +82,13 @@ router.get('/assigned', async (req, res) => {
         testType: true,
         title: true,
         timeLimitMin: true,
-        status: true
+        status: true,
+        order: true
       },
-      orderBy: { id: 'desc' }
+      orderBy: [
+        { order: 'asc' },
+        { paperCode: 'asc' }
+      ]
     });
 
     console.log('Papers returned:', papers.length, papers.map(p => p.paperCode + '-' + p.testType));

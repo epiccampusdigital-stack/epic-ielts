@@ -382,7 +382,7 @@ ${rawText.substring(0, 6000)}`
     if (type === 'WRITING') {
       for (const task of (parsed.tasks||[])) {
         await prisma.writingTask.create({
-          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
+          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartImageUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
         });
       }
     }
@@ -532,7 +532,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       // Writing Tasks
       if (Array.isArray(writingTasks)) {
         for (const wt of writingTasks) {
-          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, chartDescription: wt.chartDescription, minWords: wt.minWords, tableData: wt.tableData } });
+          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartImageUrl: wt.chartImageUrl, chartDescription: wt.chartDescription, minWords: wt.minWords, tableData: wt.tableData } });
           else await tx.writingTask.create({ data: { ...wt, paperId, id: undefined } });
         }
       }
@@ -614,43 +614,14 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
 
 router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  console.log('--- STARTING DELETION OF PAPER:', paperId, '---');
+  console.log('--- DELETING PAPER (CASCADE):', paperId, '---');
   
   try {
-    await prisma.$transaction(async (tx) => {
-      // 1. Delete Student-Attempt related data
-      console.log('Deleting answers...');
-      await tx.answer.deleteMany({ where: { attempt: { paperId } } });
-      
-      console.log('Deleting results and submissions...');
-      await tx.result.deleteMany({ where: { attempt: { paperId } } });
-      await tx.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
-      await tx.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
-      
-      console.log('Deleting attempts...');
-      await tx.attempt.deleteMany({ where: { paperId } });
-
-      // 2. Delete Paper Content hierarchy
-      console.log('Deleting questions...');
-      await tx.question.deleteMany({ where: { paperId } });
-
-      console.log('Deleting question groups...');
-      await tx.questionGroup.deleteMany({ where: { section: { paperId } } });
-
-      console.log('Deleting sections...');
-      await tx.section.deleteMany({ where: { paperId } });
-
-      console.log('Deleting passages and writing tasks...');
-      await tx.passage.deleteMany({ where: { paperId } });
-      await tx.writingTask.deleteMany({ where: { paperId } });
-
-      // 3. Delete the paper itself
-      console.log('Deleting paper record...');
-      await tx.paper.delete({ where: { id: paperId } });
-    });
+    // Prisma Cascade handles all dependencies automatically now
+    await prisma.paper.delete({ where: { id: paperId } });
 
     console.log('--- PAPER DELETED SUCCESSFULLY:', paperId, '---');
-    res.json({ success: true, message: 'Paper and all related data deleted successfully' });
+    res.json({ success: true, message: 'Paper deleted successfully (Cascade)' });
   } catch (err) {
     console.error('DELETE ERROR for paper', paperId, ':', err);
     res.status(500).json({ error: 'Failed to delete: ' + err.message });

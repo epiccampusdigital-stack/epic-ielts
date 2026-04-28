@@ -602,12 +602,12 @@ export default function PaperDetail() {
                       <div style={{ display: 'grid', gap: '20px' }}>
                         <div>
                           <label style={lbl}>Chart/Image</label>
-                          {task.chartUrl && <img src={getFullUrl(task.chartUrl)} style={{ maxHeight: '200px', display: 'block', marginBottom: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />}
+                          {task.chartImageUrl && <img src={getFullUrl(task.chartImageUrl)} style={{ maxHeight: '200px', display: 'block', marginBottom: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />}
                           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>
-                            {task.chartUrl ? '🔄 REPLACE IMAGE' : '🖼️ UPLOAD CHART'}
+                            {task.chartImageUrl ? '🔄 REPLACE IMAGE' : '🖼️ UPLOAD CHART'}
                             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
                               const url = await uploadAsset(e.target.files[0], 'image');
-                              if (url) updateWT(idx, 'chartUrl', url);
+                              if (url) updateWT(idx, 'chartImageUrl', url);
                             }} />
                           </label>
                         </div>
@@ -629,7 +629,7 @@ export default function PaperDetail() {
                 ) : (
                   <div>
                     <div style={{ whiteSpace: 'pre-wrap', fontSize: '15px', color: '#334155', lineHeight: '1.8', marginBottom: '20px' }}>{task.prompt}</div>
-                    {task.chartUrl && <img src={getFullUrl(task.chartUrl)} style={{ maxWidth: '100%', borderRadius: '16px', border: '1px solid #e2e8f0' }} />}
+                    {task.chartImageUrl && <img src={getFullUrl(task.chartImageUrl)} style={{ maxWidth: '100%', borderRadius: '16px', border: '1px solid #e2e8f0' }} />}
                     {task.taskNumber === 1 && task.tableData && (
                       <div style={{ marginTop: '20px' }}>
                          <TableEditor data={task.tableData} onChange={() => {}} />

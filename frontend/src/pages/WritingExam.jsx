@@ -309,9 +309,9 @@ export default function WritingExam() {
               <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
                 Figure 1: Percentage of daily internet users by age group and country, 2022
               </p>
-              {currentTask?.chartUrl ? (
+              {currentTask?.chartImageUrl ? (
                 <img
-                  src={getFullUrl(currentTask.chartUrl)}
+                  src={getFullUrl(currentTask.chartImageUrl)}
                   alt="Task 1 Bar Chart"
                   style={{ width: '100%', height: 'auto', borderRadius: 8 }}
                 />

@@ -22,24 +22,32 @@ model Student {
   attempts      Attempt[]
 }
 
+enum PaperType {
+  READING
+  WRITING
+  LISTENING
+}
+
 model Paper {
   id              Int           @id @default(autoincrement())
   paperCode       String
-  testType        String        // READING, WRITING, LISTENING
+  testType        PaperType     // READING, WRITING, LISTENING
   title           String
-  timeLimitMin    Int
-  instructions    String?
+  timeLimitMin    Int           @default(60)
+  instructions    String?       @db.Text
   audioUrl        String?
-  audioScript     String?
+  audioScript     String?       @db.Text
   status          String        @default("PUBLISHED") // PUBLISHED, DRAFT
   assignedBatches String        @default("ALL")
   order           Int           @default(0)
-  practiceMode    Boolean       @default(false) // NEW: allow audio replay
+  practiceMode    Boolean       @default(false)
   questions       Question[]
   passages        Passage[]
-  sections        Section[]     // NEW: for listening
+  sections        Section[]
   writingTasks    WritingTask[]
   attempts        Attempt[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@unique([paperCode, testType])
 }
@@ -47,40 +55,44 @@ model Paper {
 model Passage {
   id            Int     @id @default(autoincrement())
   paperId       Int
-  paper         Paper   @relation(fields: [paperId], references: [id])
+  paper         Paper   @relation(fields: [paperId], references: [id], onDelete: Cascade)
   passageNumber Int
   title         String?
-  text          String
+  text          String  @db.Text
 }
 
 model WritingTask {
-  id         Int     @id @default(autoincrement())
-  paperId    Int
-  paper      Paper   @relation(fields: [paperId], references: [id])
-  taskNumber Int     // 1 or 2
-  prompt     String
-  chartUrl   String?
-  chartDescription String?
-  minWords   Int     @default(150)
-  tableData  Json?
+  id               Int                @id @default(autoincrement())
+  paperId          Int
+  paper            Paper              @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  taskNumber       Int                // 1 or 2
+  prompt           String             @db.Text
+  chartImageUrl    String?            // Renamed from chartUrl
+  chartDescription String?            @db.Text
+  minWords         Int                @default(150)
+  timeMinutes      Int                @default(20)
+  tableData        Json?
+  submissions      WritingSubmission[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }
 
 model Section {
-  id          Int     @id @default(autoincrement())
+  id          Int             @id @default(autoincrement())
   paperId     Int
-  paper       Paper   @relation(fields: [paperId], references: [id])
-  number      Int     // 1, 2, 3, 4
-  description String?
+  paper       Paper           @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  number      Int             // 1, 2, 3, 4
+  description String?         @db.Text
   audioUrl    String?
   groups      QuestionGroup[]
 }
 
 model QuestionGroup {
-  id           Int      @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   sectionId    Int
-  section      Section  @relation(fields: [sectionId], references: [id])
-  groupType    String   // FORM_COMPLETION, MAP_LABELING, etc.
-  instruction  String?
+  section      Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  groupType    String     // FORM_COMPLETION, MAP_LABELING, etc.
+  instruction  String?    @db.Text
   imageUrl     String?
   tableData    Json?
   wordLimit    String?
@@ -88,98 +100,100 @@ model QuestionGroup {
 }
 
 model Question {
-  id              Int      @id @default(autoincrement())
-  paperId         Int
-  paper           Paper    @relation(fields: [paperId], references: [id])
-  groupId         Int?     // NEW: link to group
-  group           QuestionGroup? @relation(fields: [groupId], references: [id])
-  passageNumber   Int?     // For reading (1, 2, 3)
-  sectionNumber   Int?     // For listening (1, 2, 3, 4)
-  questionNumber  Int 
-  questionType    String   // TFNG, MC, SA, FORM_COMPLETION, MAP_LABELING, etc.
-  content         String
-  options         String?  // JSON string
-  correctAnswer   String
-  explanation     String?
-  imageUrl        String?  // Cloudinary URL for maps/plans
-  audioUrl        String?  // Cloudinary URL for section audio
-  wordLimit       String?  // e.g. "ONE WORD AND/OR A NUMBER"
-  tableData       Json?    // For table completion structure
-  groupInstruction String? // Shared instruction for a group of questions
-  answers         Answer[]
+  id               Int            @id @default(autoincrement())
+  paperId          Int
+  paper            Paper          @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  groupId          Int?
+  group            QuestionGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  passageNumber    Int?           // For reading (1, 2, 3)
+  sectionNumber    Int?           // For listening (1, 2, 3, 4)
+  questionNumber   Int
+  questionType     String         // TFNG, MC, SA, etc.
+  content          String         @db.Text
+  options          String?        @db.Text // JSON string
+  correctAnswer    String         @db.Text
+  explanation      String?        @db.Text
+  imageUrl         String?
+  audioUrl         String?
+  wordLimit        String?
+  tableData        Json?
+  groupInstruction String?        @db.Text
+  answers          Answer[]
 }
 
 model Attempt {
-  id                Int                 @id @default(autoincrement())
-  studentId         Int
-  paperId           Int
-  student           Student             @relation(fields: [studentId], references: [id])
-  paper             Paper               @relation(fields: [paperId], references: [id])
-  startedAt         DateTime            @default(now())
-  endedAt           DateTime?
-  status            String              @default("IN_PROGRESS")
-  answers           Answer[]
-  writingSubmission WritingSubmission?
+  id                 Int                 @id @default(autoincrement())
+  studentId          Int
+  paperId            Int
+  student            Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paper              Paper               @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  startedAt          DateTime            @default(now())
+  endedAt            DateTime?
+  status             String              @default("IN_PROGRESS")
+  answers            Answer[]
+  writingSubmission  WritingSubmission?
   speakingSubmission SpeakingSubmission?
-  result            Result?
+  result             Result?
 }
 
 model Answer {
   id            Int      @id @default(autoincrement())
   attemptId     Int
   questionId    Int
-  studentAnswer String
+  studentAnswer String   @db.Text
   isCorrect     Boolean?
-  attempt       Attempt  @relation(fields: [attemptId], references: [id])
-  question      Question @relation(fields: [questionId], references: [id])
+  attempt       Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question      Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
 model WritingSubmission {
-  id              Int     @id @default(autoincrement())
-  attemptId       Int     @unique
-  attempt         Attempt @relation(fields: [attemptId], references: [id])
-  task1Response   String?
-  task2Response   String?
+  id              Int         @id @default(autoincrement())
+  attemptId       Int         @unique
+  attempt         Attempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  writingTaskId   Int?        // Link to specific task if needed
+  writingTask     WritingTask? @relation(fields: [writingTaskId], references: [id])
+  task1Response   String?     @db.Text
+  task2Response   String?     @db.Text
   task1WordCount  Int?
   task2WordCount  Int?
   task1Band       Float?
   task2Band       Float?
   overallBand     Float?
-  aiFeedback      String?
-  markingStatus   String  @default("PENDING")
+  aiFeedback      String?     @db.Text
+  markingStatus   String      @default("PENDING")
 }
 
 model Result {
-  id                Int      @id @default(autoincrement())
-  attemptId         Int      @unique
-  attempt           Attempt  @relation(fields: [attemptId], references: [id])
-  rawScore          Float?
-  bandEstimate      Float?
-  teacherReviewed   Boolean  @default(false)
-  overrideBand      Float?
-  strengths         String?
-  weaknesses         String?
-  improvementAdvice String?
-  aiFeedbackJson    String?
-  aiFeedback        String?
-  finalStudentReport String?
+  id                 Int      @id @default(autoincrement())
+  attemptId          Int      @unique
+  attempt            Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  rawScore           Float?
+  bandEstimate       Float?
+  teacherReviewed    Boolean  @default(false)
+  overrideBand       Float?
+  strengths          String?  @db.Text
+  weaknesses         String?  @db.Text
+  improvementAdvice  String?  @db.Text
+  aiFeedbackJson     String?  @db.Text
+  aiFeedback         String?  @db.Text
+  finalStudentReport String?  @db.Text
 }
 
 model SpeakingSubmission {
   id               Int      @id @default(autoincrement())
   attemptId        Int      @unique
-  attempt          Attempt  @relation(fields: [attemptId], references: [id])
+  attempt          Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   part1AudioUrl    String?
   part2AudioUrl    String?
   part3AudioUrl    String?
-  part1Transcript  String?
-  part2Transcript  String?
-  part3Transcript  String?
+  part1Transcript  String?  @db.Text
+  part2Transcript  String?  @db.Text
+  part3Transcript  String?  @db.Text
   part1Band        Float?
   part2Band        Float?
   part3Band        Float?
   overallBand      Float?
-  aiFeedback       String?
+  aiFeedback       String?  @db.Text
   markingStatus    String   @default("PENDING")
   createdAt        DateTime @default(now())
 }

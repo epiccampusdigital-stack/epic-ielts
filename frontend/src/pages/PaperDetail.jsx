@@ -124,6 +124,7 @@ export default function PaperDetail() {
   const [edited, setEdited] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [showSetup, setShowSetup] = useState(false);
@@ -140,6 +141,7 @@ export default function PaperDetail() {
   const load = async () => {
     setLoading(true);
     try {
+      setError(null);
       const r = await axios.get(`${API_URL}/api/papers/${id}`, auth());
       setPaper(r.data);
       setEdited(JSON.parse(JSON.stringify(r.data)));
@@ -147,7 +149,10 @@ export default function PaperDetail() {
       if (r.data.testType === 'LISTENING' && r.data.sections?.length > 0 && !r.data.sections[0].audioUrl) {
         setShowSetup(true);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+      setError(e.response?.data?.error || e.message);
+    }
     setLoading(false);
   };
 
@@ -434,7 +439,13 @@ export default function PaperDetail() {
   };
 
   if (loading) return <div style={{ padding: '100px', textAlign: 'center' }}>Loading...</div>;
-  if (!edited) return <div style={{ padding: '100px', textAlign: 'center' }}>Error</div>;
+  if (!edited) return (
+    <div style={{ padding: '100px', textAlign: 'center' }}>
+      <h2 style={{ color: '#ef4444' }}>⚠️ Failed to load paper</h2>
+      <p style={{ color: '#64748b' }}>{error || 'The paper might have been deleted or the server is unreachable.'}</p>
+      <button onClick={() => window.location.reload()} style={{ marginTop: '20px', padding: '10px 20px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Retry</button>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px 20px' }}>

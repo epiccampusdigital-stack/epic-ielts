@@ -14,6 +14,11 @@ export default function ListeningExam() {
   const [playedSections, setPlayedSections] = useState({});
   const [showInstructions, setShowInstructions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
+  const getFullUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return API_URL + (url.startsWith('/') ? '' : '/') + url;
+  };
   const [submitting, setSubmitting] = useState(false);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
@@ -187,7 +192,7 @@ export default function ListeningExam() {
               <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', marginBottom: 12 }}>AUDIO CONTROL</div>
               {currentSection.audioUrl ? (
                 <>
-                  <audio ref={audioRef} src={currentSection.audioUrl} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
+                  <audio ref={audioRef} src={getFullUrl(currentSection.audioUrl)} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
                   {!paper.practiceMode && (
                     playedSections[currentSection.id] ? (
                       <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>Played Once</div>
@@ -213,7 +218,7 @@ export default function ListeningExam() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>{group.wordLimit}</div>
                 </div>
 
-                {group.imageUrl && <img src={group.imageUrl} style={{ maxWidth: '100%', borderRadius: 16, marginBottom: 24, border: '1px solid #e2e8f0' }} />}
+                {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: 16, marginBottom: 24, border: '1px solid #e2e8f0' }} />}
                 {group.groupType === 'TABLE_COMPLETION' && renderTable(group.tableData)}
 
                 <div style={{ display: 'grid', gap: 24 }}>

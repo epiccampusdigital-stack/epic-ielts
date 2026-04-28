@@ -19,6 +19,11 @@ const Q_TYPES = [
 
 const lbl = { display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' };
 const inp = { width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box', background: '#fff' };
+const getFullUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return API_URL + (url.startsWith('/') ? '' : '/') + url;
+};
 
 // --- SUB-COMPONENTS ---
 
@@ -286,8 +291,8 @@ export default function PaperDetail() {
           </label>
         )}
       </div>
-
-      {section.audioUrl && <audio controls src={section.audioUrl} style={{ width: '100%', marginBottom: '24px' }} />}
+      
+      {section.audioUrl && <audio controls src={getFullUrl(section.audioUrl)} style={{ width: '100%', marginBottom: '24px' }} />}
       
       <div style={{ display: 'grid', gap: '24px' }}>
         {(section.groups || []).map((group, gIdx) => (
@@ -323,7 +328,7 @@ export default function PaperDetail() {
                 {(group.groupType === 'MAP_LABELING' || group.groupType === 'TABLE_COMPLETION') && (
                   <div>
                     <label style={lbl}>{group.groupType === 'MAP_LABELING' ? 'Map Image' : 'Optional Diagram'}</label>
-                    {group.imageUrl && <img src={group.imageUrl} style={{ maxHeight: '150px', display: 'block', marginBottom: '10px', borderRadius: '8px' }} />}
+                    {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxHeight: '150px', display: 'block', marginBottom: '10px', borderRadius: '8px' }} />}
                     <label style={{ display: 'inline-block', padding: '6px 12px', border: '1.5px solid #4f46e5', color: '#4f46e5', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}>
                       UPLOAD IMAGE <input type="file" style={{ display: 'none' }} onChange={async e => {
                         const url = await uploadAsset(e.target.files[0], 'image');
@@ -349,7 +354,7 @@ export default function PaperDetail() {
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5' }}>{group.instruction}</div>
                 <div style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8' }}>LIMIT: {group.wordLimit}</div>
-                {group.imageUrl && <img src={group.imageUrl} style={{ maxWidth: '100%', borderRadius: '12px', marginTop: '12px', border: '1px solid #e2e8f0' }} />}
+                {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: '12px', marginTop: '12px', border: '1px solid #e2e8f0' }} />}
               </div>
             )}
 
@@ -583,16 +588,22 @@ export default function PaperDetail() {
                       <textarea style={{ ...inp, minHeight: '150px' }} value={task.prompt} onChange={e => updateWT(idx, 'prompt', e.target.value)} />
                     </div>
                     {task.taskNumber === 1 && (
-                      <div>
-                        <label style={lbl}>Chart/Image</label>
-                        {task.chartUrl && <img src={task.chartUrl} style={{ maxHeight: '200px', display: 'block', marginBottom: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />}
-                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>
-                          {task.chartUrl ? '🔄 REPLACE IMAGE' : '🖼️ UPLOAD CHART'}
-                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
-                            const url = await uploadAsset(e.target.files[0], 'image');
-                            if (url) updateWT(idx, 'chartUrl', url);
-                          }} />
-                        </label>
+                      <div style={{ display: 'grid', gap: '20px' }}>
+                        <div>
+                          <label style={lbl}>Chart/Image</label>
+                          {task.chartUrl && <img src={getFullUrl(task.chartUrl)} style={{ maxHeight: '200px', display: 'block', marginBottom: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />}
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>
+                            {task.chartUrl ? '🔄 REPLACE IMAGE' : '🖼️ UPLOAD CHART'}
+                            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                              const url = await uploadAsset(e.target.files[0], 'image');
+                              if (url) updateWT(idx, 'chartUrl', url);
+                            }} />
+                          </label>
+                        </div>
+                        <div>
+                          <label style={lbl}>Task 1 Table (Optional)</label>
+                          <TableEditor data={task.tableData} onChange={val => updateWT(idx, 'tableData', val)} />
+                        </div>
                       </div>
                     )}
                     <div>
@@ -603,7 +614,12 @@ export default function PaperDetail() {
                 ) : (
                   <div>
                     <div style={{ whiteSpace: 'pre-wrap', fontSize: '15px', color: '#334155', lineHeight: '1.8', marginBottom: '20px' }}>{task.prompt}</div>
-                    {task.chartUrl && <img src={task.chartUrl} style={{ maxWidth: '100%', borderRadius: '16px', border: '1px solid #e2e8f0' }} />}
+                    {task.chartUrl && <img src={getFullUrl(task.chartUrl)} style={{ maxWidth: '100%', borderRadius: '16px', border: '1px solid #e2e8f0' }} />}
+                    {task.taskNumber === 1 && task.tableData && (
+                      <div style={{ marginTop: '20px' }}>
+                         <TableEditor data={task.tableData} onChange={() => {}} />
+                      </div>
+                    )}
                     <div style={{ marginTop: '20px', fontSize: '12px', fontWeight: '800', color: '#94a3b8' }}>WORD LIMIT: {task.minWords}+ WORDS</div>
                   </div>
                 )}

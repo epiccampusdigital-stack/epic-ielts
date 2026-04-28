@@ -14,6 +14,11 @@ export default function WritingExam() {
   const [task1, setTask1] = useState('');
   const [task2, setTask2] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
+  const getFullUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return API_URL + (url.startsWith('/') ? '' : '/') + url;
+  };
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const timerRef = useRef();
@@ -99,6 +104,32 @@ export default function WritingExam() {
   const minWords = task === 1 ? 150 : 250;
   const wc = wordCount(currentText);
   const wcColor = wc >= minWords ? '#16a34a' : wc >= minWords * 0.8 ? '#d97706' : '#dc2626';
+
+  const renderTable = (tableData) => {
+    if (!tableData) return null;
+    return (
+      <div style={{ overflowX: 'auto', margin: '20px 0', border: '1px solid #dbeafe', borderRadius: '12px', background: '#fff' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ background: '#f0f7ff' }}>
+              {(tableData.headers || []).map((h, i) => <th key={i} style={{ padding: '10px', border: '1px solid #dbeafe', color: '#1e3a5f', fontWeight: '700' }}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {(tableData.rows || []).map((row, ri) => (
+              <tr key={ri}>
+                {row.map((cell, ci) => (
+                  <td key={ci} style={{ padding: '10px', border: '1px solid #dbeafe', color: '#334155' }}>
+                    {cell.text}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   if (!paper) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f7ff', fontFamily: 'Inter, sans-serif' }}>
@@ -280,7 +311,7 @@ export default function WritingExam() {
               </p>
               {currentTask?.chartUrl ? (
                 <img
-                  src={currentTask.chartUrl}
+                  src={getFullUrl(currentTask.chartUrl)}
                   alt="Task 1 Bar Chart"
                   style={{ width: '100%', height: 'auto', borderRadius: 8 }}
                 />

@@ -532,7 +532,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       // Writing Tasks
       if (Array.isArray(writingTasks)) {
         for (const wt of writingTasks) {
-          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, minWords: wt.minWords } });
+          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, minWords: wt.minWords, tableData: wt.tableData } });
           else await tx.writingTask.create({ data: { ...wt, paperId, id: undefined } });
         }
       }

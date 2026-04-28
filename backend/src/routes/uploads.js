@@ -18,9 +18,8 @@ router.post('/image', auth, adminOnly, (req, res, next) => {
     
     let url = req.file.path;
     if (isLocal) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
       const subfolder = req.file.mimetype.startsWith('audio') ? 'audio' : 'images';
-      url = `${baseUrl}/uploads/${subfolder}/${req.file.filename}`;
+      url = `/uploads/${subfolder}/${req.file.filename}`;
     }
 
     console.log('Image uploaded successfully:', url);
@@ -39,9 +38,8 @@ router.post('/audio', auth, adminOnly, (req, res, next) => {
     
     let url = req.file.path;
     if (isLocal) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
       const subfolder = 'audio';
-      url = `${baseUrl}/uploads/${subfolder}/${req.file.filename}`;
+      url = `/uploads/${subfolder}/${req.file.filename}`;
     }
 
     console.log('Audio uploaded successfully:', url);

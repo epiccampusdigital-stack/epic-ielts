@@ -24,6 +24,8 @@ export default function WritingExam() {
   const timerRef = useRef();
 
   useEffect(() => {
+    if (!attemptId) return;
+
     axios.get(`${API_URL}/api/attempts/${attemptId}`, api())
       .then(r => {
         setAttempt(r.data);
@@ -33,8 +35,27 @@ export default function WritingExam() {
         const elapsed = Math.floor((Date.now() - started) / 1000);
         setTimeLeft(Math.max(0, mins * 60 - elapsed));
       })
-      .catch(console.error);
-  }, []);
+      .catch(e => console.error('Paper fetch error:', e));
+
+    axios.get(`${API_URL}/api/attempts/${attemptId}/writing/result`, api())
+      .then(r => {
+        if (r.data?.writingSubmission) {
+          setTask1(r.data.writingSubmission.task1Response || '');
+          setTask2(r.data.writingSubmission.task2Response || '');
+        }
+      })
+      .catch(e => console.error('Submission fetch error:', e));
+
+    // Also try checking common AI feedback endpoint
+    axios.get(`${API_URL}/api/attempts/${attemptId}/ai-feedback`, api())
+      .then(r => {
+        if (r.data?.feedback) {
+          setTask1(prev => prev || r.data.feedback.task1Response || '');
+          setTask2(prev => prev || r.data.feedback.task2Response || '');
+        }
+      })
+      .catch(() => {});
+  }, [attemptId]);
 
   useEffect(() => {
     if (timeLeft === null) return;
@@ -101,7 +122,7 @@ export default function WritingExam() {
   const currentTask = writingTasks.find(t => t.taskNumber === task);
   const currentText = task === 1 ? task1 : task2;
   const setCurrentText = task === 1 ? setTask1 : setTask2;
-  const minWords = task === 1 ? 150 : 250;
+  const minWords = currentTask?.minWords || (task === 1 ? 150 : 250);
   const wc = wordCount(currentText);
   const wcColor = wc >= minWords ? '#16a34a' : wc >= minWords * 0.8 ? '#d97706' : '#dc2626';
 
@@ -297,20 +318,17 @@ export default function WritingExam() {
 
           {/* Task prompt */}
           <div style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.8, marginBottom: 20, fontWeight: 500 }}>
-            {currentTask?.prompt || (task === 1
-              ? 'The bar chart below shows the percentage of people in three age groups who used the internet daily in four different countries in 2022. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.'
-              : 'In many countries, young people are spending increasing amounts of time using social media. Some people believe this has a negative effect on their social skills and mental health, while others think it helps them stay connected and develop new skills. Discuss both these views and give your own opinion.'
-            )}
+            {currentTask?.prompt || `Loading Task ${task} prompt...`}
           </div>
 
           {/* Chart for Task 1 */}
           {task === 1 && (
             <div style={{ background: '#ffffff', borderRadius: 14, padding: 20, border: '1px solid #dbeafe', marginTop: 16 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
-                Figure 1: Percentage of daily internet users by age group and country, 2022
-              </p>
               {currentTask?.chartImageUrl ? (
                 <div style={{ marginBottom: '24px', animation: 'fadeIn 0.5s ease' }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
+                    {currentTask?.chartDescription || "Figure 1: Task Visualization"}
+                  </p>
                   <img 
                     src={getFullUrl(currentTask.chartImageUrl)} 
                     alt="Task Chart"
@@ -319,68 +337,12 @@ export default function WritingExam() {
                 </div>
               ) : currentTask?.chartDescription ? (
                 <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12 }}>🖼️ CHART PLACEHOLDER</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12 }}>🖼️ CHART DESCRIPTION</div>
                   <p style={{ fontSize: 14, color: '#475569', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
                     "{currentTask.chartDescription}"
                   </p>
-                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16 }}>[Admin: Please upload a chart image in the editor]</p>
                 </div>
-              ) : (
-                <div>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420" style={{ width: '100%', height: 'auto' }}>
-                    <rect width="700" height="420" fill="#ffffff"/>
-                    <text x="350" y="30" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e3a5f">Daily Internet Users by Age Group and Country, 2022</text>
-                    <line x1="50" y1="320" x2="670" y2="320" stroke="#e2e8f0" strokeWidth="1"/>
-                    <line x1="50" y1="270" x2="670" y2="270" stroke="#e2e8f0" strokeWidth="1"/>
-                    <line x1="50" y1="220" x2="670" y2="220" stroke="#e2e8f0" strokeWidth="1"/>
-                    <line x1="50" y1="170" x2="670" y2="170" stroke="#e2e8f0" strokeWidth="1"/>
-                    <line x1="50" y1="120" x2="670" y2="120" stroke="#e2e8f0" strokeWidth="1"/>
-                    <line x1="50" y1="70" x2="670" y2="70" stroke="#e2e8f0" strokeWidth="1"/>
-                    <text x="45" y="324" fontSize="10" fill="#64748b" textAnchor="end">0%</text>
-                    <text x="45" y="274" fontSize="10" fill="#64748b" textAnchor="end">20%</text>
-                    <text x="45" y="224" fontSize="10" fill="#64748b" textAnchor="end">40%</text>
-                    <text x="45" y="174" fontSize="10" fill="#64748b" textAnchor="end">60%</text>
-                    <text x="45" y="124" fontSize="10" fill="#64748b" textAnchor="end">80%</text>
-                    <text x="45" y="74" fontSize="10" fill="#64748b" textAnchor="end">100%</text>
-                    <rect x="65" y="73" width="30" height="247" fill="#1d4ed8" rx="2"/>
-                    <rect x="98" y="124" width="30" height="196" fill="#60a5fa" rx="2"/>
-                    <rect x="131" y="184" width="30" height="136" fill="#bfdbfe" rx="2"/>
-                    <text x="113" y="345" fontSize="11" fontWeight="600" fill="#1e3a5f" textAnchor="middle">UK</text>
-                    <text x="80" y="68" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">92%</text>
-                    <text x="113" y="119" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">78%</text>
-                    <text x="146" y="179" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">54%</text>
-                    <rect x="205" y="96" width="30" height="224" fill="#1d4ed8" rx="2"/>
-                    <rect x="238" y="139" width="30" height="181" fill="#60a5fa" rx="2"/>
-                    <rect x="271" y="216" width="30" height="104" fill="#bfdbfe" rx="2"/>
-                    <text x="253" y="345" fontSize="11" fontWeight="600" fill="#1e3a5f" textAnchor="middle">Japan</text>
-                    <text x="220" y="91" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">88%</text>
-                    <text x="253" y="134" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">72%</text>
-                    <text x="286" y="211" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">41%</text>
-                    <rect x="345" y="108" width="30" height="212" fill="#1d4ed8" rx="2"/>
-                    <rect x="378" y="150" width="30" height="170" fill="#60a5fa" rx="2"/>
-                    <rect x="411" y="225" width="30" height="95" fill="#bfdbfe" rx="2"/>
-                    <text x="393" y="345" fontSize="11" fontWeight="600" fill="#1e3a5f" textAnchor="middle">Brazil</text>
-                    <text x="360" y="103" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">85%</text>
-                    <text x="393" y="145" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">68%</text>
-                    <text x="426" y="220" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">38%</text>
-                    <rect x="485" y="132" width="30" height="188" fill="#1d4ed8" rx="2"/>
-                    <rect x="518" y="183" width="30" height="137" fill="#60a5fa" rx="2"/>
-                    <rect x="551" y="247" width="30" height="73" fill="#bfdbfe" rx="2"/>
-                    <text x="533" y="345" fontSize="10" fontWeight="600" fill="#1e3a5f" textAnchor="middle">South Africa</text>
-                    <text x="500" y="127" fontSize="9" fill="#1d4ed8" textAnchor="middle" fontWeight="700">76%</text>
-                    <text x="533" y="178" fontSize="9" fill="#2563eb" textAnchor="middle" fontWeight="700">55%</text>
-                    <text x="566" y="242" fontSize="9" fill="#3b82f6" textAnchor="middle" fontWeight="700">29%</text>
-                    <rect x="150" y="375" width="12" height="12" fill="#1d4ed8" rx="2"/>
-                    <text x="166" y="385" fontSize="10" fill="#475569">Age 18-34</text>
-                    <rect x="270" y="375" width="12" height="12" fill="#60a5fa" rx="2"/>
-                    <text x="286" y="385" fontSize="10" fill="#475569">Age 35-54</text>
-                    <rect x="390" y="375" width="12" height="12" fill="#bfdbfe" rx="2"/>
-                    <text x="406" y="385" fontSize="10" fill="#475569">Age 55+</text>
-                    <line x1="50" y1="320" x2="670" y2="320" stroke="#1e293b" strokeWidth="1.5"/>
-                    <line x1="50" y1="50" x2="50" y2="320" stroke="#1e293b" strokeWidth="1.5"/>
-                  </svg>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
 

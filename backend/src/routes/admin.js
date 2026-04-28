@@ -25,7 +25,6 @@ const audioStorage = multer.diskStorage({
     cb(null, 'audio_' + Date.now() + path.extname(file.originalname).toLowerCase());
   }
 });
-
 const uploadAudio = multer({
   storage: audioStorage,
   limits: { fileSize: 100 * 1024 * 1024 },
@@ -33,6 +32,26 @@ const uploadAudio = multer({
     const allowed = ['.mp3', '.wav', '.ogg', '.m4a', '.aac'];
     if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
     else cb(new Error('Only audio files allowed'));
+  }
+});
+
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/images');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'chart_' + Date.now() + path.extname(file.originalname).toLowerCase());
+  }
+});
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    else cb(new Error('Only image files allowed'));
   }
 });
 
@@ -45,6 +64,16 @@ router.post('/papers/:id/upload-audio', auth, adminOnly, uploadAudio.single('aud
       data: { audioUrl }
     });
     res.json({ success: true, audioUrl, paper });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/papers/:id/upload-image', auth, adminOnly, uploadImage.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const imageUrl = '/uploads/images/' + req.file.filename;
+    res.json({ success: true, imageUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -461,7 +490,6 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
           let optVal = null;
           if (Array.isArray(q.options)) optVal = JSON.stringify(q.options);
           else if (typeof q.options === 'string' && q.options.startsWith('[')) optVal = q.options;
-
           const qData = {
             passageNumber: parseInt(q.passageNumber) || 1,
             questionNumber: parseInt(q.questionNumber) || 1,
@@ -495,6 +523,27 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
         }
       }
 
+      // 6. Upsert writing tasks
+      const { writingTasks, deletedWritingTaskIds } = req.body;
+      if (Array.isArray(deletedWritingTaskIds) && deletedWritingTaskIds.length > 0) {
+        await tx.writingTask.deleteMany({ where: { id: { in: deletedWritingTaskIds.filter(x => typeof x === 'number') }, paperId } });
+      }
+      if (Array.isArray(writingTasks)) {
+        for (const wt of writingTasks) {
+          const wtData = {
+            taskNumber: parseInt(wt.taskNumber) || 1,
+            prompt: String(wt.prompt || ''),
+            chartUrl: wt.chartUrl || null,
+            minWords: parseInt(wt.minWords) || (wt.taskNumber === 1 ? 150 : 250)
+          };
+          if (wt.id && typeof wt.id === 'number') {
+            await tx.writingTask.update({ where: { id: wt.id }, data: wtData });
+          } else {
+            await tx.writingTask.create({ data: { ...wtData, paperId } });
+          }
+        }
+      }
+
       return updatedPaper;
     });
 
@@ -506,14 +555,14 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
 });
 
 
-// Update the GET detail route as well to include passages
 router.get('/papers/:id', auth, adminOnly, async (req, res) => {
   try {
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(req.params.id) },
-      include: { 
-        questions: { orderBy: { questionNumber: 'asc' } },
-        passages: { orderBy: { passageNumber: 'asc' } }
+      include: {
+        questions:    { orderBy: { questionNumber: 'asc' } },
+        passages:     { orderBy: { passageNumber:  'asc' } },
+        writingTasks: { orderBy: { taskNumber:     'asc' } }
       }
     });
     res.json(paper);

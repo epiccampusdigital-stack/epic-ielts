@@ -34,6 +34,7 @@ export default function PaperDetail() {
   const [editMode, setEditMode] = useState(false);
   const [delQIds, setDelQIds] = useState([]);
   const [delPIds, setDelPIds] = useState([]);
+  const [delWTIds, setDelWTIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -51,13 +52,13 @@ export default function PaperDetail() {
 
   const startEdit = () => {
     setEdited(JSON.parse(JSON.stringify(paper)));
-    setDelQIds([]); setDelPIds([]);
+    setDelQIds([]); setDelPIds([]); setDelWTIds([]);
     setEditMode(true); setMsg('');
   };
 
   const cancelEdit = () => {
     setEdited(JSON.parse(JSON.stringify(paper)));
-    setDelQIds([]); setDelPIds([]);
+    setDelQIds([]); setDelPIds([]); setDelWTIds([]);
     setEditMode(false); setMsg('');
   };
 
@@ -68,9 +69,10 @@ export default function PaperDetail() {
         ...edited,
         deletedQuestionIds: delQIds,
         deletedPassageIds: delPIds,
+        deletedWritingTaskIds: delWTIds,
       }, auth());
       setMsg('✅ Paper saved successfully!');
-      setDelQIds([]); setDelPIds([]);
+      setDelQIds([]); setDelPIds([]); setDelWTIds([]);
       await load();
       setEditMode(false);
     } catch(e) {
@@ -130,6 +132,27 @@ export default function PaperDetail() {
   const updatePassage = (pNum, field, val) => setEdited(p => ({
     ...p, passages: p.passages.map(x => x.passageNumber === pNum ? { ...x, [field]: val } : x)
   }));
+
+  const updateWT = (idx, field, val) => setEdited(p => ({
+    ...p, writingTasks: (p.writingTasks||[]).map((wt,i) => i===idx ? {...wt,[field]:val} : wt)
+  }));
+
+  const uploadChart = async (idx, file) => {
+    const fd = new FormData(); fd.append('image', file);
+    try {
+      const r = await axios.post(`${API_URL}/api/admin/papers/${id}/upload-image`, fd, { headers:{ ...auth().headers, 'Content-Type':'multipart/form-data' } });
+      updateWT(idx, 'chartUrl', r.data.imageUrl);
+      setMsg('✅ Chart image uploaded!');
+    } catch(e) { setMsg('❌ Image upload failed: ' + (e.response?.data?.error || e.message)); }
+  };
+
+  const uploadAudio = async (file) => {
+    const fd = new FormData(); fd.append('audio', file);
+    try {
+      await axios.post(`${API_URL}/api/admin/papers/${id}/upload-audio`, fd, { headers:{ ...auth().headers, 'Content-Type':'multipart/form-data' } });
+      setMsg('✅ Audio uploaded!'); await load();
+    } catch(e) { setMsg('❌ Audio upload failed: ' + (e.response?.data?.error || e.message)); }
+  };
 
   if (loading) return <div style={{padding:'80px',textAlign:'center',fontFamily:'Inter,sans-serif',color:'#64748b'}}>Loading…</div>;
   if (!paper)  return <div style={{padding:'80px',textAlign:'center',fontFamily:'Inter,sans-serif'}}>Paper not found.</div>;
@@ -239,8 +262,87 @@ export default function PaperDetail() {
             </div>
           )}
         </div>
+        {/* ── Writing Tasks (WRITING papers only) ── */}
+        {cur.testType === 'WRITING' && (
+          <div style={{background:'#fff',borderRadius:'16px',padding:'24px',border:'1px solid #e2e8f0',marginBottom:'28px'}}>
+            <h3 style={{fontSize:'16px',fontWeight:'800',color:'#15803d',margin:'0 0 20px'}}>✍️ Writing Tasks</h3>
+            {[1,2].map(taskNum => {
+              const wts = (editMode ? edited : cur).writingTasks || [];
+              const wtIdx = wts.findIndex(w => w.taskNumber === taskNum);
+              const wt = wts[wtIdx];
+              return (
+                <div key={taskNum} style={{background:'#f8fafc',borderRadius:'12px',padding:'20px',marginBottom:'16px',border:'1px solid #e2e8f0'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
+                    <span style={{fontWeight:'800',fontSize:'14px',color:'#1e293b'}}>
+                      Task {taskNum} — {taskNum===1 ? 'Chart/Graph Description (min 150 words)' : 'Essay Question (min 250 words)'}
+                    </span>
+                    {editMode && !wt && (
+                      <button onClick={() => setEdited(p=>({...p,writingTasks:[...(p.writingTasks||[]),{taskNumber:taskNum,prompt:'',chartUrl:null,minWords:taskNum===1?150:250}]}))}
+                        style={{background:'#10b981',color:'#fff',border:'none',borderRadius:'8px',padding:'6px 14px',cursor:'pointer',fontWeight:'700',fontSize:'12px'}}>
+                        + Add Task {taskNum}
+                      </button>
+                    )}
+                    {editMode && wt && typeof wt.id === 'number' && (
+                      <button onClick={() => { setDelWTIds(p=>[...p,wt.id]); setEdited(p=>({...p,writingTasks:(p.writingTasks||[]).filter(x=>x.taskNumber!==taskNum)})); }}
+                        style={{background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'8px',padding:'5px 12px',cursor:'pointer',fontWeight:'700',fontSize:'12px'}}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {wt ? (
+                    <div style={{display:'grid',gap:'12px'}}>
+                      <div>
+                        <label style={{display:'block',fontSize:'10px',fontWeight:'700',color:'#94a3b8',marginBottom:'5px',textTransform:'uppercase'}}>Task Prompt</label>
+                        {!editMode
+                          ? <p style={{fontSize:'14px',color:'#1e293b',lineHeight:'1.7',margin:0,whiteSpace:'pre-wrap'}}>{wt.prompt || <em style={{color:'#94a3b8'}}>No prompt yet.</em>}</p>
+                          : <textarea style={{width:'100%',padding:'10px',border:'1.5px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',outline:'none',fontFamily:'Inter,sans-serif',minHeight:'100px',boxSizing:'border-box',resize:'vertical'}}
+                              value={wt.prompt||''} onChange={e=>updateWT(wtIdx,'prompt',e.target.value)}
+                              placeholder={taskNum===1 ? 'e.g. The chart below shows global energy consumption. Summarise the information...' : 'e.g. Some people believe universities should focus only on academic subjects. Discuss both views...'} />
+                        }
+                      </div>
+                      {taskNum === 1 && (
+                        <div>
+                          <label style={{display:'block',fontSize:'10px',fontWeight:'700',color:'#94a3b8',marginBottom:'8px',textTransform:'uppercase'}}>Chart / Image</label>
+                          {wt.chartUrl
+                            ? <img src={`${API_URL}${wt.chartUrl}`} alt="chart" style={{maxWidth:'100%',maxHeight:'260px',borderRadius:'10px',border:'1px solid #e2e8f0',display:'block',marginBottom:'10px'}}/>
+                            : <div style={{padding:'24px',textAlign:'center',background:'#fff',border:'2px dashed #e2e8f0',borderRadius:'10px',marginBottom:'10px',color:'#94a3b8',fontSize:'13px'}}>No chart image yet</div>
+                          }
+                          {editMode && (
+                            <label style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'8px 16px',background:'#7c3aed',color:'#fff',borderRadius:'8px',cursor:'pointer',fontWeight:'700',fontSize:'13px'}}>
+                              📤 {wt.chartUrl ? 'Replace' : 'Upload'} Chart Image
+                              <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) uploadChart(wtIdx,e.target.files[0]); }}/>
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{color:'#94a3b8',fontSize:'13px',margin:0,fontStyle:'italic'}}>No Task {taskNum} added yet. {editMode && 'Click "+ Add Task" above.'}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Listening Audio (LISTENING papers only) ── */}
+        {cur.testType === 'LISTENING' && (
+          <div style={{background:'#fff',borderRadius:'16px',padding:'24px',border:'1px solid #e2e8f0',borderLeft:'4px solid #7c3aed',marginBottom:'28px'}}>
+            <h3 style={{fontSize:'16px',fontWeight:'800',color:'#7c3aed',margin:'0 0 16px'}}>🎧 Listening Audio</h3>
+            {cur.audioUrl
+              ? <audio controls src={`${API_URL}${cur.audioUrl}`} style={{width:'100%',marginBottom:'14px'}}/>
+              : <div style={{padding:'20px',textAlign:'center',background:'#f5f3ff',border:'2px dashed #ddd6fe',borderRadius:'10px',marginBottom:'14px',color:'#7c3aed',fontSize:'13px'}}>No audio file uploaded yet</div>
+            }
+            <label style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'10px 20px',background:'#7c3aed',color:'#fff',borderRadius:'10px',cursor:'pointer',fontWeight:'700',fontSize:'14px'}}>
+              📤 {cur.audioUrl ? 'Replace' : 'Upload'} Audio File
+              <input type="file" accept="audio/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) uploadAudio(e.target.files[0]); }}/>
+            </label>
+            <p style={{fontSize:'11px',color:'#94a3b8',marginTop:'8px',marginBottom:0}}>Accepted: MP3, WAV, OGG, M4A — max 100MB</p>
+          </div>
+        )}
 
         {/* ── Passages ── */}
+
         {passageNums.map(pNum => {
           const passage = passageMap[pNum];
           const qs = (qByPassage[pNum] || []).slice().sort((a,b) => (a.questionNumber||0)-(b.questionNumber||0));

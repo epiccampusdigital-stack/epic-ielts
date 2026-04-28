@@ -62,7 +62,7 @@ model WritingTask {
   paper            Paper              @relation(fields: [paperId], references: [id], onDelete: Cascade)
   taskNumber       Int                // 1 or 2
   prompt           String             @db.Text
-  chartUrl         String?            // Reverting to chartUrl to avoid data loss, we can rename later
+  chartImageUrl    String?
   chartDescription String?            @db.Text
   minWords         Int                @default(150)
   timeMinutes      Int                @default(20)

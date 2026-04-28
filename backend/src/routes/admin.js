@@ -382,7 +382,7 @@ ${rawText.substring(0, 6000)}`
     if (type === 'WRITING') {
       for (const task of (parsed.tasks||[])) {
         await prisma.writingTask.create({
-          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
+          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartImageUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
         });
       }
     }
@@ -574,7 +574,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       // Writing Tasks
       if (Array.isArray(writingTasks)) {
         for (const wt of writingTasks) {
-          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, chartDescription: wt.chartDescription, minWords: wt.minWords, tableData: wt.tableData } });
+          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartImageUrl: wt.chartImageUrl, chartDescription: wt.chartDescription, minWords: wt.minWords, tableData: wt.tableData } });
           else await tx.writingTask.create({ data: { ...wt, paperId, id: undefined } });
         }
       }
@@ -713,13 +713,13 @@ router.get('/results', auth, adminOnly, async (req, res) => {
 // Add writing task to paper
 router.post('/papers/:id/writing-tasks', auth, adminOnly, async (req, res) => {
   try {
-    const { taskNumber, prompt, chartUrl, minWords } = req.body;
+    const { taskNumber, prompt, chartImageUrl, minWords } = req.body;
     const task = await prisma.writingTask.create({
       data: {
         paperId: parseInt(req.params.id),
         taskNumber: parseInt(taskNumber),
         prompt,
-        chartUrl: chartUrl || null,
+        chartImageUrl: chartImageUrl || null,
         minWords: parseInt(minWords) || (taskNumber === 1 ? 150 : 250)
       }
     });

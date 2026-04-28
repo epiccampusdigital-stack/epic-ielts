@@ -39,6 +39,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/papers', require('./routes/papers'));
 app.use('/api/attempts', require('./routes/attempts'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/upload', require('./routes/uploads'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'EPIC IELTS API running' });

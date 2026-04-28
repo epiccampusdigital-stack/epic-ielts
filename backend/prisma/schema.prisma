@@ -34,8 +34,10 @@ model Paper {
   status          String        @default("PUBLISHED") // PUBLISHED, DRAFT
   assignedBatches String        @default("ALL")
   order           Int           @default(0)
+  practiceMode    Boolean       @default(false) // NEW: allow audio replay
   questions       Question[]
   passages        Passage[]
+  sections        Section[]     // NEW: for listening
   writingTasks    WritingTask[]
   attempts        Attempt[]
 
@@ -61,18 +63,48 @@ model WritingTask {
   minWords   Int     @default(150)
 }
 
+model Section {
+  id          Int     @id @default(autoincrement())
+  paperId     Int
+  paper       Paper   @relation(fields: [paperId], references: [id])
+  number      Int     // 1, 2, 3, 4
+  description String?
+  audioUrl    String?
+  groups      QuestionGroup[]
+}
+
+model QuestionGroup {
+  id           Int      @id @default(autoincrement())
+  sectionId    Int
+  section      Section  @relation(fields: [sectionId], references: [id])
+  groupType    String   // FORM_COMPLETION, MAP_LABELING, etc.
+  instruction  String?
+  imageUrl     String?
+  tableData    Json?
+  wordLimit    String?
+  questions    Question[]
+}
+
 model Question {
-  id             Int      @id @default(autoincrement())
-  paperId        Int
-  paper          Paper    @relation(fields: [paperId], references: [id])
-  passageNumber  Int?     // For reading (1, 2, 3)
-  questionNumber Int 
-  questionType   String   // TFNG, MC, SA, etc.
-  content        String
-  options        String?  // JSON string
-  correctAnswer  String
-  explanation    String?
-  answers        Answer[]
+  id              Int      @id @default(autoincrement())
+  paperId         Int
+  paper           Paper    @relation(fields: [paperId], references: [id])
+  groupId         Int?     // NEW: link to group
+  group           QuestionGroup? @relation(fields: [groupId], references: [id])
+  passageNumber   Int?     // For reading (1, 2, 3)
+  sectionNumber   Int?     // For listening (1, 2, 3, 4)
+  questionNumber  Int 
+  questionType    String   // TFNG, MC, SA, FORM_COMPLETION, MAP_LABELING, etc.
+  content         String
+  options         String?  // JSON string
+  correctAnswer   String
+  explanation     String?
+  imageUrl        String?  // Cloudinary URL for maps/plans
+  audioUrl        String?  // Cloudinary URL for section audio
+  wordLimit       String?  // e.g. "ONE WORD AND/OR A NUMBER"
+  tableData       Json?    // For table completion structure
+  groupInstruction String? // Shared instruction for a group of questions
+  answers         Answer[]
 }
 
 model Attempt {
@@ -127,6 +159,8 @@ model Result {
   weaknesses         String?
   improvementAdvice String?
   aiFeedbackJson    String?
+  aiFeedback        String?
+  finalStudentReport String?
 }
 
 model SpeakingSubmission {

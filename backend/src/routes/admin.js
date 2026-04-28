@@ -8,12 +8,7 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 
-function adminOnly(req, res, next) {
-  if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'TEACHER')) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-}
+const adminOnly = require('../middleware/adminOnly');
 
 const audioStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -248,24 +243,43 @@ ${rawText.substring(0, 6000)}`,
 
 JSON structure required:
 {
-  "title": "IELTS Academic Listening Test",
+  "title": "paper title",
   "testType": "LISTENING",
-  "timeLimitMin": 40,
-  "questions": [
+  "timeLimitMin": 30,
+  "sections": [
     {
-      "sectionNumber": 1,
-      "questionNumber": 1,
-      "questionType": "MULTIPLE_CHOICE",
-      "content": "question text",
-      "options": ["A. option", "B. option", "C. option"],
-      "correctAnswer": "A",
-      "explanation": "explanation of why this answer is correct"
+      "number": 1,
+      "description": "Recording 1 - [describe context]",
+      "groups": [
+        {
+          "groupType": "FORM_COMPLETION",
+          "instruction": "Complete the form below...",
+          "wordLimit": "ONE WORD AND/OR A NUMBER",
+          "imageUrl": null,
+          "tableData": null,
+          "questions": [
+            {
+              "questionNumber": 1,
+              "questionType": "FORM_COMPLETION",
+              "content": "Full Name: Sarah ___",
+              "correctAnswer": "Sarah|Sarah Smith",
+              "explanation": "reference to the audio"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
 
+questionType options: MULTIPLE_CHOICE, FORM_COMPLETION, MAP_LABELING, TABLE_COMPLETION, NOTE_COMPLETION, SENTENCE_COMPLETION, SHORT_ANSWER
+For MAP_LABELING, set "imageUrl": "[PLACEHOLDER]".
+For TABLE_COMPLETION, provide "tableData": { "headers": ["col1", "col2"], "rows": [["cell1", "{blank1}"]] }.
+CRITICAL: Use {blank1}, {blank2} etc. inside cells where questions are.
+Question numbers must run 1–40 across the whole paper.
+
 PAPER:
-${rawText.substring(0, 10000)}`,
+${rawText.substring(0, 14000)}`,
 
       SPEAKING: `Extract this IELTS Speaking paper. Return ONLY a raw JSON object, no markdown, no backticks.
 
@@ -303,14 +317,14 @@ ${rawText.substring(0, 6000)}`
     let response;
     try {
       response = await claude.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-3-5-sonnet-20240620',
         max_tokens: 8000,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }]
       });
     } catch(aiErr) {
       console.error('Claude API error:', aiErr.message, aiErr.status);
-      return res.status(500).json({ error: 'AI call failed: ' + aiErr.message + '. Check ANTHROPIC_API_KEY is valid.' });
+      return res.status(500).json({ error: 'AI call failed: ' + aiErr.message });
     }
 
     const rawRes = response.content?.[0]?.text || '';
@@ -329,8 +343,7 @@ ${rawText.substring(0, 6000)}`
     }
 
     if (!parsed) {
-      console.error('All JSON parse attempts failed. Raw:', rawRes.substring(0, 500));
-      return res.status(500).json({ error: 'AI returned invalid format. Please try again.', preview: rawRes.substring(0, 300) });
+      return res.status(500).json({ error: 'AI returned invalid format.' });
     }
 
     const paper = await prisma.paper.create({
@@ -339,23 +352,17 @@ ${rawText.substring(0, 6000)}`
         testType: type,
         title: String(title || parsed.title || 'Imported Paper'),
         timeLimitMin: parseInt(parsed.timeLimitMin) || 60,
-        instructions: 'Read carefully and answer all questions.',
+        instructions: parsed.instructions || 'Read carefully and answer all questions.',
         status: 'ACTIVE',
         assignedBatches: 'ALL'
       }
     });
-    console.log('Paper created:', paper.id, paper.paperCode);
-
-    let questionsCreated = 0, passagesCreated = 0, tasksCreated = 0;
 
     if (type === 'READING') {
       for (const p of (parsed.passages || [])) {
-        try {
-          await prisma.passage.create({
-            data: { paperId: paper.id, passageNumber: parseInt(p.passageNumber)||1, title: String(p.title||'Passage'), text: String(p.text||'') }
-          });
-          passagesCreated++;
-        } catch(e) { console.error('Passage error:', e.message); }
+        await prisma.passage.create({
+          data: { paperId: paper.id, passageNumber: parseInt(p.passageNumber)||1, title: String(p.title||'Passage'), text: String(p.text||'') }
+        });
       }
       if ((parsed.questions||[]).length > 0) {
         const qData = parsed.questions.map(q => ({
@@ -369,49 +376,67 @@ ${rawText.substring(0, 6000)}`
           explanation: q.explanation ? String(q.explanation) : null
         }));
         await prisma.question.createMany({ data: qData });
-        questionsCreated = qData.length;
       }
     }
 
     if (type === 'WRITING') {
       for (const task of (parsed.tasks||[])) {
-        try {
-          await prisma.writingTask.create({
-            data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
-          });
-          tasksCreated++;
-        } catch(e) { console.error('Task error:', e.message); }
+        await prisma.writingTask.create({
+          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartUrl: null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
+        });
       }
     }
 
     if (type === 'LISTENING') {
-      if ((parsed.questions||[]).length > 0) {
-        const qData = parsed.questions.map(q => ({
-          paperId: paper.id,
-          passageNumber: parseInt(q.sectionNumber)||1,
-          questionNumber: parseInt(q.questionNumber)||1,
-          questionType: q.questionType||'SHORT_ANSWER',
-          content: String(q.content||''),
-          options: q.options ? JSON.stringify(q.options) : null,
-          correctAnswer: String(q.correctAnswer||''),
-          explanation: q.explanation ? String(q.explanation) : null
-        }));
-        await prisma.question.createMany({ data: qData });
-        questionsCreated = qData.length;
+      for (const s of (parsed.sections || [])) {
+        const section = await prisma.section.create({
+          data: { paperId: paper.id, number: parseInt(s.number), description: s.description }
+        });
+        for (const g of (s.groups || [])) {
+          // Normalize tableData if it exists (convert strings with {blank1} to objects)
+          let tableData = g.tableData;
+          if (tableData && Array.isArray(tableData.rows)) {
+            tableData.rows = tableData.rows.map(row => 
+              row.map(cell => {
+                if (typeof cell === 'string') {
+                  const match = cell.match(/\{blank(\d+)\}/i);
+                  if (match) return { text: '', blank: true, questionNumber: parseInt(match[1]) };
+                  return { text: cell, blank: false };
+                }
+                return cell;
+              })
+            );
+          }
+
+          const group = await prisma.questionGroup.create({
+            data: {
+              sectionId: section.id,
+              groupType: g.groupType,
+              instruction: g.instruction,
+              wordLimit: g.wordLimit,
+              tableData: tableData ? JSON.parse(JSON.stringify(tableData)) : null,
+              imageUrl: g.imageUrl === '[PLACEHOLDER]' ? null : g.imageUrl
+            }
+          });
+          if (Array.isArray(g.questions)) {
+            const qData = g.questions.map(q => ({
+              paperId: paper.id,
+              groupId: group.id,
+              sectionNumber: section.number,
+              questionNumber: parseInt(q.questionNumber),
+              questionType: q.questionType || g.groupType,
+              content: String(q.content || ''),
+              options: q.options ? JSON.stringify(q.options) : null,
+              correctAnswer: String(q.correctAnswer || ''),
+              explanation: q.explanation || null
+            }));
+            await prisma.question.createMany({ data: qData });
+          }
+        }
       }
     }
 
-    res.json({
-      success: true,
-      paperId: paper.id,
-      paperCode: finalCode,
-      testType: type,
-      title: paper.title,
-      passagesCreated,
-      questionsCreated,
-      tasksCreated,
-      message: `✅ ${type} paper "${finalCode}" imported! ${questionsCreated} questions, ${passagesCreated} passages, ${tasksCreated} writing tasks created.`
-    });
+    res.json({ success: true, paperId: paper.id, paperCode: finalCode, testType: type });
 
   } catch (err) {
     console.error('IMPORT FATAL:', err.message);
@@ -435,22 +460,16 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
     });
     res.json(paper);
   } catch (err) {
-    console.error('Create paper error:', err);
-    if (err.code === 'P2002') {
-      res.status(400).json({ error: 'A paper with this code already exists' });
-    } else {
-      res.status(500).json({ error: 'Failed to create paper: ' + err.message });
-    }
+    res.status(500).json({ error: 'Failed to create paper: ' + err.message });
   }
 });
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  const { questions, passages, deletedQuestionIds, deletedPassageIds, ...rawPaperData } = req.body;
+  const { questions, passages, sections, deletedQuestionIds, deletedPassageIds, deletedSectionIds, deletedGroupIds, ...rawPaperData } = req.body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Only update fields that exist in the schema (no audioScript)
       const paperData = {
         paperCode: rawPaperData.paperCode,
         testType: rawPaperData.testType,
@@ -459,101 +478,77 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
         instructions: rawPaperData.instructions,
         status: rawPaperData.status,
         assignedBatches: rawPaperData.assignedBatches,
+        practiceMode: rawPaperData.practiceMode,
         audioUrl: rawPaperData.audioUrl,
         order: rawPaperData.order !== undefined ? parseInt(rawPaperData.order) : undefined
       };
-      // Strip undefined so Prisma doesn't nullify untouched fields
       Object.keys(paperData).forEach(k => paperData[k] === undefined && delete paperData[k]);
-
       const updatedPaper = await tx.paper.update({ where: { id: paperId }, data: paperData });
 
-      // 2. Delete questions the user removed
-      if (Array.isArray(deletedQuestionIds) && deletedQuestionIds.length > 0) {
-        const ids = deletedQuestionIds.filter(x => typeof x === 'number');
-        if (ids.length > 0) {
-          await tx.answer.deleteMany({ where: { questionId: { in: ids } } });
-          await tx.question.deleteMany({ where: { id: { in: ids }, paperId } });
-        }
-      }
+      // Deletions
+      if (deletedQuestionIds?.length) await tx.question.deleteMany({ where: { id: { in: deletedQuestionIds }, paperId } });
+      if (deletedPassageIds?.length) await tx.passage.deleteMany({ where: { id: { in: deletedPassageIds }, paperId } });
+      if (deletedGroupIds?.length) await tx.questionGroup.deleteMany({ where: { id: { in: deletedGroupIds } } });
+      if (deletedSectionIds?.length) await tx.section.deleteMany({ where: { id: { in: deletedSectionIds }, paperId } });
 
-      // 3. Delete passages the user removed
-      if (Array.isArray(deletedPassageIds) && deletedPassageIds.length > 0) {
-        const ids = deletedPassageIds.filter(x => typeof x === 'number');
-        if (ids.length > 0) {
-          await tx.passage.deleteMany({ where: { id: { in: ids }, paperId } });
-        }
-      }
-
-      // 4. Upsert questions
-      if (Array.isArray(questions)) {
-        for (const q of questions) {
-          let optVal = null;
-          if (Array.isArray(q.options)) optVal = JSON.stringify(q.options);
-          else if (typeof q.options === 'string' && q.options.startsWith('[')) optVal = q.options;
-          const qData = {
-            passageNumber: parseInt(q.passageNumber) || 1,
-            questionNumber: parseInt(q.questionNumber) || 1,
-            questionType: q.questionType || 'SHORT_ANSWER',
-            content: String(q.content || ''),
-            correctAnswer: String(q.correctAnswer || ''),
-            explanation: q.explanation ? String(q.explanation) : null,
-            options: optVal
-          };
-          if (q.id && typeof q.id === 'number') {
-            await tx.question.update({ where: { id: q.id }, data: qData });
-          } else {
-            await tx.question.create({ data: { ...qData, paperId } });
-          }
-        }
-      }
-
-      // 5. Upsert passages
+      // Passages
       if (Array.isArray(passages)) {
         for (const p of passages) {
-          const pData = {
-            passageNumber: parseInt(p.passageNumber) || 1,
-            title: String(p.title || `Passage ${p.passageNumber || 1}`),
-            text: String(p.text || '')
-          };
-          if (p.id && typeof p.id === 'number') {
-            await tx.passage.update({ where: { id: p.id }, data: pData });
-          } else {
-            await tx.passage.create({ data: { ...pData, paperId } });
-          }
+          if (p.id) await tx.passage.update({ where: { id: p.id }, data: { passageNumber: p.passageNumber, title: p.title, text: p.text } });
+          else await tx.passage.create({ data: { ...p, paperId, id: undefined } });
         }
       }
 
-      // 6. Upsert writing tasks
-      const { writingTasks, deletedWritingTaskIds } = req.body;
-      if (Array.isArray(deletedWritingTaskIds) && deletedWritingTaskIds.length > 0) {
-        await tx.writingTask.deleteMany({ where: { id: { in: deletedWritingTaskIds.filter(x => typeof x === 'number') }, paperId } });
-      }
-      if (Array.isArray(writingTasks)) {
-        for (const wt of writingTasks) {
-          const wtData = {
-            taskNumber: parseInt(wt.taskNumber) || 1,
-            prompt: String(wt.prompt || ''),
-            chartUrl: wt.chartUrl || null,
-            minWords: parseInt(wt.minWords) || (wt.taskNumber === 1 ? 150 : 250)
-          };
-          if (wt.id && typeof wt.id === 'number') {
-            await tx.writingTask.update({ where: { id: wt.id }, data: wtData });
+      // Sections (hierarchical)
+      if (Array.isArray(sections)) {
+        for (const s of sections) {
+          let sId = s.id;
+          if (sId) {
+            await tx.section.update({ where: { id: sId }, data: { number: s.number, description: s.description, audioUrl: s.audioUrl } });
           } else {
-            await tx.writingTask.create({ data: { ...wtData, paperId } });
+            const newS = await tx.section.create({ data: { paperId, number: s.number, description: s.description, audioUrl: s.audioUrl } });
+            sId = newS.id;
+          }
+
+          if (Array.isArray(s.groups)) {
+            for (const g of s.groups) {
+              let gId = g.id;
+              if (gId) {
+                await tx.questionGroup.update({ where: { id: gId }, data: { groupType: g.groupType, instruction: g.instruction, wordLimit: g.wordLimit, tableData: g.tableData, imageUrl: g.imageUrl } });
+              } else {
+                const newG = await tx.questionGroup.create({ data: { sectionId: sId, groupType: g.groupType, instruction: g.instruction, wordLimit: g.wordLimit, tableData: g.tableData, imageUrl: g.imageUrl } });
+                gId = newG.id;
+              }
+
+              if (Array.isArray(g.questions)) {
+                for (const q of g.questions) {
+                  const qData = {
+                    paperId,
+                    groupId: gId,
+                    questionNumber: q.questionNumber,
+                    questionType: q.questionType,
+                    content: q.content,
+                    correctAnswer: q.correctAnswer,
+                    explanation: q.explanation,
+                    options: q.options ? (typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null
+                  };
+                  if (q.id) await tx.question.update({ where: { id: q.id }, data: qData });
+                  else await tx.question.create({ data: qData });
+                }
+              }
+            }
           }
         }
       }
 
       return updatedPaper;
     });
-
     res.json(result);
   } catch (err) {
     console.error('Update paper error:', err.message);
     res.status(500).json({ error: 'Failed to update paper: ' + err.message });
   }
 });
-
 
 router.get('/papers/:id', auth, adminOnly, async (req, res) => {
   try {
@@ -562,6 +557,14 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
       include: {
         questions:    { orderBy: { questionNumber: 'asc' } },
         passages:     { orderBy: { passageNumber:  'asc' } },
+        sections: {
+          include: {
+            groups: {
+              include: { questions: { orderBy: { questionNumber: 'asc' } } }
+            }
+          },
+          orderBy: { number: 'asc' }
+        },
         writingTasks: { orderBy: { taskNumber:     'asc' } }
       }
     });

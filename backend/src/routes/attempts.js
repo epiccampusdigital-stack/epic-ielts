@@ -467,9 +467,9 @@ router.post('/:id/end', auth, async (req, res) => {
           ? answers.find(a => parseInt(a.questionId) === question.id)
           : null;
         const studentAnswer = String(submitted?.studentAnswer || '').trim();
-        const correctAnswer = String(question.correctAnswer || '').trim();
+        const correctAnswers = String(question.correctAnswer || '').split('|').map(s => s.trim().toLowerCase());
         const isCorrect = studentAnswer.length > 0 &&
-          correctAnswer.toLowerCase() === studentAnswer.toLowerCase();
+          correctAnswers.includes(studentAnswer.toLowerCase());
         if (isCorrect) correctCount++;
         return {
           attemptId,

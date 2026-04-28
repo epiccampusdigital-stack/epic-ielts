@@ -128,6 +128,7 @@ export default function PaperDetail() {
   const [delGIds, setDelGIds] = useState([]);
   const [delSIds, setDelSIds] = useState([]);
   const [delPIds, setDelPIds] = useState([]);
+  const [delWTIds, setDelWTIds] = useState([]);
 
   useEffect(() => { load(); }, [id]);
 
@@ -153,7 +154,8 @@ export default function PaperDetail() {
         deletedQuestionIds: delQIds,
         deletedGroupIds: delGIds,
         deletedSectionIds: delSIds,
-        deletedPassageIds: delPIds
+        deletedPassageIds: delPIds,
+        deletedWritingTaskIds: delWTIds
       }, auth());
       setMsg('✅ Paper saved successfully!');
       setEditMode(false);
@@ -218,6 +220,50 @@ export default function PaperDetail() {
     if (g.id) setDelGIds(prev => [...prev, g.id]);
     nextSections[sIdx].groups.splice(gIdx, 1);
     setEdited({ ...edited, sections: nextSections });
+  };
+
+  const addPassage = () => {
+    const num = (edited.passages?.length || 0) + 1;
+    setEdited(p => ({ ...p, passages: [...(p.passages || []), { passageNumber: num, title: '', text: '' }] }));
+  };
+
+  const addFlatQuestion = (pNum) => {
+    const maxNo = edited.questions?.length ? Math.max(...edited.questions.map(q => q.questionNumber || 0)) : 0;
+    const newQ = { questionNumber: maxNo + 1, passageNumber: pNum, questionType: 'SHORT_ANSWER', content: '', correctAnswer: '', explanation: '', options: null };
+    setEdited(p => ({ ...p, questions: [...(p.questions || []), newQ] }));
+  };
+
+  const updateFlatQ = (idx, field, val) => {
+    const next = [...edited.questions];
+    next[idx][field] = val;
+    setEdited({ ...edited, questions: next });
+  };
+
+  const removeFlatQ = (idx) => {
+    const q = edited.questions[idx];
+    if (q.id) setDelQIds(prev => [...prev, q.id]);
+    const next = [...edited.questions];
+    next.splice(idx, 1);
+    setEdited({ ...edited, questions: next });
+  };
+
+  const addWritingTask = () => {
+    const num = (edited.writingTasks?.length || 0) + 1;
+    setEdited(p => ({ ...p, writingTasks: [...(p.writingTasks || []), { taskNumber: num, prompt: '', minWords: num === 1 ? 150 : 250 }] }));
+  };
+
+  const updateWT = (idx, field, val) => {
+    const next = [...edited.writingTasks];
+    next[idx][field] = val;
+    setEdited({ ...edited, writingTasks: next });
+  };
+
+  const removeWT = (idx) => {
+    const wt = edited.writingTasks[idx];
+    if (wt.id) setDelWTIds(prev => [...prev, wt.id]);
+    const next = [...edited.writingTasks];
+    next.splice(idx, 1);
+    setEdited({ ...edited, writingTasks: next });
   };
 
   // --- RENDERERS ---
@@ -453,9 +499,125 @@ export default function PaperDetail() {
           </div>
         )}
 
-        {/* (Reading and Writing flows should remain but use the new nested logic if adapted, or legacy flat logic if needed. 
-            The prompt says "DO NOT TOUCH READING FLOWS", so I will keep them but ensure they still work with the new state.) */}
-        
+        {edited.testType === 'READING' && (
+          <div style={{ display: 'grid', gap: '32px' }}>
+            {(edited.passages || []).sort((a,b)=>a.passageNumber-b.passageNumber).map((psg, pIdx) => (
+              <div key={pIdx} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: '900' }}>Passage {psg.passageNumber}</h2>
+                  {editMode && <button onClick={() => { if(window.confirm('Delete passage?')) { if(psg.id) setDelPIds(p=>[...p,psg.id]); const n=[...edited.passages]; n.splice(pIdx,1); setEdited({...edited, passages:n}); } }} style={{ color: '#ef4444', border: 'none', background: 'none', fontWeight: '800', cursor: 'pointer' }}>🗑 DELETE PASSAGE</button>}
+                </div>
+                {editMode ? (
+                  <div style={{ display: 'grid', gap: '16px' }}>
+                    <div><label style={lbl}>Title</label><input style={inp} value={psg.title} onChange={e => { const n=[...edited.passages]; n[pIdx].title=e.target.value; setEdited({...edited, passages:n}); }} /></div>
+                    <div><label style={lbl}>Content</label><textarea style={{ ...inp, minHeight: '300px', fontFamily: 'Lora, serif', fontSize: '16px', lineHeight: '1.6' }} value={psg.text} onChange={e => { const n=[...edited.passages]; n[pIdx].text=e.target.value; setEdited({...edited, passages:n}); }} /></div>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 style={{ fontSize: '22px', fontFamily: 'Playfair Display, serif', marginBottom: '16px' }}>{psg.title}</h3>
+                    <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Lora, serif', fontSize: '15px', color: '#334155', lineHeight: '1.8' }}>{psg.text}</div>
+                  </div>
+                )}
+
+                <div style={{ marginTop: '32px', borderTop: '2px solid #f1f5f9', paddingTop: '24px' }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5', marginBottom: '16px' }}>QUESTIONS FOR PASSAGE {psg.passageNumber}</h4>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {(edited.questions || []).filter(q => q.passageNumber === psg.passageNumber).sort((a,b)=>a.questionNumber-b.questionNumber).map((q, idx) => {
+                      const realIdx = edited.questions.findIndex(x => x.questionNumber === q.questionNumber && x.passageNumber === q.passageNumber);
+                      return (
+                        <div key={idx} style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                          {editMode ? (
+                            <div style={{ display: 'grid', gap: '12px' }}>
+                              <div style={{ display: 'flex', gap: '12px' }}>
+                                <input type="number" style={{ ...inp, width: '60px' }} value={q.questionNumber} onChange={e => updateFlatQ(realIdx, 'questionNumber', parseInt(e.target.value))} />
+                                <select style={{ ...inp, width: '200px' }} value={q.questionType} onChange={e => updateFlatQ(realIdx, 'questionType', e.target.value)}>
+                                  {Q_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                </select>
+                                <button onClick={() => removeFlatQ(realIdx)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑</button>
+                              </div>
+                              <input style={inp} value={q.content} onChange={e => updateFlatQ(realIdx, 'content', e.target.value)} placeholder="Question content..." />
+                              {(q.questionType === 'MULTIPLE_CHOICE' || q.questionType === 'MATCHING') && (
+                                <div>
+                                  <label style={lbl}>Options (comma separated or JSON array)</label>
+                                  <input style={inp} value={typeof q.options === 'string' ? q.options : JSON.stringify(q.options)} onChange={e => updateFlatQ(realIdx, 'options', e.target.value)} placeholder="A. text, B. text..." />
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: '12px' }}>
+                                <input style={{ ...inp, flex: 1 }} value={q.correctAnswer} onChange={e => updateFlatQ(realIdx, 'correctAnswer', e.target.value)} placeholder="Correct Answer" />
+                                <input style={{ ...inp, flex: 1 }} value={q.explanation || ''} onChange={e => updateFlatQ(realIdx, 'explanation', e.target.value)} placeholder="Explanation" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <span style={{ fontWeight: '900', color: '#4f46e5' }}>{q.questionNumber}.</span>
+                              <div style={{ fontSize: '14px' }}>
+                                <div>{q.content}</div>
+                                <div style={{ fontWeight: '700', color: '#10b981', marginTop: '4px' }}>{q.correctAnswer}</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {editMode && <button onClick={() => addFlatQuestion(psg.passageNumber)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '12px', fontSize: '12px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {editMode && <button onClick={addPassage} style={{ width: '100%', padding: '24px', border: '3px dashed #e2e8f0', background: '#fff', color: '#94a3b8', borderRadius: '24px', fontSize: '16px', fontWeight: '900', cursor: 'pointer' }}>➕ ADD NEW PASSAGE</button>}
+          </div>
+        )}
+
+        {edited.testType === 'WRITING' && (
+          <div style={{ display: 'grid', gap: '32px' }}>
+            {(edited.writingTasks || []).sort((a,b)=>a.taskNumber-b.taskNumber).map((task, idx) => (
+              <div key={idx} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: '900' }}>Task {task.taskNumber}</h2>
+                  {editMode && <button onClick={() => removeWT(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', fontWeight: '800', cursor: 'pointer' }}>🗑 DELETE TASK</button>}
+                </div>
+                {editMode ? (
+                  <div style={{ display: 'grid', gap: '20px' }}>
+                    <div>
+                      <label style={lbl}>Writing Prompt</label>
+                      <textarea style={{ ...inp, minHeight: '150px' }} value={task.prompt} onChange={e => updateWT(idx, 'prompt', e.target.value)} />
+                    </div>
+                    {task.taskNumber === 1 && (
+                      <div>
+                        <label style={lbl}>Chart/Image</label>
+                        {task.chartUrl && <img src={task.chartUrl} style={{ maxHeight: '200px', display: 'block', marginBottom: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />}
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>
+                          {task.chartUrl ? '🔄 REPLACE IMAGE' : '🖼️ UPLOAD CHART'}
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                            const url = await uploadAsset(e.target.files[0], 'image');
+                            if (url) updateWT(idx, 'chartUrl', url);
+                          }} />
+                        </label>
+                      </div>
+                    )}
+                    <div>
+                      <label style={lbl}>Minimum Word Count</label>
+                      <input type="number" style={{ ...inp, width: '120px' }} value={task.minWords} onChange={e => updateWT(idx, 'minWords', parseInt(e.target.value))} />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '15px', color: '#334155', lineHeight: '1.8', marginBottom: '20px' }}>{task.prompt}</div>
+                    {task.chartUrl && <img src={task.chartUrl} style={{ maxWidth: '100%', borderRadius: '16px', border: '1px solid #e2e8f0' }} />}
+                    <div style={{ marginTop: '20px', fontSize: '12px', fontWeight: '800', color: '#94a3b8' }}>WORD LIMIT: {task.minWords}+ WORDS</div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {editMode && (edited.writingTasks?.length || 0) < 2 && <button onClick={addWritingTask} style={{ width: '100%', padding: '24px', border: '3px dashed #e2e8f0', background: '#fff', color: '#94a3b8', borderRadius: '24px', fontSize: '16px', fontWeight: '900', cursor: 'pointer' }}>➕ ADD WRITING TASK</button>}
+          </div>
+        )}
+
+        {edited.testType === 'SPEAKING' && (
+          <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+            <p style={{ color: '#64748b' }}>Speaking paper editor is coming soon. Use AI Import for speaking papers for now.</p>
+          </div>
+        )}
       </div>
     </div>
   );

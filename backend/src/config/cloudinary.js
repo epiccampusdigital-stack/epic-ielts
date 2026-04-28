@@ -1,23 +1,22 @@
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+console.warn('⚠️ Forcing local disk storage as requested.');
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
     const isAudio = file.mimetype.startsWith('audio');
-    return {
-      folder: isAudio ? 'epic-ielts/audio' : 'epic-ielts/images',
-      resource_type: isAudio ? 'video' : 'image', // Cloudinary uses 'video' for audio files
-      format: isAudio ? 'mp3' : undefined,
-      public_id: `${Date.now()}-${file.originalname.split('.')[0]}`
-    };
+    const dir = path.join(__dirname, '../../uploads', isAudio ? 'audio' : 'images');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
+  filename: (req, file, cb) => {
+    const isAudio = file.mimetype.startsWith('audio');
+    const prefix = isAudio ? 'audio_' : 'img_';
+    cb(null, prefix + Date.now() + path.extname(file.originalname).toLowerCase());
+  }
 });
 
-module.exports = { cloudinary, storage };
+module.exports = { cloudinary: null, storage, isLocal: true };
+

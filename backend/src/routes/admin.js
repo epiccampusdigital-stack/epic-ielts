@@ -466,7 +466,18 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  const { questions, passages, sections, deletedQuestionIds, deletedPassageIds, deletedSectionIds, deletedGroupIds, ...rawPaperData } = req.body;
+  const { 
+    questions, 
+    passages, 
+    sections, 
+    writingTasks,
+    deletedQuestionIds, 
+    deletedPassageIds, 
+    deletedSectionIds, 
+    deletedGroupIds,
+    deletedWritingTaskIds,
+    ...rawPaperData 
+  } = req.body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -490,6 +501,25 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       if (deletedPassageIds?.length) await tx.passage.deleteMany({ where: { id: { in: deletedPassageIds }, paperId } });
       if (deletedGroupIds?.length) await tx.questionGroup.deleteMany({ where: { id: { in: deletedGroupIds } } });
       if (deletedSectionIds?.length) await tx.section.deleteMany({ where: { id: { in: deletedSectionIds }, paperId } });
+      if (deletedWritingTaskIds?.length) await tx.writingTask.deleteMany({ where: { id: { in: deletedWritingTaskIds }, paperId } });
+
+      // Flat Questions (Reading)
+      if (Array.isArray(questions)) {
+        for (const q of questions) {
+          const qData = {
+            paperId,
+            passageNumber: q.passageNumber,
+            questionNumber: q.questionNumber,
+            questionType: q.questionType,
+            content: q.content,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            options: q.options ? (typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null
+          };
+          if (q.id) await tx.question.update({ where: { id: q.id }, data: qData });
+          else await tx.question.create({ data: qData });
+        }
+      }
 
       // Passages
       if (Array.isArray(passages)) {
@@ -499,7 +529,15 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
         }
       }
 
-      // Sections (hierarchical)
+      // Writing Tasks
+      if (Array.isArray(writingTasks)) {
+        for (const wt of writingTasks) {
+          if (wt.id) await tx.writingTask.update({ where: { id: wt.id }, data: { taskNumber: wt.taskNumber, prompt: wt.prompt, chartUrl: wt.chartUrl, minWords: wt.minWords } });
+          else await tx.writingTask.create({ data: { ...wt, paperId, id: undefined } });
+        }
+      }
+
+      // Sections (hierarchical - Listening)
       if (Array.isArray(sections)) {
         for (const s of sections) {
           let sId = s.id;

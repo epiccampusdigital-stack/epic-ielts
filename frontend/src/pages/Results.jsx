@@ -160,7 +160,7 @@ const fetchExplanation = async (answer) => {
    );
 
     const result = data.result || {};
-    const answers = data.answers || [];
+    const answers = (data.answers || []).sort((a, b) => (a.question?.questionNumber || 0) - (b.question?.questionNumber || 0));
     const ai = aiFeedback || {};
     const rawScore = result.rawScore ?? 0;
     const band = result.bandEstimate ?? 0;

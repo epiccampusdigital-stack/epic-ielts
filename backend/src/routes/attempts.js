@@ -307,9 +307,7 @@ router.get('/:id/result', auth, async (req, res) => {
         paper: {
           include: {
             questions: {
-              orderBy: {
-                questionNumber: 'asc'
-              }
+              orderBy: { questionNumber: 'asc' }
             }
           }
         },
@@ -385,9 +383,7 @@ router.get('/:id', auth, async (req, res) => {
         paper: {
           include: {
             questions: {
-              orderBy: {
-                questionNumber: 'asc'
-              }
+              orderBy: { questionNumber: 'asc' }
             },
             passages: {
               orderBy: {
@@ -424,7 +420,7 @@ router.post('/:id/end', auth, async (req, res) => {
       where: { id: attemptId },
       include: {
         student: true,
-        paper: { include: { questions: true } },
+        paper: { include: { questions: { orderBy: { questionNumber: 'asc' } } } },
         answers: { include: { question: true } }
       }
     });
@@ -543,7 +539,7 @@ router.get('/:id/ai-feedback', auth, async (req, res) => {
       where: { id: attemptId },
       include: {
         student: true,
-        paper: { include: { questions: true } },
+        paper: { include: { questions: { orderBy: { questionNumber: 'asc' } } } },
         answers: { include: { question: true } },
         result: true
       }

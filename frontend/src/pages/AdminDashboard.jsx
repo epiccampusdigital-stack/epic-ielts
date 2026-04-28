@@ -356,7 +356,7 @@ export default function AdminDashboard() {
                                  <button className="action-btn outline" onClick={() => navigate('/admin/papers/import')}>
                                     ✨ Import Paper (AI)
                                  </button>
-                                 <button className="action-btn primary" onClick={() => setShowAddPaper(true)}>
+                                 <button className="action-btn primary" onClick={() => navigate('/admin/papers/create')}>
                                     + Create Paper
                                  </button>
                               </>

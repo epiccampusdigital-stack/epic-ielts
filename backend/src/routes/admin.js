@@ -613,26 +613,46 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
 });
 
 router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
+  const paperId = parseInt(req.params.id);
+  console.log('--- STARTING DELETION OF PAPER:', paperId, '---');
+  
   try {
-    const paperId = parseInt(req.params.id);
-    console.log('Deleting paper:', paperId);
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete Student-Attempt related data
+      console.log('Deleting answers...');
+      await tx.answer.deleteMany({ where: { attempt: { paperId } } });
+      
+      console.log('Deleting results and submissions...');
+      await tx.result.deleteMany({ where: { attempt: { paperId } } });
+      await tx.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
+      await tx.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
+      
+      console.log('Deleting attempts...');
+      await tx.attempt.deleteMany({ where: { paperId } });
 
-    await prisma.answer.deleteMany({ where: { attempt: { paperId } } });
-    await prisma.result.deleteMany({ where: { attempt: { paperId } } });
-    await prisma.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
-    await prisma.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
-    await prisma.attempt.deleteMany({ where: { paperId } });
-    await prisma.question.deleteMany({ where: { paperId } });
-    await prisma.passage.deleteMany({ where: { paperId } });
-    await prisma.writingTask.deleteMany({ where: { paperId } });
-    await prisma.questionGroup.deleteMany({ where: { section: { paperId } } });
-    await prisma.section.deleteMany({ where: { paperId } });
-    await prisma.paper.delete({ where: { id: paperId } });
+      // 2. Delete Paper Content hierarchy
+      console.log('Deleting questions...');
+      await tx.question.deleteMany({ where: { paperId } });
 
-    console.log('Paper deleted:', paperId);
-    res.json({ success: true, message: 'Paper deleted successfully' });
+      console.log('Deleting question groups...');
+      await tx.questionGroup.deleteMany({ where: { section: { paperId } } });
+
+      console.log('Deleting sections...');
+      await tx.section.deleteMany({ where: { paperId } });
+
+      console.log('Deleting passages and writing tasks...');
+      await tx.passage.deleteMany({ where: { paperId } });
+      await tx.writingTask.deleteMany({ where: { paperId } });
+
+      // 3. Delete the paper itself
+      console.log('Deleting paper record...');
+      await tx.paper.delete({ where: { id: paperId } });
+    });
+
+    console.log('--- PAPER DELETED SUCCESSFULLY:', paperId, '---');
+    res.json({ success: true, message: 'Paper and all related data deleted successfully' });
   } catch (err) {
-    console.error('Delete paper error:', err.message);
+    console.error('DELETE ERROR for paper', paperId, ':', err);
     res.status(500).json({ error: 'Failed to delete: ' + err.message });
   }
 });

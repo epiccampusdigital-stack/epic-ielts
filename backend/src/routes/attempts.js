@@ -758,18 +758,18 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
       where: { attemptId },
       create: {
         attemptId,
-        task1Response,
-        task2Response,
+        task1Response: task1Response || '',
+        task2Response: task2Response || '',
         task1WordCount: task1Words,
         task2WordCount: task2Words,
-        markingStatus: 'PENDING'
+        markingStatus: 'PENDING_AI'
       },
       update: {
-        task1Response,
-        task2Response,
+        task1Response: task1Response || '',
+        task2Response: task2Response || '',
         task1WordCount: task1Words,
         task2WordCount: task2Words,
-        markingStatus: 'PENDING'
+        markingStatus: 'PENDING_AI'
       }
     });
 
@@ -779,11 +779,10 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
       data: { status: 'COMPLETED', endedAt: new Date() }
     });
 
-    // Create placeholder result
-    await prisma.result.upsert({
-      where: { attemptId },
-      create: { attemptId, rawScore: 0, bandEstimate: 0 },
-      update: {}
+    // Create placeholder result - use same logic as generic /submit for consistency
+    await prisma.result.deleteMany({ where: { attemptId } });
+    await prisma.result.create({
+      data: { attemptId, rawScore: null, bandEstimate: null }
     });
 
     // Send response immediately

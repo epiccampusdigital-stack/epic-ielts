@@ -410,6 +410,16 @@ router.get('/:id', auth, async (req, res) => {
               orderBy: {
                 taskNumber: 'asc'
               }
+            },
+            sections: {
+              orderBy: { number: 'asc' },
+              include: {
+                groups: {
+                  include: {
+                    questions: { orderBy: { questionNumber: 'asc' } }
+                  }
+                }
+              }
             }
           }
         },

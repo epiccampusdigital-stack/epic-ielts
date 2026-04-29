@@ -28,11 +28,36 @@ function safeExtractJson(text) {
   try { return JSON.parse(match[0]); } catch { return null; }
 }
 
-async function gradeAttempt(answerReview, paperSummaryStr) {
-  console.log('gradeAttempt called');
+async function callClaudeWithRetry(prompt, maxTokens = 800, maxRetries = 3) {
   const claude = getClient();
   if (!claude) return null;
 
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await claude.messages.create({
+        model: MODEL,
+        max_tokens: maxTokens,
+        temperature: 0.3,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      return response;
+    } catch (error) {
+      // If rate limited (529 or 429), wait and retry
+      if ((error.status === 529 || error.status === 429 || error.message?.includes('overloaded') || error.message?.includes('rate limit')) 
+          && attempt < maxRetries) {
+        const waitTime = attempt * 2000; // 2s, 4s, 6s
+        console.log(`Rate limited. Waiting ${waitTime}ms before retry ${attempt}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      console.error(`Claude API error (Attempt ${attempt}/${maxRetries}):`, error.message);
+      if (attempt === maxRetries) throw error;
+    }
+  }
+}
+
+async function gradeAttempt(answerReview, paperSummaryStr) {
+  console.log('gradeAttempt called');
   let paperSummary = {};
   try { paperSummary = JSON.parse(paperSummaryStr); } catch {}
 
@@ -58,11 +83,8 @@ QUESTION TYPE PERFORMANCE:
 ${Object.entries(typeStats).map(([t, s]) => `${t}: ${s.correct}/${s.total} correct (${s.wrong} wrong)`).join('\n')}
 
 ALL WRONG ANSWERS (${wrong.length} total mistakes):
-${wrong.map(a => `Q${a.questionNumber}[${a.questionType}]: "${String(a.question || '').substring(0, 80)}" | Student: "${a.studentAnswer || 'blank'}" | Correct: "${a.correctAnswer}"`).join('\n')}
-
-CORRECT QUESTION TYPES: ${[...new Set(correct.map(a => a.questionType))].join(', ') || 'None'}
-
-PREVIOUS RESULTS: ${paperSummary.previousResults?.length > 0 ? paperSummary.previousResults.map(p => `Band ${p.band} Score ${p.score}`).join(', ') : 'First attempt'}
+${wrong.slice(0, 15).map(a => `Q${a.questionNumber}[${a.questionType}]: "${String(a.question || '').substring(0, 80)}" | Student: "${a.studentAnswer || 'blank'}" | Correct: "${a.correctAnswer}"`).join('\n')}
+${wrong.length > 15 ? '... (truncated for space)' : ''}
 
 Return ONLY JSON:
 {
@@ -82,31 +104,24 @@ Return ONLY JSON:
 }`;
 
   try {
-    console.log('Calling Claude Haiku for Reading...');
-    const response = await claude.messages.create({
-      model: MODEL,
-      max_tokens: 1500,
-      temperature: 0.3,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    console.log('Claude Reading OK. Tokens:', response.usage?.input_tokens, '+', response.usage?.output_tokens);
+    const response = await callClaudeWithRetry(prompt, 800);
     const parsed = safeExtractJson(response.content?.[0]?.text || '');
     if (!parsed) { console.error('JSON parse failed'); return null; }
     console.log('Reading grade complete. Band:', parsed.bandEstimate);
     return parsed;
   } catch (e) {
-    console.error('Reading Claude error:', e.message, e.status);
+    console.error('Reading Claude error:', e.message);
     return null;
   }
 }
 
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
   console.log('gradeWritingAttempt called for:', studentName);
-  const claude = getClient();
-  if (!claude) return null;
-
-  const t1Words = (task1Response || '').trim().split(/\s+/).filter(Boolean).length;
-  const t2Words = (task2Response || '').trim().split(/\s+/).filter(Boolean).length;
+  
+  const t1Truncated = (task1Response || '').substring(0, 2000);
+  const t2Truncated = (task2Response || '').substring(0, 3000);
+  const t1Words = t1Truncated.trim().split(/\s+/).filter(Boolean).length;
+  const t2Words = t2Truncated.trim().split(/\s+/).filter(Boolean).length;
 
   const prompt = `You are a certified IELTS Writing examiner. Mark these writing tasks and give detailed teaching feedback.
 
@@ -114,58 +129,21 @@ STUDENT: ${studentName || 'Student'} TARGET BAND: ${expectedBand || 'not specifi
 
 TASK 1 QUESTION: ${(task1Prompt || '').substring(0, 300)}
 TASK 1 RESPONSE (${t1Words} words):
-${(task1Response || '(No response)').substring(0, 800)}
+${t1Truncated}
 
 TASK 2 QUESTION: ${(task2Prompt || '').substring(0, 300)}
 TASK 2 RESPONSE (${t2Words} words):
-${(task2Response || '(No response)').substring(0, 1000)}
+${t2Truncated}
 
 Return ONLY JSON:
 {
-  "task1": {
-    "band": 6.0,
-    "taskAchievement": 6.0,
-    "coherenceCohesion": 6.0,
-    "lexicalResource": 6.0,
-    "grammaticalRange": 6.0,
-    "feedback": "specific feedback on their task 1 response",
-    "strengths": ["strength 1", "strength 2"],
-    "improvements": ["improvement 1", "improvement 2"],
-    "rewrittenExample": "one weak sentence rewritten at band 8",
-    "keyTricks": ["task 1 trick 1", "trick 2"],
-    "grammarMistakes": [{"mistake": "exact text", "correction": "fixed", "rule": "grammar rule"}],
-    "vocabularyUpgrades": [{"original": "basic word", "better": "advanced word", "example": "example sentence"}]
-  },
-  "task2": {
-    "band": 6.0,
-    "taskResponse": 6.0,
-    "coherenceCohesion": 6.0,
-    "lexicalResource": 6.0,
-    "grammaticalRange": 6.0,
-    "feedback": "specific feedback on their task 2 essay",
-    "strengths": ["strength 1", "strength 2"],
-    "improvements": ["improvement 1", "improvement 2"],
-    "essayStructureFeedback": "comment on introduction body conclusion",
-    "rewrittenExample": "one weak sentence rewritten at band 8",
-    "keyTricks": ["task 2 trick 1", "trick 2"],
-    "grammarMistakes": [{"mistake": "exact text", "correction": "fixed", "rule": "rule"}],
-    "vocabularyUpgrades": [{"original": "word", "better": "better word", "example": "sentence"}]
-  },
-  "overallBand": 6.0,
-  "studyPlan": ["study action 1", "action 2", "action 3"],
-  "progressToTarget": "how close to target band and what to focus on",
-  "finalStudentReport": "5-6 sentence personal message to ${studentName || 'the student'} referencing their actual writing, bands received, what impressed you, biggest mistake, specific technique to improve next time."
+  "task1": { "band": 6.0, "taskAchievement": 6.0, "coherenceCohesion": 6.0, "lexicalResource": 6.0, "grammaticalRange": 6.0, "feedback": "...", "strengths": [], "improvements": [], "rewrittenExample": "...", "keyTricks": [], "grammarMistakes": [], "vocabularyUpgrades": [] },
+  "task2": { "band": 6.0, "taskResponse": 6.0, "coherenceCohesion": 6.0, "lexicalResource": 6.0, "grammaticalRange": 6.0, "feedback": "...", "strengths": [], "improvements": [], "essayStructureFeedback": "...", "rewrittenExample": "...", "keyTricks": [], "grammarMistakes": [], "vocabularyUpgrades": [] },
+  "overallBand": 6.0, "studyPlan": [], "progressToTarget": "...", "finalStudentReport": "..."
 }`;
 
   try {
-    console.log('Calling Claude Haiku for Writing...');
-    const response = await claude.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      temperature: 0.3,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    console.log('Writing OK. Tokens:', response.usage?.input_tokens, '+', response.usage?.output_tokens);
+    const response = await callClaudeWithRetry(prompt, 800);
     const parsed = safeExtractJson(response.content?.[0]?.text || '');
     if (!parsed) { console.error('Writing JSON failed'); return null; }
     console.log('Writing grade complete. Overall band:', parsed.overallBand);
@@ -178,24 +156,16 @@ Return ONLY JSON:
 
 async function explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, existingExplanation) {
   if (existingExplanation && existingExplanation.length > 20) {
-    console.log('Using stored explanation - zero API cost');
     return existingExplanation;
   }
-  const claude = getClient();
-  if (!claude) return `The correct answer is "${correctAnswer}". Review the passage carefully.`;
   try {
-    const response = await claude.messages.create({
-      model: MODEL,
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: `IELTS examiner. 3 sentences explaining why this answer is wrong.
+    const prompt = `IELTS examiner. 3 sentences explaining why this answer is wrong.
 Q: ${(questionText || '').substring(0, 150)}
 Type: ${questionType}
 Student: "${studentAnswer || 'blank'}" Correct: "${correctAnswer}"
-1) Why wrong 2) Passage evidence for correct answer 3) Tip for this question type`
-      }]
-    });
+1) Why wrong 2) Passage evidence for correct answer 3) Tip for this question type`;
+    
+    const response = await callClaudeWithRetry(prompt, 300);
     return response.content[0].text;
   } catch (e) {
     return `The correct answer is "${correctAnswer}". For ${questionType} questions, scan the passage for exact keywords that match the question statement.`;
@@ -204,9 +174,6 @@ Student: "${studentAnswer || 'blank'}" Correct: "${correctAnswer}"
 
 async function gradeSpeakingAttempt(transcript, partNumber, questionPrompt, studentName, expectedBand) {
   console.log('gradeSpeakingAttempt called for:', studentName, 'Part:', partNumber);
-  const claude = getClient();
-  if (!claude) return null;
-
   const prompt = `You are a certified IELTS Speaking examiner. Evaluate this speaking response.
 
 STUDENT: ${studentName || 'Student'} TARGET: ${expectedBand || 'not set'}
@@ -221,21 +188,13 @@ Return ONLY JSON:
   "lexicalResource": 6.0,
   "grammaticalRange": 6.0,
   "pronunciation": 6.0,
-  "feedback": "specific feedback on their speaking",
-  "strengths": ["strength 1", "strength 2"],
-  "improvements": ["improvement 1", "improvement 2"],
-  "keyTricks": ["speaking tip 1", "tip 2"],
-  "finalReport": "3-4 sentence personal message to ${studentName || 'the student'} about their speaking performance."
+  "feedback": "...", "strengths": [], "improvements": [], "keyTricks": [], "finalReport": "..."
 }`;
 
   try {
-    const response = await claude.messages.create({
-      model: MODEL,
-      max_tokens: 800,
-      temperature: 0.3,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    return safeExtractJson(response.content?.[0]?.text || '');
+    const response = await callClaudeWithRetry(prompt, 600);
+    const parsed = safeExtractJson(response.content?.[0]?.text || '');
+    return parsed;
   } catch (e) {
     console.error('Speaking Claude error:', e.message);
     return null;

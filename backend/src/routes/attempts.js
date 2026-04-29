@@ -87,6 +87,17 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     const sub = await prisma.writingSubmission.findUnique({ where: { attemptId } });
     if (!sub) return null;
 
+    // Cache check
+    if (sub.aiFeedback && sub.markingStatus === 'COMPLETE') {
+      try {
+        const cached = JSON.parse(sub.aiFeedback);
+        if (cached) return cached;
+      } catch (e) {}
+    }
+
+    // Delay to avoid rate limit bursts
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     const task1Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 1)?.prompt || '';
     const task2Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
 

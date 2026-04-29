@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
-import { getQuestionNumber, sortQuestionsByNumber } from '../utils/questionUtils';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -11,10 +10,15 @@ export default function ListeningExam() {
   const navigate = useNavigate();
   const [paper, setPaper] = useState(null);
   const [answers, setAnswers] = useState({});
-  const [activeSIdx, setActiveSIdx] = useState(0); // Index of sections
+  const [activeSIdx, setActiveSIdx] = useState(0);
   const [playedSections, setPlayedSections] = useState({});
   const [showInstructions, setShowInstructions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const audioRef = useRef(null);
+  const timerRef = useRef(null);
+  const autosaveRef = useRef(null);
+
   const questionMap = useMemo(() => {
     const map = {};
     if (!paper) return map;
@@ -27,25 +31,23 @@ export default function ListeningExam() {
     });
     return map;
   }, [paper]);
+
   const getFullUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http')) return url;
     return API_URL + (url.startsWith('/') ? '' : '/') + url;
   };
-  const [submitting, setSubmitting] = useState(false);
-  const audioRef = useRef(null);
-  const timerRef = useRef(null);
-  const autosaveRef = useRef(null);
+
+  const sortByNumber = (questions) =>
+    (questions || []).slice().sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
 
   useEffect(() => {
     axios.get(`${API_URL}/api/attempts/${attemptId}`, api())
       .then(r => {
         setPaper(r.data.paper);
-        // Pre-fill answers from previous session if any
         const existingAnswers = {};
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
         setAnswers(existingAnswers);
-
         const mins = r.data.paper?.timeLimitMin || 30;
         const started = new Date(r.data.startedAt).getTime();
         const elapsed = Math.floor((Date.now() - started) / 1000);
@@ -111,6 +113,10 @@ export default function ListeningExam() {
   const sections = paper.sections || [];
   const currentSection = sections[activeSIdx] || { groups: [] };
 
+  const allSectionQs = (currentSection.groups || []).flatMap(g => g.questions || []);
+  const minQ = allSectionQs.length ? Math.min(...allSectionQs.map(q => q.questionNumber || 0)) : '?';
+  const maxQ = allSectionQs.length ? Math.max(...allSectionQs.map(q => q.questionNumber || 0)) : '?';
+
   const renderTable = (tableData) => {
     if (!tableData) return null;
     return (
@@ -118,7 +124,9 @@ export default function ListeningExam() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ background: '#f8fafc' }}>
-              {(tableData.headers || []).map((h, i) => <th key={i} style={{ padding: '12px', border: '1px solid #e2e8f0', color: '#475569', fontWeight: '700' }}>{h}</th>)}
+              {(tableData.headers || []).map((h, i) => (
+                <th key={i} style={{ padding: '12px', border: '1px solid #e2e8f0', color: '#475569', fontWeight: '700' }}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -128,11 +136,12 @@ export default function ListeningExam() {
                   <td key={ci} style={{ padding: '12px', border: '1px solid #e2e8f0' }}>
                     {cell.blank ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: '800', color: '#4f46e5' }}>{getQuestionNumber(cell)}</span>
+                        <span style={{ fontWeight: '800', color: '#4f46e5' }}>{cell.questionNumber}</span>
                         {(() => {
-                          const qNo = getQuestionNumber(cell);
-                          const q = questionMap[qNo];
-                          return q ? <input className="listen-input" value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} /> : <span style={{color:'#ef4444'}}>ERROR: Q missing</span>;
+                          const q = questionMap[cell.questionNumber];
+                          return q
+                            ? <input className="listen-input" value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} />
+                            : <span style={{color:'#ef4444'}}>Q{cell.questionNumber} missing</span>;
                         })()}
                       </div>
                     ) : (
@@ -184,7 +193,9 @@ export default function ListeningExam() {
             <span style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>TIME LEFT</span>
             <span style={{ fontSize: 24, fontWeight: 900, color: timeLeft < 300 ? '#ef4444' : '#1e293b', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
           </div>
-          <button onClick={() => handleEnd(false)} style={{ padding: '12px 28px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>Finish Test</button>
+          <button onClick={() => handleEnd(false)} disabled={submitting} style={{ padding: '12px 28px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>
+            {submitting ? 'Submitting...' : 'Finish Test'}
+          </button>
         </div>
       </div>
 
@@ -194,12 +205,20 @@ export default function ListeningExam() {
           <div style={{ padding: 32, flex: 1 }}>
             <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 24 }}>Sections</h3>
             <div style={{ display: 'grid', gap: 12 }}>
-              {sections.map((s, idx) => (
-                <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid', borderColor: activeSIdx === idx ? '#4f46e5' : '#e2e8f0', background: activeSIdx === idx ? '#f5f3ff' : '#fff', color: activeSIdx === idx ? '#4f46e5' : '#64748b', fontWeight: 800, cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
-                  Section {s.number}
-                  {playedSections[s.id] && <span>✅</span>}
-                </button>
-              ))}
+              {sections.map((s, idx) => {
+                const sQs = (s.groups || []).flatMap(g => g.questions || []);
+                const sMin = sQs.length ? Math.min(...sQs.map(q => q.questionNumber || 0)) : '?';
+                const sMax = sQs.length ? Math.max(...sQs.map(q => q.questionNumber || 0)) : '?';
+                return (
+                  <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid', borderColor: activeSIdx === idx ? '#4f46e5' : '#e2e8f0', background: activeSIdx === idx ? '#f5f3ff' : '#fff', color: activeSIdx === idx ? '#4f46e5' : '#64748b', fontWeight: 800, cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div>Section {s.number}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, marginTop: 2 }}>Q{sMin}–{sMax}</div>
+                    </div>
+                    {playedSections[s.id] && <span>✅</span>}
+                  </button>
+                );
+              })}
             </div>
 
             <div style={{ marginTop: 40, background: '#f1f5f9', borderRadius: 20, padding: 24, textAlign: 'center' }}>
@@ -209,7 +228,7 @@ export default function ListeningExam() {
                   <audio ref={audioRef} src={getFullUrl(currentSection.audioUrl)} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
                   {!paper.practiceMode && (
                     playedSections[currentSection.id] ? (
-                      <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>Played Once</div>
+                      <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>✅ Played Once</div>
                     ) : (
                       <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>▶ Play Audio</button>
                     )
@@ -223,51 +242,60 @@ export default function ListeningExam() {
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '48px 64px', background: '#fff' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#1e293b', marginBottom: 40 }}>Section {currentSection.number}</h1>
-            
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+              Section {currentSection.number}
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#64748b', marginLeft: 12 }}>
+                Questions {minQ}–{maxQ}
+              </span>
+            </h1>
+            {currentSection.description && (
+              <p style={{ fontSize: 14, color: '#64748b', marginBottom: 40, lineHeight: 1.6 }}>{currentSection.description}</p>
+            )}
+
+            {sortByNumber((currentSection.groups || []).flatMap(g => [])).length === 0 && (
+              <div style={{ marginBottom: 40 }} />
+            )}
+
             {(currentSection.groups || []).map((group, gIdx) => (
               <div key={gIdx} style={{ marginBottom: 48 }}>
                 <div style={{ background: '#f8fafc', borderLeft: '4px solid #4f46e5', padding: 20, borderRadius: '4px 16px 16px 4px', marginBottom: 24 }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{group.instruction}</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>{group.wordLimit}</div>
+                  {group.wordLimit && <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>Write: {group.wordLimit}</div>}
                 </div>
 
-                {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: 16, marginBottom: 24, border: '1px solid #e2e8f0' }} />}
+                {group.imageUrl && (
+                  <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: 16, marginBottom: 24, border: '1px solid #e2e8f0' }} alt="Question diagram" />
+                )}
+
                 {group.groupType === 'TABLE_COMPLETION' && renderTable(group.tableData)}
 
                 <div style={{ display: 'grid', gap: 24 }}>
-                  {sortQuestionsByNumber(group.questions || []).map(q => {
-                    // Check if question is already in a table
-                    const inTable = group.groupType === 'TABLE_COMPLETION' && JSON.stringify(group.tableData || {}).includes(`"questionNumber":${getQuestionNumber(q)}`);
+                  {sortByNumber(group.questions || []).map(q => {
+                    const inTable = group.groupType === 'TABLE_COMPLETION' &&
+                      JSON.stringify(group.tableData || {}).includes(`"questionNumber":${q.questionNumber}`);
                     if (inTable) return null;
 
                     return (
                       <div key={q.id} style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#475569', flexShrink: 0 }}>{getQuestionNumber(q)}</div>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: answers[q.id] ? '#4f46e5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: answers[q.id] ? '#fff' : '#475569', flexShrink: 0, transition: 'all 0.2s' }}>
+                          {q.questionNumber}
+                        </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 15, color: '#1e293b', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
-                           {q.questionType === 'MULTIPLE_CHOICE' ? (
+                          {q.questionType === 'MULTIPLE_CHOICE' ? (
                             <div style={{ display: 'grid', gap: '8px' }}>
-                              {(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [])
-                                .filter(opt => opt && String(opt).trim() !== '')
-                                .map((opt, i) => {
+                              {(q.options
+                                ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options)
+                                : []
+                              ).filter(opt => opt && String(opt).trim() !== '')
+                               .map((opt, i) => {
                                 const selected = answers[q.id] === opt;
                                 return (
-                                  <label key={i} style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '12px', 
-                                    padding: '12px 16px', 
-                                    background: selected ? '#f5f3ff' : '#fff', 
-                                    border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, 
-                                    borderRadius: '12px', 
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
-                                  }}>
-                                    <input 
-                                      type="radio" 
-                                      name={`q${q.id}`} 
-                                      checked={selected} 
+                                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: selected ? '#f5f3ff' : '#fff', border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                    <input
+                                      type="radio"
+                                      name={`q${q.id}`}
+                                      checked={selected}
                                       onChange={() => setAnswers({ ...answers, [q.id]: opt })}
                                       style={{ accentColor: '#4f46e5' }}
                                     />
@@ -277,7 +305,13 @@ export default function ListeningExam() {
                               })}
                             </div>
                           ) : (
-                            <input className="listen-input" style={{ maxWidth: 300 }} value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} placeholder="Your answer..." />
+                            <input
+                              className="listen-input"
+                              style={{ maxWidth: 300 }}
+                              value={answers[q.id] || ''}
+                              onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
+                              placeholder="Your answer..."
+                            />
                           )}
                         </div>
                       </div>
@@ -289,14 +323,21 @@ export default function ListeningExam() {
           </div>
         </div>
       </div>
-      
+
       {/* Navigator Footer */}
       <div style={{ height: 64, background: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        {sections.map((s, idx) => (
-          <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '8px 24px', borderRadius: 20, border: 'none', background: activeSIdx === idx ? '#1e293b' : '#f1f5f9', color: activeSIdx === idx ? '#fff' : '#64748b', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Section {s.number}</button>
-        ))}
+        {sections.map((s, idx) => {
+          const sQs = (s.groups || []).flatMap(g => g.questions || []);
+          const sMin = sQs.length ? Math.min(...sQs.map(q => q.questionNumber || 0)) : '?';
+          const sMax = sQs.length ? Math.max(...sQs.map(q => q.questionNumber || 0)) : '?';
+          return (
+            <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: activeSIdx === idx ? '#1e293b' : '#f1f5f9', color: activeSIdx === idx ? '#fff' : '#64748b', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              Section {s.number}
+              <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7 }}>Q{sMin}–{sMax}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
-

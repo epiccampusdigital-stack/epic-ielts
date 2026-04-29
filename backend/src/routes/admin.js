@@ -178,7 +178,7 @@ router.post('/papers/import-ai', auth, adminOnly, async (req, res) => {
 
     let Anthropic;
     try { Anthropic = require('@anthropic-ai/sdk'); }
-    catch(e) { return res.status(500).json({ error: 'Anthropic SDK not installed. Run: npm install @anthropic-ai/sdk' }); }
+    catch (e) { return res.status(500).json({ error: 'Anthropic SDK not installed. Run: npm install @anthropic-ai/sdk' }); }
 
     const claude = new Anthropic({ apiKey: key });
 
@@ -317,12 +317,12 @@ ${rawText.substring(0, 6000)}`
     let response;
     try {
       response = await claude.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-3-5-sonnet-20240620',
         max_tokens: 8000,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }]
       });
-    } catch(aiErr) {
+    } catch (aiErr) {
       console.error('Claude API error:', aiErr.message, aiErr.status);
       return res.status(500).json({ error: 'AI call failed: ' + aiErr.message });
     }
@@ -339,7 +339,7 @@ ${rawText.substring(0, 6000)}`
     ];
 
     for (const attempt of attempts) {
-      try { parsed = attempt(); if (parsed) break; } catch {}
+      try { parsed = attempt(); if (parsed) break; } catch { }
     }
 
     if (!parsed) {
@@ -361,18 +361,18 @@ ${rawText.substring(0, 6000)}`
     if (type === 'READING') {
       for (const p of (parsed.passages || [])) {
         await prisma.passage.create({
-          data: { paperId: paper.id, passageNumber: parseInt(p.passageNumber)||1, title: String(p.title||'Passage'), text: String(p.text||'') }
+          data: { paperId: paper.id, passageNumber: parseInt(p.passageNumber) || 1, title: String(p.title || 'Passage'), text: String(p.text || '') }
         });
       }
-      if ((parsed.questions||[]).length > 0) {
+      if ((parsed.questions || []).length > 0) {
         const qData = parsed.questions.map(q => ({
           paperId: paper.id,
-          passageNumber: parseInt(q.passageNumber)||1,
-          questionNumber: parseInt(q.questionNumber)||1,
-          questionType: q.questionType||'SHORT_ANSWER',
-          content: String(q.content||''),
+          passageNumber: parseInt(q.passageNumber) || 1,
+          questionNumber: parseInt(q.questionNumber) || 1,
+          questionType: q.questionType || 'SHORT_ANSWER',
+          content: String(q.content || ''),
           options: q.options ? JSON.stringify(q.options) : null,
-          correctAnswer: String(q.correctAnswer||''),
+          correctAnswer: String(q.correctAnswer || ''),
           explanation: q.explanation ? String(q.explanation) : null
         }));
         await prisma.question.createMany({ data: qData });
@@ -380,9 +380,9 @@ ${rawText.substring(0, 6000)}`
     }
 
     if (type === 'WRITING') {
-      for (const task of (parsed.tasks||[])) {
+      for (const task of (parsed.tasks || [])) {
         await prisma.writingTask.create({
-          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber)||1, prompt: String(task.prompt||''), chartImageUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords)||(task.taskNumber===1?150:250) }
+          data: { paperId: paper.id, taskNumber: parseInt(task.taskNumber) || 1, prompt: String(task.prompt || ''), chartImageUrl: null, chartDescription: task.chartDescription || null, minWords: parseInt(task.minWords) || (task.taskNumber === 1 ? 150 : 250) }
         });
       }
     }
@@ -396,7 +396,7 @@ ${rawText.substring(0, 6000)}`
           // Normalize tableData if it exists (convert strings with {blank1} to objects)
           let tableData = g.tableData;
           if (tableData && Array.isArray(tableData.rows)) {
-            tableData.rows = tableData.rows.map(row => 
+            tableData.rows = tableData.rows.map(row =>
               row.map(cell => {
                 if (typeof cell === 'string') {
                   const match = cell.match(/\{blank(\d+)\}/i);
@@ -466,17 +466,17 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
 
 router.put('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  const { 
-    questions, 
-    passages, 
-    sections, 
+  const {
+    questions,
+    passages,
+    sections,
     writingTasks,
-    deletedQuestionIds, 
-    deletedPassageIds, 
-    deletedSectionIds, 
+    deletedQuestionIds,
+    deletedPassageIds,
+    deletedSectionIds,
     deletedGroupIds,
     deletedWritingTaskIds,
-    ...rawPaperData 
+    ...rawPaperData
   } = req.body;
 
   try {
@@ -535,13 +535,13 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
           if (Array.isArray(p.groups)) {
             for (const g of p.groups) {
               let gId = g.id;
-              const gData = { 
-                passageId: pId, 
-                groupType: g.groupType, 
-                instruction: g.instruction, 
-                wordLimit: g.wordLimit, 
-                tableData: g.tableData, 
-                imageUrl: g.imageUrl 
+              const gData = {
+                passageId: pId,
+                groupType: g.groupType,
+                instruction: g.instruction,
+                wordLimit: g.wordLimit,
+                tableData: g.tableData,
+                imageUrl: g.imageUrl
               };
               if (gId) {
                 await tx.questionGroup.update({ where: { id: gId }, data: gData });
@@ -635,14 +635,14 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
-        questions:    { orderBy: { questionNumber: 'asc' } },
-        passages:     { 
+        questions: { orderBy: { questionNumber: 'asc' } },
+        passages: {
           include: {
             groups: {
               include: { questions: { orderBy: { questionNumber: 'asc' } } }
             }
           },
-          orderBy: { passageNumber:  'asc' } 
+          orderBy: { passageNumber: 'asc' }
         },
         sections: {
           include: {
@@ -652,7 +652,7 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
           },
           orderBy: { number: 'asc' }
         },
-        writingTasks: { orderBy: { taskNumber:     'asc' } }
+        writingTasks: { orderBy: { taskNumber: 'asc' } }
       }
     });
     res.json(paper);
@@ -664,7 +664,7 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
 router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
   console.log('--- DELETING PAPER (CASCADE):', paperId, '---');
-  
+
   try {
     // Prisma Cascade handles all dependencies automatically now
     await prisma.paper.delete({ where: { id: paperId } });

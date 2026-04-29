@@ -159,6 +159,19 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     } else {
       aiCache.set(attemptId, aiFeedback);
     }
+  } else {
+    // AI failed - mark as failed so UI doesn't spin forever
+    if (testType === 'WRITING') {
+      await prisma.writingSubmission.update({
+        where: { attemptId },
+        data: { markingStatus: 'FAILED' }
+      });
+    } else if (testType === 'SPEAKING') {
+      await prisma.speakingSubmission.update({
+        where: { attemptId },
+        data: { markingStatus: 'FAILED' }
+      });
+    }
   }
 
   return aiFeedback || fallbackFeedback(result.rawScore, result.bandEstimate, studentName, testType, attempt.paper?.paperCode);

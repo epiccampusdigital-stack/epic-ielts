@@ -17,7 +17,7 @@ function getClient() {
   }
 }
 
-const MODEL = 'claude-sonnet-4-5-20250929';
+const MODEL = 'claude-3-5-sonnet-20241022';
 console.log('EPIC IELTS Marking Engine - Using model:', MODEL);
 
 function safeExtractJson(text) {

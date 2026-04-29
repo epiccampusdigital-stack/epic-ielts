@@ -512,6 +512,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
             paperId,
             passageNumber: q.passageNumber,
             questionNumber: q.questionNumber,
+            order: q.order !== undefined ? parseInt(q.order) : 0,
             questionType: q.questionType,
             content: q.content,
             correctAnswer: q.correctAnswer,
@@ -559,6 +560,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
                     paperId,
                     groupId: gId,
                     questionNumber: q.questionNumber,
+                    order: q.order !== undefined ? parseInt(q.order) : 0,
                     questionType: q.questionType,
                     content: q.content,
                     correctAnswer: q.correctAnswer,
@@ -587,7 +589,14 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
         for (const s of sections) {
           let sId = s.id;
           if (sId) {
-            await tx.section.update({ where: { id: sId }, data: { number: s.number, description: s.description, audioUrl: s.audioUrl } });
+            await tx.section.update({
+              where: { id: sId },
+              data: {
+                number: s.number,
+                description: s.description,
+                ...(s.audioUrl !== undefined && s.audioUrl !== null && { audioUrl: s.audioUrl })
+              }
+            });
           } else {
             const newS = await tx.section.create({ data: { paperId, number: s.number, description: s.description, audioUrl: s.audioUrl } });
             sId = newS.id;
@@ -618,6 +627,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
                     paperId,
                     groupId: gId,
                     questionNumber: q.questionNumber,
+                    order: q.order !== undefined ? parseInt(q.order) : 0,
                     questionType: q.questionType,
                     content: q.content,
                     correctAnswer: q.correctAnswer,
@@ -650,11 +660,11 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
-        questions: { orderBy: { questionNumber: 'asc' } },
+        questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] },
         passages: {
           include: {
             groups: {
-              include: { questions: { orderBy: { questionNumber: 'asc' } } }
+              include: { questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] } }
             }
           },
           orderBy: { passageNumber: 'asc' }
@@ -662,7 +672,7 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
         sections: {
           include: {
             groups: {
-              include: { questions: { orderBy: { questionNumber: 'asc' } } }
+              include: { questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] } }
             }
           },
           orderBy: { number: 'asc' }
@@ -803,7 +813,7 @@ router.get('/papers/:id/full', auth, adminOnly, async (req, res) => {
           include: {
             groups: {
               include: {
-                questions: { orderBy: { questionNumber: 'asc' } }
+                questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] }
               }
             }
           }

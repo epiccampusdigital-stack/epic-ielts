@@ -21,6 +21,7 @@ export default function WritingExam() {
   };
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [imageZoom, setImageZoom] = useState(1);
   const timerRef = useRef();
 
   useEffect(() => {
@@ -262,6 +263,12 @@ export default function WritingExam() {
             display: block !important;
           }
         }
+        .writing-prompt-content table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+        .writing-prompt-content th, .writing-prompt-content td { border: 1px solid #bfdbfe; padding: 10px 14px; text-align: left; color: #1e293b; }
+        .writing-prompt-content th { background: #f0f7ff; font-weight: 700; color: #1d4ed8; }
+        .writing-prompt-content tr:nth-child(even) td { background: #fafcff; }
+        .writing-prompt-content p { margin-bottom: 10px; line-height: 1.7; }
+        .writing-prompt-content ul, .writing-prompt-content ol { padding-left: 20px; margin-bottom: 10px; }
       `}</style>
 
       {/* Header */}
@@ -319,9 +326,11 @@ export default function WritingExam() {
           </p>
 
           {/* Task prompt */}
-          <div style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.8, marginBottom: 20, fontWeight: 500 }}>
-            {currentTask?.prompt || `Loading Task ${task} prompt...`}
-          </div>
+          <div
+            className="writing-prompt-content"
+            style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.8, marginBottom: 20, fontWeight: 500 }}
+            dangerouslySetInnerHTML={{ __html: currentTask?.prompt || `<p>Loading Task ${task} prompt...</p>` }}
+          />
 
           {/* Chart for Task 1 */}
           {task === 1 && (
@@ -331,11 +340,24 @@ export default function WritingExam() {
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
                     {currentTask?.chartDescription || "Figure 1: Task Visualization"}
                   </p>
-                  <img 
-                    src={getFullUrl(currentTask.chartImageUrl)} 
-                    alt="Task Chart"
-                    style={{ width: '100%', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }} 
-                  />
+                  <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      onClick={() => setImageZoom(z => Math.max(0.5, parseFloat((z - 0.15).toFixed(2))))}
+                      style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid #bfdbfe', background: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#1d4ed8', lineHeight: 1 }}
+                    >−</button>
+                    <span style={{ fontSize: 11, color: '#94a3b8', minWidth: 36, textAlign: 'center' }}>{Math.round(imageZoom * 100)}%</span>
+                    <button
+                      onClick={() => setImageZoom(z => Math.min(3, parseFloat((z + 0.15).toFixed(2))))}
+                      style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid #bfdbfe', background: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#1d4ed8', lineHeight: 1 }}
+                    >+</button>
+                  </div>
+                  <div style={{ overflow: 'auto', maxHeight: '55vh', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                    <img
+                      src={getFullUrl(currentTask.chartImageUrl)}
+                      alt="Task Chart"
+                      style={{ width: `${imageZoom * 100}%`, display: 'block', transition: 'width 0.2s' }}
+                    />
+                  </div>
                 </div>
               ) : currentTask?.chartDescription ? (
                 <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>

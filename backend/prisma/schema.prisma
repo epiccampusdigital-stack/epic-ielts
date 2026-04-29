@@ -79,6 +79,7 @@ model Section {
   number      Int             // 1, 2, 3, 4
   description String?         @db.Text
   audioUrl    String?
+  order       Int     @default(0)
   groups      QuestionGroup[]
 }
 
@@ -93,6 +94,7 @@ model QuestionGroup {
   imageUrl     String?
   tableData    Json?
   wordLimit    String?
+  order        Int    @default(0)
   questions    Question[]
 }
 
@@ -113,6 +115,7 @@ model Question {
   imageUrl         String?
   audioUrl         String?
   wordLimit        String?
+  order            Int        @default(0)
   tableData        Json?
   groupInstruction String?        @db.Text
   answers          Answer[]
@@ -158,6 +161,7 @@ model WritingSubmission {
   overallBand     Float?
   aiFeedback      String?     @db.Text
   markingStatus   String      @default("PENDING")
+  modelAnswers    String?     @db.Text
 }
 
 model Result {

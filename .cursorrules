@@ -1,0 +1,1 @@
+You are working on an IELTS exam platform. Stack: Node.js + Express + Prisma + PostgreSQL, React + Vite + JSX. Never drop database columns. Never remove existing routes. Always run: npx prisma migrate dev then npx prisma generate after schema changes. markingStatus values: PENDING, PENDING_AI, COMPLETE, FAILED. Attempt status values: IN_PROGRESS, COMPLETED.

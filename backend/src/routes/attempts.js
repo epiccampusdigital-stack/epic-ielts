@@ -161,6 +161,35 @@ async function createAiFeedback(attempt, result, savedAnswers) {
         }
       });
       aiCache.set(`writing_${attemptId}`, aiFeedback);
+
+      try {
+        const task1P = attempt.paper?.writingTasks?.find(t => t.taskNumber === 1)?.prompt || '';
+        const task2P = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
+        if (task1P || task2P) {
+          const Anthropic = require('@anthropic-ai/sdk');
+          const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const modelRes = await claude.messages.create({
+            model: 'claude-haiku-4-5',
+            max_tokens: 2000,
+            system: 'You are an expert IELTS examiner. Return ONLY valid JSON, no markdown, no backticks.',
+            messages: [{
+              role: 'user',
+              content: `Write IELTS model answers for these tasks.\n\nTask 1: ${task1P.substring(0, 400)}\nTask 2: ${task2P.substring(0, 400)}\n\nReturn exactly:\n{"task1":{"band6":"150-170 word Band 6 answer","band7":"180-200 word Band 7 answer"},"task2":{"band6":"250-270 word Band 6 answer","band7":"280-300 word Band 7 answer"}}`
+            }]
+          });
+          const modelText = modelRes.content?.[0]?.text || '';
+          const cleanModel = modelText.replace(/```json|```/g, '').trim();
+          const modelParsed = JSON.parse(cleanModel);
+          if (modelParsed) {
+            await prisma.writingSubmission.update({
+              where: { attemptId },
+              data: { modelAnswers: JSON.stringify(modelParsed) }
+            });
+          }
+        }
+      } catch (modelErr) {
+        console.error('Model answers generation error:', modelErr.message);
+      }
     } else if (testType === 'SPEAKING') {
       await prisma.speakingSubmission.update({
         where: { attemptId },
@@ -197,7 +226,7 @@ router.get('/history/mine', auth, async (req, res) => {
     const attempts = await prisma.attempt.findMany({
       where: {
         studentId: req.user.id,
-        status: 'COMPLETED'
+        endedAt: { not: null }
       },
       include: {
         paper: {
@@ -207,7 +236,16 @@ router.get('/history/mine', auth, async (req, res) => {
             paperCode: true
           }
         },
-        result: true
+        result: true,
+        writingSubmission: {
+          select: {
+            markingStatus: true,
+            overallBand: true,
+            task1Band: true,
+            task2Band: true,
+            modelAnswers: true
+          }
+        }
       },
       orderBy: {
         id: 'desc'

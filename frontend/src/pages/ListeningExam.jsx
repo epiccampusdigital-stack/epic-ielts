@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -15,6 +15,18 @@ export default function ListeningExam() {
   const [playedSections, setPlayedSections] = useState({});
   const [showInstructions, setShowInstructions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
+  const questionMap = useMemo(() => {
+    const map = {};
+    if (!paper) return map;
+    (paper.sections || []).forEach(section => {
+      (section.groups || []).forEach(group => {
+        (group.questions || []).forEach(q => {
+          map[q.questionNumber] = q;
+        });
+      });
+    });
+    return map;
+  }, [paper]);
   const getFullUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http')) return url;
@@ -119,7 +131,7 @@ export default function ListeningExam() {
                         <span style={{ fontWeight: '800', color: '#4f46e5' }}>{getQuestionNumber(cell)}</span>
                         {(() => {
                           const qNo = getQuestionNumber(cell);
-                          const q = paper.questions.find(x => getQuestionNumber(x) === qNo);
+                          const q = questionMap[qNo];
                           return q ? <input className="listen-input" value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} /> : <span style={{color:'#ef4444'}}>ERROR: Q missing</span>;
                         })()}
                       </div>

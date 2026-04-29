@@ -137,6 +137,10 @@ export default function StudentDashboard() {
           0% { background-position: -200px 0; }
           100% { background-position: 200px 0; }
         }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
 
         .dashboard-container {
           max-width: 1200px;
@@ -868,7 +872,13 @@ export default function StudentDashboard() {
                     <div 
                       key={attempt.id} 
                       className="result-row"
-                      onClick={() => navigate(`/exam/${attempt.id}/results`)}
+                      onClick={() => {
+                        if (attempt.paper?.testType === 'WRITING') {
+                          navigate(`/exam/${attempt.id}/writing-results`);
+                        } else {
+                          navigate(`/exam/${attempt.id}/results`);
+                        }
+                      }}
                       style={{ cursor: 'pointer' }}
                     >
                       <div>
@@ -891,33 +901,39 @@ export default function StudentDashboard() {
                         {formatDate(attempt.endedAt)}
                       </div>
 
-                      <div
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: '#1e293b'
-                        }}
-                      >
-                        {attempt.result?.rawScore ?? '—'}/40
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+                        {attempt.paper?.testType === 'WRITING'
+                          ? (attempt.writingSubmission?.task1Band
+                              ? `T1: ${Number(attempt.writingSubmission.task1Band).toFixed(1)}`
+                              : '—')
+                          : `${attempt.result?.rawScore ?? '—'}/40`
+                        }
                       </div>
 
                       <div>
-                        {band ? (
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '4px 12px',
-                              borderRadius: '20px',
-                              background: bandStyle.bg,
-                              color: bandStyle.color,
-                              fontSize: '12px',
-                              fontWeight: '700'
-                            }}
-                          >
-                            {Number(band).toFixed(1)}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>Processing...</span>
+                        {attempt.paper?.testType === 'WRITING' ? (() => {
+                          const ws = attempt.writingSubmission;
+                          const wBand = ws?.overallBand;
+                          const wStatus = ws?.markingStatus;
+                          if (wStatus === 'COMPLETE' && wBand) {
+                            const wStyle = getBandColor(wBand);
+                            return <span style={{ display:'inline-block', padding:'4px 12px', borderRadius:'20px', background: wStyle.bg, color: wStyle.color, fontSize:'12px', fontWeight:'700' }}>{Number(wBand).toFixed(1)}</span>;
+                          }
+                          if (wStatus === 'FAILED') {
+                            return <span style={{ fontSize:'11px', color:'#dc2626', fontWeight:'600' }}>Mark failed</span>;
+                          }
+                          return (
+                            <span style={{ fontSize:'11px', color:'#d97706', fontWeight:'600', display:'flex', alignItems:'center', gap:4 }}>
+                              <span style={{ width:6, height:6, borderRadius:'50%', background:'#d97706', display:'inline-block', animation:'pulse 1.5s infinite' }}/>
+                              Marking...
+                            </span>
+                          );
+                        })() : (
+                          band ? (
+                            <span style={{ display:'inline-block', padding:'4px 12px', borderRadius:'20px', background: bandStyle.bg, color: bandStyle.color, fontSize:'12px', fontWeight:'700' }}>
+                              {Number(band).toFixed(1)}
+                            </span>
+                          ) : <span style={{ fontSize:'12px', color:'#94a3b8' }}>—</span>
                         )}
                       </div>
                     </div>

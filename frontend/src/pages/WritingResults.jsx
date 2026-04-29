@@ -12,6 +12,8 @@ export default function WritingResults() {
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [modelActiveTask, setModelActiveTask] = useState('task1');
+  const [modelActiveBand, setModelActiveBand] = useState('band7');
 
   useEffect(() => {
     axios.get(`${API_URL}/api/attempts/${attemptId}/writing/result`, api())
@@ -305,6 +307,62 @@ export default function WritingResults() {
             </div>
           ))}
         </div>
+
+        {(() => {
+          let models = null;
+          try {
+            const raw = data?.writingSubmission?.modelAnswers;
+            if (raw) models = JSON.parse(raw);
+          } catch (e) {}
+          if (!models) return null;
+          return (
+            <div style={{ background: 'white', borderRadius: 16, border: '1px solid #dbeafe', overflow: 'hidden', marginBottom: 24 }}>
+              <div style={{ padding: '16px 24px', borderBottom: '1px solid #dbeafe', background: '#f8faff', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📝</div>
+                <div>
+                  <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 18, fontWeight: 800 }}>Model Answers</h2>
+                  <p style={{ margin: '2px 0 0', color: '#64748b', fontSize: 12 }}>See how a Band 6 and Band 7 response should look</p>
+                </div>
+              </div>
+              <div style={{ padding: 24 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                  {['task1', 'task2'].map(t => (
+                    <button key={t} onClick={() => setModelActiveTask(t)}
+                      style={{ padding: '7px 18px', borderRadius: 20, border: '1.5px solid', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                        borderColor: modelActiveTask === t ? '#2563eb' : '#dbeafe',
+                        background: modelActiveTask === t ? '#2563eb' : '#fff',
+                        color: modelActiveTask === t ? '#fff' : '#64748b' }}>
+                      Task {t.replace('task', '')}
+                    </button>
+                  ))}
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                    {[['band6', 'Band 6', '#d97706'], ['band7', 'Band 7', '#16a34a']].map(([key, label, color]) => (
+                      <button key={key} onClick={() => setModelActiveBand(key)}
+                        style={{ padding: '7px 18px', borderRadius: 20, border: `1.5px solid ${modelActiveBand === key ? color : '#dbeafe'}`,
+                          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                          background: modelActiveBand === key ? color : '#fff',
+                          color: modelActiveBand === key ? '#fff' : '#64748b' }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{
+                  background: modelActiveBand === 'band7' ? '#f0fdf4' : '#fffbeb',
+                  border: `1px solid ${modelActiveBand === 'band7' ? '#bbf7d0' : '#fde68a'}`,
+                  borderRadius: 14, padding: 24
+                }}>
+                  <span style={{ padding: '3px 12px', borderRadius: 20, background: modelActiveBand === 'band7' ? '#16a34a' : '#d97706', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-block', marginBottom: 14 }}>
+                    {modelActiveBand === 'band7' ? 'Band 7' : 'Band 6'} Example — Task {modelActiveTask.replace('task', '')}
+                  </span>
+                  <p style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.85, whiteSpace: 'pre-wrap', margin: 0 }}>
+                    {models[modelActiveTask]?.[modelActiveBand] || 'Model answer not available.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Back button */}
         <div style={{ textAlign: 'center', paddingBottom: 40 }}>

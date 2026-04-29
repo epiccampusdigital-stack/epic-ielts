@@ -794,9 +794,9 @@ export default function ReadingExam() {
 
                <div
                   style={{
-                     fontFamily: "'Lora', serif",
-                     fontSize: '15.5px',
-                     lineHeight: '1.9',
+                     fontFamily: "Georgia, 'Times New Roman', serif",
+                     fontSize: '16px',
+                     lineHeight: '2.0',
                      color: '#2d3748',
                      textAlign: 'justify',
                      whiteSpace: 'pre-wrap',
@@ -889,8 +889,8 @@ export default function ReadingExam() {
                                  display: 'flex',
                                  alignItems: 'center',
                                  justifyContent: 'center',
-                                 fontSize: '12px',
-                                 fontWeight: '700',
+                                 fontSize: '13px',
+                                 fontWeight: '800',
                                  color: answers[q.id] ? '#ffffff' : '#64748b',
                                  flexShrink: 0
                               }}>
@@ -898,12 +898,13 @@ export default function ReadingExam() {
                               </div>
 
                               <p style={{
-                                 fontSize: '14px',
+                                 fontSize: '15px',
                                  color: '#1e293b',
                                  lineHeight: '1.6',
-                                 fontWeight: '500',
+                                 fontWeight: '700',
                                  margin: 0,
-                                 paddingTop: '4px'
+                                 paddingTop: '4px',
+                                 fontFamily: "'Inter', sans-serif"
                               }}>
                                  {q.content}
                               </p>

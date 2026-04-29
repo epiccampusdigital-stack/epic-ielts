@@ -411,13 +411,13 @@ ${rawText.substring(0, 6000)}`
 
           const group = await prisma.questionGroup.create({
             data: {
-              sectionId: section.id,
-              passageId: null, // Explicitly null for Listening
-              groupType: g.groupType,
-              instruction: g.instruction,
-              wordLimit: g.wordLimit,
+              groupType: g.groupType || null,
+              instruction: g.instruction || null,
+              wordLimit: g.wordLimit || null,
+              imageUrl: g.imageUrl === '[PLACEHOLDER]' ? null : g.imageUrl,
               tableData: tableData ? JSON.parse(JSON.stringify(tableData)) : null,
-              imageUrl: g.imageUrl === '[PLACEHOLDER]' ? null : g.imageUrl
+              sectionId: section.id,
+              passageId: null,
             }
           });
           if (Array.isArray(g.questions)) {
@@ -538,13 +538,13 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
             for (const g of p.groups) {
               let gId = g.id;
               const gData = {
+                groupType: g.groupType || null,
+                instruction: g.instruction || null,
+                wordLimit: g.wordLimit || null,
+                imageUrl: g.imageUrl || null,
+                tableData: g.tableData || null,
+                sectionId: null,
                 passageId: pId,
-                sectionId: null, // Explicitly null for Reading
-                groupType: g.groupType,
-                instruction: g.instruction,
-                wordLimit: g.wordLimit,
-                tableData: g.tableData,
-                imageUrl: g.imageUrl
               };
               if (gId) {
                 await tx.questionGroup.update({ where: { id: gId }, data: gData });
@@ -596,26 +596,19 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
           if (Array.isArray(s.groups)) {
             for (const g of s.groups) {
               let gId = g.id;
+              const groupData = {
+                groupType: g.groupType || null,
+                instruction: g.instruction || null,
+                wordLimit: g.wordLimit || null,
+                tableData: g.tableData || null,
+                imageUrl: g.imageUrl || null,
+                sectionId: sId,
+                passageId: null,
+              };
               if (gId) {
-                await tx.questionGroup.update({ where: { id: gId }, data: { 
-                  sectionId: sId,
-                  passageId: null, // Explicitly null for Listening
-                  groupType: g.groupType, 
-                  instruction: g.instruction, 
-                  wordLimit: g.wordLimit, 
-                  tableData: g.tableData, 
-                  imageUrl: g.imageUrl 
-                } });
+                await tx.questionGroup.update({ where: { id: gId }, data: groupData });
               } else {
-                const newG = await tx.questionGroup.create({ data: { 
-                  sectionId: sId, 
-                  passageId: null, // Explicitly null for Listening
-                  groupType: g.groupType, 
-                  instruction: g.instruction, 
-                  wordLimit: g.wordLimit, 
-                  tableData: g.tableData, 
-                  imageUrl: g.imageUrl 
-                } });
+                const newG = await tx.questionGroup.create({ data: groupData });
                 gId = newG.id;
               }
 

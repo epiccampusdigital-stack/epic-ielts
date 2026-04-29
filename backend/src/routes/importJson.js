@@ -119,13 +119,13 @@ router.post('/', auth, adminOnly, async (req, res) => {
           for (const g of s.groups) {
             const group = await tx.questionGroup.create({
               data: {
-                sectionId: section.id,
-                passageId: null, // Explicitly null for Listening
                 groupType: g.type,
-                instruction: g.instruction || '',
-                wordLimit: g.wordLimit || '',
+                instruction: g.instruction || null,
+                wordLimit: g.wordLimit || null,
+                imageUrl: null,
                 tableData: g.tableData || null,
-                imageUrl: null
+                sectionId: section.id,
+                passageId: null,
               }
             });
             if (g.type === 'MAP_LABELING') {
@@ -164,13 +164,13 @@ router.post('/', auth, adminOnly, async (req, res) => {
           for (const g of p.groups) {
             const group = await tx.questionGroup.create({
               data: {
-                passageId: passage.id,
-                sectionId: null, // Explicitly null for Reading
                 groupType: g.type,
-                instruction: g.instruction || '',
-                wordLimit: g.wordLimit || '',
+                instruction: g.instruction || null,
+                wordLimit: g.wordLimit || null,
+                imageUrl: null,
                 tableData: g.tableData || null,
-                imageUrl: null
+                sectionId: null,
+                passageId: passage.id,
               }
             });
 

@@ -317,7 +317,7 @@ ${rawText.substring(0, 6000)}`
     let response;
     try {
       response = await claude.messages.create({
-        model: 'claude-3-5-sonnet-20240620',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 8000,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }]
@@ -622,6 +622,9 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       }
 
       return updatedPaper;
+    }, {
+      timeout: 30000,
+      maxWait: 10000
     });
     res.json(result);
   } catch (err) {

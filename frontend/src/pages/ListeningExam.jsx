@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import { getQuestionNumber, sortQuestionsByNumber } from '../utils/questionUtils';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -115,9 +116,10 @@ export default function ListeningExam() {
                   <td key={ci} style={{ padding: '12px', border: '1px solid #e2e8f0' }}>
                     {cell.blank ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: '800', color: '#4f46e5' }}>{cell.questionNumber}</span>
+                        <span style={{ fontWeight: '800', color: '#4f46e5' }}>{getQuestionNumber(cell)}</span>
                         {(() => {
-                          const q = paper.questions.find(x => x.questionNumber === cell.questionNumber);
+                          const qNo = getQuestionNumber(cell);
+                          const q = paper.questions.find(x => getQuestionNumber(x) === qNo);
                           return q ? <input className="listen-input" value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} /> : <span style={{color:'#ef4444'}}>ERROR: Q missing</span>;
                         })()}
                       </div>
@@ -222,14 +224,14 @@ export default function ListeningExam() {
                 {group.groupType === 'TABLE_COMPLETION' && renderTable(group.tableData)}
 
                 <div style={{ display: 'grid', gap: 24 }}>
-                  {(group.questions || []).map(q => {
+                  {sortQuestionsByNumber(group.questions || []).map(q => {
                     // Check if question is already in a table
-                    const inTable = group.groupType === 'TABLE_COMPLETION' && JSON.stringify(group.tableData || {}).includes(`"questionNumber":${q.questionNumber}`);
+                    const inTable = group.groupType === 'TABLE_COMPLETION' && JSON.stringify(group.tableData || {}).includes(`"questionNumber":${getQuestionNumber(q)}`);
                     if (inTable) return null;
 
                     return (
                       <div key={q.id} style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#475569', flexShrink: 0 }}>{q.questionNumber}</div>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#475569', flexShrink: 0 }}>{getQuestionNumber(q)}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 15, color: '#1e293b', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
                            {q.questionType === 'MULTIPLE_CHOICE' ? (

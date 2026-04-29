@@ -683,19 +683,14 @@ router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   try {
     await prisma.$transaction(async (tx) => {
       // 1. Delete Student Responses & Attempts
-      // Delete Answers related to questions of this paper
       await tx.answer.deleteMany({ where: { question: { paperId } } });
-      // Delete Results, WritingSubmissions, SpeakingSubmissions related to attempts of this paper
       await tx.result.deleteMany({ where: { attempt: { paperId } } });
       await tx.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
       await tx.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
-      // Delete Attempts
       await tx.attempt.deleteMany({ where: { paperId } });
 
       // 2. Delete Paper Structure
-      // Delete Questions
       await tx.question.deleteMany({ where: { paperId } });
-      // Delete QuestionGroups (hierarchical)
       await tx.questionGroup.deleteMany({
         where: {
           OR: [
@@ -704,7 +699,6 @@ router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
           ]
         }
       });
-      // Delete Passages, Sections, WritingTasks
       await tx.passage.deleteMany({ where: { paperId } });
       await tx.section.deleteMany({ where: { paperId } });
       await tx.writingTask.deleteMany({ where: { paperId } });
@@ -718,6 +712,29 @@ router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   } catch (err) {
     console.error('DELETE ERROR for paper', paperId, ':', err);
     res.status(500).json({ error: 'Failed to delete: ' + err.message });
+  }
+});
+
+// EMERGENCY DELETE - Bypass everything
+router.get('/emergency-delete-paper/:id', auth, adminOnly, async (req, res) => {
+  const paperId = parseInt(req.params.id);
+  try {
+    // Attempt sequential deletes outside transaction to avoid lock/timeout
+    await prisma.answer.deleteMany({ where: { question: { paperId } } });
+    await prisma.result.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
+    await prisma.attempt.deleteMany({ where: { paperId } });
+    await prisma.question.deleteMany({ where: { paperId } });
+    await prisma.questionGroup.deleteMany({ where: { OR: [ { section: { paperId } }, { passage: { paperId } } ] } });
+    await prisma.passage.deleteMany({ where: { paperId } });
+    await prisma.section.deleteMany({ where: { paperId } });
+    await prisma.writingTask.deleteMany({ where: { paperId } });
+    await prisma.paper.delete({ where: { id: paperId } });
+    
+    res.json({ success: true, message: `Paper ${paperId} forcefully wiped.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

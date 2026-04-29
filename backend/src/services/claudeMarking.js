@@ -22,10 +22,30 @@ console.log('EPIC IELTS Marking Engine - Using model:', MODEL);
 
 function safeExtractJson(text) {
   if (!text) return null;
-  try { return JSON.parse(text); } catch {}
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try { return JSON.parse(match[0]); } catch { return null; }
+  try {
+    // 1. Direct parse
+    return JSON.parse(text);
+  } catch (e) {
+    try {
+      // 2. Strip markdown backticks
+      const stripped = text
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+      return JSON.parse(stripped);
+    } catch (e2) {
+      try {
+        // 3. Extract JSON object using regex
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+      } catch (e3) {
+        console.error('All JSON parse attempts failed. Raw response snippet:', text.substring(0, 200));
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 async function callClaudeWithRetry(prompt, maxTokens = 800, maxRetries = 3) {
@@ -135,7 +155,9 @@ TASK 2 QUESTION: ${(task2Prompt || '').substring(0, 300)}
 TASK 2 RESPONSE (${t2Words} words):
 ${t2Truncated}
 
-Return ONLY JSON:
+Return ONLY a valid JSON object. Do not include any markdown formatting, code blocks, backticks, or explanatory text. Start your response with { and end with }.
+
+JSON Structure:
 {
   "task1": { "band": 6.0, "taskAchievement": 6.0, "coherenceCohesion": 6.0, "lexicalResource": 6.0, "grammaticalRange": 6.0, "feedback": "...", "strengths": [], "improvements": [], "rewrittenExample": "...", "keyTricks": [], "grammarMistakes": [], "vocabularyUpgrades": [] },
   "task2": { "band": 6.0, "taskResponse": 6.0, "coherenceCohesion": 6.0, "lexicalResource": 6.0, "grammaticalRange": 6.0, "feedback": "...", "strengths": [], "improvements": [], "essayStructureFeedback": "...", "rewrittenExample": "...", "keyTricks": [], "grammarMistakes": [], "vocabularyUpgrades": [] },
@@ -144,8 +166,21 @@ Return ONLY JSON:
 
   try {
     const response = await callClaudeWithRetry(prompt, 800);
-    const parsed = safeExtractJson(response.content?.[0]?.text || '');
-    if (!parsed) { console.error('Writing JSON failed'); return null; }
+    const responseText = response.content?.[0]?.text || '';
+    console.log('Claude raw response snippet:', responseText.substring(0, 300));
+
+    const parsed = safeExtractJson(responseText);
+    if (!parsed) { 
+      console.log('Writing JSON failed. Raw response was:', responseText.substring(0, 300));
+      // Fallback object to prevent server crashes
+      return {
+        task1: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },
+        task2: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },
+        overallBand: 5.0,
+        finalStudentReport: "Automated feedback temporarily unavailable. Please ask your teacher for manual feedback.",
+        markingStatus: 'PARTIAL'
+      };
+    }
     console.log('Writing grade complete. Overall band:', parsed.overallBand);
     return parsed;
   } catch (e) {

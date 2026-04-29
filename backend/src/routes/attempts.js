@@ -145,14 +145,25 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 
     // If writing, also update writingSubmission
     if (testType === 'WRITING') {
-      const overall = parseFloat(((aiFeedback.task1?.band || 0) * 0.34 + (aiFeedback.task2?.band || 0) * 0.66).toFixed(1));
+      const task1Band = parseFloat(aiFeedback.task1Band) || 5.0;
+      const task2Band = parseFloat(aiFeedback.task2Band) || 5.0;
+      const overallBand = parseFloat(aiFeedback.overallBand) || ((task1Band + task2Band) / 2);
+
       await prisma.writingSubmission.update({
         where: { attemptId },
         data: {
-          task1Band: aiFeedback.task1?.band,
-          task2Band: aiFeedback.task2?.band,
-          overallBand: overall,
-          aiFeedback: JSON.stringify(aiFeedback),
+          task1Band: task1Band,
+          task2Band: task2Band,
+          overallBand: overallBand,
+          aiFeedback: JSON.stringify({
+            task1Band,
+            task2Band,
+            overallBand,
+            task1Feedback: aiFeedback.task1Feedback || '',
+            task2Feedback: aiFeedback.task2Feedback || '',
+            strengths: aiFeedback.strengths || [],
+            improvements: aiFeedback.improvements || []
+          }),
           markingStatus: 'COMPLETE'
         }
       });

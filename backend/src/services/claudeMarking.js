@@ -35,7 +35,7 @@ function safeExtractJson(text) {
   return null;
 }
 
-async function callClaudeWithRetry(prompt, maxTokens = 800, maxRetries = 3) {
+async function callClaudeWithRetry(prompt, maxTokens = 400, maxRetries = 3) {
   const claude = getClient();
   if (!claude) return null;
 
@@ -45,7 +45,7 @@ async function callClaudeWithRetry(prompt, maxTokens = 800, maxRetries = 3) {
         model: MODEL,
         max_tokens: maxTokens,
         temperature: 0.3,
-        system: 'You are an IELTS marking API. Always respond with raw JSON only. Never use markdown. Never use backticks. Never use code blocks. Your response must start with { and end with }.',
+        system: 'You are an IELTS examiner API. Return only the exact JSON structure requested. No extra fields. No markdown. No backticks. Keep responses under 400 tokens.',
         messages: [{ role: 'user', content: prompt }]
       });
       return response;
@@ -112,7 +112,7 @@ Return ONLY JSON:
 }`;
 
   try {
-    const response = await callClaudeWithRetry(prompt, 1000);
+    const response = await callClaudeWithRetry(prompt, 600);
     const responseText = response.content?.[0]?.text || '';
     const parsed = safeExtractJson(responseText);
     if (!parsed) { 
@@ -130,36 +130,34 @@ Return ONLY JSON:
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
   console.log('gradeWritingAttempt called for:', studentName);
   
-  const t1Truncated = (task1Response || '').substring(0, 2000);
-  const t2Truncated = (task2Response || '').substring(0, 3000);
-  const t1Words = t1Truncated.trim().split(/\s+/).filter(Boolean).length;
-  const t2Words = t2Truncated.trim().split(/\s+/).filter(Boolean).length;
+  const prompt = `Grade this IELTS writing. Return ONLY JSON.
 
-  const prompt = `You are a certified IELTS Writing examiner. Mark these writing tasks and give detailed teaching feedback.
+TASK 1 (${task1Response.length} chars):
+${task1Response.substring(0, 800)}
 
-STUDENT: ${studentName || 'Student'} TARGET BAND: ${expectedBand || 'not specified'}
+TASK 2 (${task2Response.length} chars):  
+${task2Response.substring(0, 1200)}
 
-TASK 1 QUESTION: ${(task1Prompt || '').substring(0, 300)}
-TASK 1 RESPONSE (${t1Words} words):
-${t1Truncated}
-
-TASK 2 QUESTION: ${(task2Prompt || '').substring(0, 300)}
-TASK 2 RESPONSE (${t2Words} words):
-${t2Truncated}
-
-Return ONLY a valid JSON object. Do not include any markdown formatting, code blocks, backticks, or explanatory text. Start your response with { and end with }.
-
-JSON Structure:
+Return ONLY this exact JSON structure, nothing else:
 {
-  "task1": { "band": 6.0, "taskAchievement": 6.0, "coherenceCohesion": 6.0, "lexicalResource": 6.0, "grammaticalRange": 6.0, "feedback": "...", "strengths": [], "improvements": [], "rewrittenExample": "...", "keyTricks": [], "grammarMistakes": [], "vocabularyUpgrades": [] },
-  "task2": { "band": 6.0, "taskResponse": 6.0, "coherenceCohesion": 6.0, "lexicalResource": 6.0, "grammaticalRange": 6.0, "feedback": "...", "strengths": [], "improvements": [], "essayStructureFeedback": "...", "rewrittenExample": "...", "keyTricks": [], "grammarMistakes": [], "vocabularyUpgrades": [] },
-  "overallBand": 6.0, "studyPlan": [], "progressToTarget": "...", "finalStudentReport": "..."
-}`;
+  "task1Band": 7.0,
+  "task2Band": 7.0,
+  "overallBand": 7.0,
+  "task1Feedback": "One sentence of feedback here.",
+  "task2Feedback": "One sentence of feedback here.",
+  "strengths": ["strength one", "strength two"],
+  "improvements": ["improvement one", "improvement two"]
+}
+
+Replace the numbers and text with your actual assessment.
+Keep the structure EXACTLY as shown.
+Do not add any other fields.
+Do not use markdown.`;
 
   try {
-    const response = await callClaudeWithRetry(prompt, 1500);
+    const response = await callClaudeWithRetry(prompt, 400);
     const responseText = response.content?.[0]?.text || '';
-    console.log('Writing Claude raw response snippet:', responseText.substring(0, 500));
+    console.log('Writing Claude raw response snippet:', responseText.substring(0, 300));
 
     const parsed = safeExtractJson(responseText);
     if (!parsed) { 
@@ -167,10 +165,13 @@ JSON Structure:
       console.log('Raw response was:', responseText);
       // Fallback object to prevent server crashes
       return {
-        task1: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },
-        task2: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },
+        task1Band: 5.0,
+        task2Band: 5.0,
         overallBand: 5.0,
-        finalStudentReport: "Automated feedback temporarily unavailable. Please ask your teacher for manual feedback.",
+        task1Feedback: "Automated feedback temporarily unavailable.",
+        task2Feedback: "Automated feedback temporarily unavailable.",
+        strengths: ["Review your writing carefully."],
+        improvements: ["Practice more tasks."],
         markingStatus: 'PARTIAL'
       };
     }

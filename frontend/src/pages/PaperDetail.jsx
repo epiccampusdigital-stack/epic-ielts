@@ -210,7 +210,14 @@ export default function PaperDetail() {
   const addQuestion = (sIdx, gIdx) => {
     const nextSections = [...edited.sections];
     const group = nextSections[sIdx].groups[gIdx];
-    const maxNo = edited.questions?.length ? Math.max(...edited.questions.map(q => q.questionNumber || 0)) : 0;
+    
+    // Find global maxNo across all hierarchical structures
+    const allQs = [
+      ...(edited.questions || []),
+      ...(edited.sections || []).flatMap(s => (s.groups || []).flatMap(g => g.questions || [])),
+      ...(edited.passages || []).flatMap(p => (p.groups || []).flatMap(g => g.questions || []))
+    ];
+    const maxNo = allQs.length ? Math.max(...allQs.map(q => q.questionNumber || 0)) : 0;
     
     group.questions = [...(group.questions || []), {
       questionNumber: maxNo + 1,
@@ -225,7 +232,13 @@ export default function PaperDetail() {
   const addPassageQuestion = (pIdx, gIdx) => {
     const nextPassages = [...edited.passages];
     const group = nextPassages[pIdx].groups[gIdx];
-    const maxNo = edited.questions?.length ? Math.max(...edited.questions.map(q => q.questionNumber || 0)) : 0;
+    
+    const allQs = [
+      ...(edited.questions || []),
+      ...(edited.sections || []).flatMap(s => (s.groups || []).flatMap(g => g.questions || [])),
+      ...(edited.passages || []).flatMap(p => (p.groups || []).flatMap(g => g.questions || []))
+    ];
+    const maxNo = allQs.length ? Math.max(...allQs.map(q => q.questionNumber || 0)) : 0;
     
     group.questions = [...(group.questions || []), {
       questionNumber: maxNo + 1,

@@ -334,6 +334,22 @@ router.get('/:id/result', auth, async (req, res) => {
         student: true,
         paper: {
           include: {
+            sections: {
+              include: {
+                groups: {
+                  include: { questions: true }
+                }
+              },
+              orderBy: { number: 'asc' }
+            },
+            passages: {
+              include: {
+                groups: {
+                  include: { questions: true }
+                }
+              },
+              orderBy: { passageNumber: 'asc' }
+            },
             questions: {
               orderBy: { questionNumber: 'asc' }
             },

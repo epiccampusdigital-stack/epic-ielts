@@ -160,8 +160,49 @@ const fetchExplanation = async (answer) => {
    );
 
     const result = data.result || {};
-    const answers = (data.answers || []).sort((a, b) => (a.question?.questionNumber || 0) - (b.question?.questionNumber || 0));
     const ai = aiFeedback || {};
+    
+    // Flatten all questions from the paper structure to ensure correct sequencing
+    let allQuestions = [];
+    const paper = data.paper || {};
+    
+    if (paper.sections && paper.sections.length > 0) {
+      // Listening hierarchical structure
+      paper.sections.forEach(s => {
+        (s.groups || []).forEach(g => {
+          (g.questions || []).forEach(q => {
+            allQuestions.push(q);
+          });
+        });
+      });
+    } else if (paper.passages && paper.passages.length > 0) {
+      // Reading hierarchical structure
+      paper.passages.forEach(p => {
+        (p.groups || []).forEach(g => {
+          (g.questions || []).forEach(q => {
+            allQuestions.push(q);
+          });
+        });
+      });
+    } else {
+      // Fallback to flat questions
+      allQuestions = [...(paper.questions || [])];
+    }
+
+    // Sort strictly by question number
+    allQuestions.sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+
+    // Map student answers to the full list of paper questions
+    const answers = allQuestions.map(q => {
+      const studentAnswer = (data.answers || []).find(ans => ans.questionId === q.id);
+      return {
+        id: studentAnswer?.id || `q-${q.id}`,
+        questionId: q.id,
+        question: q,
+        studentAnswer: studentAnswer?.studentAnswer || '',
+        isCorrect: studentAnswer?.isCorrect ?? false
+      };
+    });
     const rawScore = result.rawScore ?? 0;
     const band = result.bandEstimate ?? 0;
     const correct = answers.filter(a => a.isCorrect).length;
@@ -651,7 +692,7 @@ const fetchExplanation = async (answer) => {
                               <span style={{
                                  fontSize: 12, fontWeight: 700, color: '#2563eb'
                               }}>
-                                 {a.question?.questionNumber}
+                                 {i + 1}
                               </span>
                               <span style={{
                                  fontSize: 11, color: '#475569', lineHeight: 1.4,

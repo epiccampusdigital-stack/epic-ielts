@@ -240,7 +240,7 @@ export default function StudentDashboard() {
 
         .result-row {
           display: grid;
-          grid-template-columns: 1.5fr 1fr 60px 60px;
+          grid-template-columns: 1.5fr 1fr 60px 60px 100px;
           gap: 12px;
           padding: 14px 16px;
           align-items: center;
@@ -250,7 +250,7 @@ export default function StudentDashboard() {
 
         @media (min-width: 768px) {
           .result-row {
-            grid-template-columns: 2fr 1fr 80px 80px;
+            grid-template-columns: 2fr 1fr 80px 80px 100px;
             gap: 16px;
             padding: 14px 20px;
           }
@@ -800,6 +800,15 @@ export default function StudentDashboard() {
           </div>
 
           <div>
+            <div style={{ background: 'linear-gradient(135deg, #1e3a5f, #1d4ed8)', borderRadius: 16, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 32, flexShrink: 0 }}>💡</div>
+              <div>
+                <div style={{ color: '#fff', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Click any past result to review your full feedback</div>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 1.6 }}>
+                  For writing tests you can see your AI examiner report, Band 6 and Band 7 model answers, and specific tips on how to improve each criterion.
+                </div>
+              </div>
+            </div>
             <div style={{ marginBottom: '20px' }}>
               <h2
                 style={{
@@ -828,14 +837,14 @@ export default function StudentDashboard() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 80px 80px',
+                  gridTemplateColumns: '2fr 1fr 80px 80px 100px',
                   gap: '16px',
                   padding: '14px 20px',
                   background: '#f8fafc',
                   borderBottom: '1px solid #e2e8f0'
                 }}
               >
-                {['Paper', 'Date', 'Score', 'Band'].map((h) => (
+                {['Paper', 'Date', 'Score', 'Band', ''].map((h) => (
                   <span
                     key={h}
                     style={{
@@ -935,6 +944,31 @@ export default function StudentDashboard() {
                             </span>
                           ) : <span style={{ fontSize:'12px', color:'#94a3b8' }}>—</span>
                         )}
+                      </div>
+                      <div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (attempt.paper?.testType === 'WRITING') {
+                              navigate(`/exam/${attempt.id}/writing-results`);
+                            } else {
+                              navigate(`/exam/${attempt.id}/results`);
+                            }
+                          }}
+                          style={{
+                            padding: '6px 14px',
+                            background: attempt.paper?.testType === 'WRITING' ? '#eff6ff' : '#f5f3ff',
+                            color: attempt.paper?.testType === 'WRITING' ? '#1d4ed8' : '#4f46e5',
+                            border: `1px solid ${attempt.paper?.testType === 'WRITING' ? '#bfdbfe' : '#c7d2fe'}`,
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {attempt.paper?.testType === 'WRITING' ? '📝 Review' : '📊 Review'}
+                        </button>
                       </div>
                     </div>
                   );

@@ -17,7 +17,25 @@ export default function WritingResults() {
 
   useEffect(() => {
     axios.get(`${API_URL}/api/attempts/${attemptId}/writing/result`, api())
-      .then(r => { setData(r.data); setLoading(false); })
+      .then(r => {
+        setData(r.data);
+        setLoading(false);
+        // Try to load saved AI feedback immediately from DB
+        const savedFeedback = r.data?.writingSubmission?.aiFeedback;
+        if (savedFeedback) {
+          try {
+            const parsed = typeof savedFeedback === 'string'
+              ? JSON.parse(savedFeedback)
+              : savedFeedback;
+            if (parsed) {
+              setFeedback(parsed);
+              setFeedbackLoading(false);
+            }
+          } catch (e) {
+            console.error('Failed to parse saved feedback:', e);
+          }
+        }
+      })
       .catch(() => setLoading(false));
   }, [attemptId]);
 
@@ -283,6 +301,102 @@ export default function WritingResults() {
             >
               Retry AI Analysis
             </button>
+          </div>
+        )}
+
+        {/* How to approach this question */}
+        {feedback && (
+          <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 24 }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(135deg, #1e3a5f, #1d4ed8)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎯</div>
+              <div>
+                <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 800 }}>How to Approach This Question</h2>
+                <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>IELTS examiner guidance for these specific tasks</p>
+              </div>
+            </div>
+            <div style={{ padding: 24 }}>
+              {writingTasks.map((task, i) => (
+                <div key={i} style={{ marginBottom: i === 0 ? 24 : 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <span style={{ background: '#1e3a5f', color: '#fff', borderRadius: 20, padding: '3px 14px', fontSize: 11, fontWeight: 800 }}>Task {task.taskNumber}</span>
+                    <span style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>{task.prompt?.substring(0, 80)}...</span>
+                  </div>
+                  <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                    {[
+                      {
+                        icon: '📋',
+                        title: 'Understand the task',
+                        bg: '#eff6ff',
+                        border: '#bfdbfe',
+                        color: '#1d4ed8',
+                        text: task.taskNumber === 1
+                          ? 'Identify what type of data is shown (graph, table, chart, map or diagram). Note the time period, units and key trends before writing.'
+                          : 'Read the question carefully. Identify the essay type: opinion, discussion, problem-solution or two-part. Plan your position before writing.'
+                      },
+                      {
+                        icon: '✍️',
+                        title: 'Structure your answer',
+                        bg: '#f0fdf4',
+                        border: '#bbf7d0',
+                        color: '#166534',
+                        text: task.taskNumber === 1
+                          ? 'Introduction (paraphrase the question) → Overview (2 main trends) → Detail paragraph 1 → Detail paragraph 2. Never give your opinion.'
+                          : 'Introduction (paraphrase + thesis) → Body paragraph 1 (idea + explain + example) → Body paragraph 2 → Conclusion (summarise your view).'
+                      },
+                      {
+                        icon: '⏱',
+                        title: 'Time and words',
+                        bg: '#faf5ff',
+                        border: '#e9d5ff',
+                        color: '#6d28d9',
+                        text: task.taskNumber === 1
+                          ? `Spend 20 minutes. Write at least 150 words. Do not write under the minimum — you will lose marks automatically.`
+                          : `Spend 40 minutes. Write at least 250 words. Task 2 is worth more marks than Task 1 so give it more time.`
+                      },
+                      {
+                        icon: '💡',
+                        title: 'Common mistakes to avoid',
+                        bg: '#fff7ed',
+                        border: '#fed7aa',
+                        color: '#9a3412',
+                        text: task.taskNumber === 1
+                          ? 'Avoid copying the question word for word. Do not list every number — select the most significant data. Always include an overview paragraph.'
+                          : 'Avoid going off topic. Do not just list ideas without explaining them. Always use specific examples. Check grammar and spelling in the last 3 minutes.'
+                      }
+                    ].map((card, j) => (
+                      <div key={j} style={{ background: card.bg, border: `1px solid ${card.border}`, borderRadius: 12, padding: 16 }}>
+                        <div style={{ fontSize: 18, marginBottom: 6 }}>{card.icon}</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: card.color, marginBottom: 6 }}>{card.title}</div>
+                        <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.7 }}>{card.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {i === 0 && writingTasks.length > 1 && <div style={{ borderBottom: '1px solid #f1f5f9', margin: '20px 0' }} />}
+                </div>
+              ))}
+
+              {/* What the examiner looks for */}
+              <div style={{ marginTop: 20, background: '#f8fafc', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 800, color: '#1e293b' }}>📊 What the examiner scores you on</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                  {[
+                    { label: 'Task Achievement / Response', weight: '25%', desc: 'Did you answer the question fully and accurately?', color: '#4f46e5' },
+                    { label: 'Coherence & Cohesion', weight: '25%', desc: 'Is your writing logically organised and easy to follow?', color: '#0891b2' },
+                    { label: 'Lexical Resource', weight: '25%', desc: 'Do you use a wide range of vocabulary accurately?', color: '#059669' },
+                    { label: 'Grammatical Range', weight: '25%', desc: 'Do you use complex sentences accurately?', color: '#d97706' }
+                  ].map((c, i) => (
+                    <div key={i} style={{ background: '#fff', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: c.color }}>{c.weight}</span>
+                        <span style={{ fontSize: 10, background: c.color, color: '#fff', padding: '1px 8px', borderRadius: 20, fontWeight: 700 }}>of total</span>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>{c.label}</div>
+                      <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>{c.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

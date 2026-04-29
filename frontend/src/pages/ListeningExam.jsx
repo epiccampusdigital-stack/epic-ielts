@@ -248,7 +248,9 @@ export default function ListeningExam() {
                           <div style={{ fontSize: 15, color: '#1e293b', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
                            {q.questionType === 'MULTIPLE_CHOICE' ? (
                             <div style={{ display: 'grid', gap: '8px' }}>
-                              {(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []).map((opt, i) => {
+                              {(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [])
+                                .filter(opt => opt && String(opt).trim() !== '')
+                                .map((opt, i) => {
                                 const selected = answers[q.id] === opt;
                                 return (
                                   <label key={i} style={{ 

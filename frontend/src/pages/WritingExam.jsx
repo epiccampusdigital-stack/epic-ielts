@@ -331,6 +331,36 @@ export default function WritingExam() {
             style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.8, marginBottom: 20, fontWeight: 500 }}
             dangerouslySetInnerHTML={{ __html: currentTask?.prompt || `<p>Loading Task ${task} prompt...</p>` }}
           />
+          {currentTask?.tableData && (() => {
+            const td = typeof currentTask.tableData === 'string' 
+              ? JSON.parse(currentTask.tableData) 
+              : currentTask.tableData;
+            if (!td?.headers?.length) return null;
+            return (
+              <div style={{ overflowX: 'auto', margin: '16px 0', borderRadius: 10, border: '1px solid #bfdbfe' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: '#f0f7ff' }}>
+                      {td.headers.map((h, i) => (
+                        <th key={i} style={{ padding: '10px 14px', border: '1px solid #bfdbfe', color: '#1d4ed8', fontWeight: 700, textAlign: 'left' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(td.rows || []).map((row, ri) => (
+                      <tr key={ri}>
+                        {(Array.isArray(row) ? row : Object.values(row)).map((cell, ci) => (
+                          <td key={ci} style={{ padding: '10px 14px', border: '1px solid #bfdbfe', color: '#1e293b', background: ri % 2 === 0 ? '#fff' : '#fafcff' }}>
+                            {typeof cell === 'object' ? cell.text || '' : cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
           {/* Chart for Task 1 */}
           {task === 1 && (

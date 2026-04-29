@@ -13,8 +13,8 @@ router.post('/', auth, adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'Missing paper metadata (title, code, testType)' });
     }
 
-    if (!['READING', 'LISTENING'].includes(data.testType)) {
-      return res.status(400).json({ error: 'testType must be READING or LISTENING' });
+    if (!['READING', 'LISTENING', 'WRITING'].includes(data.testType)) {
+      return res.status(400).json({ error: 'testType must be READING, LISTENING or WRITING' });
     }
 
     // Check duplicate code
@@ -190,6 +190,22 @@ router.post('/', auth, adminOnly, async (req, res) => {
               });
             }
           }
+        }
+      }
+
+      if (data.testType === 'WRITING') {
+        for (const t of (data.tasks || [])) {
+          await tx.writingTask.create({
+            data: {
+              paperId: paper.id,
+              taskNumber: parseInt(t.taskNumber) || 1,
+              prompt: String(t.prompt || ''),
+              chartImageUrl: t.chartImageUrl || null,
+              chartDescription: t.chartDescription || null,
+              minWords: parseInt(t.minWords) || (t.taskNumber === 1 ? 150 : 250),
+              tableData: t.tableData || null
+            }
+          });
         }
       }
 

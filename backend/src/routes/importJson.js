@@ -120,6 +120,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
             const group = await tx.questionGroup.create({
               data: {
                 sectionId: section.id,
+                passageId: null, // Explicitly null for Listening
                 groupType: g.type,
                 instruction: g.instruction || '',
                 wordLimit: g.wordLimit || '',
@@ -164,6 +165,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
             const group = await tx.questionGroup.create({
               data: {
                 passageId: passage.id,
+                sectionId: null, // Explicitly null for Reading
                 groupType: g.type,
                 instruction: g.instruction || '',
                 wordLimit: g.wordLimit || '',

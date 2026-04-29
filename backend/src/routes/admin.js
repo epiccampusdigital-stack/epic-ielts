@@ -412,6 +412,7 @@ ${rawText.substring(0, 6000)}`
           const group = await prisma.questionGroup.create({
             data: {
               sectionId: section.id,
+              passageId: null, // Explicitly null for Listening
               groupType: g.groupType,
               instruction: g.instruction,
               wordLimit: g.wordLimit,
@@ -538,6 +539,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
               let gId = g.id;
               const gData = {
                 passageId: pId,
+                sectionId: null, // Explicitly null for Reading
                 groupType: g.groupType,
                 instruction: g.instruction,
                 wordLimit: g.wordLimit,
@@ -595,9 +597,25 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
             for (const g of s.groups) {
               let gId = g.id;
               if (gId) {
-                await tx.questionGroup.update({ where: { id: gId }, data: { groupType: g.groupType, instruction: g.instruction, wordLimit: g.wordLimit, tableData: g.tableData, imageUrl: g.imageUrl } });
+                await tx.questionGroup.update({ where: { id: gId }, data: { 
+                  sectionId: sId,
+                  passageId: null, // Explicitly null for Listening
+                  groupType: g.groupType, 
+                  instruction: g.instruction, 
+                  wordLimit: g.wordLimit, 
+                  tableData: g.tableData, 
+                  imageUrl: g.imageUrl 
+                } });
               } else {
-                const newG = await tx.questionGroup.create({ data: { sectionId: sId, groupType: g.groupType, instruction: g.instruction, wordLimit: g.wordLimit, tableData: g.tableData, imageUrl: g.imageUrl } });
+                const newG = await tx.questionGroup.create({ data: { 
+                  sectionId: sId, 
+                  passageId: null, // Explicitly null for Listening
+                  groupType: g.groupType, 
+                  instruction: g.instruction, 
+                  wordLimit: g.wordLimit, 
+                  tableData: g.tableData, 
+                  imageUrl: g.imageUrl 
+                } });
                 gId = newG.id;
               }
 

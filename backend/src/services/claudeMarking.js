@@ -201,12 +201,19 @@ Do not add any fields not shown above.`;
     return null;
   }
 }
-
+async function explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, existingExplanation) {
+  if (existingExplanation && existingExplanation.length > 20) {
+    return existingExplanation;
+  }
+  try {
+    const prompt = `IELTS examiner. 3 sentences explaining why this answer is wrong.
+Q: ${(questionText || '').substring(0, 150)}
+Type: ${questionType}
 Student: "${studentAnswer || 'blank'}" Correct: "${correctAnswer}"
 1) Why wrong 2) Passage evidence for correct answer 3) Tip for this question type`;
     
     const response = await callClaudeWithRetry(prompt, 300);
-    return response.content[0].text;
+    return response?.content?.[0]?.text || `The correct answer is "${correctAnswer}". For ${questionType} questions, scan the passage for exact keywords that match the question statement.`;
   } catch (e) {
     return `The correct answer is "${correctAnswer}". For ${questionType} questions, scan the passage for exact keywords that match the question statement.`;
   }

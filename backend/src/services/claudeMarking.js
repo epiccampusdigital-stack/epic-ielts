@@ -112,9 +112,13 @@ Return ONLY JSON:
 }`;
 
   try {
-    const response = await callClaudeWithRetry(prompt, 800);
-    const parsed = safeExtractJson(response.content?.[0]?.text || '');
-    if (!parsed) { console.error('JSON parse failed'); return null; }
+    const response = await callClaudeWithRetry(prompt, 1000);
+    const responseText = response.content?.[0]?.text || '';
+    const parsed = safeExtractJson(responseText);
+    if (!parsed) { 
+      console.error('Reading JSON parse failed. Raw:', responseText.substring(0, 200));
+      return null; 
+    }
     console.log('Reading grade complete. Band:', parsed.bandEstimate);
     return parsed;
   } catch (e) {
@@ -153,13 +157,14 @@ JSON Structure:
 }`;
 
   try {
-    const response = await callClaudeWithRetry(prompt, 800);
+    const response = await callClaudeWithRetry(prompt, 1500);
     const responseText = response.content?.[0]?.text || '';
-    console.log('Claude raw response snippet:', responseText.substring(0, 300));
+    console.log('Writing Claude raw response snippet:', responseText.substring(0, 500));
 
     const parsed = safeExtractJson(responseText);
     if (!parsed) { 
-      console.log('Writing JSON failed. Raw response was:', responseText.substring(0, 300));
+      console.log('Writing JSON extraction failed. Response length:', responseText.length);
+      console.log('Raw response was:', responseText);
       // Fallback object to prevent server crashes
       return {
         task1: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },

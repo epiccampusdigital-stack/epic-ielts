@@ -201,10 +201,12 @@ export default function WritingResults() {
             </div>
 
             {/* Final report */}
-            {feedback.finalStudentReport && (
+            {(feedback.task1?.feedback || feedback.task2?.feedback) && (
               <div style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', borderRadius: 14, padding: 22, border: '1px solid #bfdbfe', marginBottom: 20 }}>
                 <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 15, fontWeight: 700, marginBottom: 10 }}>📜 Examiner's Report</h3>
-                <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>{feedback.finalStudentReport}</p>
+                <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#1e3a5f', fontSize: 14 }}>
+                  {feedback.task1?.feedback} {feedback.task2?.feedback}
+                </p>
               </div>
             )}
 
@@ -229,79 +231,29 @@ export default function WritingResults() {
                       {taskData.feedback}
                     </p>
                   )}
-
-                  {taskData?.rewrittenExample && (
-                    <div style={{ marginTop: 16, background: '#eff6ff', borderLeft: '4px solid #2563eb', padding: '12px', borderRadius: '0 8px 8px 0' }}>
-                      <div style={{ fontSize: '10px', fontWeight: '800', color: '#2563eb', textTransform: 'uppercase', marginBottom: '4px' }}>Band 8 Rewrite Example</div>
-                      <div style={{ fontSize: '12.5px', color: '#1e40af', fontStyle: 'italic' }}>"{taskData.rewrittenExample}"</div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
 
-            {/* Grammar Mistakes (Task 2) */}
-            {feedback.task2?.grammarMistakes?.length > 0 && (
-              <div style={{ marginTop: 20, background: '#fef2f2', borderRadius: 14, padding: 20, border: '1px solid #fecaca' }}>
-                <h3 style={{ marginTop: 0, color: '#991b1b', fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🔍 Grammar Correction</h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #fecaca' }}>
-                        <th style={{ textAlign: 'left', padding: '8px', color: '#b91c1c' }}>Your Text</th>
-                        <th style={{ textAlign: 'left', padding: '8px', color: '#b91c1c' }}>Correction</th>
-                        <th style={{ textAlign: 'left', padding: '8px', color: '#b91c1c' }}>Rule</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {feedback.task2.grammarMistakes.map((m, i) => (
-                        <tr key={i} style={{ borderBottom: i < feedback.task2.grammarMistakes.length - 1 ? '1px solid #fee2e2' : 'none' }}>
-                          <td style={{ padding: '8px', color: '#dc2626', textDecoration: 'line-through' }}>{m.mistake}</td>
-                          <td style={{ padding: '8px', color: '#16a34a', fontWeight: '600' }}>{m.correction}</td>
-                          <td style={{ padding: '8px', color: '#7f1d1d', fontSize: '11px' }}>{m.rule}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Vocabulary Upgrades */}
-            {([...(feedback.task1?.vocabularyUpgrades || []), ...(feedback.task2?.vocabularyUpgrades || [])]).length > 0 && (
-              <div style={{ marginTop: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e3a5f', marginBottom: 12 }}>💎 Vocabulary Upgrades</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-                  {[...(feedback.task1?.vocabularyUpgrades || []), ...(feedback.task2?.vocabularyUpgrades || [])].map((v, i) => (
-                    <div key={i} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#64748b' }}>{v.original}</span>
-                        <span style={{ color: '#2563eb' }}>→</span>
-                        <span style={{ fontSize: 13, fontWeight: '700', color: '#1d4ed8' }}>{v.better}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#475569', fontStyle: 'italic', background: '#f8fafc', padding: '8px', borderRadius: '6px' }}>
-                        "{v.example}"
-                      </div>
-                    </div>
+            {/* Strengths and improvements */}
+            <div className="feedback-split" style={{ marginTop: 20 }}>
+              <div style={{ background: '#f0fdf4', borderRadius: 12, padding: 18, border: '1px solid #bbf7d0' }}>
+                <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>✅ Strengths</h3>
+                <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                  {(feedback.strengths || []).map((s, i) => (
+                    <li key={i} style={{ color: '#14532d', fontSize: 13 }}>{s}</li>
                   ))}
-                </div>
+                </ul>
               </div>
-            )}
-
-            {/* Key Tricks */}
-            {([...(feedback.task1?.keyTricks || []), ...(feedback.task2?.keyTricks || [])]).length > 0 && (
-              <div style={{ marginTop: 20, background: '#fdf2f8', borderRadius: 14, padding: 20, border: '1px solid #fbcfe8' }}>
-                <h3 style={{ marginTop: 0, color: '#9d174d', fontSize: 14, fontWeight: 700, marginBottom: 12 }}>💡 Key Examination Techniques</h3>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {[...(feedback.task1?.keyTricks || []), ...(feedback.task2?.keyTricks || [])].map((t, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <div style={{ background: '#be185d', color: 'white', width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: '700', flexShrink: 0, marginTop: 2 }}>{i+1}</div>
-                      <div style={{ fontSize: 13, color: '#831843', lineHeight: 1.5 }}>{t}</div>
-                    </div>
+              <div style={{ background: '#fff7ed', borderRadius: 12, padding: 18, border: '1px solid #ffedd5' }}>
+                <h3 style={{ marginTop: 0, color: '#9a3412', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>🎯 Areas to Improve</h3>
+                <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
+                  {(feedback.improvements || []).map((s, i) => (
+                    <li key={i} style={{ color: '#7c2d12', fontSize: 13 }}>{s}</li>
                   ))}
-                </div>
+                </ul>
               </div>
-            )}
+            </div>
 
             {/* Progress and Study Plan */}
             <div className="feedback-split" style={{ marginTop: 20 }}>
@@ -313,34 +265,9 @@ export default function WritingResults() {
               </div>
               <div style={{ background: '#f0fdf4', borderRadius: 14, padding: 20, border: '1px solid #bbf7d0' }}>
                 <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>🗓️ Weekly Study Action Plan</h3>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {(feedback.studyPlan || []).map((step, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <input type="checkbox" checked={false} readOnly style={{ width: 16, height: 16, borderRadius: 4, cursor: 'not-allowed' }} />
-                      <span style={{ fontSize: 13, color: '#14532d' }}>{step}</span>
-                    </div>
-                  ))}
+                <div style={{ background: '#ffffff', padding: 14, borderRadius: 10, fontSize: 13, color: '#14532d', lineHeight: 1.6, border: '1px solid #bbf7d0' }}>
+                  {feedback.weeklyActionPlan}
                 </div>
-              </div>
-            </div>
-
-            {/* Strengths and improvements */}
-            <div className="feedback-split" style={{ marginTop: 20 }}>
-              <div style={{ background: '#f0fdf4', borderRadius: 12, padding: 18, border: '1px solid #bbf7d0' }}>
-                <h3 style={{ marginTop: 0, color: '#166534', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>✅ Strengths</h3>
-                <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-                  {[...(feedback.task1?.strengths || []), ...(feedback.task2?.strengths || [])].slice(0, 4).map((s, i) => (
-                    <li key={i} style={{ color: '#14532d', fontSize: 13 }}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-              <div style={{ background: '#fff7ed', borderRadius: 12, padding: 18, border: '1px solid #ffedd5' }}>
-                <h3 style={{ marginTop: 0, color: '#9a3412', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>🎯 Areas to Improve</h3>
-                <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-                  {[...(feedback.task1?.improvements || []), ...(feedback.task2?.improvements || [])].slice(0, 4).map((s, i) => (
-                    <li key={i} style={{ color: '#7c2d12', fontSize: 13 }}>{s}</li>
-                  ))}
-                </ul>
               </div>
             </div>
           </div>

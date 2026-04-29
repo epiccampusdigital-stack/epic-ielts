@@ -130,32 +130,51 @@ Return ONLY JSON:
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
   console.log('gradeWritingAttempt called for:', studentName);
   
-  const prompt = `Grade this IELTS writing. Return ONLY JSON.
+  const prompt = `You are an expert IELTS examiner. 
+Analyse both writing tasks and return detailed feedback.
 
-TASK 1 (${task1Response.length} chars):
-${task1Response.substring(0, 800)}
+TASK 1 RESPONSE:
+${task1Response.substring(0, 1000)}
 
-TASK 2 (${task2Response.length} chars):  
-${task2Response.substring(0, 1200)}
+TASK 2 RESPONSE:
+${task2Response.substring(0, 1500)}
 
-Return ONLY this exact JSON structure, nothing else:
+Return ONLY this JSON. No markdown. No backticks. 
+Start with { and end with }. 
+All string values must be on ONE line with no line breaks inside strings.
+
 {
   "task1Band": 7.0,
   "task2Band": 7.0,
   "overallBand": 7.0,
-  "task1Feedback": "One sentence of feedback here.",
-  "task2Feedback": "One sentence of feedback here.",
-  "strengths": ["strength one", "strength two"],
-  "improvements": ["improvement one", "improvement two"]
+  "task1": {
+    "band": 7.0,
+    "taskAchievement": 7.0,
+    "coherenceCohesion": 7.0,
+    "lexicalResource": 6.5,
+    "grammaticalRange": 7.0,
+    "feedback": "One sentence feedback on task 1."
+  },
+  "task2": {
+    "band": 7.0,
+    "taskResponse": 7.0,
+    "coherenceCohesion": 7.0,
+    "lexicalResource": 7.0,
+    "grammaticalRange": 7.0,
+    "feedback": "One sentence feedback on task 2."
+  },
+  "strengths": ["strength one", "strength two", "strength three"],
+  "improvements": ["improvement one", "improvement two", "improvement three"],
+  "weeklyActionPlan": "One sentence study advice for this student.",
+  "progressToTarget": "One sentence on how close student is to their target band."
 }
 
-Replace the numbers and text with your actual assessment.
-Keep the structure EXACTLY as shown.
-Do not add any other fields.
-Do not use markdown.`;
+Replace all values with your actual assessment.
+Keep ALL strings on one line.
+Do not add any fields not shown above.`;
 
   try {
-    const response = await callClaudeWithRetry(prompt, 400);
+    const response = await callClaudeWithRetry(prompt, 800);
     const responseText = response.content?.[0]?.text || '';
     console.log('Writing Claude raw response snippet:', responseText.substring(0, 300));
 
@@ -168,10 +187,12 @@ Do not use markdown.`;
         task1Band: 5.0,
         task2Band: 5.0,
         overallBand: 5.0,
-        task1Feedback: "Automated feedback temporarily unavailable.",
-        task2Feedback: "Automated feedback temporarily unavailable.",
+        task1: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },
+        task2: { band: 5.0, feedback: "Automated feedback temporarily unavailable." },
         strengths: ["Review your writing carefully."],
         improvements: ["Practice more tasks."],
+        weeklyActionPlan: "Continue practicing daily.",
+        progressToTarget: "Stay focused on your target band.",
         markingStatus: 'PARTIAL'
       };
     }

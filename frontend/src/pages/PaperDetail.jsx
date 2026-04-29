@@ -148,7 +148,7 @@ export default function PaperDetail() {
     setLoading(true);
     try {
       setError(null);
-      const r = await axios.get(`${API_URL}/api/papers/${id}`, auth());
+      const r = await axios.get(`${API_URL}/api/admin/papers/${id}`, auth());
       setPaper(r.data);
       setEdited(JSON.parse(JSON.stringify(r.data)));
       // If paper was just imported (logic can be based on missing audio or specialized flag)

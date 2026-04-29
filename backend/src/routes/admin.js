@@ -317,9 +317,10 @@ ${rawText.substring(0, 6000)}`
     let response;
     try {
       response = await claude.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8000,
+        model: 'claude-haiku-4-5',
+        max_tokens: 4000,
         temperature: 0,
+        system: 'You are an IELTS exam converter. Output ONLY valid JSON.',
         messages: [{ role: 'user', content: prompt }]
       });
     } catch (aiErr) {

@@ -26,6 +26,28 @@ try {
   console.log('Uploads folder not found, skipping');
 }
 
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+app.get('/health', async (req, res) => {
+  try {
+    // Test DB connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      aiModel: 'claude-haiku-4-5'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',

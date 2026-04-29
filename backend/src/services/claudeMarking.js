@@ -17,7 +17,7 @@ function getClient() {
   }
 }
 
-const MODEL = 'claude-haiku-4-5-20251001';
+const MODEL = 'claude-haiku-4-5';
 console.log('EPIC IELTS Marking Engine - Using model:', MODEL);
 
 function safeExtractJson(text) {
@@ -65,23 +65,24 @@ async function callClaudeWithRetry(prompt, maxTokens = 400, maxRetries = 3) {
 }
 
 async function gradeAttempt(answerReview, paperSummaryStr) {
-  console.log('gradeAttempt called');
-  let paperSummary = {};
-  try { paperSummary = JSON.parse(paperSummaryStr); } catch {}
+  try {
+    console.log('gradeAttempt called');
+    let paperSummary = {};
+    try { paperSummary = JSON.parse(paperSummaryStr); } catch {}
 
-  const wrong = (answerReview || []).filter(a => !a.isCorrect);
-  const correct = (answerReview || []).filter(a => a.isCorrect);
+    const wrong = (answerReview || []).filter(a => !a.isCorrect);
+    const correct = (answerReview || []).filter(a => a.isCorrect);
 
-  const typeStats = {};
-  (answerReview || []).forEach(a => {
-    const t = a.questionType || 'UNKNOWN';
-    if (!typeStats[t]) typeStats[t] = { total: 0, correct: 0, wrong: 0 };
-    typeStats[t].total++;
-    if (a.isCorrect) typeStats[t].correct++;
-    else typeStats[t].wrong++;
-  });
+    const typeStats = {};
+    (answerReview || []).forEach(a => {
+      const t = a.questionType || 'UNKNOWN';
+      if (!typeStats[t]) typeStats[t] = { total: 0, correct: 0, wrong: 0 };
+      typeStats[t].total++;
+      if (a.isCorrect) typeStats[t].correct++;
+      else typeStats[t].wrong++;
+    });
 
-  const prompt = `You are an IELTS Reading examiner. Give personal feedback for this student.
+    const prompt = `You are an IELTS Reading examiner. Give personal feedback for this student.
 
 STUDENT: ${paperSummary.studentName || 'Student'}
 SCORE: ${paperSummary.rawScore || 0}/40 BAND: ${paperSummary.bandEstimate || 4}
@@ -111,7 +112,6 @@ Return ONLY JSON:
   "finalStudentReport": "4-5 sentence personal message to ${paperSummary.studentName || 'the student'} about their score of ${paperSummary.rawScore}/40 band ${paperSummary.bandEstimate}, what they did well, main weakness, and one clear improvement tip."
 }`;
 
-  try {
     const response = await callClaudeWithRetry(prompt, 600);
     const responseText = response.content?.[0]?.text || '';
     const parsed = safeExtractJson(responseText);
@@ -128,9 +128,10 @@ Return ONLY JSON:
 }
 
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
-  console.log('gradeWritingAttempt called for:', studentName);
-  
-  const prompt = `You are an expert IELTS examiner. 
+  try {
+    console.log('gradeWritingAttempt called for:', studentName);
+    
+    const prompt = `You are an expert IELTS examiner. 
 Analyse both writing tasks and return detailed feedback.
 
 TASK 1 RESPONSE:
@@ -173,7 +174,6 @@ Replace all values with your actual assessment.
 Keep ALL strings on one line.
 Do not add any fields not shown above.`;
 
-  try {
     const response = await callClaudeWithRetry(prompt, 800);
     const responseText = response.content?.[0]?.text || '';
     console.log('Writing Claude raw response snippet:', responseText.substring(0, 300));
@@ -181,8 +181,6 @@ Do not add any fields not shown above.`;
     const parsed = safeExtractJson(responseText);
     if (!parsed) { 
       console.log('Writing JSON extraction failed. Response length:', responseText.length);
-      console.log('Raw response was:', responseText);
-      // Fallback object to prevent server crashes
       return {
         task1Band: 5.0,
         task2Band: 5.0,
@@ -204,14 +202,6 @@ Do not add any fields not shown above.`;
   }
 }
 
-async function explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, existingExplanation) {
-  if (existingExplanation && existingExplanation.length > 20) {
-    return existingExplanation;
-  }
-  try {
-    const prompt = `IELTS examiner. 3 sentences explaining why this answer is wrong.
-Q: ${(questionText || '').substring(0, 150)}
-Type: ${questionType}
 Student: "${studentAnswer || 'blank'}" Correct: "${correctAnswer}"
 1) Why wrong 2) Passage evidence for correct answer 3) Tip for this question type`;
     

@@ -22,29 +22,16 @@ console.log('EPIC IELTS Marking Engine - Using model:', MODEL);
 
 function safeExtractJson(text) {
   if (!text) return null;
+  // Try 1: clean JSON
+  try { return JSON.parse(text.trim()); } catch(e) {}
+  // Try 2: find { ... } and parse just that part
   try {
-    // 1. Direct parse
-    return JSON.parse(text);
-  } catch (e) {
-    try {
-      // 2. Strip markdown backticks
-      const stripped = text
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/```\s*$/i, '')
-        .trim();
-      return JSON.parse(stripped);
-    } catch (e2) {
-      try {
-        // 3. Extract JSON object using regex
-        const match = text.match(/\{[\s\S]*\}/);
-        if (match) return JSON.parse(match[0]);
-      } catch (e3) {
-        console.error('All JSON parse attempts failed. Raw response snippet:', text.substring(0, 200));
-        return null;
-      }
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      return JSON.parse(text.substring(start, end + 1));
     }
-  }
+  } catch(e) {}
   return null;
 }
 
@@ -58,6 +45,7 @@ async function callClaudeWithRetry(prompt, maxTokens = 800, maxRetries = 3) {
         model: MODEL,
         max_tokens: maxTokens,
         temperature: 0.3,
+        system: 'You are an IELTS marking API. Always respond with raw JSON only. Never use markdown. Never use backticks. Never use code blocks. Your response must start with { and end with }.',
         messages: [{ role: 'user', content: prompt }]
       });
       return response;

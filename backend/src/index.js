@@ -76,8 +76,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log('EPIC IELTS Backend running on port ' + PORT);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`EPIC IELTS Backend running on port ${PORT}`);
   console.log('AI Key loaded:', !!process.env.ANTHROPIC_API_KEY);
 });

@@ -685,14 +685,43 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
 
 router.delete('/papers/:id', auth, adminOnly, async (req, res) => {
   const paperId = parseInt(req.params.id);
-  console.log('--- DELETING PAPER (CASCADE):', paperId, '---');
+  console.log('--- DELETING PAPER (MANUAL CASCADE):', paperId, '---');
 
   try {
-    // Prisma Cascade handles all dependencies automatically now
-    await prisma.paper.delete({ where: { id: paperId } });
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete Student Responses & Attempts
+      // Delete Answers related to questions of this paper
+      await tx.answer.deleteMany({ where: { question: { paperId } } });
+      // Delete Results, WritingSubmissions, SpeakingSubmissions related to attempts of this paper
+      await tx.result.deleteMany({ where: { attempt: { paperId } } });
+      await tx.writingSubmission.deleteMany({ where: { attempt: { paperId } } });
+      await tx.speakingSubmission.deleteMany({ where: { attempt: { paperId } } });
+      // Delete Attempts
+      await tx.attempt.deleteMany({ where: { paperId } });
+
+      // 2. Delete Paper Structure
+      // Delete Questions
+      await tx.question.deleteMany({ where: { paperId } });
+      // Delete QuestionGroups (hierarchical)
+      await tx.questionGroup.deleteMany({
+        where: {
+          OR: [
+            { section: { paperId } },
+            { passage: { paperId } }
+          ]
+        }
+      });
+      // Delete Passages, Sections, WritingTasks
+      await tx.passage.deleteMany({ where: { paperId } });
+      await tx.section.deleteMany({ where: { paperId } });
+      await tx.writingTask.deleteMany({ where: { paperId } });
+
+      // 3. Finally delete the Paper itself
+      await tx.paper.delete({ where: { id: paperId } });
+    });
 
     console.log('--- PAPER DELETED SUCCESSFULLY:', paperId, '---');
-    res.json({ success: true, message: 'Paper deleted successfully (Cascade)' });
+    res.json({ success: true, message: 'Paper deleted successfully (Manual Cascade)' });
   } catch (err) {
     console.error('DELETE ERROR for paper', paperId, ':', err);
     res.status(500).json({ error: 'Failed to delete: ' + err.message });

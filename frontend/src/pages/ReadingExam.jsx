@@ -22,6 +22,8 @@ export default function ReadingExam() {
    const [questionPage, setQuestionPage] = useState(0);
    const [submitting, setSubmitting] = useState(false);
    const [showWarning, setShowWarning] = useState(false);
+   const [wordPopup, setWordPopup] = useState(null);
+   const [wordLoading, setWordLoading] = useState(false);
 
    const navigate = useNavigate();
    const timerRef = useRef(null);
@@ -393,6 +395,51 @@ export default function ReadingExam() {
    const passageTitle = currentPassageData?.title || `Reading Passage ${currentPassage}`;
    const passageText = currentPassageData?.text || splitTextMap[currentPassage] || paper?.instructions || 'Passage text not available.';
 
+   const handleWordClick = async (e) => {
+      const selection = window.getSelection();
+      const word = selection?.toString().trim() ||
+         e.target.innerText?.trim().split(/\s+/)[0];
+      if (!word || word.length < 3) return;
+      const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+      if (!clean) return;
+      const rect = e.target.getBoundingClientRect();
+      setWordPopup({
+         word: clean, definition: null,
+         x: e.clientX, y: e.clientY
+      });
+      setWordLoading(true);
+      try {
+         const res = await fetch(
+            `https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`
+         );
+         if (!res.ok) throw new Error('not found');
+         const data = await res.json();
+         const entry = data[0];
+         const meaning = entry?.meanings?.[0];
+         const def = meaning?.definitions?.[0]?.definition;
+         const partOfSpeech = meaning?.partOfSpeech;
+         const phonetic = entry?.phonetic || '';
+         const example = meaning?.definitions?.[0]?.example || null;
+         setWordPopup({
+            word: clean,
+            definition: def || 'No definition found.',
+            partOfSpeech,
+            phonetic,
+            example,
+            x: e.clientX,
+            y: e.clientY
+         });
+      } catch {
+         setWordPopup({
+            word: clean,
+            definition: 'Definition not found.',
+            x: e.clientX,
+            y: e.clientY
+         });
+      }
+      setWordLoading(false);
+   };
+
    return (
       <div style={{
          height: '100vh',
@@ -745,14 +792,19 @@ export default function ReadingExam() {
                   </h2>
                </div>
 
-               <div style={{
-                  fontFamily: "'Lora', serif",
-                  fontSize: '15.5px',
-                  lineHeight: '1.9',
-                  color: '#2d3748',
-                  textAlign: 'justify',
-                  whiteSpace: 'pre-wrap'
-               }}>
+               <div
+                  style={{
+                     fontFamily: "'Lora', serif",
+                     fontSize: '15.5px',
+                     lineHeight: '1.9',
+                     color: '#2d3748',
+                     textAlign: 'justify',
+                     whiteSpace: 'pre-wrap',
+                     cursor: 'text',
+                     userSelect: 'text'
+                  }}
+                  onClick={handleWordClick}
+               >
                   {passageText.split('\n\n').map((para, i) => (
                     <p key={i} style={{ marginBottom: 16 }}>{para}</p>
                   ))}
@@ -981,6 +1033,71 @@ export default function ReadingExam() {
                {submitting ? '... ' : '🔒 END TEST'}
             </button>
          </div>
+
+         {wordPopup && (
+            <>
+               <div
+                  onClick={() => setWordPopup(null)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 998 }}
+               />
+               <div style={{
+                  position: 'fixed',
+                  left: Math.min(wordPopup.x, window.innerWidth - 320),
+                  top: wordPopup.y + 16,
+                  zIndex: 999,
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+                  padding: '20px',
+                  width: '300px',
+                  border: '1px solid #e2e8f0',
+                  animation: 'fadeIn 0.15s ease'
+               }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                     <div>
+                        <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', textTransform: 'capitalize' }}>
+                           {wordPopup.word}
+                        </div>
+                        {wordPopup.phonetic && (
+                           <div style={{ fontSize: '13px', color: '#94a3b8', fontFamily: 'monospace' }}>
+                              {wordPopup.phonetic}
+                           </div>
+                        )}
+                     </div>
+                     <button
+                        onClick={() => setWordPopup(null)}
+                        style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '16px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                     >×</button>
+                  </div>
+
+                  {wordLoading ? (
+                     <div style={{ textAlign: 'center', padding: '12px' }}>
+                        <div style={{ width: '24px', height: '24px', border: '2px solid #e2e8f0', borderTop: '2px solid #4f46e5', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+                     </div>
+                  ) : (
+                     <div>
+                        {wordPopup.partOfSpeech && (
+                           <span style={{ display: 'inline-block', background: '#eff0fe', color: '#4f46e5', fontSize: '10px', fontWeight: '800', padding: '2px 10px', borderRadius: '20px', marginBottom: '10px', textTransform: 'uppercase' }}>
+                              {wordPopup.partOfSpeech}
+                           </span>
+                        )}
+                        <p style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6', margin: '0 0 10px' }}>
+                           {wordPopup.definition}
+                        </p>
+                        {wordPopup.example && (
+                           <div style={{ background: '#f8fafc', borderLeft: '3px solid #4f46e5', padding: '8px 12px', borderRadius: '0 8px 8px 0', fontSize: '13px', color: '#64748b', fontStyle: 'italic' }}>
+                              "{wordPopup.example}"
+                           </div>
+                        )}
+                     </div>
+                  )}
+
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', fontSize: '10px', color: '#cbd5e1', textAlign: 'right' }}>
+                     powered by Free Dictionary API
+                  </div>
+               </div>
+            </>
+         )}
 
          {showConfirm && (
             <div style={{

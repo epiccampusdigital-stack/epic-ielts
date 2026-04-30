@@ -299,14 +299,18 @@ export default function ListeningExam() {
                                 : (q.options || [])
                               ).filter(opt => opt && String(opt).trim() !== '')
                                .map((opt, i) => {
-                                const selected = answers[q.id] === opt;
+                                const optLetter = String(opt).trim().match(/^([A-D])\./)?.[1] || opt;
+                                const selected = answers[q.id] === optLetter || answers[q.id] === opt;
                                 return (
                                   <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: selected ? '#f5f3ff' : '#fff', border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', width: '100%' }}>
                                     <input
                                       type="radio"
                                       name={`q${q.id}`}
                                       checked={selected}
-                                      onChange={() => setAnswers({ ...answers, [q.id]: opt })}
+                                      onChange={() => {
+                                        const letter = String(opt).trim().match(/^([A-D])\./)?.[1] || opt;
+                                        setAnswers({ ...answers, [q.id]: letter });
+                                      }}
                                       style={{ accentColor: '#4f46e5', flexShrink: 0 }}
                                     />
                                     <span style={{ fontSize: 14, fontWeight: selected ? 700 : 500, color: selected ? '#4f46e5' : '#475569', lineHeight: 1.4 }}>{opt}</span>

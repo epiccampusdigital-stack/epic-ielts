@@ -27,6 +27,15 @@ function calculateBand(score) {
   return 4.0;
 }
 
+function extractAnswerLetter(answer) {
+  if (!answer) return '';
+  const text = String(answer).trim();
+  const prefixedLetter = text.match(/^([A-D])[\.\)]/i)?.[1];
+  if (prefixedLetter) return prefixedLetter.toUpperCase();
+  if (/^[A-D]$/i.test(text)) return text.toUpperCase();
+  return text.toUpperCase();
+}
+
 function fallbackFeedback(rawScore, bandEstimate, studentName = 'Student', testType = 'Reading', paperCode = '') {
   return {
     studentName,
@@ -563,9 +572,17 @@ router.post('/:id/end', auth, async (req, res) => {
           ? answers.find(a => parseInt(a.questionId) === question.id)
           : null;
         const studentAnswer = String(submitted?.studentAnswer || '').trim();
-        const correctAnswers = String(question.correctAnswer || '').split('|').map(s => s.trim().toLowerCase());
-        const isCorrect = studentAnswer.length > 0 &&
-          correctAnswers.includes(studentAnswer.toLowerCase());
+        const normalizedStudent = studentAnswer.toUpperCase();
+        const extractedStudent = extractAnswerLetter(studentAnswer);
+        const correctAnswers = String(question.correctAnswer || '').split('|').map(s => String(s || '').trim());
+        const isCorrect = studentAnswer.length > 0 && correctAnswers.some(correct => {
+          const normalizedCorrect = correct.toUpperCase();
+          const extractedCorrect = extractAnswerLetter(correct);
+          return (
+            normalizedStudent === normalizedCorrect ||
+            extractedStudent === extractedCorrect
+          );
+        });
         if (isCorrect) correctCount++;
         return {
           attemptId,

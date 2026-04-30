@@ -826,4 +826,37 @@ router.get('/papers/:id/full', auth, adminOnly, async (req, res) => {
   }
 });
 
+router.get('/results/:attemptId/detail', auth, adminOnly, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.attemptId);
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        student: { select: { id: true, name: true, email: true, batch: true } },
+        paper: { select: { paperCode: true, testType: true, title: true, timeLimitMin: true } },
+        result: true,
+        answers: {
+          include: {
+            question: {
+              select: {
+                questionNumber: true, questionType: true, content: true,
+                correctAnswer: true, options: true, explanation: true,
+                passageNumber: true, sectionNumber: true
+              }
+            }
+          },
+          orderBy: { question: { questionNumber: 'asc' } }
+        },
+        writingSubmission: true,
+        speakingSubmission: true
+      }
+    });
+    if (!attempt) return res.status(404).json({ error: 'Attempt not found' });
+    res.json(attempt);
+  } catch (err) {
+    console.error('Result detail error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -24,7 +24,10 @@ function getAssemblyClient() {
 
 async function transcribeAudioFile(audioFilePath) {
   const client = getAssemblyClient();
-  if (!client) return null;
+  if (!client) {
+    console.warn('AssemblyAI not available, skipping transcription');
+    return null;
+  }
 
   try {
     console.log('Uploading audio to AssemblyAI:', audioFilePath);
@@ -49,45 +52,100 @@ async function transcribeAudioFile(audioFilePath) {
   }
 }
 
-async function markSpeaking(transcripts, studentName, expectedBand) {
+/**
+ * Extract speaking questions per part from the paper object
+ * Supports: sections->groups->questions OR flat questions with sectionNumber
+ */
+function extractQuestionsFromPaper(paper) {
+  if (!paper) return {};
+
+  const questionsByPart = {};
+
+  // Method 1: sections with groups (AI-imported papers)
+  if (paper.sections?.length > 0) {
+    for (const section of paper.sections) {
+      const partNum = section.number;
+      const questions = [];
+      for (const group of (section.groups || [])) {
+        for (const q of (group.questions || [])) {
+          if (q.content) questions.push(q.content);
+        }
+        if (!group.questions?.length && group.instruction) {
+          questions.push(group.instruction);
+        }
+      }
+      if (questions.length > 0) {
+        questionsByPart[partNum] = questions;
+      }
+    }
+  }
+
+  // Method 2: flat questions with sectionNumber (manually created papers)
+  if (Object.keys(questionsByPart).length === 0 && paper.questions?.length > 0) {
+    for (const q of paper.questions) {
+      const partNum = q.sectionNumber || 1;
+      if (!questionsByPart[partNum]) questionsByPart[partNum] = [];
+      questionsByPart[partNum].push(q.content);
+    }
+  }
+
+  return questionsByPart;
+}
+
+/**
+ * Mark speaking transcripts using Claude
+ * @param {Object} transcripts - { part1: "text", part2: "text", part3: "text" }
+ * @param {string} studentName
+ * @param {number} expectedBand
+ * @param {Object} paper - full paper object to extract questions from
+ */
+async function markSpeaking(transcripts, studentName, expectedBand, paper) {
   const { gradeSpeakingAttempt } = require('./claudeMarking');
   const results = {};
 
+  // Extract questions from DB paper
+  const questionsByPart = extractQuestionsFromPaper(paper);
+
+  // Fallback questions if DB has none
+  const FALLBACK_QUESTIONS = {
+    1: ['Tell me about your hometown.', 'What do you do in your free time?', 'Do you prefer indoors or outdoors?'],
+    2: ['Describe a person who has had a significant influence on your life.'],
+    3: ['Do you think famous people have a responsibility to be good role models?', 'How do social media influencers affect young people?', 'Should schools teach responsible social media use?']
+  };
+
   for (const [part, transcript] of Object.entries(transcripts)) {
-    if (!transcript) continue;
+    if (!transcript) {
+      console.log(`No transcript for ${part}, skipping`);
+      continue;
+    }
+
     const partNumber = parseInt(part.replace('part', ''));
-    console.log('Grading speaking Part', partNumber, 'for:', studentName);
-    const feedback = await gradeSpeakingAttempt(
-      transcript, partNumber,
-      SPEAKING_QUESTIONS[partNumber - 1]?.questions?.join(' | ') || '',
-      studentName, expectedBand
-    );
-    if (feedback) results[part] = { transcript, feedback };
+    const questions = questionsByPart[partNumber] || FALLBACK_QUESTIONS[partNumber] || [];
+    const questionPrompt = questions.join(' | ');
+
+    console.log(`Grading speaking Part ${partNumber} for: ${studentName}`);
+    console.log(`Questions used: ${questionPrompt.substring(0, 100)}`);
+
+    try {
+      const feedback = await gradeSpeakingAttempt(
+        transcript,
+        partNumber,
+        questionPrompt,
+        studentName,
+        expectedBand
+      );
+
+      if (feedback) {
+        results[part] = { transcript, feedback };
+      } else {
+        console.warn(`No feedback returned for Part ${partNumber}`);
+      }
+    } catch (err) {
+      console.error(`Error grading Part ${partNumber}:`, err.message);
+    }
   }
 
   return results;
 }
 
-const SPEAKING_QUESTIONS = [
-  {
-    part: 1,
-    questions: [
-      'Tell me about your hometown.',
-      'What do you do in your free time?',
-      'Do you prefer spending time indoors or outdoors?'
-    ]
-  },
-  {
-    part: 2,
-    questions: ['Describe a person who has had a big influence on your life.']
-  },
-  {
-    part: 3,
-    questions: [
-      'Do you think famous people have a responsibility to be good role models?',
-      'How do social media influencers affect young people?'
-    ]
-  }
-];
-
-module.exports = { transcribeAudioFile, markSpeaking, SPEAKING_QUESTIONS };
+module.exports = { transcribeAudioFile, markSpeaking, extractQuestionsFromPaper };

@@ -9,8 +9,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-
-
 const aiCache = new Map();
 
 function calculateBand(score) {
@@ -60,7 +58,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
   const attemptId = attempt.id;
   const studentName = attempt.student?.name || 'Student';
   const testType = String(attempt.paper?.testType || '').toUpperCase();
-  
+
   console.log(`Generating ${testType} feedback for attempt ${attemptId}...`);
 
   // If already in DB, return it
@@ -152,7 +150,6 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       }
     });
 
-    // If writing, also update writingSubmission
     if (testType === 'WRITING') {
       const result = aiFeedback;
       const task1Band = parseFloat(result.task1?.band || result.task1Band) || 5.0;
@@ -162,9 +159,9 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       await prisma.writingSubmission.update({
         where: { attemptId },
         data: {
-          task1Band: task1Band,
-          task2Band: task2Band,
-          overallBand: overallBand,
+          task1Band,
+          task2Band,
+          overallBand,
           aiFeedback: JSON.stringify(result),
           markingStatus: 'COMPLETE'
         }
@@ -213,7 +210,6 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       aiCache.set(attemptId, aiFeedback);
     }
   } else {
-    // AI failed - mark as failed so UI doesn't spin forever
     if (testType === 'WRITING') {
       await prisma.writingSubmission.update({
         where: { attemptId },
@@ -230,44 +226,25 @@ async function createAiFeedback(attempt, result, savedAnswers) {
   return aiFeedback || fallbackFeedback(result.rawScore, result.bandEstimate, studentName, testType, attempt.paper?.paperCode);
 }
 
+// ─── ROUTES ────────────────────────────────────────────────────────────────
+
 router.get('/history/mine', auth, async (req, res) => {
   try {
     const attempts = await prisma.attempt.findMany({
-      where: {
-        studentId: req.user.id,
-        endedAt: { not: null }
-      },
+      where: { studentId: req.user.id, endedAt: { not: null } },
       include: {
-        paper: {
-          select: {
-            title: true,
-            testType: true,
-            paperCode: true
-          }
-        },
+        paper: { select: { title: true, testType: true, paperCode: true } },
         result: true,
         writingSubmission: {
-          select: {
-            markingStatus: true,
-            overallBand: true,
-            task1Band: true,
-            task2Band: true,
-            modelAnswers: true
-          }
+          select: { markingStatus: true, overallBand: true, task1Band: true, task2Band: true, modelAnswers: true }
         }
       },
-      orderBy: {
-        id: 'desc'
-      }
+      orderBy: { id: 'desc' }
     });
-
     res.json(attempts);
   } catch (error) {
     console.error('History error:', error);
-    res.status(500).json({
-      message: 'Error fetching history',
-      details: error.message
-    });
+    res.status(500).json({ message: 'Error fetching history', details: error.message });
   }
 });
 
@@ -289,7 +266,7 @@ router.get('/dashboard/summary', auth, async (req, res) => {
     const summary = {};
     Object.entries(bySubject).forEach(([type, bands]) => {
       summary[type] = {
-        average: (bands.reduce((a,b) => a+b, 0) / bands.length).toFixed(1),
+        average: (bands.reduce((a, b) => a + b, 0) / bands.length).toFixed(1),
         count: bands.length,
         best: Math.max(...bands).toFixed(1),
         latest: bands[0]?.toFixed(1)
@@ -298,15 +275,10 @@ router.get('/dashboard/summary', auth, async (req, res) => {
 
     const overallBands = Object.values(bySubject).flat();
     const overall = overallBands.length > 0
-      ? (overallBands.reduce((a,b) => a+b, 0) / overallBands.length).toFixed(1)
+      ? (overallBands.reduce((a, b) => a + b, 0) / overallBands.length).toFixed(1)
       : null;
 
-    res.json({
-      summary,
-      overall,
-      totalTests: attempts.length,
-      recentAttempts: attempts.slice(0, 5)
-    });
+    res.json({ summary, overall, totalTests: attempts.length, recentAttempts: attempts.slice(0, 5) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -315,111 +287,57 @@ router.get('/dashboard/summary', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { paperId } = req.body;
-
-    if (!paperId) {
-      return res.status(400).json({ message: 'paperId is required' });
-    }
-
+    if (!paperId) return res.status(400).json({ message: 'paperId is required' });
     const attempt = await prisma.attempt.create({
-      data: {
-        studentId: req.user.id,
-        paperId: parseInt(paperId),
-        status: 'IN_PROGRESS'
-      }
+      data: { studentId: req.user.id, paperId: parseInt(paperId), status: 'IN_PROGRESS' }
     });
-
-    res.json({
-      id: attempt.id,
-      attemptId: attempt.id
-    });
+    res.json({ id: attempt.id, attemptId: attempt.id });
   } catch (error) {
     console.error('Create attempt error:', error);
-    res.status(500).json({
-      message: 'Error starting attempt',
-      details: error.message
-    });
+    res.status(500).json({ message: 'Error starting attempt', details: error.message });
   }
 });
 
 router.post('/:id/start', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-
     const attempt = await prisma.attempt.update({
       where: { id: attemptId },
       data: { status: 'IN_PROGRESS' },
       include: {
-        paper: {
-          include: {
-            questions: {
-              orderBy: {
-                questionNumber: 'asc'
-              }
-            }
-          }
-        }
+        paper: { include: { questions: { orderBy: { questionNumber: 'asc' } } } }
       }
     });
-
     res.json(attempt);
   } catch (error) {
     console.error('Start exam error:', error);
-    res.status(500).json({
-      message: 'Error starting exam',
-      details: error.message
-    });
+    res.status(500).json({ message: 'Error starting exam', details: error.message });
   }
 });
 
 router.get('/:id/result', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
         student: true,
         paper: {
           include: {
-            sections: {
-              include: {
-                groups: {
-                  include: { questions: true }
-                }
-              },
-              orderBy: { number: 'asc' }
-            },
-            passages: {
-              include: {
-                groups: {
-                  include: { questions: true }
-                }
-              },
-              orderBy: { passageNumber: 'asc' }
-            },
-            questions: {
-              orderBy: { questionNumber: 'asc' }
-            },
-            writingTasks: {
-              orderBy: { taskNumber: 'asc' }
-            }
+            sections: { include: { groups: { include: { questions: true } } }, orderBy: { number: 'asc' } },
+            passages: { include: { groups: { include: { questions: true } } }, orderBy: { passageNumber: 'asc' } },
+            questions: { orderBy: { questionNumber: 'asc' } },
+            writingTasks: { orderBy: { taskNumber: 'asc' } }
           }
         },
-        answers: {
-          include: {
-            question: true
-          }
-        },
+        answers: { include: { question: true } },
         result: true
       }
     });
 
-    if (!attempt) {
-      return res.status(404).json({ message: 'Attempt not found' });
-    }
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
 
     let aiFeedback = aiCache.get(attemptId);
-
     if (!aiFeedback && attempt.status === 'COMPLETED' && attempt.result) {
       if (attempt.result.aiFeedbackJson) {
         aiFeedback = JSON.parse(attempt.result.aiFeedbackJson);
@@ -429,16 +347,10 @@ router.get('/:id/result', auth, async (req, res) => {
       aiCache.set(attemptId, aiFeedback);
     }
 
-    res.json({
-      ...attempt,
-      aiFeedback
-    });
+    res.json({ ...attempt, aiFeedback });
   } catch (error) {
     console.error('Result error:', error);
-    res.status(500).json({
-      message: 'Error fetching result',
-      details: error.message
-    });
+    res.status(500).json({ message: 'Error fetching result', details: error.message });
   }
 });
 
@@ -465,39 +377,21 @@ router.put('/:id/autosave', auth, async (req, res) => {
   }
 });
 
-
 router.get('/:id', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
         student: true,
         paper: {
           include: {
-            questions: {
-              orderBy: { questionNumber: 'asc' }
-            },
-            passages: {
-              orderBy: {
-                passageNumber: 'asc'
-              }
-            },
-            writingTasks: {
-              orderBy: {
-                taskNumber: 'asc'
-              }
-            },
+            questions: { orderBy: { questionNumber: 'asc' } },
+            passages: { orderBy: { passageNumber: 'asc' } },
+            writingTasks: { orderBy: { taskNumber: 'asc' } },
             sections: {
               orderBy: { number: 'asc' },
-              include: {
-                groups: {
-                  include: {
-                    questions: { orderBy: { questionNumber: 'asc' } }
-                  }
-                }
-              }
+              include: { groups: { include: { questions: { orderBy: { questionNumber: 'asc' } } } } }
             }
           }
         },
@@ -506,17 +400,11 @@ router.get('/:id', auth, async (req, res) => {
       }
     });
 
-    if (!attempt) {
-      return res.status(404).json({ message: 'Attempt not found' });
-    }
-
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
     res.json(attempt);
   } catch (error) {
     console.error('Attempt fetch error:', error);
-    res.status(500).json({
-      message: 'Error fetching attempt',
-      details: error.message
-    });
+    res.status(500).json({ message: 'Error fetching attempt', details: error.message });
   }
 });
 
@@ -563,7 +451,6 @@ router.post('/:id/end', auth, async (req, res) => {
         });
       }
     } else {
-      // If new answers sent, save them - otherwise keep existing autosaved answers
       await prisma.answer.deleteMany({ where: { attemptId } });
       let correctCount = 0;
       const allQuestions = attempt.paper.questions;
@@ -578,10 +465,7 @@ router.post('/:id/end', auth, async (req, res) => {
         const isCorrect = studentAnswer.length > 0 && correctAnswers.some(correct => {
           const normalizedCorrect = correct.toUpperCase();
           const extractedCorrect = extractAnswerLetter(correct);
-          return (
-            normalizedStudent === normalizedCorrect ||
-            extractedStudent === extractedCorrect
-          );
+          return normalizedStudent === normalizedCorrect || extractedStudent === extractedCorrect;
         });
         if (isCorrect) correctCount++;
         return {
@@ -593,7 +477,6 @@ router.post('/:id/end', auth, async (req, res) => {
       });
       await prisma.answer.createMany({ data: answerData });
 
-      // Recalculate score from whatever answers are in database
       const finalAnswers = await prisma.answer.findMany({ where: { attemptId } });
       correctCount = finalAnswers.filter(a => a.isCorrect).length;
       bandEstimate = calculateBand(correctCount);
@@ -637,7 +520,7 @@ router.post('/:id/end', auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-// AI feedback polling endpoint
+
 router.get('/:id/ai-feedback', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
@@ -685,6 +568,7 @@ router.get('/:id/ai-feedback', auth, async (req, res) => {
   }
 });
 
+// ─── SPEAKING ──────────────────────────────────────────────────────────────
 
 const speakingStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -726,13 +610,31 @@ router.post('/:id/speaking/upload', auth, uploadSpeaking.single('audio'), async 
   }
 });
 
+// ── FIX: fetch paper with sections+questions so markSpeaking gets real questions ──
 router.post('/:id/speaking/submit', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      include: { student: true, speakingSubmission: true }
+      include: {
+        student: true,
+        speakingSubmission: true,
+        // FIX 1: include paper with sections and questions
+        paper: {
+          include: {
+            sections: {
+              orderBy: { number: 'asc' },
+              include: {
+                groups: {
+                  include: { questions: { orderBy: { questionNumber: 'asc' } } }
+                }
+              }
+            },
+            questions: { orderBy: { questionNumber: 'asc' } }
+          }
+        }
+      }
     });
 
     if (!attempt) return res.status(404).json({ error: 'Attempt not found' });
@@ -776,10 +678,12 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
       }
 
       if (Object.keys(transcripts).length > 0) {
+        // FIX 2: pass attempt.paper so markSpeaking gets real questions from DB
         const results = await markSpeaking(
           transcripts,
           attempt.student?.name,
-          attempt.student?.expectedBand
+          attempt.student?.expectedBand,
+          attempt.paper
         );
 
         const bands = Object.values(results).map(r => r.feedback?.band).filter(Boolean);
@@ -807,9 +711,19 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
         }
 
         console.log('Speaking marked. Overall band:', overallBand);
+      } else {
+        console.warn('No transcripts generated — marking skipped');
+        await prisma.speakingSubmission.update({
+          where: { attemptId },
+          data: { markingStatus: 'FAILED' }
+        });
       }
     } catch (bgErr) {
       console.error('Speaking background error:', bgErr.message);
+      await prisma.speakingSubmission.update({
+        where: { attemptId },
+        data: { markingStatus: 'FAILED' }
+      }).catch(() => {});
     }
   } catch (err) {
     console.error('Speaking submit error:', err.message);
@@ -844,6 +758,9 @@ router.get('/:id/speaking/feedback', auth, async (req, res) => {
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
+
+// ─── WRITING ───────────────────────────────────────────────────────────────
+
 router.post('/:id/writing/submit', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
@@ -851,10 +768,7 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      include: {
-        student: true,
-        paper: { include: { writingTasks: true } }
-      }
+      include: { student: true, paper: { include: { writingTasks: true } } }
     });
 
     console.log(`Step 1: Attempt ${attemptId} data fetched`);
@@ -862,85 +776,51 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
 
     const task1Words = (task1Response || '').trim().split(/\s+/).filter(Boolean).length;
     const task2Words = (task2Response || '').trim().split(/\s+/).filter(Boolean).length;
-
     console.log(`Step 2: Word counts calculated (${task1Words}, ${task2Words})`);
 
-    // Save submission
     try {
       await prisma.writingSubmission.upsert({
         where: { attemptId },
-        create: {
-          attemptId,
-          task1Response: task1Response || '',
-          task2Response: task2Response || '',
-          task1WordCount: task1Words,
-          task2WordCount: task2Words,
-          markingStatus: 'PENDING_AI'
-        },
-        update: {
-          task1Response: task1Response || '',
-          task2Response: task2Response || '',
-          task1WordCount: task1Words,
-          task2WordCount: task2Words,
-          markingStatus: 'PENDING_AI'
-        }
+        create: { attemptId, task1Response: task1Response || '', task2Response: task2Response || '', task1WordCount: task1Words, task2WordCount: task2Words, markingStatus: 'PENDING_AI' },
+        update: { task1Response: task1Response || '', task2Response: task2Response || '', task1WordCount: task1Words, task2WordCount: task2Words, markingStatus: 'PENDING_AI' }
       });
       console.log(`Step 3: WritingSubmission upserted`);
     } catch (wsErr) {
       console.error('WritingSubmission Error:', wsErr);
-      throw new Error('Failed to save writing submission to DB: ' + wsErr.message);
+      throw new Error('Failed to save writing submission: ' + wsErr.message);
     }
 
-    // Mark attempt complete
     try {
-      await prisma.attempt.update({
-        where: { id: attemptId },
-        data: { status: 'COMPLETED', endedAt: new Date() }
-      });
+      await prisma.attempt.update({ where: { id: attemptId }, data: { status: 'COMPLETED', endedAt: new Date() } });
       console.log(`Step 4: Attempt marked COMPLETED`);
     } catch (attErr) {
-      console.error('Attempt Update Error:', attErr);
       throw new Error('Failed to update attempt status: ' + attErr.message);
     }
 
-    // Create placeholder result - use same logic as generic /submit for consistency
     try {
       await prisma.result.deleteMany({ where: { attemptId } });
-      await prisma.result.create({
-        data: { attemptId, rawScore: null, bandEstimate: null }
-      });
+      await prisma.result.create({ data: { attemptId, rawScore: null, bandEstimate: null } });
       console.log(`Step 5: Result placeholder created`);
     } catch (resErr) {
-      console.error('Result Creation Error:', resErr);
       throw new Error('Failed to create result placeholder: ' + resErr.message);
     }
 
-    // Send response immediately
     res.json({ message: 'Writing submitted', task1Words, task2Words });
     console.log(`Step 6: Submission response sent`);
 
-    // Background AI marking
     setTimeout(async () => {
       try {
         const updatedAttempt = await prisma.attempt.findUnique({
           where: { id: attemptId },
-          include: { 
-            student: true, 
-            paper: { include: { writingTasks: true } },
-            result: true
-          }
+          include: { student: true, paper: { include: { writingTasks: true } }, result: true }
         });
-
         if (updatedAttempt && updatedAttempt.result) {
           await createAiFeedback(updatedAttempt, updatedAttempt.result, []);
           console.log(`Background Writing AI complete for attempt ${attemptId}`);
         }
       } catch (aiErr) {
         console.error(`Writing AI background error for ${attemptId}:`, aiErr);
-        await prisma.writingSubmission.update({
-          where: { attemptId },
-          data: { markingStatus: 'FAILED' }
-        }).catch(() => {});
+        await prisma.writingSubmission.update({ where: { attemptId }, data: { markingStatus: 'FAILED' } }).catch(() => {});
       }
     }, 500);
   } catch (err) {
@@ -949,18 +829,13 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
   }
 });
 
-// Get writing feedback
 router.get('/:id/writing/feedback', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-
     let cached = aiCache.get(`writing_${attemptId}`);
     if (cached) return res.json({ status: 'ready', feedback: cached });
 
-    const sub = await prisma.writingSubmission.findUnique({
-      where: { attemptId }
-    });
-
+    const sub = await prisma.writingSubmission.findUnique({ where: { attemptId } });
     if (!sub) return res.json({ status: 'not_ready' });
     if (sub.markingStatus === 'COMPLETE' && sub.aiFeedback) {
       const feedback = JSON.parse(sub.aiFeedback);
@@ -974,17 +849,12 @@ router.get('/:id/writing/feedback', auth, async (req, res) => {
   }
 });
 
-// Get writing submission for result page
 router.get('/:id/writing/result', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      include: {
-        paper: { include: { writingTasks: true } },
-        writingSubmission: true,
-        result: true
-      }
+      include: { paper: { include: { writingTasks: true } }, writingSubmission: true, result: true }
     });
     if (!attempt) return res.status(404).json({ message: 'Not found' });
     res.json(attempt);

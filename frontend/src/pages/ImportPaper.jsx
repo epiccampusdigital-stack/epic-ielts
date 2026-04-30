@@ -182,8 +182,10 @@ export default function ImportPaper() {
                         onChange={e => setTestType(e.target.value)}
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                      >
-                        <option value="READING">Reading</option>
-                        <option value="LISTENING">Listening</option>
+                        <option value="READING">📖 Reading</option>
+                        <option value="LISTENING">🎧 Listening</option>
+                        <option value="WRITING">✍️ Writing</option>
+                        <option value="SPEAKING">🗣️ Speaking</option>
                      </select>
                   </div>
                </div>

@@ -49,9 +49,12 @@ export default function ListeningExam() {
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
         setAnswers(existingAnswers);
         const mins = r.data.paper?.timeLimitMin || 30;
-        const started = new Date(r.data.startedAt).getTime();
-        const elapsed = Math.floor((Date.now() - started) / 1000);
-        setTimeLeft(Math.max(0, (mins + 10) * 60 - elapsed));
+        const started = r.data.startedAt
+          ? new Date(r.data.startedAt).getTime()
+          : Date.now();
+        const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+        const totalSeconds = (mins + 10) * 60;
+        setTimeLeft(Math.max(totalSeconds - elapsed, 60));
       });
   }, [attemptId]);
 
@@ -282,24 +285,31 @@ export default function ListeningExam() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 15, color: '#1e293b', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
-                          {q.questionType === 'MULTIPLE_CHOICE' ? (
-                            <div style={{ display: 'grid', gap: '8px' }}>
-                              {(q.options
-                                ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options)
-                                : []
+                          {(q.questionType === 'MULTIPLE_CHOICE' ||
+                            q.questionType === 'Multiple Choice' ||
+                            q.groupType === 'MULTIPLE_CHOICE' ||
+                            q.type === 'MULTIPLE_CHOICE' ||
+                            (q.options && (typeof q.options === 'string'
+                              ? JSON.parse(q.options)
+                              : q.options).length > 0)
+                          ) ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                              {(typeof q.options === 'string'
+                                ? JSON.parse(q.options)
+                                : (q.options || [])
                               ).filter(opt => opt && String(opt).trim() !== '')
                                .map((opt, i) => {
                                 const selected = answers[q.id] === opt;
                                 return (
-                                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: selected ? '#f5f3ff' : '#fff', border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: selected ? '#f5f3ff' : '#fff', border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', width: '100%' }}>
                                     <input
                                       type="radio"
                                       name={`q${q.id}`}
                                       checked={selected}
                                       onChange={() => setAnswers({ ...answers, [q.id]: opt })}
-                                      style={{ accentColor: '#4f46e5' }}
+                                      style={{ accentColor: '#4f46e5', flexShrink: 0 }}
                                     />
-                                    <span style={{ fontSize: 14, fontWeight: selected ? 700 : 500, color: selected ? '#4f46e5' : '#475569' }}>{opt}</span>
+                                    <span style={{ fontSize: 14, fontWeight: selected ? 700 : 500, color: selected ? '#4f46e5' : '#475569', lineHeight: 1.4 }}>{opt}</span>
                                   </label>
                                 );
                               })}

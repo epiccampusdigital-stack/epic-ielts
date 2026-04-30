@@ -202,30 +202,39 @@ export default function SpeakingExam() {
   };
 
   const startRecording = async () => {
-    if (!streamRef.current) return;
-    chunksRef.current = [];
-    const mr = new MediaRecorder(streamRef.current, { mimeType: 'audio/webm' });
-    mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    mr.onstop = async () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-      setRecording(false);
-      cancelAnimationFrame(animFrameRef.current);
-      setVisualizerData([]);
-      await uploadRecording(blob);
-    };
-    mr.start();
-    mediaRecorderRef.current = mr;
-    setRecording(true);
-    setPhase('recording');
-    drawVisualizer();
+    try {
+      if (!streamRef.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+      }
+      chunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const mr = new MediaRecorder(streamRef.current, { mimeType });
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        setRecording(false);
+        cancelAnimationFrame(animFrameRef.current);
+        setVisualizerData([]);
+        await uploadRecording(blob);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+      setPhase('recording');
+      drawVisualizer();
 
-    let t = part.duration;
-    setRecordTimeLeft(t);
-    timerRef.current = setInterval(() => {
-      t--;
+      let t = part.duration;
       setRecordTimeLeft(t);
-      if (t <= 0) { clearInterval(timerRef.current); stopRecording(); }
-    }, 1000);
+      timerRef.current = setInterval(() => {
+        t--;
+        setRecordTimeLeft(t);
+        if (t <= 0) { clearInterval(timerRef.current); stopRecording(); }
+      }, 1000);
+    } catch (err) {
+      console.error('Recording error:', err);
+      alert('Could not start recording: ' + err.message);
+    }
   };
 
   const stopRecording = () => {

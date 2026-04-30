@@ -438,6 +438,45 @@ ${rawText.substring(0, 6000)}`
       }
     }
 
+    if (type === 'SPEAKING') {
+      for (const part of (parsed.parts || [])) {
+        const section = await prisma.section.create({
+          data: {
+            paperId: paper.id,
+            number: parseInt(part.partNumber) || 1,
+            description: part.title || `Part ${part.partNumber}`
+          }
+        });
+        const group = await prisma.questionGroup.create({
+          data: {
+            sectionId: section.id,
+            passageId: null,
+            groupType: 'SHORT_ANSWER',
+            instruction: part.title || null,
+            wordLimit: null,
+            tableData: null,
+            imageUrl: null
+          }
+        });
+        const questions = Array.isArray(part.questions) ? part.questions : [];
+        if (questions.length > 0) {
+          await prisma.question.createMany({
+            data: questions.map((q, idx) => ({
+              paperId: paper.id,
+              groupId: group.id,
+              sectionNumber: parseInt(part.partNumber) || 1,
+              questionNumber: idx + 1,
+              questionType: 'SHORT_ANSWER',
+              content: String(q),
+              correctAnswer: '',
+              explanation: null,
+              options: null
+            }))
+          });
+        }
+      }
+    }
+
     res.json({ success: true, paperId: paper.id, paperCode: finalCode, testType: type });
 
   } catch (err) {

@@ -17,6 +17,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Stripe webhook MUST receive raw body — register before express.json()
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -66,6 +69,7 @@ app.use('/api/attempts', require('./routes/attempts'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/upload', require('./routes/uploads'));
 app.use('/api/admin/papers/import-json', auth, adminOnly, require('./routes/importJson'));
+app.use('/api/payments', require('./routes/payments'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'EPIC IELTS API running' });

@@ -57,19 +57,25 @@ export default function StudentDashboard() {
 
   const startTest = async (paperId) => {
     try {
-      const res = await axios.post(
-        `${API_URL}/api/attempts`,
-        { paperId },
-        api()
-      );
-
+      const res = await axios.post(`${API_URL}/api/attempts`, { paperId }, api());
       const attemptId = res.data.id || res.data.attemptId;
       navigate(`/exam/${attemptId}/greeting`);
     } catch (err) {
-      console.error('Start test error:', err);
-      alert('Failed to start test. Please try again.');
+      if (err.response?.status === 403 && err.response?.data?.error === 'PAYMENT_REQUIRED') {
+        navigate('/upgrade');
+      } else {
+        console.error('Start test error:', err);
+        alert('Failed to start test. Please try again.');
+      }
     }
   };
+
+  // Track which paper is the first of each testType (free paper per skill)
+  const firstPaperByType = {};
+  papers.forEach(p => {
+    if (!firstPaperByType[p.testType]) firstPaperByType[p.testType] = p.id;
+  });
+  const isLocked = (paper) => !user.isPaid && firstPaperByType[paper.testType] !== paper.id;
 
   const getBandColor = (band) => {
     if (!band) return { bg: '#f1f5f9', color: '#64748b' };
@@ -381,7 +387,7 @@ export default function StudentDashboard() {
                 style={{ padding: '6px 12px', fontSize: '12px' }}
                 onClick={() => {
                   localStorage.clear();
-                  navigate('/login');
+                  navigate('/');
                 }}
               >
                 Logout
@@ -752,43 +758,60 @@ export default function StudentDashboard() {
                           justifyContent: 'space-between'
                         }}
                       >
-                        <div
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: '#f0fdf4',
-                            border: '1px solid #bbf7d0',
-                            borderRadius: '20px',
-                            padding: '4px 10px'
-                          }}
-                        >
-                          <span
+                        {isLocked(paper) ? (
+                          <div
                             style={{
-                              width: '5px',
-                              height: '5px',
-                              borderRadius: '50%',
-                              background: '#16a34a',
-                              display: 'inline-block'
-                            }}
-                          />
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              fontWeight: '500',
-                              color: '#16a34a'
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#fef3c7',
+                              border: '1px solid #fde68a',
+                              borderRadius: '20px',
+                              padding: '4px 10px'
                             }}
                           >
-                            Available
-                          </span>
-                        </div>
+                            <span style={{ fontSize: '10px' }}>🔒</span>
+                            <span style={{ fontSize: '10px', fontWeight: '600', color: '#b45309' }}>
+                              Locked
+                            </span>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: '20px',
+                              padding: '4px 10px'
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: '5px',
+                                height: '5px',
+                                borderRadius: '50%',
+                                background: '#16a34a',
+                                display: 'inline-block'
+                              }}
+                            />
+                            <span style={{ fontSize: '10px', fontWeight: '500', color: '#16a34a' }}>
+                              Available
+                            </span>
+                          </div>
+                        )}
 
                         <button
                           className="start-btn"
-                          style={{ padding: '8px 16px', fontSize: '12px' }}
+                          style={{
+                            padding: '8px 16px',
+                            fontSize: '12px',
+                            background: isLocked(paper) ? '#92400e' : undefined
+                          }}
                           onClick={() => startTest(paper.id)}
                         >
-                          Start Test →
+                          {isLocked(paper) ? '🔒 Unlock Access' : 'Start Test →'}
                         </button>
                       </div>
                     </div>

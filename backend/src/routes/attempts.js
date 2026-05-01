@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
+const { requirePaidOrFirstExam } = require('../middleware/accessControl');
 const { gradeAttempt } = require('../services/claudeMarking');
 
 const router = express.Router();
@@ -284,7 +285,7 @@ router.get('/dashboard/summary', auth, async (req, res) => {
   }
 });
 
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
   try {
     const { paperId } = req.body;
     if (!paperId) return res.status(400).json({ message: 'paperId is required' });

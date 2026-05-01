@@ -1,15 +1,23 @@
 const router = require('express').Router();
-const Stripe = require('stripe');
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
 
 const prisma = new PrismaClient();
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Initialize Stripe per-request so env vars are always resolved at call time
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key || key.includes('REPLACE_WITH') || key.includes('placeholder')) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return require('stripe')(key);
+}
 
 // POST /api/payments/create-checkout
 // Creates a Stripe Checkout session for full access upgrade
 router.post('/create-checkout', auth, async (req, res) => {
   try {
+    const stripe = getStripe();
     const userId = req.user.id;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -51,6 +59,7 @@ router.post('/webhook', async (req, res) => {
 
   let event;
   try {
+    const stripe = getStripe();
     event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err) {
     console.error('Webhook signature error:', err.message);
@@ -100,6 +109,7 @@ router.get('/status', auth, async (req, res) => {
 // Verifies a Stripe session and updates DB if paid
 router.get('/verify', auth, async (req, res) => {
   try {
+    const stripe = getStripe();
     const { session_id } = req.query;
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 

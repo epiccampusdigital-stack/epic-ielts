@@ -17,6 +17,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import UpgradePrompt from './pages/UpgradePrompt';
 import FeedbackPage from './pages/FeedbackPage';
+import VerifyEmail from './pages/VerifyEmail';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ function App() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<Login />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Student routes */}
       <Route path="/student/dashboard" element={

@@ -85,7 +85,11 @@ export default function Login() {
       });
       finishLogin(res.data.token, res.data.user);
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid email or password.');
+      if (err.response?.data?.error === 'EMAIL_NOT_VERIFIED') {
+        setError('Please verify your email before logging in. Check your inbox for the verification link.');
+      } else {
+        setError(err.response?.data?.error || 'Invalid email or password.');
+      }
     } finally {
       setLoading(false);
     }
@@ -114,7 +118,10 @@ export default function Login() {
         phone: signup.phone,
         expectedBand: signup.expectedBand
       });
-      finishLogin(res.data.token, res.data.user);
+      setMode('login');
+      setError('');
+      setLoginEmail(signup.email);
+      alert('Account created! Please check your email and click the verification link before logging in.');
     } catch (err) {
       setError(err.response?.data?.error || 'Signup failed. Please try again.');
     } finally {

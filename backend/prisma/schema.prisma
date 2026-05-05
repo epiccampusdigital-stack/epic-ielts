@@ -24,6 +24,8 @@ model Student {
   stripeSessionId String?
   attempts        Attempt[]
   feedbacks       Feedback[]
+  emailVerified     Boolean  @default(false)
+  verificationToken String?
 }
 
 model Paper {

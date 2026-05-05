@@ -32,9 +32,7 @@ export default function WritingExam() {
         setAttempt(r.data);
         setPaper(r.data.paper);
         const mins = r.data.paper?.timeLimitMin || 60;
-        const started = new Date(r.data.startedAt).getTime();
-        const elapsed = Math.floor((Date.now() - started) / 1000);
-        setTimeLeft(Math.max(0, mins * 60 - elapsed));
+        setTimeLeft(mins * 60);
       })
       .catch(e => console.error('Paper fetch error:', e));
 
@@ -59,16 +57,12 @@ export default function WritingExam() {
   }, [attemptId]);
 
   useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return;
+    if (timeLeft === null) return;
     const interval = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(interval); return 0; }
-        return t - 1;
-      });
+      setTimeLeft(t => t - 1);
     }, 1000);
-    timerRef.current = interval;
     return () => clearInterval(interval);
-  }, [timeLeft === null ? 'null' : 'set']);
+  }, []);
 
   const wordCount = (text) => text.trim().split(/\s+/).filter(Boolean).length;
 

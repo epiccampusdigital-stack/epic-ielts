@@ -58,7 +58,7 @@ export default function ListeningExam() {
     autosaveRef.current = setInterval(saveAnswers, 30000);
     timerRef.current = id;
     return () => { clearInterval(id); clearInterval(autosaveRef.current); };
-  }, []);
+  }, [timeLeft === null]);
 
   const saveAnswers = async () => {
     const payload = Object.entries(answers).map(([questionId, answer]) => ({

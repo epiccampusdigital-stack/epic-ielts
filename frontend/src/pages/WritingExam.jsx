@@ -117,6 +117,7 @@ export default function WritingExam() {
   };
 
   const writingTasks = paper?.writingTasks || [];
+  const hasWritingTasks = writingTasks.length > 0;
   const currentTask = writingTasks.find(t => t.taskNumber === task);
   const currentText = task === 1 ? task1 : task2;
   const setCurrentText = task === 1 ? setTask1 : setTask2;
@@ -159,6 +160,51 @@ export default function WritingExam() {
       </div>
     </div>
   );
+
+  if (!hasWritingTasks) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f0f7ff',
+        fontFamily: 'Inter, sans-serif',
+        padding: 24
+      }}>
+        <div style={{
+          maxWidth: 480,
+          background: '#fff',
+          borderRadius: 16,
+          padding: 28,
+          border: '1px solid #bfdbfe',
+          boxShadow: '0 12px 40px rgba(30,58,95,0.08)'
+        }}>
+          <h2 style={{ margin: '0 0 12px', color: '#1e3a5f', fontSize: 20 }}>Writing tasks not ready</h2>
+          <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+            This paper has no Task 1 / Task 2 configured yet. Ask your administrator to open the paper in the admin editor and add both writing tasks (prompts, chart if needed, word minimums), then try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/student/dashboard')}
+            style={{
+              marginTop: 20,
+              padding: '10px 20px',
+              background: '#2563eb',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'Inter, sans-serif'
+            }}
+          >
+            Back to dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', background: '#f0f7ff', overflow: 'hidden' }}>
@@ -324,7 +370,7 @@ export default function WritingExam() {
           <div
             className="writing-prompt-content"
             style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.8, marginBottom: 20, fontWeight: 500 }}
-            dangerouslySetInnerHTML={{ __html: currentTask?.prompt || `<p>Loading Task ${task} prompt...</p>` }}
+            dangerouslySetInnerHTML={{ __html: currentTask?.prompt || `<p>No prompt text for Task ${task}. Ask your administrator to edit this paper.</p>` }}
           />
           {currentTask?.tableData && (() => {
             const td = typeof currentTask.tableData === 'string' 

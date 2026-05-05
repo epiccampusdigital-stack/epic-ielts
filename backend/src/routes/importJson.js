@@ -42,15 +42,43 @@ router.post('/', auth, adminOnly, async (req, res) => {
       "Map / Diagram Labeling":   "MAP_LABELING",
     };
 
+    /** Accept display labels, Prisma enum strings, and common aliases (e.g. MCQ). */
+    const TYPE_ALIASES = {
+      MCQ: 'MULTIPLE_CHOICE',
+      TFNG: 'TRUE_FALSE_NOT_GIVEN',
+      YNNG: 'YES_NO_NOT_GIVEN',
+      SA: 'SHORT_ANSWER',
+      SC: 'SENTENCE_COMPLETION',
+    };
     const normalizeType = (t) => {
+      if (t == null || t === '') return null;
+      const raw = String(t).trim();
+      if (TYPE_ALIASES[raw]) return TYPE_ALIASES[raw];
+      if (QUESTION_TYPE_MAP[raw]) return QUESTION_TYPE_MAP[raw];
       if (QUESTION_TYPE_MAP[t]) return QUESTION_TYPE_MAP[t];
+      if (Object.values(QUESTION_TYPE_MAP).includes(raw)) return raw;
       if (Object.values(QUESTION_TYPE_MAP).includes(t)) return t;
       return null;
     };
 
+    const normalizeOptions = (q) => {
+      const o = q.options;
+      if (o == null) return null;
+      if (Array.isArray(o)) return o;
+      if (typeof o === 'string') {
+        try {
+          const p = JSON.parse(o);
+          return Array.isArray(p) ? p : o;
+        } catch {
+          return o;
+        }
+      }
+      return o;
+    };
+
     const qNumbers = new Set();
     const validateGroups = (groups) => {
-      for (const g of groups) {
+      for (const g of groups || []) {
         const type = normalizeType(g.type);
         if (!type) {
           throw new Error(`Unknown group type: ${g.type}`);
@@ -59,12 +87,13 @@ router.post('/', auth, adminOnly, async (req, res) => {
         if (g.type === 'TABLE_COMPLETION' && !g.tableData) {
           throw new Error('TABLE_COMPLETION group missing tableData');
         }
-        for (const q of g.questions) {
+        for (const q of g.questions || []) {
           if (qNumbers.has(q.number)) {
             throw new Error(`Duplicate question number: ${q.number}`);
           }
           qNumbers.add(q.number);
-          if (g.type === 'MULTIPLE_CHOICE' && (!q.options || !Array.isArray(q.options))) {
+          const opts = normalizeOptions(q);
+          if (g.type === 'MULTIPLE_CHOICE' && (!opts || !Array.isArray(opts))) {
             throw new Error(`MCQ question ${q.number} missing options array`);
           }
         }
@@ -76,14 +105,14 @@ router.post('/', auth, adminOnly, async (req, res) => {
         return res.status(400).json({ error: 'Listening paper must have sections' });
       }
       for (const s of data.sections) {
-        validateGroups(s.groups || []);
+        validateGroups(s.groups);
       }
     } else if (data.testType === 'READING') {
       if (!data.passages || !Array.isArray(data.passages)) {
         return res.status(400).json({ error: 'Reading paper must have passages' });
       }
       for (const p of data.passages) {
-        validateGroups(p.groups || []);
+        validateGroups(p.groups);
       }
     } else if (data.testType === 'WRITING') {
       // Writing papers do not require passages or sections
@@ -134,17 +163,21 @@ router.post('/', auth, adminOnly, async (req, res) => {
 
       if (data.testType === 'LISTENING') {
         for (const s of data.sections) {
+          const sectionNumber = s.sectionNumber ?? s.number;
+          if (sectionNumber == null) {
+            throw new Error('Listening section missing sectionNumber (or number)');
+          }
           const section = await tx.section.create({
             data: {
               paperId: paper.id,
-              number: s.sectionNumber,
+              number: sectionNumber,
               description: s.description || '',
               audioUrl: null
             }
           });
-          needsUpload.push({ type: 'audio', sectionNumber: s.sectionNumber, label: `Section ${s.sectionNumber} Audio` });
+          needsUpload.push({ type: 'audio', sectionNumber, label: `Section ${sectionNumber} Audio` });
 
-          for (const g of s.groups) {
+          for (const g of s.groups || []) {
             const group = await tx.questionGroup.create({
               data: {
                 groupType: g.type,
@@ -157,20 +190,20 @@ router.post('/', auth, adminOnly, async (req, res) => {
               }
             });
             if (g.type === 'MAP_LABELING') {
-              needsUpload.push({ type: 'image', groupId: group.id, label: `Sec ${s.sectionNumber} Group Image` });
+              needsUpload.push({ type: 'image', groupId: group.id, label: `Sec ${sectionNumber} Group Image` });
             }
 
-            for (const q of g.questions) {
+            for (const q of g.questions || []) {
               await tx.question.create({
                 data: {
                   paperId: paper.id,
                   groupId: group.id,
-                  sectionNumber: s.sectionNumber,
+                  sectionNumber,
                   questionNumber: q.number,
                   questionType: g.type,
                   content: q.content,
-                  options: q.options || null,
-                  correctAnswer: String(q.correctAnswer),
+                  options: normalizeOptions(q),
+                  correctAnswer: String(q.correctAnswer ?? ''),
                   explanation: q.explanation || null
                 }
               });
@@ -188,7 +221,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
             }
           });
 
-          for (const g of p.groups) {
+          for (const g of p.groups || []) {
             const group = await tx.questionGroup.create({
               data: {
                 groupType: g.type,
@@ -201,7 +234,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
               }
             });
 
-            for (const q of g.questions) {
+            for (const q of g.questions || []) {
               await tx.question.create({
                 data: {
                   paperId: paper.id,
@@ -210,8 +243,8 @@ router.post('/', auth, adminOnly, async (req, res) => {
                   questionNumber: q.number,
                   questionType: g.type,
                   content: q.content,
-                  options: q.options || null,
-                  correctAnswer: String(q.correctAnswer),
+                  options: normalizeOptions(q),
+                  correctAnswer: String(q.correctAnswer ?? ''),
                   explanation: q.explanation || null
                 }
               });

@@ -695,22 +695,32 @@ router.get('/papers/:id', auth, adminOnly, async (req, res) => {
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
-        questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] },
+        questions: { orderBy: { questionNumber: 'asc' } },
         passages: {
+          orderBy: { passageNumber: 'asc' },
           include: {
             groups: {
-              include: { questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] } }
+              orderBy: { id: 'asc' },
+              include: {
+                questions: {
+                  orderBy: { questionNumber: 'asc' }
+                }
+              }
             }
-          },
-          orderBy: { passageNumber: 'asc' }
+          }
         },
         sections: {
+          orderBy: { number: 'asc' },
           include: {
             groups: {
-              include: { questions: { orderBy: [{ order: 'asc' }, { questionNumber: 'asc' }] } }
+              orderBy: { id: 'asc' },
+              include: {
+                questions: {
+                  orderBy: { questionNumber: 'asc' }
+                }
+              }
             }
-          },
-          orderBy: { number: 'asc' }
+          }
         },
         writingTasks: { orderBy: { taskNumber: 'asc' } }
       }

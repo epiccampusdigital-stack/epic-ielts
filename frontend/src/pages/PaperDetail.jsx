@@ -149,8 +149,29 @@ export default function PaperDetail() {
     try {
       setError(null);
       const r = await axios.get(`${API_URL}/api/admin/papers/${id}`, auth());
-      setPaper(r.data);
-      setEdited(JSON.parse(JSON.stringify(r.data)));
+      const raw = r.data;
+      const normalized = {
+        ...raw,
+        passages: (raw.passages || []).map((p) => ({
+          ...p,
+          groups: (p.groups || []).map((g) => ({
+            ...g,
+            questions: (g.questions || []).map((q) => ({ ...q }))
+          }))
+        })),
+        sections: (raw.sections || []).map((s) => ({
+          ...s,
+          groups: (s.groups || []).map((g) => ({
+            ...g,
+            questions: (g.questions || []).map((q) => ({ ...q }))
+          }))
+        })),
+        questions: (raw.questions || []).map((q) => ({ ...q })),
+        writingTasks: (raw.writingTasks || []).map((w) => ({ ...w }))
+      };
+      const snapshot = JSON.parse(JSON.stringify(normalized));
+      setPaper(snapshot);
+      setEdited(JSON.parse(JSON.stringify(snapshot)));
       // If paper was just imported (logic can be based on missing audio or specialized flag)
       if (r.data.testType === 'LISTENING' && r.data.sections?.length > 0 && !r.data.sections[0].audioUrl) {
         setShowSetup(true);

@@ -94,6 +94,8 @@ export default function ListeningExam() {
     const section = paper.sections[activeSIdx];
     if (playedSections[section.id] && !paper.practiceMode) return;
     if (audioRef.current) {
+      const audioUrl = section.audioUrl || paper.audioUrl || null;
+      if (audioUrl) audioRef.current.src = getFullUrl(audioUrl);
       audioRef.current.play();
       setPlayedSections(prev => ({ ...prev, [section.id]: true }));
     }
@@ -216,18 +218,22 @@ export default function ListeningExam() {
 
             <div style={{ marginTop: 40, background: '#f1f5f9', borderRadius: 20, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', marginBottom: 12 }}>AUDIO CONTROL</div>
-              {currentSection.audioUrl ? (
-                <>
-                  <audio ref={audioRef} src={getFullUrl(currentSection.audioUrl)} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
-                  {!paper.practiceMode && (
-                    playedSections[currentSection.id] ? (
-                      <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>✅ Played Once</div>
-                    ) : (
-                      <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>▶ Play Audio</button>
-                    )
-                  )}
-                </>
-              ) : <div style={{ fontSize: 12, color: '#94a3b8' }}>No audio file attached</div>}
+              {(() => {
+                const audioUrl = currentSection.audioUrl || paper.audioUrl || null;
+                if (!audioUrl) return <div style={{ fontSize: 12, color: '#94a3b8' }}>No audio file attached</div>;
+                return (
+                  <>
+                    <audio ref={audioRef} src={getFullUrl(audioUrl)} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
+                    {!paper.practiceMode && (
+                      playedSections[currentSection.id] ? (
+                        <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>✅ Played Once</div>
+                      ) : (
+                        <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>▶ Play Audio</button>
+                      )
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

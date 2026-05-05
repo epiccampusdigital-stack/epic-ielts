@@ -48,27 +48,17 @@ export default function ListeningExam() {
         const existingAnswers = {};
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
         setAnswers(existingAnswers);
-        const mins = r.data.paper?.timeLimitMin || 30;
-        const started = r.data.startedAt
-          ? new Date(r.data.startedAt).getTime()
-          : Date.now();
-        const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-        const totalSeconds = mins * 60;
-        setTimeLeft(Math.max(totalSeconds - elapsed, 30));
+        setTimeLeft((r.data.paper?.timeLimitMin || 30) * 60);
       });
   }, [attemptId]);
 
   useEffect(() => {
     if (timeLeft === null) return;
-    timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current); handleEnd(true); return 0; }
-        return t - 1;
-      });
-    }, 1000);
+    const id = setInterval(() => setTimeLeft(t => t - 1), 1000);
     autosaveRef.current = setInterval(saveAnswers, 30000);
-    return () => { clearInterval(timerRef.current); clearInterval(autosaveRef.current); };
-  }, [timeLeft === null ? 'null' : 'set']);
+    timerRef.current = id;
+    return () => { clearInterval(id); clearInterval(autosaveRef.current); };
+  }, []);
 
   const saveAnswers = async () => {
     const payload = Object.entries(answers).map(([questionId, answer]) => ({

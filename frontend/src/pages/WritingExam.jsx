@@ -5,6 +5,19 @@ import API_URL from '../api';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
+const VISUAL_WRITING_TASK_TYPES = new Set(['PIE_CHART', 'LINE_GRAPH', 'BAR_CHART', 'TABLE']);
+
+const parseTaskTableData = (wt) => {
+  if (!wt?.tableData) return null;
+  try {
+    const raw =
+      typeof wt.tableData === 'string' ? JSON.parse(wt.tableData) : wt.tableData;
+    return raw && typeof raw === 'object' ? { ...raw } : null;
+  } catch {
+    return null;
+  }
+};
+
 export default function WritingExam() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -118,7 +131,9 @@ export default function WritingExam() {
 
   const writingTasks = paper?.writingTasks || [];
   const hasWritingTasks = writingTasks.length > 0;
-  const currentTask = writingTasks.find(t => t.taskNumber === task);
+  const writingTask1 = writingTasks.find(t => t.taskNumber === 1);
+  const writingTask2 = writingTasks.find(t => t.taskNumber === 2);
+  const currentTask = task === 1 ? writingTask1 : task === 2 ? writingTask2 : writingTasks.find(t => t.taskNumber === task);
   const currentText = task === 1 ? task1 : task2;
   const setCurrentText = task === 1 ? setTask1 : setTask2;
   const minWords = currentTask?.minWords || (task === 1 ? 150 : 250);
@@ -370,12 +385,13 @@ export default function WritingExam() {
           <div
             className="writing-prompt-content"
             style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.8, marginBottom: 20, fontWeight: 500 }}
-            dangerouslySetInnerHTML={{ __html: currentTask?.prompt || `<p>No prompt text for Task ${task}. Ask your administrator to edit this paper.</p>` }}
+            dangerouslySetInnerHTML={{ __html: (task === 1 ? writingTask1?.prompt : task === 2 ? writingTask2?.prompt : currentTask?.prompt) || `<p>No prompt text for Task ${task}. Ask your administrator to edit this paper.</p>` }}
           />
           {currentTask?.tableData && (() => {
-            const td = typeof currentTask.tableData === 'string' 
-              ? JSON.parse(currentTask.tableData) 
-              : currentTask.tableData;
+            const tdRaw = parseTaskTableData(currentTask);
+            if (!tdRaw) return null;
+            const td = { ...tdRaw };
+            delete td._writingTaskType;
             if (!td?.headers?.length) return null;
             return (
               <div style={{ overflowX: 'auto', margin: '16px 0', borderRadius: 10, border: '1px solid #bfdbfe' }}>
@@ -404,12 +420,32 @@ export default function WritingExam() {
           })()}
 
           {/* Chart for Task 1 */}
-          {task === 1 && (
+          {task === 1 && writingTask1 && (() => {
+            const tdMeta = parseTaskTableData(writingTask1);
+            const importTaskType = tdMeta?._writingTaskType;
+            const tdForGrid = tdMeta ? { ...tdMeta } : null;
+            if (tdForGrid) delete tdForGrid._writingTaskType;
+            const hasTableGrid = !!(tdForGrid?.headers?.length);
+            const promptPlain = (writingTask1.prompt || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            const promptSnippet = promptPlain.slice(0, 160) + (promptPlain.length > 160 ? '…' : '');
+            const visualPending =
+              !writingTask1.chartImageUrl &&
+              !hasTableGrid &&
+              ((importTaskType && VISUAL_WRITING_TASK_TYPES.has(importTaskType)) ||
+                (tdMeta && Object.keys(tdMeta).filter((k) => k !== '_writingTaskType').length > 0));
+            const showChartPanel =
+              writingTask1.chartImageUrl ||
+              (writingTask1.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(writingTask1.chartDescription)) ||
+              visualPending;
+
+            if (!showChartPanel) return null;
+
+            return (
             <div style={{ background: '#ffffff', borderRadius: 14, padding: 20, border: '1px solid #dbeafe', marginTop: 16 }}>
-              {currentTask?.chartImageUrl ? (
+              {writingTask1.chartImageUrl ? (
                 <div style={{ marginBottom: '24px', animation: 'fadeIn 0.5s ease' }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 12, textAlign: 'center' }}>
-                    {currentTask?.chartDescription || "Figure 1: Task Visualization"}
+                    {writingTask1.chartDescription || "Figure 1: Task Visualization"}
                   </p>
                   <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
@@ -424,22 +460,33 @@ export default function WritingExam() {
                   </div>
                   <div style={{ overflow: 'auto', maxHeight: '55vh', borderRadius: 12, border: '1px solid #e2e8f0' }}>
                     <img
-                      src={getFullUrl(currentTask.chartImageUrl)}
+                      src={getFullUrl(writingTask1.chartImageUrl)}
                       alt="Task Chart"
                       style={{ width: `${imageZoom * 100}%`, display: 'block', transition: 'width 0.2s' }}
                     />
                   </div>
                 </div>
-              ) : currentTask?.chartDescription ? (
+              ) : writingTask1.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(writingTask1.chartDescription) ? (
                 <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12 }}>🖼️ CHART DESCRIPTION</div>
                   <p style={{ fontSize: 14, color: '#475569', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-                    "{currentTask.chartDescription}"
+                    "{writingTask1.chartDescription}"
+                  </p>
+                </div>
+              ) : visualPending ? (
+                <div style={{ background: '#fffbeb', border: '2px dashed #fbbf24', borderRadius: 12, padding: 20, textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>Chart visual</div>
+                  <p style={{ fontSize: 14, color: '#78350f', lineHeight: 1.6, margin: 0 }}>
+                    {promptSnippet ? (
+                      <>Chart (reference): <strong>{promptSnippet}</strong> — </>
+                    ) : null}
+                    Image will be uploaded by your teacher. Refer to the task instructions above and write your overview using the information given.
                   </p>
                 </div>
               ) : null}
             </div>
-          )}
+            );
+          })()}
 
           {task === 2 && (
             <div style={{ background: '#eff6ff', borderRadius: 12, padding: 14, border: '1px solid #bfdbfe' }}>

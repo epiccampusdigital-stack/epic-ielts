@@ -121,26 +121,100 @@ router.post('/', auth, adminOnly, async (req, res) => {
     }
 
     if (data.testType === 'WRITING') {
-      const paper = await prisma.paper.create({
-        data: {
-          title: data.title,
-          paperCode: data.code,
-          testType: 'WRITING',
-          timeLimitMin: parseInt(data.timeMinutes) || 60,
-          instructions: data.overallInstructions || '',
-          practiceMode: data.allowReplay || false,
-          status: 'ACTIVE',
-          assignedBatches: 'ALL',
-          order: 0
+      const paper = await prisma.$transaction(async (tx) => {
+        const newPaper = await tx.paper.create({
+          data: {
+            title: data.title,
+            paperCode: data.code,
+            testType: 'WRITING',
+            timeLimitMin: parseInt(data.timeMinutes) || 60,
+            instructions: data.overallInstructions || '',
+            practiceMode: data.allowReplay || false,
+            status: 'ACTIVE',
+            assignedBatches: 'ALL',
+            order: 999
+          }
+        });
+
+        const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+        const sorted = [...tasks].sort(
+          (a, b) => (Number(a.taskNumber) || 0) - (Number(b.taskNumber) || 0)
+        );
+
+        for (const task of sorted) {
+          const num = Number(task.taskNumber) || 1;
+          const promptText =
+            task.prompt != null && task.prompt !== ''
+              ? String(task.prompt)
+              : '';
+          const img =
+            task.imageUrl || task.chartImageUrl || task.chartImage || null;
+          const minW =
+            task.minWords != null
+              ? parseInt(task.minWords, 10)
+              : num === 1
+                ? 150
+                : 250;
+
+          let tableData = null;
+          if (task.chartData != null) {
+            if (typeof task.chartData === 'string') {
+              try {
+                tableData = JSON.parse(task.chartData);
+              } catch {
+                tableData = { rawChart: task.chartData };
+              }
+            } else if (typeof task.chartData === 'object') {
+              tableData = { ...task.chartData };
+            }
+          }
+          if (task.taskType) {
+            tableData = tableData || {};
+            tableData._writingTaskType = String(task.taskType);
+          }
+
+          await tx.writingTask.create({
+            data: {
+              paperId: newPaper.id,
+              taskNumber: num,
+              prompt: promptText,
+              chartImageUrl: img,
+              chartDescription:
+                task.chartDescription != null && String(task.chartDescription).trim() !== ''
+                  ? String(task.chartDescription)
+                  : null,
+              minWords: Number.isFinite(minW) ? minW : num === 1 ? 150 : 250,
+              tableData
+            }
+          });
         }
+
+        return newPaper;
       });
+
+      const taskList = Array.isArray(data.tasks) ? data.tasks : [];
+      const needsUpload = taskList
+        .filter((t) => {
+          const typ = String(t.taskType || '').toUpperCase();
+          const hasImg = !!(t.imageUrl || t.chartImageUrl || t.chartImage);
+          if (hasImg) return false;
+          if (!typ || typ === 'ESSAY') return false;
+          return true;
+        })
+        .map((t) => ({
+          type: 'image',
+          taskNumber: t.taskNumber || 1,
+          label: `Task ${t.taskNumber || 1} Chart Image (${t.taskType || 'CHART'})`
+        }));
 
       return res.json({
         success: true,
         paperId: paper.id,
         paperTitle: paper.title,
         testType: 'WRITING',
-        message: 'Writing paper created. Please use the paper editor to add Task 1 and Task 2 details including chart images.'
+        taskCount: taskList.length,
+        needsUpload,
+        message: `Writing paper created with ${taskList.length} tasks. Upload chart images via the paper editor.`
       });
     }
 

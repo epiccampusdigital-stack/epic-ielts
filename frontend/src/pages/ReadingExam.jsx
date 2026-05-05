@@ -37,7 +37,36 @@ export default function ReadingExam() {
             );
 
             const loadedPaper = res.data.paper;
-            const loadedQuestions = loadedPaper?.questions || [];
+
+            // Build flat questions from BOTH sources:
+            // 1. Top-level paper.questions (old format, Reading 001–006)
+            // 2. passage.groups.questions (new format, Reading 007+)
+            let loadedQuestions = loadedPaper?.questions || [];
+
+            if (loadedPaper?.passages && loadedPaper.passages.length > 0) {
+               const passageQuestions = [];
+               loadedPaper.passages.forEach((passage) => {
+                  (passage.groups || []).forEach((group) => {
+                     (group.questions || []).forEach((q) => {
+                        passageQuestions.push({
+                           ...q,
+                           passageNumber: passage.passageNumber,
+                           groupType: group.groupType || group.type,
+                           groupInstruction: group.instruction,
+                           groupWordLimit: group.wordLimit,
+                           groupImageUrl: group.imageUrl,
+                           groupTableData: group.tableData
+                        });
+                     });
+                  });
+               });
+
+               if (passageQuestions.length > 0) {
+                  loadedQuestions = passageQuestions.sort(
+                     (a, b) => (a.questionNumber || 0) - (b.questionNumber || 0)
+                  );
+               }
+            }
 
             setPaper(loadedPaper);
             setQuestions(loadedQuestions);
@@ -389,6 +418,171 @@ export default function ReadingExam() {
       Number(endNo),
       currentQuestions[0]?.questionType
    );
+
+   const useDbGroupHints = passageQuestions.some(
+      (q) =>
+         (q.groupInstruction && String(q.groupInstruction).trim()) ||
+         q.groupType
+   );
+
+   const fullPassageMediaUrl = (url) => {
+      if (!url) return null;
+      const s = String(url);
+      if (/^https?:\/\//i.test(s)) return s;
+      const base = String(API_URL || '').replace(/\/$/, '');
+      const path = s.startsWith('/') ? s : `/${s}`;
+      return `${base}${path}`;
+   };
+
+   const buildQuestionGroupsForPage = (qs) => {
+      const questionGroups = [];
+      let currentGroup = null;
+      qs.forEach((q) => {
+         const groupKey =
+            (q.groupInstruction && String(q.groupInstruction).trim()) || '__default__';
+         if (!currentGroup || currentGroup.key !== groupKey) {
+            currentGroup = {
+               key: groupKey,
+               instruction: q.groupInstruction || '',
+               wordLimit: q.groupWordLimit || '',
+               groupType: q.groupType || '',
+               imageUrl: q.groupImageUrl || null,
+               tableData: q.groupTableData || null,
+               questions: []
+            };
+            questionGroups.push(currentGroup);
+         }
+         currentGroup.questions.push(q);
+      });
+      return questionGroups;
+   };
+
+   const groupMetaForDbGroup = (group) => {
+      const td = group.tableData;
+      if (Array.isArray(td)) return { matchingOptions: td };
+      if (td && typeof td === 'object' && Array.isArray(td.options)) {
+         return { matchingOptions: td.options };
+      }
+      return {};
+   };
+
+   const renderQuestionBody = (q, optionMeta, idx, total) => {
+      const meta = useDbGroupHints
+         ? {
+              ...getGroupMeta(
+                 paper.paperCode,
+                 Number(q.questionNumber),
+                 Number(q.questionNumber),
+                 q.questionType
+              ),
+              ...optionMeta
+           }
+         : groupMeta;
+      const options = getOptions(q, meta);
+
+      return (
+         <div
+            key={q.id}
+            style={{
+               marginBottom: '28px',
+               paddingBottom: '24px',
+               borderBottom: idx < total - 1 ? '1px solid #f1f5f9' : 'none'
+            }}
+         >
+            <div
+               style={{
+                  display: 'flex',
+                  gap: '12px',
+                  marginBottom: '14px',
+                  alignItems: 'flex-start'
+               }}
+            >
+               <div
+                  style={{
+                     width: '28px',
+                     height: '28px',
+                     borderRadius: '50%',
+                     background: answers[q.id] ? '#4f46e5' : '#f1f5f9',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     fontSize: '13px',
+                     fontWeight: '800',
+                     color: answers[q.id] ? '#ffffff' : '#64748b',
+                     flexShrink: 0
+                  }}
+               >
+                  {q.questionNumber}
+               </div>
+
+               <p
+                  style={{
+                     fontSize: '15px',
+                     color: '#1e293b',
+                     lineHeight: '1.6',
+                     fontWeight: '700',
+                     margin: 0,
+                     paddingTop: '4px',
+                     fontFamily: "'Inter', sans-serif"
+                  }}
+               >
+                  {q.content}
+               </p>
+            </div>
+
+            {options.length > 0 ? (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingLeft: '40px' }}>
+                  {options.map((opt) => {
+                     const selected = answers[q.id] === opt.value;
+
+                     return (
+                        <label
+                           key={`${q.id}-${opt.value}`}
+                           style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              padding: '12px 16px',
+                              background: selected ? '#eff6ff' : '#ffffff',
+                              border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`,
+                              borderRadius: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              fontSize: '14px',
+                              fontWeight: selected ? '700' : '500',
+                              color: selected ? '#1e40af' : '#475569'
+                           }}
+                        >
+                           <input
+                              type="radio"
+                              name={`q${q.id}`}
+                              checked={selected}
+                              onChange={() => selectAnswer(q.id, opt.value)}
+                              style={{ accentColor: '#4f46e5', width: '18px', height: '18px' }}
+                           />
+                           <span style={{ display: 'flex', gap: '8px' }}>
+                              {opt.letter && (
+                                 <span style={{ fontWeight: '800', color: '#4f46e5' }}>{opt.letter}.</span>
+                              )}
+                              <span>{opt.text || opt.value}</span>
+                           </span>
+                        </label>
+                     );
+                  })}
+               </div>
+            ) : (
+               <div style={{ paddingLeft: '40px' }}>
+                  <input
+                     className="short-input"
+                     value={answers[q.id] || ''}
+                     onChange={(e) => selectAnswer(q.id, e.target.value)}
+                     placeholder="Write your answer here..."
+                  />
+               </div>
+            )}
+         </div>
+      );
+   };
 
    const currentPassageData = paper?.passages?.find(p => p.passageNumber === currentPassage);
    const splitTextMap = splitPassageText(paper?.instructions);
@@ -817,21 +1011,23 @@ export default function ReadingExam() {
                   borderBottom: '1px solid #f1f5f9',
                   flexShrink: 0
                }}>
-                  <div className="group-box">
-                     <div className="group-title">{groupMeta.title}</div>
-                     <div className="group-instruction">{groupMeta.instruction}</div>
-                     {groupMeta.note && <div className="group-note">{groupMeta.note}</div>}
+                  {!useDbGroupHints && (
+                     <div className="group-box">
+                        <div className="group-title">{groupMeta.title}</div>
+                        <div className="group-instruction">{groupMeta.instruction}</div>
+                        {groupMeta.note && <div className="group-note">{groupMeta.note}</div>}
 
-                     {groupMeta.matchingOptions && (
-                        <div className="matching-list">
-                           {groupMeta.matchingOptions.map((item) => (
-                              <span key={item} className="matching-pill">
-                                 {item}
-                              </span>
-                           ))}
-                        </div>
-                     )}
-                  </div>
+                        {groupMeta.matchingOptions && (
+                           <div className="matching-list">
+                              {groupMeta.matchingOptions.map((item) => (
+                                 <span key={item} className="matching-pill">
+                                    {item}
+                                 </span>
+                              ))}
+                           </div>
+                        )}
+                     </div>
+                  )}
 
                   <div style={{
                      display: 'flex',
@@ -863,104 +1059,59 @@ export default function ReadingExam() {
                </div>
 
                <div style={{ flex: 1, padding: '24px' }}>
-                  {currentQuestions.map((q, idx) => {
-                     const options = getOptions(q, groupMeta);
-
-                     return (
-                        <div
-                           key={q.id}
-                           style={{
-                              marginBottom: '28px',
-                              paddingBottom: '24px',
-                              borderBottom: idx < currentQuestions.length - 1 ? '1px solid #f1f5f9' : 'none'
-                           }}
-                        >
-                           <div style={{
-                              display: 'flex',
-                              gap: '12px',
-                              marginBottom: '14px',
-                              alignItems: 'flex-start'
-                           }}>
-                              <div style={{
-                                 width: '28px',
-                                 height: '28px',
-                                 borderRadius: '50%',
-                                 background: answers[q.id] ? '#4f46e5' : '#f1f5f9',
-                                 display: 'flex',
-                                 alignItems: 'center',
-                                 justifyContent: 'center',
-                                 fontSize: '13px',
-                                 fontWeight: '800',
-                                 color: answers[q.id] ? '#ffffff' : '#64748b',
-                                 flexShrink: 0
-                              }}>
-                                 {q.questionNumber}
-                              </div>
-
-                              <p style={{
-                                 fontSize: '15px',
-                                 color: '#1e293b',
-                                 lineHeight: '1.6',
-                                 fontWeight: '700',
-                                 margin: 0,
-                                 paddingTop: '4px',
-                                 fontFamily: "'Inter', sans-serif"
-                              }}>
-                                 {q.content}
-                              </p>
-                           </div>
-
-                           {options.length > 0 ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingLeft: '40px' }}>
-                                 {options.map((opt) => {
-                                    const selected = answers[q.id] === opt.value;
-
-                                    return (
-                                       <label
-                                          key={`${q.id}-${opt.value}`}
-                                          style={{
-                                             display: 'flex',
-                                             alignItems: 'center',
-                                             gap: '12px',
-                                             padding: '12px 16px',
-                                             background: selected ? '#eff6ff' : '#ffffff',
-                                             border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`,
-                                             borderRadius: '12px',
-                                             cursor: 'pointer',
-                                             transition: 'all 0.2s',
-                                             fontSize: '14px',
-                                             fontWeight: selected ? '700' : '500',
-                                             color: selected ? '#1e40af' : '#475569'
-                                          }}
-                                       >
-                                          <input
-                                             type="radio"
-                                             name={`q${q.id}`}
-                                             checked={selected}
-                                             onChange={() => selectAnswer(q.id, opt.value)}
-                                             style={{ accentColor: '#4f46e5', width: '18px', height: '18px' }}
-                                          />
-                                          <span style={{ display: 'flex', gap: '8px' }}>
-                                             {opt.letter && <span style={{ fontWeight: '800', color: '#4f46e5' }}>{opt.letter}.</span>}
-                                             <span>{opt.text || opt.value}</span>
-                                          </span>
-                                       </label>
-                                    );
-                                 })}
-                              </div>
-                           ) : (
-                              <div style={{ paddingLeft: '40px' }}>
-                                 <input
-                                    className="short-input"
-                                    value={answers[q.id] || ''}
-                                    onChange={(e) => selectAnswer(q.id, e.target.value)}
-                                    placeholder="Write your answer here..."
-                                 />
-                              </div>
-                           )}
-                        </div>
-                     );
-                  })}
+                  {!useDbGroupHints
+                     ? currentQuestions.map((q, idx) =>
+                          renderQuestionBody(q, {}, idx, currentQuestions.length)
+                       )
+                     : buildQuestionGroupsForPage(currentQuestions).map((group, gIdx) => (
+                          <div key={`${group.key}-${gIdx}`} style={{ marginBottom: 32 }}>
+                             {group.instruction && (
+                                <div
+                                   style={{
+                                      background: '#f8fafc',
+                                      borderLeft: '4px solid #4f46e5',
+                                      padding: '12px 16px',
+                                      borderRadius: '0 8px 8px 0',
+                                      marginBottom: 16
+                                   }}
+                                >
+                                   <div
+                                      style={{
+                                         fontWeight: 800,
+                                         fontSize: 15,
+                                         color: '#1e293b'
+                                      }}
+                                   >
+                                      {group.instruction}
+                                   </div>
+                                   {group.wordLimit && (
+                                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                                         Write: {group.wordLimit}
+                                      </div>
+                                   )}
+                                </div>
+                             )}
+                             {group.imageUrl && (
+                                <img
+                                   src={fullPassageMediaUrl(group.imageUrl)}
+                                   style={{
+                                      maxWidth: '100%',
+                                      marginBottom: 16,
+                                      borderRadius: 8
+                                   }}
+                                   alt="Question diagram"
+                                />
+                             )}
+                             {group.questions.map((q, idx) =>
+                                renderQuestionBody(
+                                   q,
+                                   groupMetaForDbGroup(group),
+                                   idx,
+                                   group.questions.length
+                                )
+                             )}
+                          </div>
+                       ))}
                </div>
             </div>
          </div>

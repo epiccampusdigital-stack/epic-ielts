@@ -388,7 +388,19 @@ router.get('/:id', auth, async (req, res) => {
         paper: {
           include: {
             questions: { orderBy: { questionNumber: 'asc' } },
-            passages: { orderBy: { passageNumber: 'asc' } },
+            passages: {
+              orderBy: { passageNumber: 'asc' },
+              include: {
+                groups: {
+                  orderBy: { id: 'asc' },
+                  include: {
+                    questions: {
+                      orderBy: { questionNumber: 'asc' }
+                    }
+                  }
+                }
+              }
+            },
             writingTasks: { orderBy: { taskNumber: 'asc' } },
             sections: {
               orderBy: { number: 'asc' },

@@ -16,6 +16,7 @@ import SpeakingResults from './pages/SpeakingResults';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import UpgradePrompt from './pages/UpgradePrompt';
+import FeedbackPage from './pages/FeedbackPage';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -64,6 +65,9 @@ function App() {
       {/* Student routes */}
       <Route path="/student/dashboard" element={
         <RequireStudentAccess><StudentDashboard /></RequireStudentAccess>
+      } />
+      <Route path="/student/feedback" element={
+        <RequireStudentAccess><FeedbackPage /></RequireStudentAccess>
       } />
       <Route path="/upgrade" element={
         <RequireStudentAccess><UpgradePrompt /></RequireStudentAccess>

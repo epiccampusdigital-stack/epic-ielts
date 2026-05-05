@@ -499,6 +499,16 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
         assignedBatches: 'ALL'
       }
     });
+    try {
+      const { sendNewPaperEmail } = require('../services/emailService');
+      const students = await prisma.student.findMany({
+        where: { role: 'STUDENT' },
+        select: { name: true, email: true }
+      });
+      sendNewPaperEmail(students, paper).catch(e => console.error('Email error:', e.message));
+    } catch(e) {
+      console.error('Could not send new paper emails:', e.message);
+    }
     res.json(paper);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create paper: ' + err.message });

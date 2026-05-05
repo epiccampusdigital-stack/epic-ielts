@@ -53,8 +53,8 @@ export default function ListeningExam() {
           ? new Date(r.data.startedAt).getTime()
           : Date.now();
         const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-        const totalSeconds = (mins + 10) * 60;
-        setTimeLeft(Math.max(totalSeconds - elapsed, 60));
+        const totalSeconds = mins * 60;
+        setTimeLeft(Math.max(totalSeconds - elapsed, 30));
       });
   }, [attemptId]);
 
@@ -68,7 +68,7 @@ export default function ListeningExam() {
     }, 1000);
     autosaveRef.current = setInterval(saveAnswers, 30000);
     return () => { clearInterval(timerRef.current); clearInterval(autosaveRef.current); };
-  }, [timeLeft !== null]);
+  }, [timeLeft === null ? 'null' : 'set']);
 
   const saveAnswers = async () => {
     const payload = Object.entries(answers).map(([questionId, answer]) => ({

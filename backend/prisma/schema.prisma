@@ -23,6 +23,7 @@ model Student {
   paidAt          DateTime?
   stripeSessionId String?
   attempts        Attempt[]
+  feedbacks       Feedback[]
 }
 
 model Paper {
@@ -200,4 +201,17 @@ model SpeakingSubmission {
   aiFeedback       String?  @db.Text
   markingStatus    String   @default("PENDING")
   createdAt        DateTime @default(now())
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  subject   String?
+  message   String
+  type      String   @default("FEEDBACK")
+  status    String   @default("OPEN")
+  adminNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student   Student  @relation(fields: [studentId], references: [id])
 }

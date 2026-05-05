@@ -263,6 +263,7 @@ export default function AdminDashboard() {
                         { id: 'students', label: '👨‍🎓 Students', count: students.length },
                         { id: 'papers', label: '📋 Papers', count: papers.length },
                         { id: 'results', label: '📊 Results', count: results.length },
+                        { id: 'feedback', label: '💬 Feedback', count: null },
                         { id: 'settings', label: '⚙️ Settings', count: null }
                      ].map(tab => (
                         <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
@@ -494,6 +495,10 @@ export default function AdminDashboard() {
                         </div>
                      </div>
                   </div>
+               )}
+
+               {activeTab === 'feedback' && (
+                 <FeedbackTab />
                )}
 
                {/* ── SETTINGS TAB ── */}
@@ -789,4 +794,91 @@ function AiFeedbackSummary({ json, testType }) {
          )}
       </div>
    );
+}
+
+function FeedbackTab() {
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/feedback/admin/all`, api())
+      .then(r => r.json())
+      .then(data => { setFeedbacks(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const updateStatus = async (id, status) => {
+    await fetch(`${API_URL}/api/feedback/admin/${id}`, {
+      method: 'PUT',
+      headers: { ...api().headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    setFeedbacks(f => f.map(fb => fb.id === id ? { ...fb, status } : fb));
+    if (selected?.id === id) setSelected(s => ({ ...s, status }));
+  };
+
+  const typeColors = { FEEDBACK: '#4f46e5', BUG: '#dc2626', QUESTION: '#d97706', OTHER: '#64748b' };
+  const statusColors = { OPEN: '#d97706', IN_PROGRESS: '#2563eb', RESOLVED: '#16a34a' };
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;
+
+  return (
+    <div style={{ display: 'flex', height: 600 }}>
+      <div style={{ width: 340, borderRight: '1px solid #f1f5f9', overflowY: 'auto', flexShrink: 0 }}>
+        {feedbacks.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
+            <p>No feedback yet.</p>
+          </div>
+        ) : feedbacks.map(fb => (
+          <div key={fb.id} onClick={() => setSelected(fb)}
+            style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', background: selected?.id === fb.id ? '#f5f3ff' : 'white', transition: 'background 0.15s' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: typeColors[fb.type] || '#64748b', background: '#f8fafc', padding: '2px 8px', borderRadius: 20 }}>{fb.type}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: statusColors[fb.status] || '#64748b' }}>{fb.status}</span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>{fb.subject || '(No subject)'}</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>{fb.student?.name} · {fb.student?.batch}</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fb.message}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ flex: 1, padding: 28, overflowY: 'auto' }}>
+        {!selected ? (
+          <div style={{ textAlign: 'center', color: '#94a3b8', paddingTop: 60 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
+            <p>Select a message to view</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>{selected.subject || '(No subject)'}</h3>
+                <div style={{ fontSize: 13, color: '#64748b' }}>{selected.student?.name} · {selected.student?.email} · {selected.student?.batch}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{new Date(selected.createdAt).toLocaleString()}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: typeColors[selected.type], background: '#f8fafc', padding: '4px 12px', borderRadius: 20, border: '1px solid #e2e8f0' }}>{selected.type}</span>
+            </div>
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: 20, marginBottom: 20, fontSize: 14, lineHeight: 1.8, color: '#374151', whiteSpace: 'pre-wrap', border: '1px solid #e2e8f0' }}>
+              {selected.message}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['OPEN', 'IN_PROGRESS', 'RESOLVED'].map(s => (
+                <button key={s} onClick={() => updateStatus(selected.id, s)}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${selected.status === s ? statusColors[s] : '#e2e8f0'}`, background: selected.status === s ? statusColors[s] : 'white', color: selected.status === s ? 'white' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+                  {s === 'OPEN' ? '🔴 Open' : s === 'IN_PROGRESS' ? '🔵 In Progress' : '✅ Resolved'}
+                </button>
+              ))}
+              <a href={`mailto:${selected.student?.email}?subject=Re: ${selected.subject || 'Your feedback'}`}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', fontWeight: 600, fontSize: 12, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                📧 Reply via Email
+              </a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

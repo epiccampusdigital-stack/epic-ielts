@@ -59,15 +59,16 @@ export default function WritingExam() {
   }, [attemptId]);
 
   useEffect(() => {
-    if (timeLeft === null) return;
-    timerRef.current = setInterval(() => {
+    if (timeLeft === null || timeLeft <= 0) return;
+    const interval = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current); handleSubmit(true); return 0; }
+        if (t <= 1) { clearInterval(interval); return 0; }
         return t - 1;
       });
     }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [timeLeft !== null]);
+    timerRef.current = interval;
+    return () => clearInterval(interval);
+  }, [timeLeft === null ? 'null' : 'set']);
 
   const wordCount = (text) => text.trim().split(/\s+/).filter(Boolean).length;
 

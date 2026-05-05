@@ -221,7 +221,6 @@ export default function SpeakingExam() {
       mr.start();
       mediaRecorderRef.current = mr;
       setRecording(true);
-      setPhase('recording');
       drawVisualizer();
 
       let t = part.duration;
@@ -435,7 +434,7 @@ export default function SpeakingExam() {
         )}
 
         {/* ── QUESTION PHASE ── */}
-        {phase === 'question' && (
+        {(phase === 'question' || phase === 'done') && (
           <div style={{ animation: 'fadeUp 0.4s ease' }}>
             {/* Show all questions for this part */}
             <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${part.color}30`, borderRadius: 20, padding: 32, marginBottom: 28, position: 'relative', overflow: 'hidden' }}>

@@ -383,6 +383,12 @@ export default function StudentDashboard() {
               </div>
 
               <button
+                onClick={() => navigate('/student/feedback')}
+                style={{ padding: '6px 12px', fontSize: '12px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+              >
+                💬 Feedback
+              </button>
+              <button
                 className="logout-btn"
                 style={{ padding: '6px 12px', fontSize: '12px' }}
                 onClick={() => {

@@ -89,10 +89,23 @@ export default function ImportPaper() {
          } catch (e) {}
 
          if (isJson) {
+            const validationErrors = [];
+            if (jsonData.testType === 'READING' && !jsonData.passages) {
+               validationErrors.push('Reading papers must have a passages array');
+            }
+            if (jsonData.testType === 'LISTENING' && !jsonData.sections) {
+               validationErrors.push('Listening papers must have a sections array');
+            }
+            if (validationErrors.length > 0) {
+               setError(validationErrors.join(' '));
+               setLoading(false);
+               return;
+            }
+
             const res = await axios.post(`${API_URL}/api/admin/papers/import-json`, jsonData, api());
             setResult({ ...res.data, isJson: true });
             setNeedsUpload(res.data.needsUpload || []);
-            if (res.data.success && (!res.data.needsUpload || res.data.needsUpload.length === 0)) {
+            if (res.data.success && (!res.data.needsUpload || res.data.needsUpload.length === 0) && res.data.testType !== 'WRITING') {
                setTimeout(() => navigate(`/admin/papers/${res.data.paperId}`), 2000);
             }
          } else {
@@ -134,10 +147,19 @@ export default function ImportPaper() {
                {result?.success && (
                   <div style={{ background: '#f0fdf4', color: '#16a34a', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '24px' }}>
                      <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '4px' }}>Success!</h3>
-                     <p style={{ fontSize: '14px' }}>
-                        {result.isJson 
-                           ? `${result.paperId ? 'Paper' : 'Data'} imported successfully! ${needsUpload.length > 0 ? 'Now upload assets below.' : 'Redirecting...'}`
-                           : `Created paper with ${result.questionsCreated} questions. Redirecting...`}
+                     <p style={{ fontSize: '14px', lineHeight: 1.6 }}>
+                        {result.testType === 'WRITING'
+                           ? (
+                              <>
+                                 Writing paper created successfully! Go to the paper editor to:
+                                 <br />1. Add Task 1 prompt and upload chart image
+                                 <br />2. Add Task 2 essay question
+                                 <br />3. Set the overall instructions
+                              </>
+                           )
+                           : result.isJson 
+                              ? `${result.paperId ? 'Paper' : 'Data'} imported successfully! ${needsUpload.length > 0 ? 'Now upload assets below.' : 'Redirecting...'}`
+                              : `Created paper with ${result.questionsCreated} questions. Redirecting...`}
                      </p>
                   </div>
                )}

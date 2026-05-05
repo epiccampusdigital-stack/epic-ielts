@@ -78,13 +78,41 @@ router.post('/', auth, adminOnly, async (req, res) => {
       for (const s of data.sections) {
         validateGroups(s.groups || []);
       }
-    } else {
+    } else if (data.testType === 'READING') {
       if (!data.passages || !Array.isArray(data.passages)) {
         return res.status(400).json({ error: 'Reading paper must have passages' });
       }
       for (const p of data.passages) {
         validateGroups(p.groups || []);
       }
+    } else if (data.testType === 'WRITING') {
+      // Writing papers do not require passages or sections
+    } else {
+      return res.status(400).json({ error: 'Unknown paper type. Must include testType field.' });
+    }
+
+    if (data.testType === 'WRITING') {
+      const paper = await prisma.paper.create({
+        data: {
+          title: data.title,
+          paperCode: data.code,
+          testType: 'WRITING',
+          timeLimitMin: parseInt(data.timeMinutes) || 60,
+          instructions: data.overallInstructions || '',
+          practiceMode: data.allowReplay || false,
+          status: 'ACTIVE',
+          assignedBatches: 'ALL',
+          order: 0
+        }
+      });
+
+      return res.json({
+        success: true,
+        paperId: paper.id,
+        paperTitle: paper.title,
+        testType: 'WRITING',
+        message: 'Writing paper created. Please use the paper editor to add Task 1 and Task 2 details including chart images.'
+      });
     }
 
     // 2. TRANSACTION
@@ -149,8 +177,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
             }
           }
         }
-      } else {
-        // READING
+      } else if (data.testType === 'READING') {
         for (const p of data.passages) {
           const passage = await tx.passage.create({
             data: {
@@ -190,22 +217,6 @@ router.post('/', auth, adminOnly, async (req, res) => {
               });
             }
           }
-        }
-      }
-
-      if (data.testType === 'WRITING') {
-        for (const t of (data.tasks || [])) {
-          await tx.writingTask.create({
-            data: {
-              paperId: paper.id,
-              taskNumber: parseInt(t.taskNumber) || 1,
-              prompt: String(t.prompt || ''),
-              chartImageUrl: t.chartImageUrl || null,
-              chartDescription: t.chartDescription || null,
-              minWords: parseInt(t.minWords) || (t.taskNumber === 1 ? 150 : 250),
-              tableData: t.tableData || null
-            }
-          });
         }
       }
 

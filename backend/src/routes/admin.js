@@ -10,24 +10,10 @@ const prisma = new PrismaClient();
 
 const adminOnly = require('../middleware/adminOnly');
 
-const audioStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../../uploads/audio');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, 'audio_' + Date.now() + path.extname(file.originalname).toLowerCase());
-  }
-});
+const { storage: cloudinaryStorage } = require('../config/cloudinary');
 const uploadAudio = multer({
-  storage: audioStorage,
-  limits: { fileSize: 100 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.mp3', '.wav', '.ogg', '.m4a', '.aac'];
-    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
-    else cb(new Error('Only audio files allowed'));
-  }
+  storage: cloudinaryStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }
 });
 
 const imageStorage = multer.diskStorage({
@@ -53,7 +39,7 @@ const uploadImage = multer({
 router.post('/papers/:id/upload-audio', auth, adminOnly, uploadAudio.single('audio'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const audioUrl = '/uploads/audio/' + req.file.filename;
+    const audioUrl = req.file.path || req.file.secure_url || ('/uploads/audio/' + req.file.filename);
     const paper = await prisma.paper.update({
       where: { id: parseInt(req.params.id) },
       data: { audioUrl }

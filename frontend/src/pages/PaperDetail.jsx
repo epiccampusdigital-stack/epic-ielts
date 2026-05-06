@@ -407,7 +407,7 @@ export default function PaperDetail() {
                 </div>
                 <div>
                   <label style={lbl}>Instruction</label>
-                  <input style={inp} value={group.instruction || ''} onChange={e => {
+                  <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={group.instruction || ''} onChange={e => {
                     const next = [...edited.sections]; next[sIdx].groups[gIdx].instruction = e.target.value;
                     setEdited({ ...edited, sections: next });
                   }} />
@@ -680,7 +680,7 @@ export default function PaperDetail() {
                             </div>
                             <div>
                               <label style={lbl}>Instruction</label>
-                              <input style={inp} value={group.instruction || ''} onChange={e => {
+                              <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={group.instruction || ''} onChange={e => {
                                 const next = [...edited.passages]; next[pIdx].groups[gIdx].instruction = e.target.value;
                                 setEdited({ ...edited, passages: next });
                               }} />

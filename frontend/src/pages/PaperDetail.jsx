@@ -407,10 +407,10 @@ export default function PaperDetail() {
                 </div>
                 <div>
                   <label style={lbl}>Instruction</label>
-                  <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={group.instruction || ''} onChange={e => {
+                  <textarea rows={4} style={{ ...inp, minHeight: '100px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6' }} value={group.instruction || ''} onChange={e => {
                     const next = [...edited.sections]; next[sIdx].groups[gIdx].instruction = e.target.value;
                     setEdited({ ...edited, sections: next });
-                  }} />
+                  }} ></textarea>
                 </div>
 
                 {(group.groupType === 'MAP_LABELING' || group.groupType === 'TABLE_COMPLETION') && (
@@ -680,10 +680,10 @@ export default function PaperDetail() {
                             </div>
                             <div>
                               <label style={lbl}>Instruction</label>
-                              <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={group.instruction || ''} onChange={e => {
+                              <textarea rows={4} style={{ ...inp, minHeight: '100px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6' }} value={group.instruction || ''} onChange={e => {
                                 const next = [...edited.passages]; next[pIdx].groups[gIdx].instruction = e.target.value;
                                 setEdited({ ...edited, passages: next });
-                              }} />
+                              }} ></textarea>
                             </div>
                             
                             {group.groupType === 'TABLE_COMPLETION' && (

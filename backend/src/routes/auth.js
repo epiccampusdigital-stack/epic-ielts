@@ -72,9 +72,10 @@ router.post('/login', rateLimit, async (req, res) => {
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
-    if (!user.emailVerified) {
-      return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email before logging in. Check your inbox for the verification link.' });
-    }
+    // Temporarily disabled — email verification not required for login
+    // if (!user.emailVerified) {
+    //   return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email before logging in. Check your inbox for the verification link.' });
+    // }
 
     const token = signToken(user);
     res.json({
@@ -129,7 +130,7 @@ router.post('/signup', async (req, res) => {
         expectedBand: expectedBand ? parseFloat(expectedBand) : null,
         role: 'STUDENT',
         batch: 'GENERAL',
-        emailVerified: false,
+        emailVerified: true,
         verificationToken
       }
     });
@@ -168,7 +169,7 @@ router.post('/signup', async (req, res) => {
       console.error('Verification email failed:', emailErr.message);
     }
 
-    res.json({ success: true, message: 'Account created! Please check your email to verify your account before logging in.' });
+    res.json({ success: true, message: 'Account created! You can log in now.' });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'Signup failed. Please try again.' });

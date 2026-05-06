@@ -258,7 +258,7 @@ export default function ListeningExam() {
             {(currentSection.groups || []).map((group, gIdx) => (
               <div key={gIdx} style={{ marginBottom: 48 }}>
                 <div style={{ background: '#f8fafc', borderLeft: '4px solid #4f46e5', padding: 20, borderRadius: '4px 16px 16px 4px', marginBottom: 24 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{group.instruction}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 4, whiteSpace: 'pre-wrap' }}>{group.instruction}</div>
                   {group.wordLimit && <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>Write: {group.wordLimit}</div>}
                 </div>
 

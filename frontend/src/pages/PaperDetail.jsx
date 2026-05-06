@@ -456,7 +456,7 @@ export default function PaperDetail() {
                         <button onClick={() => removeQ(sIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
                       </div>
                       <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
-                        <input style={inp} value={q.content} onChange={e => updateQ(sIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question prompt (e.g. Name: Sarah ___)" />
+                        <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={q.content} onChange={e => updateQ(sIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question prompt (e.g. Name: Sarah ___)" />
                         {group.groupType === 'MULTIPLE_CHOICE' && (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                             {['A', 'B', 'C', 'D'].map((letter, i) => {
@@ -712,7 +712,7 @@ export default function PaperDetail() {
                                     <button onClick={() => removePassageQ(pIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
                                   </div>
                                   <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
-                                    <input style={inp} value={q.content} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question content..." />
+                                    <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={q.content} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question content..." />
                                     {group.groupType === 'MULTIPLE_CHOICE' ? (
                                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                         {['A', 'B', 'C', 'D'].map((letter, i) => {

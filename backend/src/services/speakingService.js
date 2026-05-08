@@ -38,6 +38,7 @@ async function transcribeAudioFile(audioFilePath) {
 
     const transcript = await client.transcripts.transcribe({
       audio_url: audioUrl,
+      speech_model: 'nano',
       language_code: 'en',
       punctuate: true,
       format_text: true,

@@ -671,22 +671,27 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
       if (!sub) return;
 
       const { transcribeAudioFile, markSpeaking } = require('../services/speakingService');
-      const transcripts = {};
 
-      for (const part of ['part1', 'part2', 'part3']) {
-        const audioUrl = sub[`${part}AudioUrl`];
-        if (audioUrl) {
+      // Transcribe all 3 parts in parallel
+      const transcriptResults = await Promise.all(
+        ['part1', 'part2', 'part3'].map(async (part) => {
+          const audioUrl = sub[`${part}AudioUrl`];
+          if (!audioUrl) return { part, transcript: null };
           const filePath = path.join(__dirname, '../../', audioUrl);
-          if (fs.existsSync(filePath)) {
-            const transcript = await transcribeAudioFile(filePath);
-            if (transcript) {
-              transcripts[part] = transcript;
-              await prisma.speakingSubmission.update({
-                where: { attemptId },
-                data: { [`${part}Transcript`]: transcript }
-              });
-            }
-          }
+          if (!fs.existsSync(filePath)) return { part, transcript: null };
+          const transcript = await transcribeAudioFile(filePath);
+          return { part, transcript };
+        })
+      );
+
+      const transcripts = {};
+      for (const { part, transcript } of transcriptResults) {
+        if (transcript) {
+          transcripts[part] = transcript;
+          await prisma.speakingSubmission.update({
+            where: { attemptId },
+            data: { [`${part}Transcript`]: transcript }
+          });
         }
       }
 

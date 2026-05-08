@@ -13,8 +13,8 @@ router.post('/', auth, adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'Missing paper metadata (title, code, testType)' });
     }
 
-    if (!['READING', 'LISTENING', 'WRITING'].includes(data.testType)) {
-      return res.status(400).json({ error: 'testType must be READING, LISTENING or WRITING' });
+    if (!['READING', 'LISTENING', 'WRITING', 'SPEAKING'].includes(data.testType)) {
+      return res.status(400).json({ error: 'testType must be READING, LISTENING, WRITING or SPEAKING' });
     }
 
     // Check duplicate code
@@ -116,6 +116,8 @@ router.post('/', auth, adminOnly, async (req, res) => {
       }
     } else if (data.testType === 'WRITING') {
       // Writing papers do not require passages or sections
+    } else if (data.testType === 'SPEAKING') {
+      // Speaking: questions created from parts[] in dedicated branch below
     } else {
       return res.status(400).json({ error: 'Unknown paper type. Must include testType field.' });
     }
@@ -215,6 +217,96 @@ router.post('/', auth, adminOnly, async (req, res) => {
         taskCount: taskList.length,
         needsUpload,
         message: `Writing paper created with ${taskList.length} tasks. Upload chart images via the paper editor.`
+      });
+    }
+
+    if (data.testType === 'SPEAKING') {
+      const paper = await prisma.$transaction(async (tx) => {
+        const newPaper = await tx.paper.create({
+          data: {
+            title: data.title,
+            paperCode: data.code,
+            testType: 'SPEAKING',
+            timeLimitMin: parseInt(data.timeMinutes, 10) || 15,
+            instructions: data.overallInstructions || '',
+            status: 'ACTIVE',
+            assignedBatches: 'ALL',
+            order: 999,
+          }
+        });
+
+        if (data.parts && Array.isArray(data.parts)) {
+          let questionOrder = 0;
+          for (const part of data.parts) {
+            const partNum = parseInt(part.partNumber, 10);
+            if (!Number.isFinite(partNum)) continue;
+
+            const allQuestions = [
+              ...(part.questions || []),
+              ...(part.followUpQuestions || []),
+              ...(part.topics || []).flatMap(t => t.questions || [])
+            ];
+
+            for (const q of allQuestions) {
+              const qNum =
+                q.number != null && q.number !== ''
+                  ? parseInt(q.number, 10)
+                  : questionOrder + 1;
+              const qContent = q.content != null ? String(q.content) : '';
+              const explain =
+                q.bandDescriptor != null && String(q.bandDescriptor).trim() !== ''
+                  ? String(q.bandDescriptor)
+                  : q.explanation != null
+                    ? String(q.explanation)
+                    : null;
+
+              await tx.question.create({
+                data: {
+                  paperId: newPaper.id,
+                  questionNumber: Number.isFinite(qNum) ? qNum : questionOrder + 1,
+                  content: qContent,
+                  correctAnswer: '',
+                  explanation: explain,
+                  questionType: 'SPEAKING',
+                  passageNumber: partNum,
+                  order: questionOrder++,
+                }
+              });
+            }
+
+            if (partNum === 2 && part.cueCard) {
+              const title = String(part.cueCard.title || '');
+              const bulletBlock = (part.cueCard.bullets || [])
+                .map(b => '• ' + String(b))
+                .join('\n');
+              const cueContent =
+                title +
+                (bulletBlock ? '\n\nYou should say:\n' + bulletBlock : '');
+              await tx.question.create({
+                data: {
+                  paperId: newPaper.id,
+                  questionNumber: 0,
+                  content: cueContent,
+                  correctAnswer: '',
+                  explanation: 'CUE_CARD',
+                  questionType: 'SPEAKING_CUE_CARD',
+                  passageNumber: 2,
+                  order: questionOrder++,
+                }
+              });
+            }
+          }
+        }
+
+        return newPaper;
+      });
+
+      return res.json({
+        success: true,
+        paperId: paper.id,
+        paperTitle: paper.title,
+        testType: 'SPEAKING',
+        message: 'Speaking paper created successfully with all parts and questions.'
       });
     }
 

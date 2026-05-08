@@ -95,8 +95,8 @@ export default function SpeakingExam() {
         const paper = attempt?.paper;
 
         // Try to build parts from DB questions
-        // Speaking questions stored as flat questions with sectionNumber = part number
-        // or as sections with groups
+        // Speaking: flat questions with passageNumber / sectionNumber = part; cue card = SPEAKING_CUE_CARD
+        // or sections with groups
         const dbParts = buildPartsFromPaper(paper);
 
         if (dbParts && dbParts.length > 0) {
@@ -125,45 +125,65 @@ export default function SpeakingExam() {
     };
   }, [attemptId]);
 
-  // Build parts array from paper data
+  // Build parts array from paper data (UI expects number, PART_META fields, questions: string[])
   const buildPartsFromPaper = (paper) => {
     if (!paper) return null;
 
     // Method 1: sections with groups (if imported via AI)
     if (paper.sections?.length > 0) {
-      return paper.sections.map(section => {
+      const fromSections = paper.sections.map(section => {
         const partNum = section.number;
         const meta = PART_META[partNum] || PART_META[1];
         const questions = [];
         section.groups?.forEach(group => {
           group.questions?.forEach(q => questions.push(q.content));
-          // Also use group instruction as a question if no sub-questions
           if (!group.questions?.length && group.instruction) {
             questions.push(group.instruction);
           }
         });
         return { number: partNum, ...meta, questions: questions.length > 0 ? questions : null };
       }).filter(p => p.questions?.length > 0);
+      if (fromSections.length > 0) return fromSections;
     }
 
-    // Method 2: flat questions with sectionNumber = part number
-    if (paper.questions?.length > 0) {
-      const byPart = {};
-      paper.questions.forEach(q => {
-        const partNum = q.passageNumber || q.sectionNumber || 1;
-        if (!byPart[partNum]) byPart[partNum] = [];
-        byPart[partNum].push(q.content);
-      });
-      const partNums = Object.keys(byPart).map(Number).sort();
-      if (partNums.length > 0) {
-        return partNums.map(partNum => {
-          const meta = PART_META[partNum] || PART_META[1];
-          return { number: partNum, ...meta, questions: byPart[partNum] };
-        });
+    // Method 2: flat questions (JSON import / manual) — passageNumber or sectionNumber = part
+    const flat = paper.questions || [];
+    if (flat.length === 0) return null;
+
+    const sorted = [...flat].sort((a, b) => {
+      const oa = a.order ?? 0;
+      const ob = b.order ?? 0;
+      if (oa !== ob) return oa - ob;
+      return (a.questionNumber ?? 0) - (b.questionNumber ?? 0);
+    });
+
+    const byPart = {};
+    let cueCardContent = null;
+
+    for (const q of sorted) {
+      const qt = String(q.questionType || '');
+      if (qt === 'SPEAKING_CUE_CARD') {
+        cueCardContent = q.content;
+        continue;
       }
+      const partNum = q.passageNumber ?? q.sectionNumber ?? 1;
+      if (!byPart[partNum]) byPart[partNum] = [];
+      const c = q.content != null ? String(q.content).trim() : '';
+      if (c) byPart[partNum].push(q.content);
     }
 
-    return null;
+    if (cueCardContent != null && String(cueCardContent).trim()) {
+      if (!byPart[2]) byPart[2] = [];
+      byPart[2] = [cueCardContent, ...byPart[2]];
+    }
+
+    const partNums = Object.keys(byPart).map(Number).sort((a, b) => a - b);
+    if (partNums.length === 0) return null;
+
+    return partNums.map(partNum => {
+      const meta = PART_META[partNum] || PART_META[1];
+      return { number: partNum, ...meta, questions: byPart[partNum] };
+    });
   };
 
   const requestMicPermission = async () => {

@@ -157,33 +157,66 @@ export default function SpeakingExam() {
       return (a.questionNumber ?? 0) - (b.questionNumber ?? 0);
     });
 
-    const byPart = {};
-    let cueCardContent = null;
+    const partMap = {};
+    let cueCardQ = null;
+
+    const toQuestionString = (q) => {
+      if (q == null) return '';
+      if (typeof q === 'string') return q;
+      if (q.content != null) return String(q.content);
+      return '';
+    };
 
     for (const q of sorted) {
       const qt = String(q.questionType || '');
       if (qt === 'SPEAKING_CUE_CARD') {
-        cueCardContent = q.content;
+        cueCardQ = q;
         continue;
       }
       const partNum = q.passageNumber ?? q.sectionNumber ?? 1;
-      if (!byPart[partNum]) byPart[partNum] = [];
+      if (!partMap[partNum]) partMap[partNum] = [];
       const c = q.content != null ? String(q.content).trim() : '';
-      if (c) byPart[partNum].push(q.content);
+      if (c) partMap[partNum].push(q.content);
     }
 
-    if (cueCardContent != null && String(cueCardContent).trim()) {
-      if (!byPart[2]) byPart[2] = [];
-      byPart[2] = [cueCardContent, ...byPart[2]];
+    const strList = (arr) =>
+      (arr || []).map((x) => toQuestionString(x)).filter((s) => String(s).trim());
+
+    const partsOut = [];
+
+    if (partMap[1]?.length) {
+      const meta1 = PART_META[1];
+      partsOut.push({
+        number: 1,
+        ...meta1,
+        questions: strList(partMap[1])
+      });
     }
 
-    const partNums = Object.keys(byPart).map(Number).sort((a, b) => a - b);
-    if (partNums.length === 0) return null;
-
-    return partNums.map(partNum => {
-      const meta = PART_META[partNum] || PART_META[1];
-      return { number: partNum, ...meta, questions: byPart[partNum] };
+    const meta2 = PART_META[2];
+    const q2 = strList(partMap[2]);
+    const cueContent =
+      cueCardQ?.content != null && String(cueCardQ.content).trim()
+        ? String(cueCardQ.content)
+        : null;
+    partsOut.push({
+      number: 2,
+      ...meta2,
+      questions: cueContent ? [cueContent, ...q2] : q2,
+      ...(cueContent ? { cueCard: cueContent } : {})
     });
+
+    if (partMap[3]?.length) {
+      const meta3 = PART_META[3];
+      partsOut.push({
+        number: 3,
+        ...meta3,
+        questions: strList(partMap[3])
+      });
+    }
+
+    partsOut.sort((a, b) => a.number - b.number);
+    return partsOut.length > 0 ? partsOut : null;
   };
 
   const requestMicPermission = async () => {
@@ -211,7 +244,7 @@ export default function SpeakingExam() {
   };
 
   const startPrep = () => {
-    setPhase('prep');
+    setPhase('question');
     let t = part.prepTime;
     setPrepTimeLeft(t);
     timerRef.current = setInterval(() => {
@@ -241,6 +274,7 @@ export default function SpeakingExam() {
       mr.start();
       mediaRecorderRef.current = mr;
       setRecording(true);
+      setPrepTimeLeft(null);
       drawVisualizer();
 
       let t = part.duration;
@@ -478,15 +512,15 @@ export default function SpeakingExam() {
             {part.prepTime > 0 && (
               <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 16, padding: 20, marginBottom: 24, textAlign: 'center' }}>
                 <p style={{ color: '#fbbf24', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                  {phase === 'prep' ? 'Preparation Time Remaining' : '1 minute preparation before recording'}
+                  {prepTimeLeft !== null ? 'Preparation Time Remaining' : '1 minute preparation before recording'}
                 </p>
-                {phase === 'prep' && prepTimeLeft !== null && (
+                {prepTimeLeft !== null && (
                   <div style={{ fontSize: 56, fontWeight: 900, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
                     {formatTime(prepTimeLeft)}
                   </div>
                 )}
-                {phase !== 'prep' && (
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Click "Start Preparation" when ready</p>
+                {prepTimeLeft === null && (
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Click 📝 on the button below when ready to start preparation</p>
                 )}
               </div>
             )}
@@ -509,8 +543,14 @@ export default function SpeakingExam() {
                   <div style={{ position: 'absolute', width: 140, height: 140, borderRadius: '50%', border: `2px solid ${part.color}`, animation: 'ripple 1.5s infinite 0.5s' }} />
                 </>}
                 <button
-                  onClick={recording ? stopRecording : (part.prepTime > 0 ? startPrep : startRecording)}
-                  disabled={uploading}
+                  onClick={
+                    recording
+                      ? stopRecording
+                      : part.prepTime > 0 && prepTimeLeft === null && phase !== 'prep'
+                        ? startPrep
+                        : startRecording
+                  }
+                  disabled={uploading || (part.prepTime > 0 && prepTimeLeft !== null && !recording)}
                   className="neon-btn"
                   style={{
                     width: 96, height: 96, borderRadius: '50%', fontSize: 36,
@@ -519,7 +559,10 @@ export default function SpeakingExam() {
                     boxShadow: recording ? '0 0 40px rgba(220,38,38,0.6)' : `0 0 30px ${part.color}50`,
                     animation: recording ? 'glow 2s infinite' : 'none'
                   }}>
-                  {uploading ? '⏳' : recording ? '⏹' : part.prepTime > 0 ? '📝' : '🎤'}
+                  {uploading ? '⏳'
+                    : recording ? '⏹'
+                      : part.prepTime > 0 && prepTimeLeft === null && !recording ? '📝'
+                        : '🎤'}
                 </button>
               </div>
 

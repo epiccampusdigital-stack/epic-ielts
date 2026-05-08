@@ -83,7 +83,7 @@ function extractQuestionsFromPaper(paper) {
   // Method 2: flat questions with sectionNumber (manually created papers)
   if (Object.keys(questionsByPart).length === 0 && paper.questions?.length > 0) {
     for (const q of paper.questions) {
-      const partNum = q.sectionNumber || 1;
+      const partNum = q.passageNumber || q.sectionNumber || 1;
       if (!questionsByPart[partNum]) questionsByPart[partNum] = [];
       questionsByPart[partNum].push(q.content);
     }

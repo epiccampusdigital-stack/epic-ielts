@@ -150,7 +150,7 @@ export default function SpeakingExam() {
     if (paper.questions?.length > 0) {
       const byPart = {};
       paper.questions.forEach(q => {
-        const partNum = q.sectionNumber || 1;
+        const partNum = q.passageNumber || q.sectionNumber || 1;
         if (!byPart[partNum]) byPart[partNum] = [];
         byPart[partNum].push(q.content);
       });

@@ -70,12 +70,15 @@ export default function StudentDashboard() {
     }
   };
 
-  // Track which paper is the first of each testType (free paper per skill)
-  const firstPaperByType = {};
+  // Free tier: lowest paperCode per testType is free (e.g. 001)
+  const freePaperByType = {};
   papers.forEach(p => {
-    if (!firstPaperByType[p.testType]) firstPaperByType[p.testType] = p.id;
+    const existing = freePaperByType[p.testType];
+    if (!existing || (p.paperCode || '').localeCompare(existing.paperCode || '') < 0) {
+      freePaperByType[p.testType] = p;
+    }
   });
-  const isLocked = (paper) => !user.isPaid && firstPaperByType[paper.testType] !== paper.id;
+  const isLocked = (paper) => !user.isPaid && freePaperByType[paper.testType]?.id !== paper.id;
 
   const getBandColor = (band) => {
     if (!band) return { bg: '#f1f5f9', color: '#64748b' };

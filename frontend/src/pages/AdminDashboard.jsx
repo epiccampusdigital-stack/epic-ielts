@@ -15,7 +15,7 @@ export default function AdminDashboard() {
    const [papers, setPapers] = useState([]);
    const [results, setResults] = useState([]);
    const [showAddStudent, setShowAddStudent] = useState(false);
-   const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '', batch: '' });
+   const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '', batch: '', isPaid: false });
    const [newPaper, setNewPaper] = useState({ paperCode: '', testType: 'READING', title: '', timeLimitMin: 60 });
    const [loading, setLoading] = useState(true);
    const [saving, setSaving] = useState(false);
@@ -101,16 +101,20 @@ export default function AdminDashboard() {
    };
 
    const addStudent = async () => {
-      if (!newStudent.name || !newStudent.email || !newStudent.password) { setMessage('Please fill all required fields'); return; }
+      if (!newStudent.name || !newStudent.email || !newStudent.password) {
+         setMessage('Please fill all required fields');
+         return;
+      }
       setSaving(true);
       try {
          await axios.post(`${API_URL}/api/admin/students`, newStudent, api());
          setMessage('Student added successfully!');
-         setNewStudent({ name: '', email: '', password: '', batch: '' });
+         setNewStudent({ name: '', email: '', password: '', batch: '', isPaid: false });
          setShowAddStudent(false);
          fetchAll();
-      } catch { setMessage('Failed to add student. Email may already exist.'); }
-      finally { setSaving(false); }
+      } catch {
+         setMessage('Failed to add student. Email may already exist.');
+      } finally { setSaving(false); }
    };
 
    const getBandColor = (band) => {
@@ -304,33 +308,99 @@ export default function AdminDashboard() {
 
                {/* ── STUDENTS TAB ── */}
                {activeTab === 'students' && (
-                  <div className="table-container">
-                     <div className="admin-table">
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: '12px', padding: '12px 20px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                           {['Name', 'Email', 'Batch', 'Actions'].map(h => (
-                              <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                  <div>
+                     {/* Add Student button is in the tab bar already */}
+
+                     {/* FULL ACCESS STUDENTS */}
+                     <div style={{ padding: '20px 20px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                           <span style={{ fontSize: 18 }}>💎</span>
+                           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#16a34a', margin: 0 }}>Full Access Students</h3>
+                           <span style={{ background: '#f0fdf4', color: '#16a34a', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+                              {students.filter(s => s.isPaid).length}
+                           </span>
+                        </div>
+                     </div>
+                     <div className="table-container">
+                        <div className="admin-table">
+                           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 120px', gap: '12px', padding: '10px 20px', background: '#f0fdf4', borderBottom: '1px solid #f1f5f9' }}>
+                              {['Name', 'Email', 'Batch', 'Paid On', 'Access'].map(h => (
+                                 <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                              ))}
+                           </div>
+                           {loading ? (
+                              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
+                           ) : students.filter(s => s.isPaid).length === 0 ? (
+                              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No paid students yet.</div>
+                           ) : students.filter(s => s.isPaid).map(s => (
+                              <div key={s.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr 120px' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #16a34a, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>
+                                       {s.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </div>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>{s.name}</span>
+                                 </div>
+                                 <span style={{ fontSize: '12px', color: '#64748b' }}>{s.email}</span>
+                                 <span style={{ fontSize: '12px', color: '#64748b' }}>{s.batch || 'General'}</span>
+                                 <span style={{ fontSize: '11px', color: '#64748b' }}>{s.paidAt ? new Date(s.paidAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Manual'}</span>
+                                 <button onClick={async () => {
+                                    if (!window.confirm(`Remove full access from ${s.name}?`)) return;
+                                    try {
+                                       await axios.put(`${API_URL}/api/admin/students/${s.id}/access`, { isPaid: false }, api());
+                                       fetchAll();
+                                    } catch { alert('Failed to update access'); }
+                                 }} style={{ padding: '5px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#dc2626', cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                                    Revoke
+                                 </button>
+                              </div>
                            ))}
                         </div>
-                        {loading ? (
-                           <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
-                        ) : students.length === 0 ? (
-                           <div style={{ padding: '48px', textAlign: 'center' }}>
-                              <div style={{ fontSize: '40px', marginBottom: '12px' }}>👨‍🎓</div>
-                              <p style={{ color: '#94a3b8', fontSize: '14px' }}>No students yet.</p>
+                     </div>
+
+                     {/* FREE TRIAL STUDENTS */}
+                     <div style={{ padding: '20px 20px 0', marginTop: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                           <span style={{ fontSize: 18 }}>🆓</span>
+                           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#d97706', margin: 0 }}>Free Trial Students</h3>
+                           <span style={{ background: '#fffbeb', color: '#d97706', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+                              {students.filter(s => !s.isPaid).length}
+                           </span>
+                        </div>
+                     </div>
+                     <div className="table-container">
+                        <div className="admin-table">
+                           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 120px', gap: '12px', padding: '10px 20px', background: '#fffbeb', borderBottom: '1px solid #f1f5f9' }}>
+                              {['Name', 'Email', 'Batch', 'Joined', 'Access'].map(h => (
+                                 <span key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                              ))}
                            </div>
-                        ) : students.map(s => (
-                           <div key={s.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                 <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '13px', fontWeight: '600', flexShrink: 0 }}>
-                                    {s.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                           {loading ? (
+                              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>Loading...</div>
+                           ) : students.filter(s => !s.isPaid).length === 0 ? (
+                              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No free trial students.</div>
+                           ) : students.filter(s => !s.isPaid).map(s => (
+                              <div key={s.id} className="table-row" style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr 120px' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>
+                                       {s.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </div>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>{s.name}</span>
                                  </div>
-                                 <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>{s.name}</span>
+                                 <span style={{ fontSize: '12px', color: '#64748b' }}>{s.email}</span>
+                                 <span style={{ fontSize: '12px', color: '#64748b' }}>{s.batch || 'General'}</span>
+                                 <span style={{ fontSize: '11px', color: '#64748b' }}>Free</span>
+                                 <button onClick={async () => {
+                                    if (!window.confirm(`Grant full access to ${s.name}?`)) return;
+                                    try {
+                                       await axios.put(`${API_URL}/api/admin/students/${s.id}/access`, { isPaid: true }, api());
+                                       fetchAll();
+                                    } catch { alert('Failed to update access'); }
+                                 }} style={{ padding: '5px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#16a34a', cursor: 'pointer', fontFamily: 'Inter,sans-serif' }}>
+                                    Grant Access
+                                 </button>
                               </div>
-                              <span style={{ fontSize: '13px', color: '#64748b' }}>{s.email}</span>
-                              <span style={{ display: 'inline-block', background: '#eff6ff', color: '#1d4ed8', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '500' }}>{s.batch || 'General'}</span>
-                              <div><button className="action-btn outline" style={{ padding: '6px 12px', fontSize: '12px' }}>View</button></div>
-                           </div>
-                        ))}
+                           ))}
+                        </div>
                      </div>
                   </div>
                )}
@@ -544,6 +614,16 @@ export default function AdminDashboard() {
                         <input className="form-input" type={field.type} placeholder={field.placeholder} value={newStudent[field.key]} onChange={e => setNewStudent(prev => ({ ...prev, [field.key]: e.target.value }))} />
                      </div>
                   ))}
+                  <div style={{ marginBottom: '16px', padding: '14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                     <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={newStudent.isPaid} onChange={e => setNewStudent(prev => ({ ...prev, isPaid: e.target.checked }))}
+                           style={{ width: 18, height: 18, accentColor: '#16a34a', cursor: 'pointer' }} />
+                        <div>
+                           <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>💎 Grant Full Access</div>
+                           <div style={{ fontSize: '11px', color: '#64748b' }}>Student can access all papers immediately</div>
+                        </div>
+                     </label>
+                  </div>
                   <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
                      <button className="action-btn outline" style={{ flex: 1, padding: '12px' }} onClick={() => setShowAddStudent(false)}>Cancel</button>
                      <button className="action-btn primary" style={{ flex: 2, padding: '12px' }} onClick={addStudent} disabled={saving}>{saving ? 'Adding...' : 'Add Student'}</button>

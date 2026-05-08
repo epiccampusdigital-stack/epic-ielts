@@ -96,7 +96,7 @@ router.post('/papers/reorder', auth, adminOnly, async (req, res) => {
 router.get('/students', auth, adminOnly, async (req, res) => {
   try {
     const students = await prisma.student.findMany({
-      select: { id: true, name: true, email: true, batch: true, role: true },
+      select: { id: true, name: true, email: true, batch: true, role: true, isPaid: true, paidAt: true, stripeSessionId: true },
       orderBy: { id: 'desc' }
     });
     res.json(students);
@@ -107,7 +107,7 @@ router.get('/students', auth, adminOnly, async (req, res) => {
 
 router.post('/students', auth, adminOnly, async (req, res) => {
   try {
-    const { name, email, password, batch } = req.body;
+    const { name, email, password, batch, isPaid } = req.body;
     const hashed = await bcrypt.hash(password, 10);
     const student = await prisma.student.create({
       data: {
@@ -115,18 +115,38 @@ router.post('/students', auth, adminOnly, async (req, res) => {
         email: email.toLowerCase().trim(),
         password: hashed,
         batch: batch || 'GENERAL',
-        role: 'STUDENT'
+        role: 'STUDENT',
+        isPaid: isPaid === true || isPaid === 'true',
+        emailVerified: true
       }
     });
     res.json({
       id: student.id,
       name: student.name,
       email: student.email,
-      batch: student.batch
+      batch: student.batch,
+      isPaid: student.isPaid
     });
   } catch (err) {
     console.error('Create student error:', err);
     res.status(500).json({ error: 'Failed to create student' });
+  }
+});
+
+router.put('/students/:id/access', auth, adminOnly, async (req, res) => {
+  try {
+    const { isPaid } = req.body;
+    const student = await prisma.student.update({
+      where: { id: parseInt(req.params.id) },
+      data: {
+        isPaid: !!isPaid,
+        paidAt: isPaid ? new Date() : null
+      },
+      select: { id: true, name: true, email: true, batch: true, isPaid: true, paidAt: true }
+    });
+    res.json(student);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update access: ' + err.message });
   }
 });
 
@@ -901,6 +921,19 @@ router.get('/results/:attemptId/detail', auth, adminOnly, async (req, res) => {
   } catch (err) {
     console.error('Result detail error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/grant-access/:email', auth, adminOnly, async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email).toLowerCase().trim();
+    const student = await prisma.student.update({
+      where: { email },
+      data: { isPaid: true, paidAt: new Date(), emailVerified: true }
+    });
+    res.json({ success: true, name: student.name, email: student.email, isPaid: student.isPaid });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to grant access: ' + err.message });
   }
 });
 

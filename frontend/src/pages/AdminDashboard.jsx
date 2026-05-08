@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -591,6 +591,11 @@ export default function AdminDashboard() {
                            style={{ marginTop: '12px', padding: '12px 24px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
                            Save Settings
                         </button>
+                        <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid #e2e8f0' }}>
+                           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Grant Full Access to Specific Student</h3>
+                           <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>Enter a student email to manually grant full access to all papers.</p>
+                           <GrantAccessTool apiUrl={API_URL} api={api} setMessage={setMessage} />
+                        </div>
                      </div>
                   </div>
                )}
@@ -959,6 +964,51 @@ function FeedbackTab() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function GrantAccessTool({ apiUrl, api, setMessage }) {
+  const [email, setEmail] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+
+  const handleGrant = async () => {
+    if (!email.trim()) { alert('Please enter an email address'); return; }
+    if (!window.confirm(`Grant full access to ${email}?`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/grant-access/${encodeURIComponent(email.trim().toLowerCase())}`, {
+        method: 'POST',
+        headers: api().headers
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(`✅ Full access granted to ${data.name} (${data.email})`);
+        setEmail('');
+      } else {
+        setMessage('Failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      setMessage('Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 10, maxWidth: 500 }}>
+      <input
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="student@email.com"
+        style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontFamily: 'Inter,sans-serif', outline: 'none' }}
+        onKeyDown={e => e.key === 'Enter' && handleGrant()}
+      />
+      <button onClick={handleGrant} disabled={loading}
+        style={{ padding: '10px 20px', background: loading ? '#94a3b8' : '#16a34a', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'Inter,sans-serif', whiteSpace: 'nowrap' }}>
+        {loading ? '...' : '💎 Grant Access'}
+      </button>
     </div>
   );
 }

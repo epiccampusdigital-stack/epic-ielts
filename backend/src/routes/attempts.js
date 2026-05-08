@@ -670,6 +670,11 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
       const sub = attempt.speakingSubmission;
       if (!sub) return;
 
+      await prisma.speakingSubmission.update({
+        where: { attemptId },
+        data: { markingStatus: 'TRANSCRIBING' }
+      });
+
       const { transcribeAudioFile, markSpeaking } = require('../services/speakingService');
 
       // Transcribe all 3 parts in parallel
@@ -696,7 +701,11 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
       }
 
       if (Object.keys(transcripts).length > 0) {
-        // FIX 2: pass attempt.paper so markSpeaking gets real questions from DB
+        await prisma.speakingSubmission.update({
+          where: { attemptId },
+          data: { markingStatus: 'MARKING' }
+        });
+
         const results = await markSpeaking(
           transcripts,
           attempt.student?.name,
@@ -769,7 +778,7 @@ router.get('/:id/speaking/feedback', auth, async (req, res) => {
     const sub = await prisma.speakingSubmission.findUnique({ where: { attemptId } });
     if (!sub) return res.json({ status: 'not_ready' });
     if (sub.markingStatus === 'COMPLETE' && sub.aiFeedback) {
-      return res.json({ status: 'ready', feedback: JSON.parse(sub.aiFeedback), overallBand: sub.overallBand });
+      return res.json({ status: 'ready', markingStatus: sub.markingStatus, feedback: JSON.parse(sub.aiFeedback), overallBand: sub.overallBand });
     }
     res.json({ status: 'pending', markingStatus: sub.markingStatus });
   } catch (err) {

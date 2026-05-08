@@ -42,7 +42,7 @@ async function transcribeAudioFile(audioFilePath) {
       language_code: 'en',
       punctuate: true,
       format_text: true,
-      disfluencies: true
+      disfluencies: false
     });
 
     console.log('Transcription complete:', transcript.text?.substring(0, 100));

@@ -12,6 +12,7 @@ export default function SpeakingResults() {
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [markingStatus, setMarkingStatus] = useState('PENDING');
 
   useEffect(() => {
     axios.get(`${API_URL}/api/attempts/${attemptId}/speaking/result`, api())
@@ -25,6 +26,7 @@ export default function SpeakingResults() {
     const poll = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/attempts/${attemptId}/speaking/feedback`, api());
+        if (res.data.markingStatus) setMarkingStatus(res.data.markingStatus);
         if (res.data.status === 'ready') {
           setFeedback(res.data.feedback);
           setFeedbackLoading(false);
@@ -85,8 +87,15 @@ export default function SpeakingResults() {
         {feedbackLoading ? (
           <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:40, textAlign:'center', marginBottom:24 }}>
             <div style={{ width:48, height:48, border:'3px solid rgba(37,99,235,0.3)', borderTop:'3px solid #2563eb', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 20px' }} />
-            <p style={{ color:'#60a5fa', fontWeight:600, marginBottom:8 }}>EPIC AI is transcribing and marking your speaking...</p>
-            <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>This takes 1-3 minutes. Please wait.</p>
+            <p style={{ color:'#60a5fa', fontWeight:600, marginBottom:8 }}>
+              {markingStatus === 'TRANSCRIBING' ? '🎤 Converting your speech to text...'
+                : markingStatus === 'MARKING' ? '🤖 AI Examiner is analysing your responses...'
+                : markingStatus === 'FAILED' ? '❌ Something went wrong. Please contact your teacher.'
+                : '⏳ Processing your submission...'}
+            </p>
+            <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>
+              {markingStatus === 'TRANSCRIBING' ? 'This takes about 1-2 minutes...' : 'Almost done...'}
+            </p>
           </div>
         ) : feedback ? (
           Object.entries(feedback).map(([partKey, partData]) => {

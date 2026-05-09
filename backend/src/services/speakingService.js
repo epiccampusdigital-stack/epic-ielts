@@ -48,7 +48,7 @@ async function transcribeAudioFile(audioUrlOrPath) {
     console.log('Starting AssemblyAI transcription...');
     const transcript = await client.transcripts.transcribe({
       audio_url: audioUrl,
-      speech_model: 'nano',
+      speech_models: { best: 'nano' },
       language_code: 'en',
       punctuate: true,
       format_text: true,

@@ -22,7 +22,7 @@ function getAssemblyClient() {
   }
 }
 
-async function transcribeAudioFile(audioFilePath) {
+async function transcribeAudioFile(audioUrlOrPath) {
   const client = getAssemblyClient();
   if (!client) {
     console.warn('AssemblyAI not available, skipping transcription');
@@ -30,12 +30,22 @@ async function transcribeAudioFile(audioFilePath) {
   }
 
   try {
-    console.log('Uploading audio to AssemblyAI:', audioFilePath);
-    const audioData = fs.readFileSync(audioFilePath);
-    const uploadResponse = await client.files.upload(audioData);
-    const audioUrl = uploadResponse.upload_url || uploadResponse;
-    console.log('Audio uploaded, starting transcription...');
+    let audioUrl;
 
+    if (audioUrlOrPath && audioUrlOrPath.startsWith('http')) {
+      // Cloudinary (or any public) URL — pass directly, no upload needed
+      audioUrl = audioUrlOrPath;
+      console.log('Using remote URL for transcription:', audioUrlOrPath.substring(0, 80));
+    } else {
+      // Local file path — read bytes and upload to AssemblyAI
+      console.log('Reading local file for transcription:', audioUrlOrPath);
+      const audioData = fs.readFileSync(audioUrlOrPath);
+      const uploadResponse = await client.files.upload(audioData);
+      audioUrl = uploadResponse.upload_url || uploadResponse;
+      console.log('Local file uploaded to AssemblyAI');
+    }
+
+    console.log('Starting AssemblyAI transcription...');
     const transcript = await client.transcripts.transcribe({
       audio_url: audioUrl,
       speech_model: 'nano',
@@ -45,7 +55,7 @@ async function transcribeAudioFile(audioFilePath) {
       disfluencies: false
     });
 
-    console.log('Transcription complete:', transcript.text?.substring(0, 100));
+    console.log('Transcription done:', transcript.text?.substring(0, 100));
     return transcript.text || null;
   } catch (e) {
     console.error('AssemblyAI transcription error:', e.message);

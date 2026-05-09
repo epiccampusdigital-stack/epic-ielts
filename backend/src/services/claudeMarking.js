@@ -21,10 +21,10 @@ const MODEL = 'claude-haiku-4-5';
 console.log('EPIC IELTS Marking Engine - Using model:', MODEL);
 
 function safeExtractJson(text) {
-  if (!text) return null;
-  // Try 1: clean JSON
+  if (!text || typeof text !== 'string') return null;
+  // Try 1: already clean JSON
   try { return JSON.parse(text.trim()); } catch(e) {}
-  // Try 2: find { ... } and parse just that part
+  // Try 2: find first { ... last }
   try {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
@@ -32,6 +32,19 @@ function safeExtractJson(text) {
       return JSON.parse(text.substring(start, end + 1));
     }
   } catch(e) {}
+  // Try 3: strip markdown fences (```json ... ```) then find { ... }
+  try {
+    const stripped = text
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+    const start = stripped.indexOf('{');
+    const end = stripped.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      return JSON.parse(stripped.substring(start, end + 1));
+    }
+  } catch(e) {}
+  console.error('JSON parse failed. Raw:', text.substring(0, 300));
   return null;
 }
 
@@ -45,7 +58,7 @@ async function callClaudeWithRetry(prompt, maxTokens = 400, maxRetries = 3) {
         model: MODEL,
         max_tokens: maxTokens,
         temperature: 0.3,
-        system: 'You are an IELTS examiner API. Return only the exact JSON structure requested. No extra fields. No markdown. No backticks. Keep responses under 400 tokens.',
+        system: 'You are an IELTS marking API. Respond with raw JSON only. Never use markdown. Never use backticks. Never wrap in code fences. Start your response with { and end with }. No text before or after the JSON.',
         messages: [{ role: 'user', content: prompt }]
       });
       return response;

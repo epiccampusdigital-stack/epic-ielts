@@ -583,19 +583,8 @@ router.get('/:id/ai-feedback', auth, async (req, res) => {
 
 // ─── SPEAKING ──────────────────────────────────────────────────────────────
 
-const speakingStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../../uploads/speaking');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `speaking_${req.params.id}_${Date.now()}.webm`);
-  }
-});
-
 const uploadSpeaking = multer({
-  storage: speakingStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }
 });
 
@@ -605,7 +594,34 @@ router.post('/:id/speaking/upload', auth, uploadSpeaking.single('audio'), async 
     const { partNumber } = req.body;
     if (!req.file) return res.status(400).json({ error: 'No audio file' });
 
-    const audioUrl = '/uploads/speaking/' + req.file.filename;
+    let audioUrl;
+    const { cloudinary: cloudinaryInstance, isLocal } = require('../config/cloudinary');
+
+    if (!isLocal && cloudinaryInstance) {
+      // Upload buffer directly to Cloudinary (persists across deploys)
+      const publicId = `speaking_${req.params.id}_part${partNumber}_${Date.now()}`;
+      audioUrl = await new Promise((resolve, reject) => {
+        const { Readable } = require('stream');
+        const uploadStream = cloudinaryInstance.uploader.upload_stream(
+          { resource_type: 'video', folder: 'epic-ielts/speaking', public_id: publicId },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result.secure_url);
+          }
+        );
+        Readable.from(req.file.buffer).pipe(uploadStream);
+      });
+      console.log('Speaking Part', partNumber, 'uploaded to Cloudinary:', audioUrl);
+    } else {
+      // Local dev fallback: write buffer to disk
+      const dir = path.join(__dirname, '../../uploads/speaking');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const filename = `speaking_${req.params.id}_${Date.now()}.webm`;
+      fs.writeFileSync(path.join(dir, filename), req.file.buffer);
+      audioUrl = '/uploads/speaking/' + filename;
+      console.log('Speaking Part', partNumber, 'saved locally:', audioUrl);
+    }
+
     const updateData = {};
     updateData[`part${partNumber}AudioUrl`] = audioUrl;
 
@@ -615,7 +631,6 @@ router.post('/:id/speaking/upload', auth, uploadSpeaking.single('audio'), async 
       update: updateData
     });
 
-    console.log('Speaking Part', partNumber, 'audio saved:', audioUrl);
     res.json({ success: true, audioUrl, partNumber });
   } catch (err) {
     console.error('Speaking upload error:', err.message);
@@ -681,11 +696,26 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
       const transcriptResults = await Promise.all(
         ['part1', 'part2', 'part3'].map(async (part) => {
           const audioUrl = sub[`${part}AudioUrl`];
-          if (!audioUrl) return { part, transcript: null };
-          const filePath = path.join(__dirname, '../../', audioUrl);
-          if (!fs.existsSync(filePath)) return { part, transcript: null };
-          const transcript = await transcribeAudioFile(filePath);
-          return { part, transcript };
+          if (!audioUrl) {
+            console.log(`${part}: no audio uploaded, skipping`);
+            return { part, transcript: null };
+          }
+          try {
+            // Cloudinary URL → pass directly; local path → resolve to absolute
+            const audioInput = audioUrl.startsWith('http')
+              ? audioUrl
+              : path.join(__dirname, '../../', audioUrl);
+            if (!audioUrl.startsWith('http') && !fs.existsSync(audioInput)) {
+              console.warn(`${part}: local file not found at ${audioInput}`);
+              return { part, transcript: null };
+            }
+            console.log(`${part}: transcribing ${audioUrl.substring(0, 80)}...`);
+            const transcript = await transcribeAudioFile(audioInput);
+            return { part, transcript };
+          } catch (e) {
+            console.error(`${part} transcription failed:`, e.message);
+            return { part, transcript: null };
+          }
         })
       );
 

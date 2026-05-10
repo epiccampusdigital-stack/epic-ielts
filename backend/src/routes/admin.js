@@ -560,7 +560,7 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
       if (deletedSectionIds?.length) await tx.section.deleteMany({ where: { id: { in: deletedSectionIds }, paperId } });
       if (deletedWritingTaskIds?.length) await tx.writingTask.deleteMany({ where: { id: { in: deletedWritingTaskIds }, paperId } });
 
-      // Flat Questions (Reading)
+      // Flat Questions (Reading, Speaking)
       if (Array.isArray(questions)) {
         for (const q of questions) {
           const qData = {
@@ -570,12 +570,15 @@ router.put('/papers/:id', auth, adminOnly, async (req, res) => {
             order: q.order !== undefined ? parseInt(q.order) : 0,
             questionType: q.questionType,
             content: q.content,
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation,
+            correctAnswer: q.correctAnswer || '',
+            explanation: q.explanation || '',
             options: q.options ? (typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : null
           };
-          if (q.id) await tx.question.update({ where: { id: q.id }, data: qData });
-          else await tx.question.create({ data: qData });
+          if (q.id && !String(q.id).startsWith('temp_')) {
+            await tx.question.update({ where: { id: parseInt(q.id) }, data: qData });
+          } else {
+            await tx.question.create({ data: qData });
+          }
         }
       }
 

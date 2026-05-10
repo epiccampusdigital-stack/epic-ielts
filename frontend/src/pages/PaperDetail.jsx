@@ -844,8 +844,145 @@ export default function PaperDetail() {
         )}
 
         {edited.testType === 'SPEAKING' && (
-          <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-            <p style={{ color: '#64748b' }}>Speaking paper editor is coming soon. Use AI Import for speaking papers for now.</p>
+          <div style={{ display: 'grid', gap: '32px' }}>
+
+            {[1, 2, 3].map(partNum => {
+              const partQuestions = (edited.questions || [])
+                .filter(q => (q.passageNumber || q.sectionNumber || 1) === partNum)
+                .filter(q => q.questionType !== 'SPEAKING_CUE_CARD')
+                .sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+
+              const cueCard = partNum === 2
+                ? (edited.questions || []).find(q => q.questionType === 'SPEAKING_CUE_CARD')
+                : null;
+
+              const partMeta = {
+                1: { title: 'Part 1 — Introduction & Interview', color: '#2563eb', icon: '💬', desc: 'Familiar topics — home, work, hobbies, daily life' },
+                2: { title: 'Part 2 — Individual Long Turn', color: '#7c3aed', icon: '🎯', desc: 'Cue card topic — student speaks for 1-2 minutes' },
+                3: { title: 'Part 3 — Two-way Discussion', color: '#0891b2', icon: '🌐', desc: 'Abstract discussion linked to Part 2 topic' }
+              }[partNum];
+
+              return (
+                <div key={partNum} style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
+
+                  {/* Part header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '2px solid #f1f5f9' }}>
+                    <span style={{ fontSize: '24px' }}>{partMeta.icon}</span>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: partMeta.color }}>{partMeta.title}</h3>
+                      <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>{partMeta.desc}</p>
+                    </div>
+                    <div style={{ marginLeft: 'auto', background: `${partMeta.color}15`, color: partMeta.color, borderRadius: '20px', padding: '4px 12px', fontSize: '12px', fontWeight: '700' }}>
+                      {partQuestions.length} question{partQuestions.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+
+                  {/* Cue card for Part 2 */}
+                  {partNum === 2 && (
+                    <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#7c3aed', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📋 Cue Card</div>
+                      {cueCard ? (
+                        <div>
+                          <textarea
+                            value={cueCard.content || ''}
+                            onChange={e => {
+                              const updated = (edited.questions || []).map(q =>
+                                q.id === cueCard.id ? { ...q, content: e.target.value } : q
+                              );
+                              setEdited({ ...edited, questions: updated });
+                            }}
+                            style={{ width: '100%', minHeight: '100px', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '10px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', background: 'white' }}
+                            placeholder="Describe a place you enjoy visiting..."
+                          />
+                          <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Include the topic and bullet points in this field. Use line breaks to separate bullet points.</p>
+                        </div>
+                      ) : (
+                        <div style={{ color: '#94a3b8', fontSize: '14px', fontStyle: 'italic' }}>
+                          No cue card found. Import the paper via JSON to add a cue card automatically.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Questions list */}
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {partQuestions.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '14px', fontStyle: 'italic', background: '#f8fafc', borderRadius: '8px' }}>
+                        No questions yet for Part {partNum}
+                      </div>
+                    ) : (
+                      partQuestions.map((q, idx) => (
+                        <div key={q.id || idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: partMeta.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', flexShrink: 0 }}>
+                            {q.questionNumber || idx + 1}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <textarea
+                              value={q.content || ''}
+                              onChange={e => {
+                                const updated = (edited.questions || []).map(question =>
+                                  question.id === q.id ? { ...question, content: e.target.value } : question
+                                );
+                                setEdited({ ...edited, questions: updated });
+                              }}
+                              style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 10px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', minHeight: '60px', background: 'white' }}
+                              placeholder="Enter speaking question..."
+                            />
+                            {q.explanation && (
+                              <div style={{ fontSize: '11px', color: '#7c3aed', marginTop: '4px', fontStyle: 'italic' }}>
+                                Band descriptor: {q.explanation}
+                              </div>
+                            )}
+                          </div>
+                          {editMode && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Remove this question?')) {
+                                  if (q.id && !String(q.id).startsWith('temp_')) {
+                                    setDelQIds(p => [...p, q.id]);
+                                  }
+                                  const updated = (edited.questions || []).filter(question => question.id !== q.id);
+                                  setEdited({ ...edited, questions: updated });
+                                }
+                              }}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px', padding: '4px', flexShrink: 0 }}
+                            >
+                              🗑
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add question button — edit mode only */}
+                  {editMode && (
+                    <button
+                      onClick={() => {
+                        const newQ = {
+                          id: `temp_${Date.now()}`,
+                          questionNumber: partQuestions.length + 1,
+                          content: '',
+                          correctAnswer: '',
+                          explanation: '',
+                          questionType: 'SPEAKING',
+                          passageNumber: partNum,
+                        };
+                        setEdited({ ...edited, questions: [...(edited.questions || []), newQ] });
+                      }}
+                      style={{ marginTop: '12px', padding: '8px 16px', background: `${partMeta.color}15`, color: partMeta.color, border: `1px solid ${partMeta.color}40`, borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                    >
+                      + Add Question to Part {partNum}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Save note */}
+            <div style={{ background: '#fef9c3', border: '1px solid #fcd34d', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', color: '#92400e' }}>
+              💡 After editing questions, click <strong>Save Changes</strong> at the top of the page to save your edits.
+            </div>
           </div>
         )}
       </div>

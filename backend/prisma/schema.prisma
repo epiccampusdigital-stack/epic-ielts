@@ -205,6 +205,34 @@ model SpeakingSubmission {
   createdAt        DateTime @default(now())
 }
 
+model Level {
+  id          Int            @id @default(autoincrement())
+  levelNumber Int            @unique
+  title       String
+  description String?
+  targetBand  String
+  price       Float          @default(0)
+  isActive    Boolean        @default(true)
+  sections    LevelSection[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model LevelSection {
+  id            Int      @id @default(autoincrement())
+  sectionNumber Int      @unique
+  title         String
+  levelId       Int
+  level         Level    @relation(fields: [levelId], references: [id])
+  readingCode   String?
+  writingCode   String?
+  listeningCode String?
+  speakingCode  String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model Feedback {
   id        Int      @id @default(autoincrement())
   studentId Int

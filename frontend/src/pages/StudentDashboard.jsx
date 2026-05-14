@@ -557,6 +557,36 @@ export default function StudentDashboard() {
         </div>
 
         <div className="dashboard-container">
+
+          {/* Learning Programme banner */}
+          <div
+            onClick={() => navigate('/levels')}
+            style={{
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%)',
+              borderRadius: 16,
+              padding: '20px 24px',
+              marginBottom: 32,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              boxShadow: '0 4px 20px rgba(79,70,229,0.25)',
+              transition: 'transform 0.15s, box-shadow 0.15s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(79,70,229,0.35)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(79,70,229,0.25)'; }}
+          >
+            <div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>📚 Structured Learning</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'white', marginBottom: 4 }}>View My Learning Programme</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>5 Levels · 15 Sections · Reading, Writing, Listening &amp; Speaking</div>
+            </div>
+            <div style={{ flexShrink: 0, background: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: '10px 18px', color: 'white', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap' }}>
+              Open →
+            </div>
+          </div>
+
           <div style={{ marginBottom: '48px' }}>
             <div
               style={{

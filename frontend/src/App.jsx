@@ -18,6 +18,8 @@ import PaymentCancelled from './pages/PaymentCancelled';
 import UpgradePrompt from './pages/UpgradePrompt';
 import FeedbackPage from './pages/FeedbackPage';
 import VerifyEmail from './pages/VerifyEmail';
+import LevelsDashboard from './pages/LevelsDashboard';
+import AdminLevels from './pages/AdminLevels';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -81,6 +83,10 @@ function App() {
         <RequireStudentAccess><PaymentCancelled /></RequireStudentAccess>
       } />
 
+      <Route path="/levels" element={
+        <RequireStudentAccess><LevelsDashboard /></RequireStudentAccess>
+      } />
+
       {/* Exam routes */}
       <Route path="/exam/:attemptId/greeting" element={
         <RequireStudentAccess><ExamGreeting /></RequireStudentAccess>
@@ -119,6 +125,9 @@ function App() {
       } />
       <Route path="/admin/papers/:id" element={
         <RequireAdmin><PaperDetail /></RequireAdmin>
+      } />
+      <Route path="/admin/levels" element={
+        <RequireAdmin><AdminLevels /></RequireAdmin>
       } />
 
       {/* Fallback */}

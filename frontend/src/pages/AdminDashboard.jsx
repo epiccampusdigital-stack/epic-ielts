@@ -268,7 +268,8 @@ export default function AdminDashboard() {
                         { id: 'papers', label: '📋 Papers', count: papers.length },
                         { id: 'results', label: '📊 Results', count: results.length },
                         { id: 'feedback', label: '💬 Feedback', count: null },
-                        { id: 'settings', label: '⚙️ Settings', count: null }
+                        { id: 'settings', label: '⚙️ Settings', count: null },
+                        { id: 'levels', label: '📚 Levels', count: null }
                      ].map(tab => (
                         <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
                            {tab.label}
@@ -569,6 +570,20 @@ export default function AdminDashboard() {
 
                {activeTab === 'feedback' && (
                  <FeedbackTab />
+               )}
+
+               {/* ── LEVELS TAB ── */}
+               {activeTab === 'levels' && (
+                  <div style={{ padding: '32px', textAlign: 'center' }}>
+                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                     <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>Level &amp; Section Manager</h3>
+                     <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>Manage which papers appear in each level and section. Assign paper codes and track what's available.</p>
+                     <button
+                        onClick={() => { window.location.href = '/admin/levels'; }}
+                        style={{ padding: '12px 28px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+                        Open Level Manager →
+                     </button>
+                  </div>
                )}
 
                {/* ── SETTINGS TAB ── */}

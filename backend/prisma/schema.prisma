@@ -18,13 +18,17 @@ model Student {
   phone           String?
   expectedBand    Float?
   batch           String?
-  role            String    @default("STUDENT")
-  isPaid          Boolean   @default(false)
-  paidAt          DateTime?
-  stripeSessionId String?
-  attempts        Attempt[]
-  feedbacks       Feedback[]
-  emailVerified     Boolean  @default(false)
+  role              String         @default("STUDENT")
+  isPaid            Boolean        @default(false)
+  paidAt            DateTime?
+  stripeSessionId   String?
+  hasFullAccess     Boolean        @default(false)
+  placementDone     Boolean        @default(false)
+  placementBand     Float?
+  attempts          Attempt[]
+  feedbacks         Feedback[]
+  studentLevels     StudentLevel[]
+  emailVerified     Boolean        @default(false)
   verificationToken String?
 }
 
@@ -203,6 +207,16 @@ model SpeakingSubmission {
   aiFeedback       String?  @db.Text
   markingStatus    String   @default("PENDING")
   createdAt        DateTime @default(now())
+}
+
+model StudentLevel {
+  id              Int      @id @default(autoincrement())
+  studentId       Int
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  levelNumber     Int
+  purchasedAt     DateTime @default(now())
+  stripeSessionId String?
+  amountLKR       Int
 }
 
 model Level {

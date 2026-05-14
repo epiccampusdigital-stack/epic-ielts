@@ -20,6 +20,8 @@ import FeedbackPage from './pages/FeedbackPage';
 import VerifyEmail from './pages/VerifyEmail';
 import LevelsDashboard from './pages/LevelsDashboard';
 import AdminLevels from './pages/AdminLevels';
+import PlacementTest from './pages/PlacementTest';
+import LevelPaymentSuccess from './pages/LevelPaymentSuccess';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -85,6 +87,12 @@ function App() {
 
       <Route path="/levels" element={
         <RequireStudentAccess><LevelsDashboard /></RequireStudentAccess>
+      } />
+      <Route path="/placement-test" element={
+        <RequireStudentAccess><PlacementTest /></RequireStudentAccess>
+      } />
+      <Route path="/payment-success" element={
+        <RequireStudentAccess><LevelPaymentSuccess /></RequireStudentAccess>
       } />
 
       {/* Exam routes */}

@@ -15,6 +15,7 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [filter, setFilter] = useState('ALL');
+  const [placementDone, setPlacementDone] = useState(true); // default true so banner doesn't flash
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -49,6 +50,12 @@ export default function StudentDashboard() {
         setSummary(summaryRes.data);
       } catch (err) {
         console.error('Summary fetch error:', err);
+      }
+      try {
+        const myLevelsRes = await axios.get(`${API_URL}/api/payments/my-levels`, api());
+        setPlacementDone(myLevelsRes.data.placementDone || false);
+      } catch (err) {
+        setPlacementDone(false);
       }
       setLoading(false);
     };
@@ -558,31 +565,33 @@ export default function StudentDashboard() {
 
         <div className="dashboard-container">
 
+          {/* Placement test banner — shown only if not yet done */}
+          {!placementDone && (
+            <div style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '2px solid #16a34a', borderRadius: 14, padding: '18px 22px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#166534', marginBottom: 4 }}>🎯 Start Your Free Placement Test</div>
+                <div style={{ fontSize: 13, color: '#16a34a' }}>Find your IELTS level · All 4 skills · Completely free</div>
+              </div>
+              <button
+                onClick={() => navigate('/placement-test')}
+                style={{ padding: '10px 22px', background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
+                Start Free Test →
+              </button>
+            </div>
+          )}
+
           {/* Learning Programme banner */}
           <div
             onClick={() => navigate('/levels')}
-            style={{
-              background: 'linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%)',
-              borderRadius: 16,
-              padding: '20px 24px',
-              marginBottom: 32,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              boxShadow: '0 4px 20px rgba(79,70,229,0.25)',
-              transition: 'transform 0.15s, box-shadow 0.15s'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(79,70,229,0.35)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(79,70,229,0.25)'; }}
+            style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%)', borderRadius: 14, padding: '18px 22px', marginBottom: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, boxShadow: '0 4px 20px rgba(79,70,229,0.2)' }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 28px rgba(79,70,229,0.35)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(79,70,229,0.2)'; e.currentTarget.style.transform = 'translateY(0)'; }}
           >
             <div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>📚 Structured Learning</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'white', marginBottom: 4 }}>View My Learning Programme</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>5 Levels · 15 Sections · Reading, Writing, Listening &amp; Speaking</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: 'white', marginBottom: 2 }}>📚 My Learning Programme</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>5 Levels · 15 Sections · LKR 2,000 per level</div>
             </div>
-            <div style={{ flexShrink: 0, background: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: '10px 18px', color: 'white', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap' }}>
+            <div style={{ flexShrink: 0, background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 16px', color: 'white', fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap' }}>
               Open →
             </div>
           </div>

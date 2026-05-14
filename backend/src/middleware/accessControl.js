@@ -2,12 +2,31 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 /**
+ * Maps a paper code (e.g. "004") to its required level number (1-5).
+ * Codes 001-003 → Level 1 (but 001 is always free as placement)
+ * Codes 004-006 → Level 2
+ * Codes 007-009 → Level 3
+ * Codes 010-012 → Level 4
+ * Codes 013-015 → Level 5
+ */
+function requiredLevelForCode(paperCode) {
+  const n = parseInt(paperCode, 10);
+  if (n <= 3)  return 1;
+  if (n <= 6)  return 2;
+  if (n <= 9)  return 3;
+  if (n <= 12) return 4;
+  return 5;
+}
+
+/**
  * Middleware: requirePaidOrFirstExam
  *
- * - Admins and Teachers: always pass through
- * - Paid students: always pass through
- * - Free students: only allowed to access the first paper per testType
- *   (lowest order ASC, then paperCode ASC). All others return 403 PAYMENT_REQUIRED.
+ * Access rules (in priority order):
+ *  1. Admins / Teachers → always allowed
+ *  2. Paper code === '001' → always free (placement test)
+ *  3. Student has hasFullAccess OR isPaid (legacy full-access) → allowed
+ *  4. Student has purchased the specific level for this paper → allowed
+ *  5. Otherwise → 403 PAYMENT_REQUIRED with requiredLevel
  */
 async function requirePaidOrFirstExam(req, res, next) {
   try {
@@ -20,45 +39,39 @@ async function requirePaidOrFirstExam(req, res, next) {
     const { paperId } = req.body;
     if (!paperId) return res.status(400).json({ error: 'paperId is required' });
 
-    // Check if student is paid
-    const student = await prisma.student.findUnique({
-      where: { id: user.id },
-      select: { isPaid: true }
-    });
-
-    if (!student) return res.status(404).json({ error: 'Student not found' });
-    if (student.isPaid) return next();
-
-    // Not paid — find the paper's testType
+    // Fetch paper
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(paperId) },
-      select: { id: true, testType: true, order: true, paperCode: true }
+      select: { id: true, testType: true, paperCode: true, status: true }
     });
-
     if (!paper) return res.status(404).json({ error: 'Paper not found' });
 
-    // Find the first paper of this testType (lowest order, then paperCode)
-    const firstPaper = await prisma.paper.findFirst({
-      where: {
-        testType: paper.testType,
-        status: 'PUBLISHED'
-      },
-      orderBy: [
-        { order: 'asc' },
-        { paperCode: 'asc' }
-      ],
-      select: { id: true }
+    // Rule 2: paper code 001 is always free (placement test)
+    if (paper.paperCode === '001') return next();
+
+    // Fetch student with purchased levels
+    const student = await prisma.student.findUnique({
+      where: { id: user.id },
+      select: { isPaid: true, hasFullAccess: true, studentLevels: true }
     });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
 
-    if (firstPaper && firstPaper.id === paper.id) {
-      // This is the free paper — allow it
-      return next();
-    }
+    // Rule 3: legacy isPaid or hasFullAccess → full access
+    if (student.hasFullAccess || student.isPaid) return next();
 
+    // Rule 4: check if student purchased the level for this paper
+    const requiredLevel = requiredLevelForCode(paper.paperCode);
+    const hasLevel = student.studentLevels.some(
+      sl => sl.levelNumber === requiredLevel || sl.levelNumber === 99
+    );
+    if (hasLevel) return next();
+
+    // Rule 5: blocked
     return res.status(403).json({
       error: 'PAYMENT_REQUIRED',
-      message: `Unlock all ${paper.testType.toLowerCase()} tests with full access for LKR 10,000.`,
-      upgradeUrl: '/upgrade'
+      requiredLevel,
+      message: `Purchase Level ${requiredLevel} (LKR 2,000) or Full Access (LKR 10,000) to access this paper.`,
+      upgradeUrl: '/levels',
     });
   } catch (err) {
     console.error('Access control error:', err);

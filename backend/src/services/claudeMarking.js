@@ -143,51 +143,133 @@ Return ONLY JSON:
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
   try {
     console.log('gradeWritingAttempt called for:', studentName);
-    
-    const prompt = `You are an expert IELTS examiner. 
-Analyse both writing tasks and return detailed feedback.
+
+    // Word count check
+    const task1Words = (task1Response || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+    const task2Words = (task2Response || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+
+    // If student wrote almost nothing return minimum bands
+    if (task1Words < 20 && task2Words < 20) {
+      console.log('Writing: Both tasks too short, returning Band 1');
+      return {
+        task1Band: 1.0,
+        task2Band: 1.0,
+        overallBand: 1.0,
+        task1: {
+          band: 1.0,
+          taskAchievement: 1.0,
+          coherenceCohesion: 1.0,
+          lexicalResource: 1.0,
+          grammaticalRange: 1.0,
+          feedback: "Task not attempted. No meaningful response was written."
+        },
+        task2: {
+          band: 1.0,
+          taskResponse: 1.0,
+          coherenceCohesion: 1.0,
+          lexicalResource: 1.0,
+          grammaticalRange: 1.0,
+          feedback: "Task not attempted. No meaningful response was written."
+        },
+        strengths: ["No strengths identified — task was not attempted."],
+        improvements: [
+          "You must write at least 150 words for Task 1.",
+          "You must write at least 250 words for Task 2.",
+          "Attempt both tasks fully to receive a valid band score."
+        ],
+        weeklyActionPlan: "Start by practising writing at least 150 words for Task 1 and 250 words for Task 2 every day.",
+        progressToTarget: "A meaningful attempt at both tasks is required before progress can be assessed."
+      };
+    }
+
+    const task1TooShort = task1Words < 20
+      ? `WARNING: Student wrote only ${task1Words} words. Task 1 minimum is 150 words. Penalise heavily — Task Achievement cannot exceed Band 3.`
+      : `Task 1 word count: approximately ${task1Words} words (minimum 150).${task1Words < 150 ? ' Student is UNDER the word limit — penalise Task Achievement.' : ''}`;
+
+    const task2TooShort = task2Words < 20
+      ? `WARNING: Student wrote only ${task2Words} words. Task 2 minimum is 250 words. Penalise heavily — Task Response cannot exceed Band 3.`
+      : `Task 2 word count: approximately ${task2Words} words (minimum 250).${task2Words < 250 ? ' Student is UNDER the word limit — penalise Task Response.' : ''}`;
+
+    const prompt = `You are a strict, certified IELTS examiner marking an Academic Writing test.
+You must apply the official IELTS band descriptors STRICTLY and honestly.
+Do NOT be generous. Award the band that accurately reflects the writing quality.
+A typical student scores between Band 4.0 and 6.5. Band 7+ requires genuinely sophisticated writing.
+
+OFFICIAL IELTS BAND DESCRIPTORS (apply these strictly):
+Band 9: Expert user. Fully operational, accurate and fluent.
+Band 8: Very good. Fully operational with minor inaccuracies.
+Band 7: Good. Operational with occasional inaccuracies. Good range of vocabulary and grammar.
+Band 6: Competent. Generally effective with some inaccuracies. Adequate range.
+Band 5: Modest. Partial command. Noticeable errors. Limited range.
+Band 4: Limited. Basic competence. Frequent errors. Very limited range.
+Band 3: Extremely limited. Frequent breakdowns in communication.
+Band 2: Intermittent. Great difficulty. Little communication possible.
+Band 1: Non-user. Essentially no ability.
+
+STUDENT: ${studentName || 'Student'}
+EXPECTED TARGET BAND: ${expectedBand || 'not specified'}
+
+═══════════════════════════════════
+TASK 1 PROMPT:
+${(task1Prompt || 'Describe the chart or diagram.').substring(0, 300)}
+
+${task1TooShort}
 
 TASK 1 RESPONSE:
-${task1Response.substring(0, 1000)}
+${task1Words < 5 ? '[NO RESPONSE — Student left Task 1 blank]' : (task1Response || '').substring(0, 800)}
+═══════════════════════════════════
+TASK 2 PROMPT:
+${(task2Prompt || 'Write an essay.').substring(0, 300)}
+
+${task2TooShort}
 
 TASK 2 RESPONSE:
-${task2Response.substring(0, 1500)}
+${task2Words < 5 ? '[NO RESPONSE — Student left Task 2 blank]' : (task2Response || '').substring(0, 1200)}
+═══════════════════════════════════
 
-Return ONLY this JSON. No markdown. No backticks. 
-Start with { and end with }. 
+MARKING RULES YOU MUST FOLLOW:
+1. Task 1 is worth 33% and Task 2 is worth 67% of the overall band.
+   Overall = (task1Band * 0.33) + (task2Band * 0.67). Round to nearest 0.5.
+2. If a response is off-topic, award maximum Band 3 for Task Achievement/Response.
+3. If a response is under the word limit, reduce Task Achievement/Response by at least 1 band.
+4. If a response is mostly copied from the prompt, award Band 1 for Task Achievement.
+5. Gibberish, random words, or non-English text = Band 1 across all criteria.
+6. Band 7+ requires: varied vocabulary, complex sentences, cohesive devices, no major errors.
+7. Be honest. Students need accurate feedback to improve.
+
+Return ONLY this JSON. No markdown. No backticks. Start with { end with }.
 All string values must be on ONE line with no line breaks inside strings.
-
 {
-  "task1Band": 7.0,
-  "task2Band": 7.0,
-  "overallBand": 7.0,
+  "task1Band": 5.5,
+  "task2Band": 5.0,
+  "overallBand": 5.0,
   "task1": {
-    "band": 7.0,
-    "taskAchievement": 7.0,
-    "coherenceCohesion": 7.0,
-    "lexicalResource": 6.5,
-    "grammaticalRange": 7.0,
-    "feedback": "One sentence feedback on task 1."
+    "band": 5.5,
+    "taskAchievement": 5.0,
+    "coherenceCohesion": 6.0,
+    "lexicalResource": 5.5,
+    "grammaticalRange": 5.5,
+    "feedback": "Specific honest feedback on Task 1 response quality."
   },
   "task2": {
-    "band": 7.0,
-    "taskResponse": 7.0,
-    "coherenceCohesion": 7.0,
-    "lexicalResource": 7.0,
-    "grammaticalRange": 7.0,
-    "feedback": "One sentence feedback on task 2."
+    "band": 5.0,
+    "taskResponse": 5.0,
+    "coherenceCohesion": 5.0,
+    "lexicalResource": 5.0,
+    "grammaticalRange": 5.0,
+    "feedback": "Specific honest feedback on Task 2 response quality."
   },
-  "strengths": ["strength one", "strength two", "strength three"],
-  "improvements": ["improvement one", "improvement two", "improvement three"],
-  "weeklyActionPlan": "One sentence study advice for this student.",
-  "progressToTarget": "One sentence on how close student is to their target band."
+  "strengths": ["specific genuine strength 1", "specific genuine strength 2"],
+  "improvements": ["specific improvement needed 1", "specific improvement needed 2", "specific improvement needed 3"],
+  "weeklyActionPlan": "Specific one sentence study advice based on their actual weaknesses.",
+  "progressToTarget": "Honest one sentence assessment of gap between current and target band."
 }
-
-Replace all values with your actual assessment.
+Replace ALL values with your actual honest assessment.
+The example values above (5.5, 5.0 etc) are just placeholders — do NOT copy them.
 Keep ALL strings on one line.
 Do not add any fields not shown above.`;
 
-    const response = await callClaudeWithRetry(prompt, 800);
+    const response = await callClaudeWithRetry(prompt, 1000);
     const responseText = response.content?.[0]?.text || '';
     console.log('Writing Claude raw response snippet:', responseText.substring(0, 300));
 

@@ -205,8 +205,8 @@ const fetchExplanation = async (answer) => {
     });
     const rawScore = result.rawScore ?? 0;
     const band = result.bandEstimate ?? 0;
-    const correct = answers.filter(a => a.isCorrect).length;
-    const wrong = answers.filter(a => a.isCorrect === false).length;
+    const correct = (data.answers || []).filter(a => a.isCorrect === true).length;
+    const wrong = (data.answers || []).filter(a => a.isCorrect === false).length;
     const hasAI = aiFeedback && aiFeedback.finalStudentReport;
 
    const getBandColor = (b) => {
@@ -379,7 +379,7 @@ const fetchExplanation = async (answer) => {
                   <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Passage</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[1, 2, 3].map(pNum => {
-                      const pAnswers = answers.filter(a => a.question?.passageNumber === pNum);
+                      const pAnswers = answers.filter(a => (a.question?.passageNumber ?? 1) === pNum);
                       const pCorrect = pAnswers.filter(a => a.isCorrect).length;
                       const pTotal = pAnswers.length || 1;
                       const pct = Math.round((pCorrect / pTotal) * 100);

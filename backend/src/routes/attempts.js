@@ -925,7 +925,24 @@ router.post('/:id/explain-answer', auth, async (req, res) => {
     const { studentAnswer, correctAnswer, questionText, questionType, explanation } = req.body;
     const { explainWrongAnswer } = require('../services/claudeMarking');
     const result = await explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, explanation);
-    res.json({ explanation: result });
+    let explanationText = '';
+    if (typeof result === 'string') {
+      try {
+        const parsed = JSON.parse(result);
+        explanationText = parsed?.content?.[0]?.text
+          || parsed?.explanation
+          || parsed?.text
+          || result;
+      } catch {
+        explanationText = result;
+      }
+    } else if (result && typeof result === 'object') {
+      explanationText = result?.content?.[0]?.text
+        || result?.explanation
+        || result?.text
+        || JSON.stringify(result);
+    }
+    res.json({ explanation: explanationText });
   } catch (err) {
     console.error('Explain endpoint error:', err.message);
     res.status(500).json({ explanation: `The correct answer is "${req.body.correctAnswer}". Review the passage carefully for keywords related to this question.` });

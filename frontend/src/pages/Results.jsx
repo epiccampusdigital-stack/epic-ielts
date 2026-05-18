@@ -775,7 +775,15 @@ const fetchExplanation = async (answer) => {
                 Generating personalised explanation...
               </div>
             )
-            : explanations[a.question?.id]
+            : (() => {
+                const raw = explanations[a.question?.id];
+                if (!raw) return '';
+                if (typeof raw === 'string') return raw;
+                if (typeof raw === 'object') {
+                  return raw?.content?.[0]?.text || raw?.explanation || raw?.text || JSON.stringify(raw);
+                }
+                return String(raw);
+              })()
           }
         </div>
         {!loadingExplanation[a.question?.id] && explanations[a.question?.id] && (

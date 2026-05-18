@@ -465,7 +465,7 @@ router.post('/:id/end', auth, async (req, res) => {
       }
     } else {
       await prisma.answer.deleteMany({ where: { attemptId } });
-      let correctCount = 0;
+      correctCount = 0;
       const allQuestions = attempt.paper.questions;
       const answerData = allQuestions.map(question => {
         const submitted = Array.isArray(answers)

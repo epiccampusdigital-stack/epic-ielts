@@ -297,20 +297,36 @@ Do not add any fields not shown above.`;
   }
 }
 async function explainWrongAnswer(questionText, questionType, studentAnswer, correctAnswer, existingExplanation) {
-  if (existingExplanation && existingExplanation.length > 20) {
+  if (existingExplanation && typeof existingExplanation === 'string' && existingExplanation.length > 20 && !existingExplanation.startsWith('{')) {
     return existingExplanation;
   }
   try {
-    const prompt = `IELTS examiner. 3 sentences explaining why this answer is wrong.
-Q: ${(questionText || '').substring(0, 150)}
-Type: ${questionType}
-Student: "${studentAnswer || 'blank'}" Correct: "${correctAnswer}"
-1) Why wrong 2) Passage evidence for correct answer 3) Tip for this question type`;
-    
-    const response = await callClaudeWithRetry(prompt, 300);
-    return response?.content?.[0]?.text || `The correct answer is "${correctAnswer}". For ${questionType} questions, scan the passage for exact keywords that match the question statement.`;
+    const prompt = `You are an IELTS examiner giving feedback to a student.
+
+Write exactly 3 short sentences in plain English. No JSON. No bullet points. No numbering. No formatting. Just 3 sentences of plain text.
+
+Sentence 1: Explain why the student's answer is wrong.
+Sentence 2: State where in the passage the correct answer can be found.
+Sentence 3: Give one quick tip for this question type.
+
+Question: ${(questionText || '').substring(0, 200)}
+Question type: ${questionType}
+Student answered: "${studentAnswer || 'nothing'}"
+Correct answer: "${correctAnswer}"
+
+Reply in plain text only. Do not use JSON. Do not use brackets. Do not number your sentences.`;
+
+    const response = await callClaudeWithRetry(prompt, 250);
+    const text = response?.content?.[0]?.text || '';
+
+    // Strip any JSON that Claude returns despite instructions
+    if (text.startsWith('{') || text.startsWith('[')) {
+      return `The correct answer is "${correctAnswer}". Re-read the passage carefully and look for keywords that match the question. For ${questionType} questions, focus on exact wording rather than general meaning.`;
+    }
+
+    return text.trim() || `The correct answer is "${correctAnswer}". Re-read the passage carefully and look for keywords that match the question. For ${questionType} questions, focus on exact wording rather than general meaning.`;
   } catch (e) {
-    return `The correct answer is "${correctAnswer}". For ${questionType} questions, scan the passage for exact keywords that match the question statement.`;
+    return `The correct answer is "${correctAnswer}". Re-read the passage carefully and look for keywords that match the question. For ${questionType} questions, focus on exact wording rather than general meaning.`;
   }
 }
 

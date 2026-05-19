@@ -12,6 +12,8 @@ const fs = require('fs');
 
 const aiCache = new Map();
 
+const PLACEMENT_SKILLS = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
+
 function calculateBand(score) {
   if (score >= 39) return 9.0;
   if (score >= 37) return 8.5;
@@ -285,12 +287,116 @@ router.get('/dashboard/summary', auth, async (req, res) => {
   }
 });
 
+router.get('/placement/mine', auth, async (req, res) => {
+  try {
+    const attempts = await prisma.attempt.findMany({
+      where: {
+        studentId: req.user.id,
+        isPlacement: true,
+        status: 'COMPLETED'
+      },
+      include: {
+        paper: true,
+        result: true,
+        writingSubmission: {
+          select: {
+            markingStatus: true,
+            overallBand: true,
+            task1Band: true,
+            task2Band: true
+          }
+        },
+        speakingSubmission: {
+          select: { overallBand: true, markingStatus: true }
+        }
+      },
+      orderBy: { paper: { testType: 'asc' } }
+    });
+    res.json(attempts);
+  } catch (error) {
+    console.error('Placement history error:', error);
+    res.status(500).json({ message: 'Error fetching placement attempts', details: error.message });
+  }
+});
+
+router.post('/placement/reset', auth, async (req, res) => {
+  try {
+    const raw = req.body?.skill;
+    const skill = typeof raw === 'string' ? raw.toUpperCase() : '';
+    if (!PLACEMENT_SKILLS.includes(skill)) {
+      return res.status(400).json({
+        message: 'skill must be one of READING, WRITING, LISTENING, SPEAKING'
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.attempt.updateMany({
+        where: {
+          studentId: req.user.id,
+          isPlacement: true,
+          paper: { testType: skill }
+        },
+        data: { isPlacement: false }
+      }),
+      prisma.student.update({
+        where: { id: req.user.id },
+        data: { placementDone: false }
+      })
+    ]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Placement reset error:', error);
+    res.status(500).json({ message: 'Error resetting placement', details: error.message });
+  }
+});
+
 router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
   try {
-    const { paperId } = req.body;
+    const { paperId, isPlacement: bodyIsPlacement } = req.body;
     if (!paperId) return res.status(400).json({ message: 'paperId is required' });
+
+    const pid = parseInt(paperId, 10);
+    if (Number.isNaN(pid)) return res.status(400).json({ message: 'paperId must be a number' });
+
+    const paper = await prisma.paper.findUnique({
+      where: { id: pid },
+      select: { id: true, testType: true }
+    });
+    if (!paper) return res.status(404).json({ message: 'Paper not found' });
+
+    const studentId = req.user.id;
+    const wantsPlacement = bodyIsPlacement === true;
+
+    if (wantsPlacement) {
+      const [, attempt] = await prisma.$transaction([
+        prisma.attempt.updateMany({
+          where: {
+            studentId,
+            isPlacement: true,
+            paper: { testType: paper.testType }
+          },
+          data: { isPlacement: false }
+        }),
+        prisma.attempt.create({
+          data: {
+            studentId,
+            paperId: pid,
+            status: 'IN_PROGRESS',
+            isPlacement: true
+          }
+        })
+      ]);
+      return res.json({ id: attempt.id, attemptId: attempt.id });
+    }
+
     const attempt = await prisma.attempt.create({
-      data: { studentId: req.user.id, paperId: parseInt(paperId), status: 'IN_PROGRESS' }
+      data: {
+        studentId,
+        paperId: pid,
+        status: 'IN_PROGRESS',
+        isPlacement: false
+      }
     });
     res.json({ id: attempt.id, attemptId: attempt.id });
   } catch (error) {

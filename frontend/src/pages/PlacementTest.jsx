@@ -21,11 +21,23 @@ const LEVEL_NAMES = {
 
 const SKILLS_ORDER = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
 
+/** Writing → speaking → objective scores (reading/listening). */
+function placementAttemptBand(attempt) {
+  if (!attempt) return null;
+  return (
+    attempt.writingSubmission?.overallBand ??
+    attempt.speakingSubmission?.overallBand ??
+    attempt.result?.bandEstimate ??
+    null
+  );
+}
+
 export default function PlacementTest() {
   const [papers, setPapers] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(null);
+  const [resettingSkill, setResettingSkill] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
   const navigate = useNavigate();
 
@@ -34,7 +46,7 @@ export default function PlacementTest() {
       try {
         const [papersRes, historyRes] = await Promise.all([
           axios.get(`${API_URL}/api/papers/assigned`, api()),
-          axios.get(`${API_URL}/api/attempts/history/mine`, api()),
+          axios.get(`${API_URL}/api/attempts/placement/mine`, api()),
         ]);
 
         const allPapers = Array.isArray(papersRes.data) ? papersRes.data : [];
@@ -44,16 +56,14 @@ export default function PlacementTest() {
         setPapers(placement);
         setHistory(hist);
 
-        // Derive recommendation if all 4 are done
+        // Derive recommendation if all 4 placement skills have bands
         const bands = SKILLS_ORDER.map(skill => {
           const paper = placement.find(p => p.testType === skill);
           if (!paper) return null;
-          const attempt = hist.find(a => a.paperId === paper.id && a.status === 'COMPLETED');
-          // Reading/Listening → result.bandEstimate; Writing → writingSubmission.overallBand; Speaking → result.bandEstimate
-          const band = attempt?.result?.bandEstimate
-            || attempt?.writingSubmission?.overallBand
-            || null;
-          return band;
+          const attempt = hist.find(
+            a => a.paper?.testType === skill && a.status === 'COMPLETED'
+          );
+          return placementAttemptBand(attempt);
         });
 
         if (bands.every(b => b !== null && b !== undefined)) {
@@ -64,6 +74,8 @@ export default function PlacementTest() {
           else if (avg >= 5.5) level = 3;
           else if (avg >= 4.5) level = 2;
           setRecommendation({ band: avg.toFixed(1), level });
+        } else {
+          setRecommendation(null);
         }
       } catch (err) {
         console.error('Placement load error:', err);
@@ -76,7 +88,11 @@ export default function PlacementTest() {
   const startPaper = async (paperId) => {
     setStarting(paperId);
     try {
-      const res = await axios.post(`${API_URL}/api/attempts`, { paperId }, api());
+      const res = await axios.post(
+        `${API_URL}/api/attempts`,
+        { paperId, isPlacement: true },
+        api()
+      );
       const attemptId = res.data.id || res.data.attemptId;
       navigate(`/exam/${attemptId}/greeting`);
     } catch {
@@ -85,9 +101,33 @@ export default function PlacementTest() {
     setStarting(null);
   };
 
+  const redoPlacementSkill = async (skill, paper) => {
+    const skillLabel = SKILL_META[skill].label;
+    if (
+      !window.confirm(
+        `Redo your ${skillLabel} placement test? Your current placement band for ${skillLabel} will be replaced.`
+      )
+    ) {
+      return;
+    }
+    setResettingSkill(skill);
+    try {
+      await axios.post(`${API_URL}/api/attempts/placement/reset`, { skill }, api());
+      await startPaper(paper.id);
+    } catch {
+      alert('Failed to reset placement. Please try again.');
+    } finally {
+      setResettingSkill(null);
+    }
+  };
+
   const completedCount = SKILLS_ORDER.filter(skill => {
     const paper = papers.find(p => p.testType === skill);
-    return paper && history.some(a => a.paperId === paper.id && a.status === 'COMPLETED');
+    if (!paper) return false;
+    const attempt = history.find(
+      a => a.paper?.testType === skill && a.status === 'COMPLETED'
+    );
+    return placementAttemptBand(attempt) != null;
   }).length;
 
   if (loading) return (
@@ -168,10 +208,13 @@ export default function PlacementTest() {
           {SKILLS_ORDER.map(skill => {
             const paper = papers.find(p => p.testType === skill);
             const meta = SKILL_META[skill];
-            const attempt = history.find(a => a.paperId === paper?.id && a.status === 'COMPLETED');
-            const band = attempt?.result?.bandEstimate || attempt?.writingSubmission?.overallBand;
-            const isDone = !!band;
+            const attempt = history.find(
+              a => a.paper?.testType === skill && a.status === 'COMPLETED'
+            );
+            const band = placementAttemptBand(attempt);
+            const isDone = band != null;
             const isStarting = starting === paper?.id;
+            const isResetting = resettingSkill === skill;
 
             return (
               <div key={skill} style={{ background: 'white', borderRadius: 14, padding: '22px', border: `2px solid ${isDone ? meta.color : '#e2e8f0'}`, position: 'relative', transition: 'border-color 0.2s' }}>
@@ -184,7 +227,28 @@ export default function PlacementTest() {
                 <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{meta.label}</div>
                 <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 16 }}>{meta.time} · Free placement paper</div>
                 {isDone ? (
-                  <div style={{ fontSize: 28, fontWeight: 900, color: meta.color }}>Band {band}</div>
+                  <>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: meta.color }}>Band {band}</div>
+                    <button
+                      type="button"
+                      onClick={() => redoPlacementSkill(skill, paper)}
+                      disabled={isResetting || isStarting}
+                      style={{
+                        marginTop: 10,
+                        padding: 0,
+                        background: 'none',
+                        border: 'none',
+                        fontSize: 12,
+                        color: '#94a3b8',
+                        cursor: isResetting || isStarting ? 'not-allowed' : 'pointer',
+                        fontWeight: 500,
+                        textDecoration: 'underline',
+                        textUnderlineOffset: 2,
+                      }}
+                    >
+                      {isResetting ? 'Resetting...' : 'Redo this section →'}
+                    </button>
+                  </>
                 ) : paper ? (
                   <button
                     onClick={() => startPaper(paper.id)}

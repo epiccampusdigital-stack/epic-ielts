@@ -140,6 +140,7 @@ model Attempt {
   startedAt          DateTime            @default(now())
   endedAt            DateTime?
   status             String              @default("IN_PROGRESS")
+  isPlacement        Boolean             @default(false)
   answers            Answer[]
   writingSubmission  WritingSubmission?
   speakingSubmission SpeakingSubmission?

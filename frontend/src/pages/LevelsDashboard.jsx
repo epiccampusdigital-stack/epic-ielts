@@ -86,7 +86,7 @@ export default function LevelsDashboard() {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: 'white' }}>E</div>
           <div>
             <div style={{ color: 'white', fontWeight: 800, fontSize: 15, lineHeight: 1 }}>EPIC IELTS</div>
-            <div style={{ color: '#94a3b8', fontSize: 11 }}>Learning Programme</div>
+            <div style={{ color: '#94a3b8', fontSize: 11 }}>My Programme</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -103,7 +103,7 @@ export default function LevelsDashboard() {
 
         {/* Page heading */}
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>Your IELTS Programme</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>My Programme</h1>
           <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>5 levels · 15 sections · up to 60 full mock tests · all 4 skills</p>
         </div>
 

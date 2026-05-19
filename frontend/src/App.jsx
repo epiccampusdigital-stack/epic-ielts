@@ -22,6 +22,7 @@ import LevelsDashboard from './pages/LevelsDashboard';
 import AdminLevels from './pages/AdminLevels';
 import PlacementTest from './pages/PlacementTest';
 import LevelPaymentSuccess from './pages/LevelPaymentSuccess';
+import PracticePapers from './pages/PracticePapers';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -87,6 +88,9 @@ function App() {
 
       <Route path="/levels" element={
         <RequireStudentAccess><LevelsDashboard /></RequireStudentAccess>
+      } />
+      <Route path="/practice" element={
+        <RequireStudentAccess><PracticePapers /></RequireStudentAccess>
       } />
       <Route path="/placement-test" element={
         <RequireStudentAccess><PlacementTest /></RequireStudentAccess>

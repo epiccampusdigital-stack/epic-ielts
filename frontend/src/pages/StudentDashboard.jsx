@@ -206,6 +206,106 @@ function SvgSparkline({ values, stroke, dashed }) {
   );
 }
 
+function getLast7Days(attempts) {
+  const out = [];
+  const completed = attempts.filter(a => a.status === 'COMPLETED');
+  const dates = new Set(completed.map(a => localDateKey(a.endedAt || a.startedAt)));
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    const key = localDateKey(d);
+    out.push({
+      date: d,
+      key,
+      done: dates.has(key),
+      isToday: i === 0,
+      label: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()],
+    });
+  }
+  return out;
+}
+
+function todayInputMinISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return localDateKey(d);
+}
+
+/** Coach copy — formal tone; priorities first match wins. */
+function getCoachMessage({
+  currentBand,
+  gapBands,
+  goalReached,
+  skillStats,
+  placementDone,
+  examDate,
+  daysToExam,
+}) {
+  if (daysToExam != null && daysToExam >= 0 && daysToExam <= 7) {
+    return {
+      headline:
+        daysToExam === 0
+          ? 'Final stretch. Exam day.'
+          : `Final stretch. ${daysToExam} days to exam day.`,
+      sub:
+        'Prioritise full mock papers and review your weakest skill once daily.',
+    };
+  }
+
+  const bigJump = Object.entries(skillStats || {}).find(
+    ([, st]) => st.trend != null && st.trend >= 0.5
+  );
+  if (bigJump) {
+    const [skill, st] = bigJump;
+    const lowAbsolute = st.latest != null && st.latest < 4.0;
+    return {
+      headline: lowAbsolute
+        ? `${SKILL_LABEL[skill]} up ${st.trend.toFixed(1)} bands — keep building from here.`
+        : `Excellent progress in ${SKILL_LABEL[skill]} — up ${st.trend.toFixed(1)} bands.`,
+      sub: lowAbsolute
+        ? 'Strong direction. Keep your practice frequency steady to consolidate the gains.'
+        : 'Maintain this momentum. Keep your practice frequency steady.',
+    };
+  }
+
+  if (goalReached) {
+    return {
+      headline: 'Target band achieved. Outstanding.',
+      sub:
+        'Continue practising to consolidate your performance under exam conditions.',
+    };
+  }
+
+  if (currentBand != null && gapBands != null && gapBands > 0) {
+    let sub = 'A clear study plan and daily practice will close this gap.';
+    if (examDate && daysToExam != null && daysToExam > 0) {
+      sub =
+        `With ${daysToExam} days to go, focus on consistent daily practice.`;
+    }
+    const headline = gapBands < 1.0
+      ? `Within reach. ${gapBands.toFixed(1)} bands to your target.`
+      : `${gapBands.toFixed(1)} bands from your target.`;
+    return {
+      headline,
+      sub,
+    };
+  }
+
+  if (!placementDone) {
+    return {
+      headline: 'Take your free placement test to begin.',
+      sub:
+        'A baseline across all four skills will shape your study plan.',
+    };
+  }
+
+  return {
+    headline: 'Continue practising across all skills.',
+    sub: 'Structured sessions keep every skill aligned with exam expectations.',
+  };
+}
+
 export default function StudentDashboard() {
   const [rawHistory, setRawHistory] = useState([]);
   const [myLevels, setMyLevels] = useState({
@@ -230,6 +330,16 @@ export default function StudentDashboard() {
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetDraft, setTargetDraft] = useState(String(targetBand));
   const [todayBusy, setTodayBusy] = useState(false);
+  const [focusBusy, setFocusBusy] = useState(false);
+  const [examDate, setExamDate] = useState(() => {
+    try {
+      return localStorage.getItem('epicExamDate') || null;
+    } catch {
+      return null;
+    }
+  });
+  const [editingExamDate, setEditingExamDate] = useState(false);
+  const [examDraft, setExamDraft] = useState('');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const firstName = (user.name || 'Student').split(' ')[0];
@@ -486,6 +596,82 @@ export default function StudentDashboard() {
   const goalReached =
     currentBand != null && targetBand != null && currentBand >= targetBand;
 
+  const daysToExam = useMemo(() => {
+    if (!examDate) return null;
+    const target = new Date(`${examDate}T12:00:00`);
+    if (Number.isNaN(target.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+    return Math.ceil((target - today) / 86400000);
+  }, [examDate]);
+
+  const last7Cells = useMemo(() => getLast7Days(rawHistory), [rawHistory]);
+
+  const openExamEditor = () => {
+    setExamDraft(examDate || '');
+    setEditingExamDate(true);
+  };
+
+  const coach = useMemo(
+    () =>
+      getCoachMessage({
+        currentBand,
+        gapBands,
+        goalReached,
+        skillStats,
+        placementDone: myLevels.placementDone,
+        examDate,
+        daysToExam,
+      }),
+    [
+      currentBand,
+      gapBands,
+      goalReached,
+      skillStats,
+      myLevels.placementDone,
+      examDate,
+      daysToExam,
+    ]
+  );
+
+  const weakestSkillCallout = useMemo(() => {
+    const skillBands = SKILL_ORDER.map(s => ({
+      skill: s,
+      band: skillStats[s].latest,
+    })).filter(x => x.band != null);
+    if (skillBands.length < 2) return null;
+    const weakest = skillBands.reduce(
+      (min, x) => (x.band < min.band ? x : min),
+      skillBands[0]
+    );
+    const others = skillBands.filter(x => x.skill !== weakest.skill);
+    const otherAvg = others.reduce((s, x) => s + x.band, 0) / others.length;
+    const gap = otherAvg - weakest.band;
+    if (gap < 1.0) return null;
+    return {
+      skill: weakest.skill,
+      band: weakest.band,
+      gap: Math.round(gap * 10) / 10,
+      recommendedPaper:
+        papers
+          .filter(p => p.testType === weakest.skill)
+          .sort((a, b) =>
+            String(a.paperCode || '').localeCompare(String(b.paperCode || ''))
+          )
+          .find(p => p.id && !completedIds.has(p.id)) ?? null,
+    };
+  }, [skillStats, papers, completedIds]);
+
+  const persistExamDate = value => {
+    if (value == null || value === '') return;
+    try {
+      localStorage.setItem('epicExamDate', value);
+    } catch { /* ignore */ }
+    setExamDate(value);
+    setEditingExamDate(false);
+  };
+
   const saveTarget = useCallback(() => {
     const v = clampTargetBand(parseFloat(String(targetDraft).trim()));
     setTargetBand(v);
@@ -528,6 +714,27 @@ export default function StudentDashboard() {
       }
     }
   };
+
+  const runFocusPaperStart = async paperId => {
+    if (!paperId) return;
+    setFocusBusy(true);
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/attempts`,
+        { paperId },
+        api()
+      );
+      const attemptId = res.data.id || res.data.attemptId;
+      navigate(`/exam/${attemptId}/greeting`);
+    } catch (e) {
+      console.error(e);
+      if (e.response?.status === 403) navigate('/upgrade');
+    } finally {
+      setFocusBusy(false);
+    }
+  };
+
+  const dateInputMin = todayInputMinISO();
 
   if (loading) {
     return (
@@ -600,10 +807,6 @@ export default function StudentDashboard() {
         .dash-page { box-sizing: border-box; }
         * { box-sizing: border-box; }
         @keyframes dashPulse { 0%,100%{ opacity:1 } 50%{ opacity:0.55 } }
-        @keyframes streakPop {
-          0% { transform: scale(1.05); }
-          100% { transform: scale(1); }
-        }
         @keyframes bandFadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -612,7 +815,30 @@ export default function StudentDashboard() {
           0%, 100% { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 0 0 0 rgba(79,70,229,0.12); }
           50% { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 0 20px 2px rgba(79,70,229,0.14); }
         }
-        .dash-streak-pill { animation: streakPop 300ms ease-out 1; }
+        .dash-exam-pill-wrap {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          max-width: 100%;
+          flex-wrap: wrap;
+        }
+        .dash-exam-clear-visible {
+          opacity: 0;
+          transition: opacity ${C.transition};
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 14px;
+          color: ${C.textMuted};
+          padding: 2px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+        .dash-exam-pill-wrap:hover .dash-exam-clear-visible,
+        .dash-exam-pill-wrap:focus-within .dash-exam-clear-visible {
+          opacity: 1;
+        }
         .dash-band-num { animation: bandFadeIn 400ms ease-out 1 forwards; opacity: 0; }
         .dash-lift {
           transition: transform ${C.transition}, box-shadow ${C.transition}, border-color ${C.transition};
@@ -667,6 +893,8 @@ export default function StudentDashboard() {
         <div
           className="dash-hero"
           style={{
+            position: 'relative',
+            overflow: 'hidden',
             marginBottom: 32,
             padding: 32,
             borderRadius: 24,
@@ -674,9 +902,36 @@ export default function StudentDashboard() {
             boxShadow: C.shadowHero,
           }}
         >
+          <svg
+            width="100%"
+            height="100%"
+            preserveAspectRatio="none"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              opacity: 0.4,
+            }}
+            aria-hidden
+          >
+            <defs>
+              <radialGradient id="dashBlob1" cx="0%" cy="0%" r="60%">
+                <stop offset="0%" stopColor="#A5B4FC" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#A5B4FC" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="dashBlob2" cx="100%" cy="100%" r="50%">
+                <stop offset="0%" stopColor="#C4B5FD" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#C4B5FD" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dashBlob1)" />
+            <rect width="100%" height="100%" fill="url(#dashBlob2)" />
+          </svg>
           <div
             className="dash-hero-inner"
             style={{
+              position: 'relative',
+              zIndex: 1,
               display: 'flex',
               flexWrap: 'wrap',
               gap: 32,
@@ -690,50 +945,254 @@ export default function StudentDashboard() {
                   fontSize: 28,
                   fontWeight: 700,
                   color: C.text,
-                  margin: '0 0 8px',
+                  margin: '0 0 16px',
                   lineHeight: 1.2,
                   fontFamily: 'Inter, sans-serif',
                 }}
               >
                 Hello, {firstName} 👋
               </h1>
-              {streak >= 2 && (
-                <div style={{ marginBottom: 16 }}>
-                  <div
-                    className="dash-streak-pill"
+              <div style={{ marginBottom: 16 }}>
+                {editingExamDate ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      type="date"
+                      min={dateInputMin}
+                      value={examDraft}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setExamDraft(v);
+                        if (v) persistExamDate(v);
+                      }}
+                      onBlur={() => setEditingExamDate(false)}
+                      autoFocus
+                      style={{
+                        padding: '6px 10px',
+                        fontSize: 13,
+                        fontFamily: 'Inter, sans-serif',
+                        border: `1px solid ${C.cardBorder}`,
+                        borderRadius: 10,
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label="Cancel editing exam date"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setEditingExamDate(false)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        fontSize: 16,
+                        color: C.textMuted,
+                        fontFamily: 'Inter, sans-serif',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : daysToExam === null ? (
+                  <button
+                    type="button"
+                    onClick={openExamEditor}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4,
+                      gap: 8,
                       padding: '4px 12px',
                       borderRadius: 9999,
-                      background: '#FFFBEB',
-                      color: '#B45309',
+                      border: `1px dashed ${C.primary}`,
+                      background: 'rgba(79,70,229,0.08)',
+                      color: C.primary,
                       fontSize: 13,
                       fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'Inter, sans-serif',
                     }}
                   >
-                    🔥 {streak}-day streak
+                    📅 Set your exam date
+                  </button>
+                ) : daysToExam > 0 ? (
+                  <div className="dash-exam-pill-wrap">
+                    <button
+                      type="button"
+                      onClick={openExamEditor}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '4px 12px',
+                        borderRadius: 9999,
+                        border: 'none',
+                        background: C.primarySoft,
+                        color: C.primary,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        fontFamily: 'Inter, sans-serif',
+                      }}
+                    >
+                      📅 Exam in {daysToExam} day{daysToExam === 1 ? '' : 's'}
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-exam-clear-visible"
+                      aria-label="Clear exam date"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => {
+                        try {
+                          localStorage.removeItem('epicExamDate');
+                        } catch { /* ignore */ }
+                        setExamDate(null);
+                      }}
+                    >
+                      ✕
+                    </button>
                   </div>
+                ) : daysToExam === 0 ? (
+                  <button
+                    type="button"
+                    onClick={openExamEditor}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 12px',
+                      borderRadius: 9999,
+                      border: 'none',
+                      background: '#FEF3C7',
+                      color: '#92400E',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    📅 Exam is today — give it your best.
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openExamEditor}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 12px',
+                      borderRadius: 9999,
+                      border: 'none',
+                      background: '#F1F5F9',
+                      color: C.textSecondary,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'Inter, sans-serif',
+                      textAlign: 'left',
+                    }}
+                  >
+                    Exam was {Math.abs(daysToExam)} day
+                    {Math.abs(daysToExam) === 1 ? '' : 's'} ago. Plan your next one →
+                  </button>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {last7Cells.map(cell => (
+                    <div
+                      key={`${cell.key}-lab`}
+                      style={{
+                        width: 24,
+                        textAlign: 'center',
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: C.textMuted,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {cell.label}
+                    </div>
+                  ))}
                 </div>
-              )}
-              <p
-                style={{
-                  fontSize: 15,
-                  fontWeight: 400,
-                  lineHeight: 1.5,
-                  color: C.textSecondary,
-                  margin: 0,
-                }}
-              >
-                {!myLevels.placementDone
-                  ? 'Take your free placement test to see where you stand.'
-                  : goalReached
-                    ? "🎯 You've hit your target. Keep sharpening."
-                    : currentBand != null
-                      ? `You're ${gapBands != null ? gapBands.toFixed(1) : '—'} bands from your goal. Here's today's session →`
-                      : 'Log your next score to sharpen this headline figure. Here\'s today\'s session →'}
-              </p>
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  {last7Cells.map(cell => {
+                    const base = {
+                      width: 24,
+                      height: 24,
+                      borderRadius: 9999,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: `background-color ${C.transition}, border-color ${C.transition}`,
+                      boxSizing: 'border-box',
+                      flexShrink: 0,
+                    };
+                    if (cell.done && cell.isToday) {
+                      return (
+                        <div
+                          key={`${cell.key}-dot`}
+                          style={{
+                            ...base,
+                            background: C.primary,
+                            border: `2px solid ${C.primary}`,
+                            color: '#FFFFFF',
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✓
+                        </div>
+                      );
+                    }
+                    if (cell.done) {
+                      return (
+                        <div
+                          key={`${cell.key}-dot`}
+                          style={{
+                            ...base,
+                            background: C.primary,
+                            border: `2px solid ${C.primary}`,
+                          }}
+                        />
+                      );
+                    }
+                    if (cell.isToday) {
+                      return (
+                        <div
+                          key={`${cell.key}-dot`}
+                          style={{
+                            ...base,
+                            background: 'transparent',
+                            border: `2px solid ${C.primary}`,
+                          }}
+                        />
+                      );
+                    }
+                    return (
+                      <div
+                        key={`${cell.key}-dot`}
+                        style={{
+                          ...base,
+                          background: '#F1F5F9',
+                          border: '2px solid transparent',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: C.textMuted, marginTop: 8 }}>
+                  Last 7 days · {streak}-day streak
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: C.text, lineHeight: 1.35 }}>
+                  {coach.headline}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 400, color: C.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
+                  {coach.sub}
+                </div>
+              </div>
             </div>
             <div
               className="dash-hero-band-wrap"
@@ -936,6 +1395,77 @@ export default function StudentDashboard() {
             </button>
           </div>
         </div>
+
+        {weakestSkillCallout != null && (
+          <div
+            style={{
+              marginBottom: 32,
+              padding: 20,
+              borderRadius: 16,
+              border: '1px solid #FCD34D',
+              background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              alignItems: 'center',
+            }}
+          >
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: '#B45309',
+                  marginBottom: 8,
+                }}
+              >
+                ⚠️ FOCUS AREA
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>
+                Your {SKILL_LABEL[weakestSkillCallout.skill]} is{' '}
+                {weakestSkillCallout.gap.toFixed(1)} bands below your other skills.
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 400, color: C.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
+                {weakestSkillCallout.recommendedPaper
+                  ? `Try ${weakestSkillCallout.recommendedPaper.title || weakestSkillCallout.recommendedPaper.paperCode} — the next step for ${SKILL_LABEL[weakestSkillCallout.skill]}.`
+                  : `Keep practising ${SKILL_LABEL[weakestSkillCallout.skill]} to balance your performance.`}
+              </div>
+            </div>
+            {weakestSkillCallout.recommendedPaper ? (
+              <button
+                type="button"
+                disabled={focusBusy}
+                onClick={() => runFocusPaperStart(weakestSkillCallout.recommendedPaper.id)}
+                style={{
+                  flexShrink: 0,
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  border: 'none',
+                  cursor: focusBusy ? 'wait' : 'pointer',
+                  background: '#D97706',
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif',
+                  opacity: focusBusy ? 0.85 : 1,
+                  transition: `background ${C.transition}`,
+                }}
+                onMouseEnter={e => {
+                  if (!focusBusy) e.currentTarget.style.background = '#B45309';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#D97706';
+                }}
+              >
+                {focusBusy
+                  ? 'Starting…'
+                  : `Start ${weakestSkillCallout.recommendedPaper.paperCode || 'paper'} →`}
+              </button>
+            ) : null}
+          </div>
+        )}
 
         {/* Skill grid */}
         <div

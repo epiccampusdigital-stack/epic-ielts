@@ -2,16 +2,36 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import StudentNav from '../components/StudentNav';
 
 const api = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
 });
 
-const SKILL_META = {
-  READING:   { icon: '📖', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', label: 'Reading',   time: '60 min' },
-  WRITING:   { icon: '✍️', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', label: 'Writing',   time: '60 min' },
-  LISTENING: { icon: '🎧', color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff', label: 'Listening', time: '30 min' },
-  SPEAKING:  { icon: '🎤', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', label: 'Speaking',  time: '15 min' },
+const C = {
+  primary: '#4F46E5',
+  primaryHover: '#4338CA',
+  primarySoft: '#EEF2FF',
+  accent: '#7C3AED',
+  accentSoft: '#F5F3FF',
+  pageBg: '#F8FAFC',
+  cardBg: '#FFFFFF',
+  cardBorder: '#E2E8F0',
+  subtleBorder: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+  success: '#059669',
+  shadow: '0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.03)',
+  shadowHover: '0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)',
+  transition: '180ms cubic-bezier(0.4, 0, 0.2, 1)',
+};
+
+const SKILL_STYLE = {
+  READING: { stroke: '#2563EB', soft: '#EFF6FF', icon: '📖', label: 'Reading', time: '60 min' },
+  WRITING: { stroke: '#D97706', soft: '#FFFBEB', icon: '✍️', label: 'Writing', time: '60 min' },
+  LISTENING: { stroke: '#7C3AED', soft: '#F5F3FF', icon: '🎧', label: 'Listening', time: '30 min' },
+  SPEAKING: { stroke: '#DB2777', soft: '#FDF2F8', icon: '🎤', label: 'Speaking', time: '15 min' },
 };
 
 const LEVEL_NAMES = {
@@ -85,7 +105,7 @@ export default function PlacementTest() {
     load();
   }, []);
 
-  const startPaper = async (paperId) => {
+  const startPaper = async paperId => {
     setStarting(paperId);
     try {
       const res = await axios.post(
@@ -102,7 +122,7 @@ export default function PlacementTest() {
   };
 
   const redoPlacementSkill = async (skill, paper) => {
-    const skillLabel = SKILL_META[skill].label;
+    const skillLabel = SKILL_STYLE[skill].label;
     if (
       !window.confirm(
         `Redo your ${skillLabel} placement test? Your current placement band for ${skillLabel} will be replaced.`
@@ -130,44 +150,84 @@ export default function PlacementTest() {
     return placementAttemptBand(attempt) != null;
   }).length;
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', background: '#f8fafc' }}>
-      <div style={{ textAlign: 'center', color: '#64748b' }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
-        Loading placement test...
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
-
-      {/* Nav */}
-      <div style={{ background: '#1e293b', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: 'white' }}>E</div>
-          <div>
-            <div style={{ color: 'white', fontWeight: 800, fontSize: 15, lineHeight: 1 }}>EPIC IELTS</div>
-            <div style={{ color: '#94a3b8', fontSize: 11 }}>Free Placement Test</div>
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          fontFamily: 'Inter, sans-serif',
+          background: C.pageBg,
+        }}
+      >
+        <StudentNav active="placement" />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '40vh',
+            color: C.textMuted,
+          }}
+        >
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
+            Loading placement test...
           </div>
         </div>
-        <button
-          onClick={() => navigate('/student/dashboard')}
-          style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          ← Dashboard
-        </button>
       </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: C.pageBg,
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
+      <style>{`
+        .pl-tile {
+          transition: transform ${C.transition}, box-shadow ${C.transition}, border-color ${C.transition};
+        }
+        .pl-tile:hover {
+          transform: translateY(-2px);
+          box-shadow: ${C.shadowHover};
+        }
+        @media (max-width: 639px) {
+          .pl-tile-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
+      <StudentNav active="placement" />
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px' }}>
 
         {/* Hero */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: '#1e293b', margin: '0 0 10px' }}>Free IELTS Placement Test</h1>
-          <p style={{ color: '#64748b', fontSize: 14, maxWidth: 480, margin: '0 auto 20px' }}>
-            Complete all 4 skills to discover your current IELTS level. We'll recommend the perfect programme for you.
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: C.text, margin: '0 0 10px' }}>
+            Free IELTS Placement Test
+          </h1>
+          <p style={{ color: C.textSecondary, fontSize: 14, maxWidth: 480, margin: '0 auto 20px' }}>
+            Complete all 4 skills to discover your current IELTS level. We&apos;ll recommend the perfect programme for you.
           </p>
-          <div style={{ display: 'inline-flex', gap: 20, background: 'white', borderRadius: 12, padding: '10px 24px', border: '1px solid #e2e8f0', fontSize: 13, color: '#64748b', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              gap: 20,
+              background: C.cardBg,
+              borderRadius: 12,
+              padding: '10px 24px',
+              border: `1px solid ${C.cardBorder}`,
+              fontSize: 13,
+              color: C.textSecondary,
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+            }}
+          >
             <span>✅ Completely free</span>
             <span>🤖 AI marked</span>
             <span>⚡ Instant results</span>
@@ -175,39 +235,111 @@ export default function PlacementTest() {
         </div>
 
         {/* Progress bar */}
-        <div style={{ background: 'white', borderRadius: 12, padding: '16px 20px', marginBottom: 24, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div
+          style={{
+            background: C.cardBg,
+            borderRadius: 16,
+            padding: '16px 20px',
+            marginBottom: 24,
+            border: `1px solid ${C.cardBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+          }}
+        >
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>Progress: {completedCount}/4 tests completed</div>
-            <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${(completedCount / 4) * 100}%`, height: '100%', background: 'linear-gradient(90deg, #16a34a, #4f46e5)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>
+              Progress: {completedCount}/4 tests completed
+            </div>
+            <div style={{ height: 6, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${(completedCount / 4) * 100}%`,
+                  height: '100%',
+                  background: C.primary,
+                  borderRadius: 9999,
+                  transition: 'width 0.5s ease',
+                }}
+              />
             </div>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: completedCount === 4 ? '#16a34a' : '#94a3b8' }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: completedCount === 4 ? C.primary : C.textMuted }}>
             {completedCount === 4 ? '✓ Done!' : `${completedCount}/4`}
           </div>
         </div>
 
         {/* Recommendation box */}
         {recommendation && (
-          <div style={{ background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)', borderRadius: 16, padding: '28px', marginBottom: 28, color: 'white', textAlign: 'center' }}>
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Your Placement Result</div>
-            <div style={{ fontSize: 48, fontWeight: 900, marginBottom: 6 }}>Band {recommendation.band}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, opacity: 0.9 }}>
-              Recommended: Level {recommendation.level} — {LEVEL_NAMES[recommendation.level]}
+          <div
+            style={{
+              background: `linear-gradient(135deg, ${C.primarySoft} 0%, ${C.accentSoft} 100%)`,
+              borderRadius: 24,
+              padding: 32,
+              marginBottom: 28,
+              border: `1px solid ${C.cardBorder}`,
+              boxShadow: C.shadow,
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.textMuted,
+                marginBottom: 8,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
+            >
+              Your placement
             </div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 8px' }}>
+              Band {recommendation.band} — Level {recommendation.level}{' '}
+              {LEVEL_NAMES[recommendation.level]}
+            </h2>
+            <p style={{ fontSize: 14, color: C.textSecondary, margin: '0 0 24px', lineHeight: 1.5 }}>
+              You&apos;re at Level {recommendation.level} {LEVEL_NAMES[recommendation.level]}. Your
+              programme is tailored to this level — start building from here.
+            </p>
             <button
+              type="button"
               onClick={() => navigate('/levels')}
-              style={{ padding: '14px 32px', background: 'white', color: '#1d4ed8', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>
-              View My Programme → Buy Level {recommendation.level} (LKR 2,000)
+              style={{
+                padding: '12px 24px',
+                background: C.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'Inter, sans-serif',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = C.primaryHover;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = C.primary;
+              }}
+            >
+              Go to my programme →
             </button>
           </div>
         )}
 
         {/* 4 skill tiles */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 28 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 16,
+            marginBottom: 28,
+          }}
+          className="pl-tile-grid"
+        >
           {SKILLS_ORDER.map(skill => {
             const paper = papers.find(p => p.testType === skill);
-            const meta = SKILL_META[skill];
+            const meta = SKILL_STYLE[skill];
             const attempt = history.find(
               a => a.paper?.testType === skill && a.status === 'COMPLETED'
             );
@@ -217,18 +349,46 @@ export default function PlacementTest() {
             const isResetting = resettingSkill === skill;
 
             return (
-              <div key={skill} style={{ background: 'white', borderRadius: 14, padding: '22px', border: `2px solid ${isDone ? meta.color : '#e2e8f0'}`, position: 'relative', transition: 'border-color 0.2s' }}>
+              <div
+                key={skill}
+                className="pl-tile"
+                style={{
+                  background: C.cardBg,
+                  borderRadius: 16,
+                  padding: 24,
+                  border: `1px solid ${C.cardBorder}`,
+                  borderTopWidth: 3,
+                  borderTopColor: meta.stroke,
+                  position: 'relative',
+                }}
+              >
                 {isDone && (
-                  <div style={{ position: 'absolute', top: 12, right: 12, background: meta.color, color: 'white', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 16,
+                      right: 16,
+                      background: meta.stroke,
+                      color: 'white',
+                      borderRadius: 9999,
+                      padding: '3px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  >
                     ✓ Done
                   </div>
                 )}
                 <div style={{ fontSize: 30, marginBottom: 10 }}>{meta.icon}</div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{meta.label}</div>
-                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 16 }}>{meta.time} · Free placement paper</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>{meta.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: C.textMuted, marginBottom: 16 }}>
+                  {meta.time} · Free placement paper
+                </div>
                 {isDone ? (
                   <>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: meta.color }}>Band {band}</div>
+                    <div style={{ fontSize: 32, fontWeight: 700, color: meta.stroke, fontVariantNumeric: 'tabular-nums' }}>
+                      Band {band}
+                    </div>
                     <button
                       type="button"
                       onClick={() => redoPlacementSkill(skill, paper)}
@@ -239,11 +399,12 @@ export default function PlacementTest() {
                         background: 'none',
                         border: 'none',
                         fontSize: 12,
-                        color: '#94a3b8',
+                        color: C.textMuted,
                         cursor: isResetting || isStarting ? 'not-allowed' : 'pointer',
                         fontWeight: 500,
                         textDecoration: 'underline',
                         textUnderlineOffset: 2,
+                        fontFamily: 'Inter, sans-serif',
                       }}
                     >
                       {isResetting ? 'Resetting...' : 'Redo this section →'}
@@ -251,13 +412,26 @@ export default function PlacementTest() {
                   </>
                 ) : paper ? (
                   <button
+                    type="button"
                     onClick={() => startPaper(paper.id)}
                     disabled={isStarting}
-                    style={{ width: '100%', padding: '11px', background: isStarting ? '#94a3b8' : meta.color, color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isStarting ? 'not-allowed' : 'pointer' }}>
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      background: isStarting ? C.textMuted : meta.stroke,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: isStarting ? 'not-allowed' : 'pointer',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
                     {isStarting ? 'Starting...' : `Start ${meta.label} →`}
                   </button>
                 ) : (
-                  <div style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>Not yet available</div>
+                  <div style={{ color: C.textMuted, fontSize: 13, fontStyle: 'italic' }}>Not yet available</div>
                 )}
               </div>
             );
@@ -265,8 +439,15 @@ export default function PlacementTest() {
         </div>
 
         {/* How it works */}
-        <div style={{ background: 'white', borderRadius: 14, padding: '24px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 16px', color: '#1e293b', fontSize: 15, fontWeight: 800 }}>How it works</h3>
+        <div
+          style={{
+            background: C.cardBg,
+            borderRadius: 16,
+            padding: 24,
+            border: `1px solid ${C.cardBorder}`,
+          }}
+        >
+          <h3 style={{ margin: '0 0 16px', color: C.text, fontSize: 15, fontWeight: 800 }}>How it works</h3>
           <div style={{ display: 'grid', gap: 12 }}>
             {[
               'Complete all 4 placement tests — Reading, Writing, Listening and Speaking',
@@ -275,10 +456,24 @@ export default function PlacementTest() {
               'Purchase your recommended level (LKR 2,000) or get full access (LKR 10,000)',
             ].map((text, i) => (
               <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12, flexShrink: 0, color: '#4f46e5' }}>
+                <div
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    background: C.subtleBorder,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 900,
+                    fontSize: 12,
+                    flexShrink: 0,
+                    color: C.primary,
+                  }}
+                >
                   {i + 1}
                 </div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{text}</div>
+                <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>{text}</div>
               </div>
             ))}
           </div>

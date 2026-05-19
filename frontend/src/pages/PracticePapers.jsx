@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
@@ -8,33 +8,130 @@ const api = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
 });
 
-const SKILL_META = {
-  READING: {
-    icon: '📖', color: '#1d4ed8',
-    bg: '#eff6ff', border: '#bfdbfe', label: 'Reading'
-  },
-  WRITING: {
-    icon: '✍️', color: '#16a34a',
-    bg: '#f0fdf4', border: '#bbf7d0', label: 'Writing'
-  },
-  LISTENING: {
-    icon: '🎧', color: '#7c3aed',
-    bg: '#faf5ff', border: '#e9d5ff', label: 'Listening'
-  },
-  SPEAKING: {
-    icon: '🎤', color: '#ea580c',
-    bg: '#fff7ed', border: '#fed7aa', label: 'Speaking'
-  },
+const C = {
+  primary: '#4F46E5',
+  primaryHover: '#4338CA',
+  primarySoft: '#EEF2FF',
+  accent: '#7C3AED',
+  accentSoft: '#F5F3FF',
+  pageBg: '#F8FAFC',
+  cardBg: '#FFFFFF',
+  cardBorder: '#E2E8F0',
+  subtleBorder: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+  success: '#059669',
+  warning: '#D97706',
+  neutralBand: '#64748B',
+  shadow: '0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.03)',
+  shadowHover: '0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)',
+  transition: '180ms cubic-bezier(0.4, 0, 0.2, 1)',
+};
+
+const SKILL_STYLE = {
+  READING: { stroke: '#2563EB', soft: '#EFF6FF', icon: '📖', label: 'Reading' },
+  WRITING: { stroke: '#D97706', soft: '#FFFBEB', icon: '✍️', label: 'Writing' },
+  LISTENING: { stroke: '#7C3AED', soft: '#F5F3FF', icon: '🎧', label: 'Listening' },
+  SPEAKING: { stroke: '#DB2777', soft: '#FDF2F8', icon: '🎤', label: 'Speaking' },
 };
 
 const SKILL_ORDER = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
 
-function lastAttemptBand(lastAttempt, skill) {
-  if (!lastAttempt) return null;
-  if (skill === 'WRITING') {
-    return lastAttempt.writingSubmission?.overallBand ?? null;
+const RESULT_ROUTES = {
+  READING: 'results',
+  WRITING: 'writing-results',
+  LISTENING: 'results',
+  SPEAKING: 'speaking-results',
+};
+
+function getBand(attempt) {
+  const v = attempt?.writingSubmission?.overallBand
+    ?? attempt?.speakingSubmission?.overallBand
+    ?? attempt?.result?.bandEstimate
+    ?? null;
+  if (v === '' || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function relativeTime(date) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = Date.now();
+  const sec = Math.floor((now - d.getTime()) / 1000);
+  if (sec < 60) return 'just now';
+  if (sec < 3600) return `${Math.floor(sec / 60)} minutes ago`;
+  const dayStart = t => {
+    const x = new Date(t);
+    x.setHours(0, 0, 0, 0);
+    return x.getTime();
+  };
+  const ds = dayStart(now) - dayStart(d.getTime());
+  const days = Math.floor(ds / 86400000);
+  if (days === 0) {
+    if (sec < 86400) return 'today';
+    return 'yesterday';
   }
-  return lastAttempt.result?.bandEstimate ?? lastAttempt.result?.band ?? lastAttempt.result?.overallBand ?? null;
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return '1 week ago';
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 60) return '1 month ago';
+  if (days < 365) return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function bandPillTone(band) {
+  if (band == null || !Number.isFinite(Number(band))) {
+    return { bg: '#F1F5F9', fg: C.neutralBand };
+  }
+  const b = Number(band);
+  if (b >= 7) return { bg: '#ECFDF5', fg: C.success };
+  if (b >= 5.5) return { bg: '#FFFBEB', fg: '#B45309' };
+  return { bg: '#F1F5F9', fg: C.neutralBand };
+}
+
+/** @returns {{ kind:'LOCKED' } | { kind:'IN_PROGRESS', attemptId:number|string } | { kind:'NEW' } | { kind:'DONE', bestBand: number|null, lastAttemptId: number|string, lastDone: Date|null }} */
+function getPaperState(paper, attempts, paperUnlocked) {
+  const myAttempts = attempts.filter(a => a.paperId === paper.id);
+  const completed = myAttempts.filter(a => a.status === 'COMPLETED');
+  const inProg = myAttempts.find(a => a.status === 'IN_PROGRESS');
+  const isFree = paper.paperCode === '001';
+  const locked = !isFree && !paperUnlocked;
+
+  if (locked) return { kind: 'LOCKED' };
+  if (inProg) return { kind: 'IN_PROGRESS', attemptId: inProg.id };
+  if (completed.length === 0) return { kind: 'NEW' };
+
+  const numericBands = completed
+    .map(a => getBand(a))
+    .filter(x => x != null && Number.isFinite(Number(x)))
+    .map(Number);
+  const bestBand =
+    numericBands.length === 0 ? null : Math.max(...numericBands);
+
+  const lastCompleted = [...completed].sort(
+    (a, b) =>
+      new Date(b.endedAt || b.startedAt) - new Date(a.endedAt || a.startedAt)
+  )[0];
+  const lastDone = completed.reduce((latest, a) => {
+    const t = new Date(a.endedAt || a.startedAt);
+    return !latest || t > latest ? t : latest;
+  }, /** @type {null|Date} */ (null));
+
+  return {
+    kind: 'DONE',
+    bestBand: bestBand == null ? null : bestBand,
+    lastAttemptId: lastCompleted.id,
+    lastDone,
+  };
+}
+
+function countCompletedPapers(skillPapers, attempts) {
+  return skillPapers.filter(p =>
+    attempts.some(a => a.paperId === p.id && a.status === 'COMPLETED')
+  ).length;
 }
 
 export default function PracticePapers() {
@@ -45,7 +142,9 @@ export default function PracticePapers() {
   const [history, setHistory] = useState([]);
   const [starting, setStarting] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [skillFilter, setSkillFilter] = useState('ALL');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const load = async () => {
@@ -66,7 +165,18 @@ export default function PracticePapers() {
     load();
   }, []);
 
-  const startPaper = async (paperId) => {
+  useEffect(() => {
+    const raw = searchParams.get('skill');
+    if (!raw || raw === '') {
+      setSkillFilter('ALL');
+      return;
+    }
+    const up = String(raw).toUpperCase();
+    if (SKILL_ORDER.includes(up)) setSkillFilter(up);
+    else setSkillFilter('ALL');
+  }, [searchParams]);
+
+  const startPaper = async paperId => {
     setStarting(paperId);
     try {
       const res = await axios.post(
@@ -97,99 +207,159 @@ export default function PracticePapers() {
     }
   };
 
-  const isUnlocked = (paper) => {
+  const isUnlocked = paper => {
     if (paper.paperCode === '001') return true;
     if (myLevels.hasFullAccess || myLevels.isPaid) return true;
     return false;
   };
 
-  const getLastAttempt = (paperId) => {
-    return history.find(
-      a => a.paperId === paperId && a.status === 'COMPLETED'
-    );
-  };
+  const grouped = useMemo(() => {
+    const g = {};
+    SKILL_ORDER.forEach(skill => {
+      g[skill] = papers
+        .filter(p => p.testType === skill)
+        .sort((a, b) =>
+          String(a.paperCode || '').localeCompare(String(b.paperCode || ''))
+        );
+    });
+    return g;
+  }, [papers]);
 
-  const getBandColor = (band) => {
-    if (!band) return '#94a3b8';
-    if (band >= 7) return '#16a34a';
-    if (band >= 5.5) return '#d97706';
-    return '#dc2626';
-  };
+  const filterCounts = useMemo(() => {
+    const counts = {};
+    SKILL_ORDER.forEach(skill => {
+      counts[skill] = (grouped[skill] || []).length;
+    });
+    return counts;
+  }, [grouped]);
 
-  const grouped = {};
-  SKILL_ORDER.forEach(skill => {
-    grouped[skill] = papers
-      .filter(p => p.testType === skill)
-      .sort((a, b) => (a.paperCode || '').localeCompare(b.paperCode || ''));
-  });
+  const handleCardActivate = (paper, skill, state) => {
+    if (starting === paper.id) return;
+    if (state.kind === 'LOCKED') {
+      handleBuyFullAccess();
+      return;
+    }
+    if (state.kind === 'IN_PROGRESS') {
+      navigate(`/exam/${state.attemptId}/greeting`);
+      return;
+    }
+    if (state.kind === 'DONE') {
+      const route = RESULT_ROUTES[skill] || 'results';
+      navigate(`/exam/${state.lastAttemptId}/${route}`);
+      return;
+    }
+    startPaper(paper.id);
+  };
 
   const isFullyUnlocked = myLevels.hasFullAccess || myLevels.isPaid;
 
-  if (loading) return (
-    <div style={{
-      minHeight: '100vh',
-      fontFamily: 'Inter, sans-serif',
-      background: '#f8fafc'
-    }}>
-      <StudentNav active="practice" />
-      <div style={{
-        minHeight: '40vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ color: '#64748b' }}>Loading papers...</div>
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          fontFamily: 'Inter, sans-serif',
+          background: C.pageBg,
+        }}
+      >
+        <StudentNav active="practice" />
+        <div
+          style={{
+            minHeight: '40vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ color: C.textMuted }}>Loading papers...</div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (papers.length === 0) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          fontFamily: 'Inter, sans-serif',
+          background: C.pageBg,
+        }}
+      >
+        <StudentNav active="practice" />
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: '0 auto',
+            padding: '12px 24px',
+            borderBottom: `1px solid ${C.cardBorder}`,
+            background: '#fff',
+          }}
+        />
+        <div style={{ textAlign: 'center', padding: '64px 24px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: C.text }}>
+            No papers available.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f8fafc',
-      fontFamily: 'Inter, sans-serif'
-    }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: C.pageBg,
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
       <style>{`
-        .paper-card:hover {
-          border-color: var(--skill-color) !important;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-          transform: translateY(-1px);
+        .pp-filter-row { scrollbar-width: thin; }
+        .pp-filter-row::-webkit-scrollbar { height: 6px; }
+        .pp-paper-card { transition: transform ${C.transition}, box-shadow ${C.transition}, border-color ${C.transition}; outline: none; }
+        .pp-paper-card:hover:not(:disabled):not(.pp-paper-busy) {
+          transform: translateY(-2px);
+          box-shadow: ${C.shadowHover};
+          border-color: var(--stroke);
         }
-        .paper-card { transition: all 0.15s ease; }
-        .btn-start:hover { opacity: 0.88; }
-        .btn-start { transition: opacity 0.15s; }
+        .pp-filter-pill:focus-visible {
+          outline: 2px solid ${C.primary};
+          outline-offset: 2px;
+        }
       `}</style>
 
       <StudentNav active="practice" />
 
-      <div style={{
-        maxWidth: 1100,
-        margin: '0 auto',
-        padding: '12px 24px',
-        borderBottom: '1px solid #E2E8F0',
-        background: 'white',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 16,
-        flexWrap: 'wrap',
-      }}>
+      <div
+        style={{
+          maxWidth: 1100,
+          margin: '0 auto',
+          padding: '12px 24px',
+          borderBottom: `1px solid ${C.cardBorder}`,
+          background: '#fff',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
         {isFullyUnlocked ? (
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#059669' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.success }}>
             ✓ Full access — all papers unlocked
           </span>
         ) : (
           <>
-            <span style={{ fontSize: 14, fontWeight: 500, color: '#475569' }}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: C.textSecondary }}>
               Free papers only · Upgrade to unlock all
             </span>
             <button
               type="button"
-              className="btn-start"
               onClick={handleBuyFullAccess}
               style={{
                 padding: '8px 16px',
-                background: '#4F46E5',
+                background: C.primary,
                 color: 'white',
                 border: 'none',
                 borderRadius: 10,
@@ -205,220 +375,431 @@ export default function PracticePapers() {
         )}
       </div>
 
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '36px 20px' }}>
+      {/* Sticky skill filter */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 64,
+          zIndex: 50,
+          borderBottom: `1px solid ${C.cardBorder}`,
+          background: 'rgba(248, 250, 252, 0.95)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          padding: '12px 0',
+        }}
+      >
+        <div
+          className="pp-filter-row"
+          style={{
+            maxWidth: 1100,
+            margin: '0 auto',
+            padding: '0 24px',
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+          }}
+        >
+          {[{ key: 'ALL', label: 'All', count: papers.length },
+            ...SKILL_ORDER.map(skill => ({
+              key: skill,
+              label: SKILL_STYLE[skill].label,
+              count: filterCounts[skill] || 0,
+            }))
+          ].map(({ key, label, count }) => {
+            const selected = key === 'ALL' ? skillFilter === 'ALL' : skillFilter === key;
 
-        {/* Unlock banner for locked students */}
-        {!isFullyUnlocked && (
-          <div style={{
-            background: 'linear-gradient(135deg,#1e293b,#1d4ed8)',
-            borderRadius: 14, padding: '20px 24px',
-            marginBottom: 30,
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between',
-            color: 'white'
-          }}>
-            <div>
-              <div style={{
-                fontWeight: 800, fontSize: 15, marginBottom: 4
-              }}>
-                🔓 Unlock All Practice Papers
-              </div>
-              <div style={{
-                color: 'rgba(255,255,255,0.65)', fontSize: 13
-              }}>
-                Get unlimited access to all Reading, Writing,
-                Listening and Speaking papers · AI marked
-              </div>
-            </div>
-            <div style={{ flexShrink: 0, marginLeft: 20, textAlign: 'right' }}>
-              <div style={{
-                fontSize: 20, fontWeight: 900, marginBottom: 8
-              }}>
-                LKR 10,000
-              </div>
+            return (
               <button
+                key={key}
                 type="button"
-                className="btn-start"
-                onClick={handleBuyFullAccess}
+                aria-pressed={selected}
+                className="pp-filter-pill"
+                onClick={() => setSkillFilter(key)}
                 style={{
-                  padding: '8px 20px',
-                  background: 'white',
-                  color: '#1d4ed8', border: 'none',
-                  borderRadius: 8, fontWeight: 800,
-                  fontSize: 13, cursor: 'pointer'
-                }}>
-                Buy Now →
+                  flexShrink: 0,
+                  padding: '8px 16px',
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer',
+                  border: selected
+                    ? `1px solid ${C.primary}`
+                    : `1px solid ${C.cardBorder}`,
+                  background: selected ? C.primary : '#fff',
+                  color: selected ? '#fff' : C.textSecondary,
+                  transition: `all ${C.transition}`,
+                }}
+                onMouseEnter={e => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = '#CBD5E1';
+                    e.currentTarget.style.background = '#F8FAFC';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = C.cardBorder;
+                    e.currentTarget.style.background = '#fff';
+                  }
+                }}
+              >
+                {label}{' '}
+                <span
+                  style={{
+                    fontWeight: 500,
+                    fontSize: 11,
+                    opacity: selected ? 0.95 : 1,
+                  }}
+                >
+                  · {count}
+                </span>
               </button>
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </div>
+      </div>
 
-        {/* Papers by skill */}
-        {SKILL_ORDER.map(skill => {
-          const meta = SKILL_META[skill];
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px 64px' }}>
+        {SKILL_ORDER.filter(
+          skill => skillFilter === 'ALL' || skillFilter === skill
+        ).map(skill => {
+          const skillMeta = SKILL_STYLE[skill];
           const skillPapers = grouped[skill] || [];
+
+          const filterEmptySpecific =
+            skillFilter !== 'ALL' &&
+            skillFilter === skill &&
+            skillPapers.length === 0;
+          if (filterEmptySpecific) {
+            return (
+              <div
+                key={skill}
+                style={{ textAlign: 'center', padding: '64px 24px' }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📄</div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: C.text }}>
+                  No {skillMeta.label} papers yet
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: C.textMuted, marginTop: 8 }}>
+                  Check back soon.
+                </div>
+              </div>
+            );
+          }
+
           if (skillPapers.length === 0) return null;
 
+          const completedPaperN = countCompletedPapers(skillPapers, history);
+
           return (
-            <div key={skill} style={{ marginBottom: 36 }}>
+            <section key={skill} style={{ marginBottom: 48 }}>
+              <header
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-end',
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 28, lineHeight: 1 }}>
+                      {skillMeta.icon}
+                    </span>
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: 24,
+                        fontWeight: 700,
+                        color: C.text,
+                      }}
+                    >
+                      {skillMeta.label}
+                    </h2>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: C.textMuted,
+                    }}
+                  >
+                    {skillPapers.length} paper{skillPapers.length !== 1 ? 's' : ''}{' '}
+                    · {completedPaperN} completed
+                  </div>
+                </div>
+              </header>
 
-              {/* Skill header */}
-              <div style={{
-                display: 'flex', alignItems: 'center',
-                gap: 10, marginBottom: 14
-              }}>
-                <span style={{ fontSize: 20 }}>{meta.icon}</span>
-                <h2 style={{
-                  margin: 0, fontSize: 17,
-                  fontWeight: 800, color: '#0f172a'
-                }}>
-                  {meta.label}
-                </h2>
-                <span style={{
-                  background: meta.bg, color: meta.color,
-                  border: `1px solid ${meta.border}`,
-                  borderRadius: 20, padding: '3px 10px',
-                  fontSize: 11, fontWeight: 700
-                }}>
-                  {skillPapers.length} paper{skillPapers.length !== 1 ? 's' : ''}
-                </span>
-                {!isFullyUnlocked && (
-                  <span style={{
-                    color: '#94a3b8', fontSize: 12,
-                    marginLeft: 4
-                  }}>
-                    · Paper 001 free
-                  </span>
-                )}
-              </div>
-
-              {/* Paper grid */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: 12
-              }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: 16,
+                }}
+              >
                 {skillPapers.map(paper => {
                   const unlocked = isUnlocked(paper);
-                  const free = paper.paperCode === '001';
-                  const isStarting = starting === paper.id;
-                  const lastAttempt = getLastAttempt(paper.id);
-                  const band = lastAttemptBand(lastAttempt, skill);
+                  const ps = getPaperState(paper, history, unlocked);
+                  const busy = starting === paper.id;
+
+                  let statusEl = null;
+                  let actionLabel = '';
+                  let actionColor = C.primary;
+
+                  if (ps.kind === 'LOCKED') {
+                    statusEl = (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 9999,
+                          padding: '4px 10px',
+                          background: '#F1F5F9',
+                          color: C.textMuted,
+                        }}
+                      >
+                        🔒 Locked
+                      </span>
+                    );
+                    actionLabel = 'Unlock →';
+                    actionColor = C.accent;
+                  } else if (ps.kind === 'IN_PROGRESS') {
+                    statusEl = (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 9999,
+                          padding: '4px 10px',
+                          background: '#FEF3C7',
+                          color: '#B45309',
+                        }}
+                      >
+                        In progress
+                      </span>
+                    );
+                    actionLabel = busy ? 'Starting…' : 'Continue →';
+                    actionColor = C.warning;
+                  } else if (ps.kind === 'NEW') {
+                    statusEl = (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 9999,
+                          padding: '4px 10px',
+                          background: '#F1F5F9',
+                          color: C.textSecondary,
+                        }}
+                      >
+                        Not started
+                      </span>
+                    );
+                    actionLabel = busy ? 'Starting…' : 'Start →';
+                    actionColor = C.primary;
+                  } else {
+                    const tone = bandPillTone(ps.bestBand);
+                    const label =
+                      ps.bestBand != null && Number.isFinite(Number(ps.bestBand))
+                        ? `Best Band ${Number(ps.bestBand).toFixed(1)}`
+                        : 'Completed';
+                    statusEl = (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 9999,
+                          padding: '4px 10px',
+                          background: tone.bg,
+                          color: tone.fg,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    );
+                    actionLabel = 'Review →';
+                    actionColor = C.textSecondary;
+                  }
+
+                  const lastTxt =
+                    ps.kind === 'DONE' &&
+                    ps.lastDone &&
+                    Number.isFinite(ps.lastDone.getTime())
+                      ? ` · Last done ${relativeTime(ps.lastDone)}`
+                      : '';
 
                   return (
                     <div
                       key={paper.id}
-                      className="paper-card"
+                      role="button"
+                      tabIndex={0}
+                      className={`pp-paper-card${busy ? ' pp-paper-busy' : ''}`}
+                      onClick={() =>
+                        busy ? undefined : handleCardActivate(paper, skill, ps)
+                      }
+                      onKeyDown={e => {
+                        if (e.key === ' ') e.preventDefault();
+                        if ((e.key === 'Enter' || e.key === ' ') && !busy) {
+                          handleCardActivate(paper, skill, ps);
+                        }
+                      }}
+                      aria-disabled={busy}
+                      aria-busy={busy}
                       style={{
-                        '--skill-color': meta.color,
-                        background: 'white',
-                        borderRadius: 13,
-                        padding: '18px 16px',
-                        border: `1.5px solid ${unlocked ? meta.border : '#e2e8f0'}`,
+                        '--stroke': skillMeta.stroke,
+                        background: C.cardBg,
+                        borderRadius: 16,
+                        padding: 20,
+                        border: `1px solid ${C.cardBorder}`,
+                        borderTopWidth: 3,
+                        borderTopStyle: 'solid',
+                        borderTopColor: skillMeta.stroke,
+                        boxShadow: C.shadow,
+                        cursor: busy ? 'wait' : 'pointer',
                         position: 'relative',
-                        opacity: unlocked ? 1 : 0.72
-                      }}>
-
-                      {/* Badges */}
-                      <div style={{
-                        position: 'absolute', top: 10, right: 10,
-                        display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '65%'
-                      }}>
-                        {free && (
-                          <span style={{
-                            background: '#16a34a', color: 'white',
-                            borderRadius: 20, padding: '2px 7px',
-                            fontSize: 9, fontWeight: 800,
-                            letterSpacing: '0.04em'
-                          }}>
-                            FREE
-                          </span>
-                        )}
-                        {!unlocked && (
-                          <span style={{ fontSize: 13 }}>🔒</span>
-                        )}
-                        {band != null && band !== '' && (
-                          <span style={{
-                            background: '#f8fafc',
-                            color: getBandColor(Number(band)),
-                            border: `1px solid ${getBandColor(Number(band))}40`,
-                            borderRadius: 20, padding: '2px 7px',
-                            fontSize: 10, fontWeight: 800
-                          }}>
-                            {Number(band).toFixed(1)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div style={{
-                        fontSize: 11,
-                        color: meta.color,
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        marginBottom: 6,
-                        paddingRight: 40
-                      }}>
-                        {meta.label} {paper.paperCode}
-                      </div>
-
-                      <div style={{
-                        fontSize: 13, fontWeight: 700,
-                        color: '#1e293b', marginBottom: 4,
-                        paddingRight: 40, lineHeight: 1.4
-                      }}>
-                        {paper.title || `${meta.label} Paper ${paper.paperCode}`}
-                      </div>
-
-                      <div style={{
-                        fontSize: 11, color: '#94a3b8', marginBottom: 14
-                      }}>
-                        {paper.timeLimitMin || 60} min
-                        {lastAttempt && ` · Done ${new Date(lastAttempt.endedAt || lastAttempt.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
-                      </div>
-
-                      {unlocked ? (
-                        <button
-                          type="button"
-                          className="btn-start"
-                          onClick={() => startPaper(paper.id)}
-                          disabled={isStarting}
+                        outline: 'none',
+                        ...(ps.kind === 'LOCKED'
+                          ? { opacity: 0.7 }
+                          : {}),
+                      }}
+                    >
+                      {ps.kind === 'LOCKED' && (
+                        <span
                           style={{
-                            width: '100%', padding: '8px',
-                            background: meta.color,
-                            color: 'white', border: 'none',
-                            borderRadius: 8, fontSize: 12,
-                            fontWeight: 700,
-                            cursor: isStarting ? 'wait' : 'pointer',
-                            opacity: isStarting ? 0.7 : 1
-                          }}>
-                          {isStarting
-                            ? 'Starting...'
-                            : lastAttempt
-                              ? 'Retake →'
-                              : 'Start →'}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-start"
-                          onClick={handleBuyFullAccess}
-                          style={{
-                            width: '100%', padding: '8px',
-                            background: '#f1f5f9',
-                            color: '#64748b', border: 'none',
-                            borderRadius: 8, fontSize: 11,
-                            fontWeight: 600, cursor: 'pointer'
-                          }}>
-                          Unlock All — LKR 10,000
-                        </button>
+                            position: 'absolute',
+                            top: 16,
+                            right: 16,
+                            fontSize: 16,
+                            color: C.textMuted,
+                            lineHeight: 1,
+                            pointerEvents: 'none',
+                          }}
+                          aria-hidden
+                        >
+                          🔒
+                        </span>
                       )}
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              color: skillMeta.stroke,
+                            }}
+                          >
+                            {skill}
+                            {' '}
+                            {paper.paperCode}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              fontSize: 16,
+                              fontWeight: 600,
+                              color: C.text,
+                              lineHeight: 1.35,
+                              paddingRight:
+                                ps.kind === 'LOCKED' ? 24 : 0,
+                            }}
+                          >
+                            {paper.title ||
+                              `${skillMeta.label} Paper ${paper.paperCode}`}
+                          </div>
+                        </div>
+                        <div style={{ flexShrink: 0, display: 'flex', gap: 6 }}>
+                          {paper.paperCode === '001' ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                background: '#ECFDF5',
+                                color: C.success,
+                                padding: '3px 8px',
+                                borderRadius: 9999,
+                              }}
+                            >
+                              FREE
+                            </span>
+                          ) : unlocked ? null : (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                background: '#FEF3C7',
+                                color: '#B45309',
+                                padding: '3px 8px',
+                                borderRadius: 9999,
+                              }}
+                            >
+                              PAID
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>{statusEl}</div>
+
+                      <div
+                        style={{
+                          marginTop: 16,
+                          paddingTop: 12,
+                          borderTop: `1px solid ${C.subtleBorder}`,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 12,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>
+                          ⏱ {paper.timeLimitMin || 60} min
+                          {lastTxt}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: busy ? C.textMuted : actionColor,
+                            fontFamily: 'Inter, sans-serif',
+                            cursor: busy ? 'wait' : 'inherit',
+                          }}
+                        >
+                          {actionLabel}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>

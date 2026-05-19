@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import StudentNav from '../components/StudentNav';
 
 const api = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -127,10 +128,18 @@ export default function PracticePapers() {
   if (loading) return (
     <div style={{
       minHeight: '100vh',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'Inter, sans-serif', background: '#f8fafc'
+      fontFamily: 'Inter, sans-serif',
+      background: '#f8fafc'
     }}>
-      <div style={{ color: '#64748b' }}>Loading papers...</div>
+      <StudentNav active="practice" />
+      <div style={{
+        minHeight: '40vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ color: '#64748b' }}>Loading papers...</div>
+      </div>
     </div>
   );
 
@@ -151,63 +160,48 @@ export default function PracticePapers() {
         .btn-start { transition: opacity 0.15s; }
       `}</style>
 
-      {/* Header */}
-      <div style={{
-        background: '#1e293b',
-        padding: '0 32px', height: 60,
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 100,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <button
-            type="button"
-            onClick={() => navigate('/student/dashboard')}
-            style={{
-              background: 'none', border: 'none',
-              color: 'rgba(255,255,255,0.55)',
-              cursor: 'pointer', fontSize: 13,
-              fontFamily: 'Inter, sans-serif',
-              padding: 0, display: 'flex',
-              alignItems: 'center', gap: 6
-            }}>
-            ← Dashboard
-          </button>
-          <div style={{
-            width: 1, height: 18,
-            background: 'rgba(255,255,255,0.12)'
-          }} />
-          <span style={{
-            color: 'white', fontWeight: 800, fontSize: 15
-          }}>
-            📝 Practice Papers
-          </span>
-        </div>
+      <StudentNav active="practice" />
 
-        {!isFullyUnlocked && (
-          <button
-            type="button"
-            className="btn-start"
-            onClick={handleBuyFullAccess}
-            style={{
-              padding: '7px 16px',
-              background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-              color: 'white', border: 'none',
-              borderRadius: 8, cursor: 'pointer',
-              fontSize: 12, fontWeight: 700
-            }}>
-            🔓 Unlock All — LKR 10,000
-          </button>
-        )}
-        {isFullyUnlocked && (
-          <span style={{
-            background: 'rgba(22,163,74,0.2)',
-            color: '#4ade80', borderRadius: 20,
-            padding: '4px 12px', fontSize: 12, fontWeight: 700
-          }}>
-            ✅ Full Access
+      <div style={{
+        maxWidth: 1100,
+        margin: '0 auto',
+        padding: '12px 24px',
+        borderBottom: '1px solid #E2E8F0',
+        background: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 16,
+        flexWrap: 'wrap',
+      }}>
+        {isFullyUnlocked ? (
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#059669' }}>
+            ✓ Full access — all papers unlocked
           </span>
+        ) : (
+          <>
+            <span style={{ fontSize: 14, fontWeight: 500, color: '#475569' }}>
+              Free papers only · Upgrade to unlock all
+            </span>
+            <button
+              type="button"
+              className="btn-start"
+              onClick={handleBuyFullAccess}
+              style={{
+                padding: '8px 16px',
+                background: '#4F46E5',
+                color: 'white',
+                border: 'none',
+                borderRadius: 10,
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              Unlock All →
+            </button>
+          </>
         )}
       </div>
 

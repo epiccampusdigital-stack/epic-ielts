@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import StudentNav from '../components/StudentNav';
 
 const api = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -174,10 +175,18 @@ function sparklinePoints(values) {
   }).join(' ');
 }
 
-function SvgSparkline({ values, stroke, dashed }) {
+function SvgSparkline({ values, stroke, dashed, stretch }) {
+  const ratio = stretch ? 'none' : 'xMidYMid meet';
   if (dashed || !values || values.length < 2) {
     return (
-      <svg width="100%" height="24" viewBox="0 0 100 24" style={{ display: 'block' }} aria-hidden>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 24"
+        preserveAspectRatio={ratio}
+        style={{ display: 'block', minHeight: stretch ? 60 : undefined }}
+        aria-hidden
+      >
         <line
           x1="4"
           y1="12"
@@ -193,7 +202,14 @@ function SvgSparkline({ values, stroke, dashed }) {
   }
   const pts = sparklinePoints(values);
   return (
-    <svg width="100%" height="24" viewBox="0 0 100 24" style={{ display: 'block' }} aria-hidden>
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 100 24"
+      preserveAspectRatio={ratio}
+      style={{ display: 'block', minHeight: stretch ? 60 : undefined }}
+      aria-hidden
+    >
       <polyline
         fill="none"
         stroke={stroke}
@@ -340,6 +356,10 @@ export default function StudentDashboard() {
   });
   const [editingExamDate, setEditingExamDate] = useState(false);
   const [examDraft, setExamDraft] = useState('');
+  const [openSkillDrawer, setOpenSkillDrawer] = useState(
+    /** @type {'READING' | 'WRITING' | 'LISTENING' | 'SPEAKING' | null} */ (null)
+  );
+  const [skillDrawerEntered, setSkillDrawerEntered] = useState(false);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const firstName = (user.name || 'Student').split(' ')[0];
@@ -687,8 +707,33 @@ export default function StudentDashboard() {
       : currentBand
   );
 
+  useEffect(() => {
+    document.body.style.overflow = openSkillDrawer ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [openSkillDrawer]);
+
+  useEffect(() => {
+    if (!openSkillDrawer) return undefined;
+    const onKeyDown = ev => {
+      if (ev.key === 'Escape') setOpenSkillDrawer(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [openSkillDrawer]);
+
+  useEffect(() => {
+    if (!openSkillDrawer) {
+      setSkillDrawerEntered(false);
+      return undefined;
+    }
+    const id = requestAnimationFrame(() => setSkillDrawerEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, [openSkillDrawer]);
+
   const onSkillCardClick = skill => {
-    navigate(`/practice?skill=${skill}`);
+    setOpenSkillDrawer(skill);
   };
 
   const runTodaySession = async () => {
@@ -763,7 +808,7 @@ export default function StudentDashboard() {
             .dash-skill-grid { grid-template-columns: repeat(2, 1fr) !important; }
           }
         `}</style>
-        {renderHeader({ user, navigate })}
+        <StudentNav active="dashboard" />
         <div
           className="dash-page-inner"
           style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 48px' }}
@@ -808,6 +853,10 @@ export default function StudentDashboard() {
         * { box-sizing: border-box; }
         @keyframes dashPulse { 0%,100%{ opacity:1 } 50%{ opacity:0.55 } }
         @keyframes bandFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes skillDrawerBackdropIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
@@ -870,7 +919,6 @@ export default function StudentDashboard() {
         @media (max-width: 767px) {
           .dash-hero-inner { flex-direction: column !important; }
           .dash-session-row { flex-direction: column !important; align-items: stretch !important; }
-          .dash-header-bar { padding: 0 16px !important; }
         }
         @media (max-width: 639px) {
           .dash-page-inner { padding: 16px !important; }
@@ -884,7 +932,7 @@ export default function StudentDashboard() {
           .dash-skill-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
       `}</style>
-      {renderHeader({ user, navigate })}
+      <StudentNav active="dashboard" />
       <div
         className="dash-page-inner"
         style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 48px' }}
@@ -1488,6 +1536,7 @@ export default function StudentDashboard() {
                 className={`dash-skill-card skill-${skill}`}
                 onClick={() => onSkillCardClick(skill)}
                 onKeyDown={e => {
+                  if (e.key === ' ') e.preventDefault();
                   if (e.key === 'Enter' || e.key === ' ') onSkillCardClick(skill);
                 }}
                 style={{
@@ -1789,63 +1838,475 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-function renderHeader({ user, navigate }) {
-  return (
-    <div
-      className="dash-header-bar"
-      style={{
-        background: '#1e293b',
-        padding: '0 32px',
-        height: 60,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <img
-          src="/logo.png"
-          alt="EPIC IELTS"
-          style={{ height: 28, filter: 'brightness(0) invert(1)', opacity: 0.9 }}
-          onError={e => { e.target.style.display = 'none'; }}
-        />
-        <span style={{ color: 'white', fontWeight: 900, fontSize: 16, letterSpacing: '0.02em' }}>
-          EPIC IELTS
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{user.name || 'Student'}</span>
-        <button
-          type="button"
-          onClick={() => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            navigate('/');
-          }}
-          style={{
-            padding: '5px 14px',
-            background: 'rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.7)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontSize: 12,
-            fontWeight: 600,
-            fontFamily: 'Inter, sans-serif',
-            transition: 'opacity 180ms cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          Sign Out
-        </button>
-      </div>
+      {openSkillDrawer && (
+        <>
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+          {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role */}
+          <div
+            className="skill-drawer-backdrop"
+            role="presentation"
+            onClick={() => setOpenSkillDrawer(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.4)',
+              backdropFilter: 'blur(2px)',
+              WebkitBackdropFilter: 'blur(2px)',
+              zIndex: 300,
+              animation: 'skillDrawerBackdropIn 200ms ease-out forwards',
+            }}
+          />
+
+          <div
+            className={`skill-drawer-panel ${skillDrawerEntered ? 'skill-drawer-panel-open' : ''}`}
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              height: '100vh',
+              width: '100vw',
+              maxWidth: 480,
+              background: '#FFFFFF',
+              boxShadow: '-20px 0 40px rgba(15,23,42,0.08)',
+              zIndex: 301,
+              display: 'flex',
+              flexDirection: 'column',
+              transform: 'translateX(100%)',
+              transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            {(() => {
+              const skill = openSkillDrawer;
+              const meta = SKILL_STYLE[skill];
+              const st = skillStats[skill];
+              const recent = [...completedAttempts]
+                .filter(a => (a.paper?.testType || 'READING') === skill)
+                .sort((a, b) => new Date(b.endedAt || b.startedAt) - new Date(a.endedAt || a.startedAt))
+                .slice(0, 5);
+              const progBands = [...completedAttempts]
+                .filter(a => (a.paper?.testType || 'READING') === skill)
+                .sort((a, b) => new Date(a.endedAt || a.startedAt) - new Date(b.endedAt || b.startedAt))
+                .map(a => getBand(a))
+                .filter(v => v != null && Number.isFinite(Number(v)));
+              const progNumeric = progBands.map(Number);
+              const progBest =
+                progNumeric.length > 0 ? Math.max(...progNumeric) : null;
+              const progAvg =
+                progNumeric.length > 0
+                  ? (progNumeric.reduce((s, v) => s + v, 0) / progNumeric.length).toFixed(1)
+                  : null;
+              const dashedProg = progNumeric.length < 2;
+              const latestAttempt = completedAttempts
+                .filter(a => (a.paper?.testType || 'READING') === skill)
+                .sort((a, b) => new Date(b.endedAt || b.startedAt) - new Date(a.endedAt || a.startedAt))[0];
+
+              const t1Band = latestAttempt?.writingSubmission?.task1Band ?? null;
+              const t2Band = latestAttempt?.writingSubmission?.task2Band ?? null;
+              const t1Ok = t1Band != null && Number.isFinite(Number(t1Band));
+              const t2Ok = t2Band != null && Number.isFinite(Number(t2Band));
+              const spSub = latestAttempt?.speakingSubmission;
+              const spOverall = spSub?.overallBand;
+              const spMark = spSub?.markingStatus;
+              const transcript =
+                typeof spSub?.transcript === 'string' && spSub.transcript.trim() ? spSub.transcript.trim() : null;
+
+              const writingBar = (label, bb, bbOk) => (
+                <div key={label} style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: C.textSecondary }}>{label}</span>
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: bbOk ? bandSemanticColor(bb) : C.textMuted,
+                      }}
+                    >
+                      {bbOk ? Number(bb).toFixed(1) : '—'}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 6,
+                      borderRadius: 9999,
+                      background: '#F1F5F9',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: bbOk ? `${Math.min(100, Math.max(0, (Number(bb) / 9) * 100))}%` : 0,
+                        borderRadius: 9999,
+                        background: bbOk ? `${meta.stroke}` : '#E2E8F0',
+                        opacity: bbOk ? 0.85 : 0.35,
+                        transition: 'width 260ms cubic-bezier(0.4, 0, 0.2, 1)',
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+
+              return (
+                <>
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      padding: 24,
+                      borderBottom: `1px solid ${C.subtleBorder}`,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: 16,
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 28, lineHeight: 1 }}>{SKILL_ICONS[skill]}</span>
+                        <span style={{ fontSize: 20, fontWeight: 700, color: C.text }}>{SKILL_LABEL[skill]}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+                        <span
+                          style={{
+                            fontSize: 24,
+                            fontWeight: 700,
+                            fontVariantNumeric: 'tabular-nums',
+                            color: st.latest != null ? meta.stroke : '#CBD5E1',
+                          }}
+                        >
+                          {st.latest != null ? Number(st.latest).toFixed(1) : '—'}
+                        </span>
+                        {st.trend != null && st.spark.length >= 2 && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              borderRadius: 9999,
+                              padding: '2px 8px',
+                              ...(st.trend > 0
+                                ? { background: '#ECFDF5', color: C.success }
+                                : st.trend < 0
+                                  ? { background: '#FFFBEB', color: C.warning }
+                                  : { background: '#F1F5F9', color: C.neutralBand }),
+                            }}
+                          >
+                            {st.trend > 0
+                              ? `▲ +${st.trend.toFixed(1)}`
+                              : st.trend < 0
+                                ? `▼ ${st.trend.toFixed(1)}`
+                                : '● 0.0'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Close drawer"
+                      onClick={() => setOpenSkillDrawer(null)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        border: 'none',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                        background: 'transparent',
+                        color: C.textSecondary,
+                        fontSize: 18,
+                        lineHeight: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: `background ${C.transition}, color ${C.transition}`,
+                        fontFamily: 'Inter, sans-serif',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#F1F5F9';
+                        e.currentTarget.style.color = C.text;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = C.textSecondary;
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: '0 0 12px' }}>
+                      Recent attempts
+                    </h3>
+                    {recent.length === 0 ? (
+                      <div style={{ fontSize: 13, color: C.textMuted }}>
+                        No {SKILL_LABEL[skill]} attempts yet.
+                      </div>
+                    ) : (
+                      recent.map((attempt, ai) => {
+                        const isoLast = ai === recent.length - 1;
+                        const rb = getBand(attempt);
+                        const rRoute = RESULT_ROUTES[skill] || 'results';
+                        return (
+                          <div
+                            key={attempt.id}
+                            role="presentation"
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '12px 0',
+                              borderBottom: isoLast ? 'none' : `1px solid ${C.subtleBorder}`,
+                              gap: 12,
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 14, fontWeight: 500, color: C.text }}>
+                                  {attempt.paper?.title || SKILL_LABEL[skill]}
+                                </span>
+                                {attempt.paper?.paperCode && (
+                                  <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 6 }}>
+                                    {attempt.paper.paperCode}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                                {relativeTime(attempt.endedAt || attempt.startedAt)}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: 700,
+                                  fontVariantNumeric: 'tabular-nums',
+                                  color: rb != null ? bandSemanticColor(rb) : C.textMuted,
+                                }}
+                              >
+                                {rb != null ? Number(rb).toFixed(1) : '—'}
+                              </span>
+                              <button
+                                type="button"
+                                aria-label="View result"
+                                onClick={() => {
+                                  navigate(`/exam/${attempt.id}/${rRoute}`);
+                                  setOpenSkillDrawer(null);
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: 'none',
+                                  cursor: 'pointer',
+                                  color: C.primary,
+                                  fontSize: 18,
+                                  padding: 4,
+                                  lineHeight: 1,
+                                  fontFamily: 'inherit',
+                                }}
+                              >
+                                →
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+
+                    {skill === 'WRITING' && (
+                      <>
+                        <h3
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: C.text,
+                            margin: '24px 0 12px',
+                          }}
+                        >
+                          Latest writing breakdown
+                        </h3>
+                        {latestAttempt?.writingSubmission ? (
+                          (t1Ok || t2Ok ? (
+                            <>
+                              {writingBar('Task 1', t1Band, t1Ok)}
+                              {writingBar('Task 2', t2Band, t2Ok)}
+                            </>
+                          ) : (
+                            <div style={{ fontSize: 13, color: C.textMuted }}>
+                              Detailed breakdown not available for this attempt.
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ fontSize: 13, color: C.textMuted }}>
+                            Detailed breakdown not available for this attempt.
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {skill === 'SPEAKING' && latestAttempt?.speakingSubmission && (
+                      <>
+                        <h3
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: C.text,
+                            margin: '24px 0 12px',
+                          }}
+                        >
+                          Latest speaking detail
+                        </h3>
+                        <div
+                          style={{
+                            fontSize: 24,
+                            fontWeight: 700,
+                            fontVariantNumeric: 'tabular-nums',
+                            color:
+                              spOverall != null && Number.isFinite(Number(spOverall))
+                                ? bandSemanticColor(spOverall)
+                                : C.textMuted,
+                            marginBottom: 10,
+                          }}
+                        >
+                          {spOverall != null && Number.isFinite(Number(spOverall))
+                            ? Number(spOverall).toFixed(1)
+                            : '—'}
+                        </div>
+                        {spMark === 'COMPLETE' ? (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              borderRadius: 9999,
+                              padding: '4px 10px',
+                              background: '#ECFDF5',
+                              color: C.success,
+                              marginBottom: 12,
+                            }}
+                          >
+                            COMPLETE
+                          </span>
+                        ) : (
+                          <div style={{ fontSize: 13, fontWeight: 500, color: C.textMuted, marginBottom: 12 }}>
+                            Marking in progress…
+                          </div>
+                        )}
+                        {transcript && latestAttempt?.id ? (
+                          <div style={{ marginTop: transcript ? 8 : 0 }}>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontStyle: 'italic',
+                                color: C.textSecondary,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {transcript.slice(0, 150)}
+                              {transcript.length > 150 ? '…' : ''}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate(`/exam/${latestAttempt.id}/speaking-results`);
+                                setOpenSkillDrawer(null);
+                              }}
+                              style={{
+                                marginTop: 8,
+                                border: 'none',
+                                background: 'none',
+                                padding: 0,
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: C.primary,
+                                cursor: 'pointer',
+                                textDecoration: 'none',
+                                fontFamily: 'Inter, sans-serif',
+                              }}
+                            >
+                              Read more →
+                            </button>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+
+                    {(skill === 'READING' || skill === 'LISTENING') && (
+                      <>
+                        <h3
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: C.text,
+                            margin: '24px 0 12px',
+                          }}
+                        >
+                          Score progression
+                        </h3>
+                        <div style={{ width: 300, maxWidth: '100%', height: 60, marginBottom: 8 }}>
+                          <SvgSparkline
+                            values={progNumeric}
+                            stroke={meta.stroke}
+                            dashed={dashedProg}
+                            stretch
+                          />
+                        </div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>
+                          Best:{' '}
+                          <span style={{ fontWeight: 600, color: C.text }}>
+                            {progBest != null ? Number(progBest).toFixed(1) : '—'}
+                          </span>
+                          {' · '}Average:{' '}
+                          <span style={{ fontWeight: 600, color: C.text }}>{progAvg ?? '—'}</span>
+                          {' · '}Attempts:{` ${progNumeric.length}`}
+                        </div>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate(`/practice?skill=${skill}`);
+                        setOpenSkillDrawer(null);
+                      }}
+                      style={{
+                        marginTop: 24,
+                        border: 'none',
+                        background: 'none',
+                        padding: 0,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: C.primary,
+                        cursor: 'pointer',
+                        fontFamily: 'Inter, sans-serif',
+                        textDecoration: 'none',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.textDecoration = 'underline';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.textDecoration = 'none';
+                      }}
+                    >
+                      View all {SKILL_LABEL[skill]} papers →
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+          <style>{`
+            .skill-drawer-panel.skill-drawer-panel-open {
+              transform: translateX(0) !important;
+            }
+            @media (max-width: 639px) {
+              .skill-drawer-panel {
+                max-width: none !important;
+                width: 100vw !important;
+              }
+            }
+          `}</style>
+        </>
+      )}
     </div>
   );
 }

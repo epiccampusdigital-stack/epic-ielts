@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import StudentNav from '../components/StudentNav';
 
 const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -24,7 +25,6 @@ export default function LevelsDashboard() {
   const [starting, setStarting] = useState(null);
   const [buying, setBuying] = useState(null);
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     Promise.all([
@@ -69,10 +69,13 @@ export default function LevelsDashboard() {
   };
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', background: '#f8fafc' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
-        <div style={{ color: '#64748b', fontSize: 15 }}>Loading your programme...</div>
+    <div style={{ minHeight: '100vh', fontFamily: 'Inter, sans-serif', background: '#f8fafc' }}>
+      <StudentNav active="levels" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '40vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
+          <div style={{ color: '#64748b', fontSize: 15 }}>Loading your programme...</div>
+        </div>
       </div>
     </div>
   );
@@ -80,24 +83,7 @@ export default function LevelsDashboard() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
 
-      {/* Nav */}
-      <div style={{ background: '#1e293b', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: 'white' }}>E</div>
-          <div>
-            <div style={{ color: 'white', fontWeight: 800, fontSize: 15, lineHeight: 1 }}>EPIC IELTS</div>
-            <div style={{ color: '#94a3b8', fontSize: 11 }}>My Programme</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ color: '#94a3b8', fontSize: 13 }}>{user.name}</span>
-          <button
-            onClick={() => navigate('/student/dashboard')}
-            style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-            ← Dashboard
-          </button>
-        </div>
-      </div>
+      <StudentNav active="levels" />
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 20px' }}>
 

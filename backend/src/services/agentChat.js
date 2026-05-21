@@ -91,7 +91,7 @@ WHAT EPIC CAMPUS PROVIDES (for all programs):
 CONTACT — use these when a student is ready to talk or asks how to 
 reach EPIC Campus:
 
-WhatsApp (fastest): https://wa.me/94777644946
+WhatsApp (fastest): +94 76 652 8585 — https://wa.me/94766528585
 Pre-filled message: Hi EPIC Campus, I found you on EPIC IELTS and I 
 am interested in learning more about your programs.
 
@@ -113,7 +113,7 @@ WHEN TO PUSH TO WHATSAPP:
   on WhatsApp
 
 WHATSAPP DEEP LINK:
-https://wa.me/94777644946?text=Hi%20EPIC%20Campus%2C%20I%20found%20you%20on%20EPIC%20IELTS%20and%20I%27m%20interested%20in%20learning%20more%20about%20your%20programs.
+https://wa.me/94766528585?text=Hi%20EPIC%20Campus%2C%20I%20found%20you%20on%20EPIC%20IELTS%20and%20I%27m%20interested%20in%20learning%20more%20about%20your%20programs.
 
 IMPORTANT LIMITS:
 - Never invent programs, fees, dates, or partner university names.
@@ -137,7 +137,7 @@ async function agentChat(messages) {
     messages,
   });
   const block = response.content.find(b => b.type === 'text');
-  return block ? block.text : "I'm having trouble responding right now. Please WhatsApp us at +94 77 764 4946 😊";
+  return block ? block.text : "I'm having trouble responding right now. Please WhatsApp us at +94 76 652 8585 😊";
 }
 
 module.exports = { agentChat };

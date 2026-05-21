@@ -1,11 +1,59 @@
 import { useEffect, useRef, useState } from 'react';
 import API_URL from '../api';
 
+function renderInline(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} style={{ fontWeight: 600, color: '#0F172A' }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
+
+function renderMarkdown(text) {
+  const lines = text.split('\n');
+  const elements = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.trim() === '') {
+      elements.push(<div key={key++} style={{ height: 6 }} />);
+      continue;
+    }
+
+    if (/^[-•]\s/.test(line)) {
+      const content = line.replace(/^[-•]\s/, '');
+      elements.push(
+        <div key={key++} style={{ display: 'flex', gap: 6, marginBottom: 2 }}>
+          <span style={{ color: '#4F46E5', flexShrink: 0 }}>•</span>
+          <span>{renderInline(content)}</span>
+        </div>
+      );
+      continue;
+    }
+
+    elements.push(
+      <div key={key++} style={{ marginBottom: 2 }}>
+        {renderInline(line)}
+      </div>
+    );
+  }
+
+  return elements;
+}
+
 const WELCOME =
   "Hi there! 👋 I'm the EPIC Campus advisor. I can help you with information about our Korea 🇰🇷, China 🇨🇳, and Japan 🇯🇵 programs, IELTS preparation, scholarships, and more. What would you like to know? 😊";
 
 const WHATSAPP_HREF =
-  'https://wa.me/94777644946?text=Hi%20EPIC%20Campus%2C%20I%20found%20you%20on%20EPIC%20IELTS%20and%20I%27m%20interested%20in%20learning%20more%20about%20your%20programs.';
+  'https://wa.me/94766528585?text=Hi%20EPIC%20Campus%2C%20I%20found%20you%20on%20EPIC%20IELTS%20and%20I%27m%20interested%20in%20learning%20more%20about%20your%20programs.';
 
 function ChatBubbleIcon() {
   return (
@@ -90,14 +138,14 @@ export default function AgentWidget() {
       });
       const data = await res.json();
       const reply = data.reply ||
-        "I'm having trouble right now. Please WhatsApp us: +94 77 764 4946";
+        "I'm having trouble right now. Please WhatsApp us: +94 76 652 8585";
 
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
       setShowWhatsApp(true);
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Something went wrong. Please WhatsApp us directly: +94 77 764 4946 📲',
+        content: 'Something went wrong. Please WhatsApp us directly: +94 76 652 8585 📲',
       }]);
       setShowWhatsApp(true);
     } finally {
@@ -316,7 +364,9 @@ export default function AgentWidget() {
                   key={`${msg.role}-${i}`}
                   className={msg.role === 'user' ? 'agent-user-bubble' : 'agent-assist-bubble'}
                 >
-                  {msg.content}
+                  {msg.role === 'assistant'
+                    ? renderMarkdown(msg.content)
+                    : msg.content}
                 </div>
               ))}
 

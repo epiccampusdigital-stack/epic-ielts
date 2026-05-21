@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
+import AgentWidget from '../components/AgentWidget';
 
 const api = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -2307,6 +2308,7 @@ export default function StudentDashboard() {
           `}</style>
         </>
       )}
+      <AgentWidget />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import AgentWidget from '../components/AgentWidget';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   '176832951489-8e1f4h848679ur3ci27ccpkv5upi6aci.apps.googleusercontent.com';
@@ -953,6 +954,7 @@ export default function Login() {
           </div>
         </div>
       </div>
+      <AgentWidget />
     </>
   );
 }

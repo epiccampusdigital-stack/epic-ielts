@@ -9,6 +9,7 @@ const fs = require('fs');
 const prisma = new PrismaClient();
 
 const adminOnly = require('../middleware/adminOnly');
+const { sendAccessGrantedEmail, sendAnnouncementEmail, sendNewPaperEmail } = require('../services/emailService');
 
 const { storage: cloudinaryStorage } = require('../config/cloudinary');
 const uploadAudio = multer({
@@ -144,6 +145,12 @@ router.put('/students/:id/access', auth, adminOnly, async (req, res) => {
       },
       select: { id: true, name: true, email: true, batch: true, isPaid: true, paidAt: true }
     });
+    if (isPaid) {
+      sendAccessGrantedEmail({
+        name: student.name,
+        email: student.email
+      });
+    }
     res.json(student);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update access: ' + err.message });
@@ -506,12 +513,18 @@ router.post('/papers', auth, adminOnly, async (req, res) => {
       }
     });
     try {
-      const { sendNewPaperEmail } = require('../services/emailService');
       const students = await prisma.student.findMany({
         where: { role: 'STUDENT' },
         select: { name: true, email: true }
       });
-      sendNewPaperEmail(students, paper).catch(e => console.error('Email error:', e.message));
+      students.forEach(s => {
+        sendNewPaperEmail({
+          name: s.name,
+          email: s.email,
+          paperTitle: paper.title,
+          skill: paper.testType,
+        });
+      });
     } catch(e) {
       console.error('Could not send new paper emails:', e.message);
     }
@@ -934,9 +947,58 @@ router.post('/grant-access/:email', auth, adminOnly, async (req, res) => {
       where: { email },
       data: { isPaid: true, paidAt: new Date(), emailVerified: true }
     });
+    sendAccessGrantedEmail({
+      name: student.name,
+      email: student.email
+    });
     res.json({ success: true, name: student.name, email: student.email, isPaid: student.isPaid });
   } catch (err) {
     res.status(500).json({ error: 'Failed to grant access: ' + err.message });
+  }
+});
+
+// POST /api/admin/announce — send announcement to all students
+router.post('/announce', auth, adminOnly, async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+
+    if (!subject?.trim() || !message?.trim()) {
+      return res.status(400).json({
+        error: 'Subject and message are required'
+      });
+    }
+
+    const students = await prisma.student.findMany({
+      where: { emailVerified: true },
+      select: { id: true, name: true, email: true },
+    });
+
+    if (students.length === 0) {
+      return res.json({ success: true, sent: 0 });
+    }
+
+    const batchSize = 10;
+    for (let i = 0; i < students.length; i += batchSize) {
+      const batch = students.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(s => sendAnnouncementEmail({
+          name: s.name,
+          email: s.email,
+          subject: subject.trim(),
+          message: message.trim(),
+        }))
+      );
+      if (i + batchSize < students.length) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    console.log(`[Announce] Sent "${subject}" to ${students.length} students`);
+    res.json({ success: true, sent: students.length });
+
+  } catch (err) {
+    console.error('[Announce] Error:', err.message);
+    res.status(500).json({ error: 'Failed to send announcement' });
   }
 });
 

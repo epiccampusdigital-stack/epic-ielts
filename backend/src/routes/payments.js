@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
+const { sendPaymentConfirmationEmail } = require('../services/emailService');
 
 const prisma = new PrismaClient();
 
@@ -163,6 +164,19 @@ router.post('/webhook', async (req, res) => {
           }
 
           console.log(`Level ${levelNumber} purchased by student ${studentId} (LKR ${amountLKR})`);
+
+          const paidStudent = await prisma.student.findUnique({
+            where: { id: studentId },
+            select: { name: true, email: true }
+          });
+          if (paidStudent) {
+            sendPaymentConfirmationEmail({
+              name: paidStudent.name,
+              email: paidStudent.email,
+              amountLKR,
+              levelNumber,
+            });
+          }
         }
       } catch (dbErr) {
         console.error('DB error on level purchase webhook:', dbErr);
@@ -183,6 +197,19 @@ router.post('/webhook', async (req, res) => {
             }
           });
           console.log(`Full access payment confirmed for userId ${userId}`);
+
+          const paidStudent2 = await prisma.student.findUnique({
+            where: { id: userId },
+            select: { name: true, email: true }
+          });
+          if (paidStudent2) {
+            sendPaymentConfirmationEmail({
+              name: paidStudent2.name,
+              email: paidStudent2.email,
+              amountLKR: Math.round((session.amount_total || 0) / 100),
+              levelNumber: 99,
+            });
+          }
         } catch (dbErr) {
           console.error('DB update after payment error:', dbErr);
         }

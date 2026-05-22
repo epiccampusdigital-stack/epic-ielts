@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
+const { sendWelcomeEmail } = require('../services/emailService');
 const prisma = new PrismaClient();
 
 // Simple in-memory rate limiter: 5 attempts per IP per 15 minutes
@@ -135,39 +136,8 @@ router.post('/signup', async (req, res) => {
       }
     });
 
-    // Send verification email
-    try {
-      const nodemailer = require('nodemailer');
-      const gmailUser = process.env.GMAIL_USER;
-      const gmailPass = process.env.GMAIL_APP_PASSWORD;
-      if (gmailUser && gmailPass) {
-        const mailer = nodemailer.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailPass } });
-        const verifyUrl = `${process.env.FRONTEND_URL || 'https://epicielts.live'}/verify-email?token=${verificationToken}`;
-        await mailer.sendMail({
-          from: `"EPIC IELTS" <${gmailUser}>`,
-          to: normalizedEmail,
-          subject: 'Verify your EPIC IELTS account',
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 32px; border-radius: 16px;">
-              <div style="background: linear-gradient(135deg, #1a1a2e, #1d4ed8); padding: 32px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
-                <h1 style="color: #f59e0b; margin: 0 0 8px; font-size: 24px;">EPIC IELTS</h1>
-                <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 14px;">Email Verification</p>
-              </div>
-              <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-                <p style="color: #374151; font-size: 15px; margin: 0 0 16px;">Hi <strong>${name.trim()}</strong>,</p>
-                <p style="color: #374151; font-size: 15px; margin: 0 0 24px;">Thanks for signing up! Please verify your email address to activate your account.</p>
-                <a href="${verifyUrl}" style="display: block; text-align: center; background: #4f46e5; color: white; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 15px; text-decoration: none; margin-bottom: 20px;">
-                  Verify Email Address →
-                </a>
-                <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">This link expires in 24 hours. If you did not sign up, ignore this email.</p>
-              </div>
-            </div>
-          `
-        });
-      }
-    } catch (emailErr) {
-      console.error('Verification email failed:', emailErr.message);
-    }
+    // Send welcome email (fire-and-forget — never blocks signup)
+    sendWelcomeEmail({ name: user.name, email: user.email });
 
     res.json({ success: true, message: 'Account created! You can log in now.' });
   } catch (err) {

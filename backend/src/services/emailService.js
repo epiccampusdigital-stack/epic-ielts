@@ -13,11 +13,21 @@ async function sendEmail({ to, subject, html }) {
     return;
   }
   try {
-    const result = await resend.emails.send({ from: FROM, to, subject, html });
-    console.log('[Email] Sent:', subject, 'to', to, '→', result.data?.id || result.id);
-    return result;
+    const { data, error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject,
+      html
+    });
+    if (error) {
+      console.error('[Email] Resend error:', subject, 'to', to, '→', JSON.stringify(error));
+      return;
+    }
+    console.log('[Email] Sent:', subject, 'to', to, '→', data?.id);
+    return data;
   } catch (err) {
     console.error('[Email] Failed:', subject, 'to', to, '→', err.message);
+    // Never throw — email failure must never break the main flow
   }
 }
 

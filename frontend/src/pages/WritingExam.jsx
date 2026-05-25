@@ -18,6 +18,292 @@ const parseTaskTableData = (wt) => {
   }
 };
 
+function ChartRenderer({ chartData, taskType }) {
+  if (!chartData) return null;
+
+  let data;
+  try {
+    data = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+  } catch { return null; }
+
+  const container = {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    padding: '20px',
+    marginBottom: 16,
+    fontFamily: 'Inter, sans-serif',
+  };
+
+  const titleStyle = {
+    fontSize: 13, fontWeight: 700,
+    color: '#1e293b', marginBottom: 14,
+    textAlign: 'center',
+  };
+
+  // TABLE
+  if (taskType === 'TABLE' && data.headers && data.rows) {
+    return (
+      <div style={container}>
+        {data.title && <div style={titleStyle}>{data.title}</div>}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr>
+                {data.headers.map((h, i) => (
+                  <th key={i} style={{
+                    background: '#1e293b', color: 'white',
+                    padding: '8px 10px', textAlign: 'center',
+                    fontWeight: 700, fontSize: 11,
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.map((row, ri) => (
+                <tr key={ri} style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} style={{
+                      padding: '7px 10px',
+                      border: '1px solid #e2e8f0',
+                      textAlign: ci === 0 ? 'left' : 'center',
+                      fontWeight: ci === 0 ? 700 : 400,
+                      fontSize: 12, color: '#1e293b',
+                    }}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {data.notes && (
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8, fontStyle: 'italic' }}>
+            {data.notes}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // PIE CHARTS
+  if (taskType === 'PIE_CHART' && data.charts) {
+    const COLORS = ['#1d4ed8','#7c3aed','#ea580c','#16a34a','#d97706','#0891b2','#dc2626'];
+    const PieSlices = ({ chart }) => {
+      let cum = -90;
+      const cx = 90, cy = 90, r = 75;
+      const slices = chart.segments.map((seg, i) => {
+        const angle = (seg.percentage / 100) * 360;
+        const s = (cum * Math.PI) / 180;
+        cum += angle;
+        const e = (cum * Math.PI) / 180;
+        const x1 = cx + r * Math.cos(s), y1 = cy + r * Math.sin(s);
+        const x2 = cx + r * Math.cos(e), y2 = cy + r * Math.sin(e);
+        const mid = s + (e - s) / 2;
+        return {
+          d: `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${angle > 180 ? 1 : 0},1 ${x2},${y2} Z`,
+          lx: cx + r * 0.6 * Math.cos(mid),
+          ly: cy + r * 0.6 * Math.sin(mid),
+          seg, color: COLORS[i % COLORS.length], pct: seg.percentage,
+        };
+      });
+      return (
+        <div style={{ textAlign: 'center', flex: 1, minWidth: 180 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', marginBottom: 6 }}>
+            {chart.year || chart.label}
+          </div>
+          <svg viewBox="0 0 180 180" style={{ width: 170, height: 170 }}>
+            {slices.map((s, i) => (
+              <g key={i}>
+                <path d={s.d} fill={s.color} stroke="white" strokeWidth="2"/>
+                {s.pct >= 7 && (
+                  <text x={s.lx} y={s.ly} textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{ fontSize: 9, fill: 'white', fontWeight: 700 }}>
+                    {s.pct}%
+                  </text>
+                )}
+              </g>
+            ))}
+          </svg>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4,
+            justifyContent: 'center', marginTop: 6 }}>
+            {chart.segments.map((seg, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center',
+                gap: 3, fontSize: 10 }}>
+                <div style={{ width:9, height:9, borderRadius:2,
+                  background: COLORS[i % COLORS.length], flexShrink:0 }}/>
+                <span style={{ color:'#374151' }}>{seg.label} {seg.percentage}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+    return (
+      <div style={container}>
+        {data.title && <div style={titleStyle}>{data.title}</div>}
+        <div style={{ display:'flex', gap:16, justifyContent:'center',
+          flexWrap:'wrap' }}>
+          {data.charts.map((c, i) => <PieSlices key={i} chart={c}/>)}
+        </div>
+      </div>
+    );
+  }
+
+  // BAR CHART
+  if ((taskType === 'BAR_CHART' || data.type === 'grouped_bar')
+      && data.categories && data.series) {
+    const BC = ['#1d4ed8','#16a34a','#ea580c','#7c3aed','#d97706','#0891b2'];
+    const all = data.series.flatMap(s => s.values);
+    const maxV = Math.max(...all);
+    const H = 160, pad = { l:40, r:10, t:10, b:40 };
+    const innerH = H - pad.t - pad.b;
+    const catCount = data.categories.length;
+    const serCount = data.series.length;
+    const bw = Math.max(8, Math.floor(200 / (catCount * serCount + catCount)));
+    const gw = serCount * (bw + 2) + 8;
+    const W = Math.max(360, catCount * gw + pad.l + pad.r);
+    return (
+      <div style={container}>
+        {data.title && <div style={titleStyle}>{data.title}</div>}
+        <div style={{ overflowX: 'auto' }}>
+          <svg width={W} height={H} style={{ display:'block', margin:'0 auto' }}>
+            {[0,25,50,75,100].filter(v => v <= maxV + 5).map(v => {
+              const y = pad.t + innerH - (v / maxV) * innerH;
+              return (
+                <g key={v}>
+                  <line x1={pad.l} y1={y} x2={W - pad.r} y2={y}
+                    stroke="#e2e8f0" strokeWidth={1}/>
+                  <text x={pad.l - 3} y={y + 3} textAnchor="end"
+                    fontSize={8} fill="#94a3b8">{v}</text>
+                </g>
+              );
+            })}
+            {data.categories.map((cat, ci) => {
+              const gx = pad.l + ci * gw + 4;
+              return (
+                <g key={ci}>
+                  {data.series.map((s, si) => {
+                    const val = s.values[ci] || 0;
+                    const bh = (val / maxV) * innerH;
+                    const bx = gx + si * (bw + 2);
+                    const by = pad.t + innerH - bh;
+                    return (
+                      <g key={si}>
+                        <rect x={bx} y={by} width={bw} height={bh}
+                          fill={BC[si % BC.length]} rx={2}/>
+                        {bh > 12 && (
+                          <text x={bx + bw/2} y={by + 9} textAnchor="middle"
+                            fontSize={7} fill="white" fontWeight="700">{val}</text>
+                        )}
+                      </g>
+                    );
+                  })}
+                  <text x={gx + gw/2 - 4} y={H - 8} textAnchor="middle"
+                    fontSize={8} fill="#374151"
+                    transform={catCount > 4 ? `rotate(-30,${gx+gw/2-4},${H-8})` : ''}>
+                    {cat}
+                  </text>
+                </g>
+              );
+            })}
+            <line x1={pad.l} y1={pad.t+innerH} x2={W-pad.r} y2={pad.t+innerH}
+              stroke="#374151" strokeWidth={1.5}/>
+          </svg>
+        </div>
+        <div style={{ display:'flex', gap:10, justifyContent:'center',
+          flexWrap:'wrap', marginTop:6 }}>
+          {data.series.map((s, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center',
+              gap:4, fontSize:11 }}>
+              <div style={{ width:12, height:12, borderRadius:2,
+                background: BC[i % BC.length] }}/>
+              <span style={{ color:'#374151' }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+        {data.notes && (
+          <div style={{ fontSize:11, color:'#94a3b8', marginTop:8,
+            fontStyle:'italic', textAlign:'center' }}>{data.notes}</div>
+        )}
+      </div>
+    );
+  }
+
+  // LINE GRAPH
+  if (taskType === 'LINE_GRAPH' && data.series) {
+    const LC = ['#1d4ed8','#16a34a','#ea580c','#7c3aed','#d97706','#0891b2'];
+    const all = data.series.flatMap(s => s.data.map(p => p.value));
+    const allYears = [...new Set(data.series.flatMap(s =>
+      s.data.map(p => p.year)))].sort();
+    const maxV = Math.max(...all), minV = Math.min(...all);
+    const W = 420, H = 180;
+    const pad = { l:50, r:20, t:10, b:30 };
+    const iW = W - pad.l - pad.r, iH = H - pad.t - pad.b;
+    const xP = yr => pad.l + ((yr - allYears[0]) /
+      (allYears[allYears.length-1] - allYears[0])) * iW;
+    const yP = v => pad.t + iH - ((v - minV) / ((maxV - minV) || 1)) * iH;
+    return (
+      <div style={container}>
+        {data.title && <div style={titleStyle}>{data.title}</div>}
+        <div style={{ overflowX:'auto' }}>
+          <svg width={W} height={H} style={{ display:'block', margin:'0 auto' }}>
+            {[0,0.25,0.5,0.75,1].map((pct, i) => {
+              const val = Math.round(minV + pct * (maxV - minV));
+              const y = pad.t + iH * (1 - pct);
+              return (
+                <g key={i}>
+                  <line x1={pad.l} y1={y} x2={W-pad.r} y2={y}
+                    stroke="#e2e8f0" strokeWidth={1}/>
+                  <text x={pad.l-4} y={y+3} textAnchor="end"
+                    fontSize={9} fill="#94a3b8">{val}</text>
+                </g>
+              );
+            })}
+            {allYears.filter((_,i) => i % 2 === 0 ||
+              i === allYears.length-1).map(yr => (
+              <text key={yr} x={xP(yr)} y={H-4} textAnchor="middle"
+                fontSize={9} fill="#374151">{yr}</text>
+            ))}
+            {data.series.map((s, si) => {
+              const pts = [...s.data].sort((a,b) => a.year-b.year);
+              const dAttr = pts.map((p,i) =>
+                `${i===0?'M':'L'}${xP(p.year)},${yP(p.value)}`).join(' ');
+              return (
+                <g key={si}>
+                  <path d={dAttr} fill="none"
+                    stroke={LC[si%LC.length]} strokeWidth={2}/>
+                  {pts.map((p,i) => (
+                    <circle key={i} cx={xP(p.year)} cy={yP(p.value)}
+                      r={3} fill={LC[si%LC.length]}/>
+                  ))}
+                </g>
+              );
+            })}
+            <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t+iH}
+              stroke="#374151" strokeWidth={1.5}/>
+            <line x1={pad.l} y1={pad.t+iH} x2={W-pad.r} y2={pad.t+iH}
+              stroke="#374151" strokeWidth={1.5}/>
+          </svg>
+        </div>
+        <div style={{ display:'flex', gap:10, justifyContent:'center',
+          flexWrap:'wrap', marginTop:6 }}>
+          {data.series.map((s,i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center',
+              gap:4, fontSize:11 }}>
+              <div style={{ width:18, height:3, borderRadius:2,
+                background: LC[i%LC.length] }}/>
+              <span style={{ color:'#374151' }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function WritingExam() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -466,6 +752,14 @@ export default function WritingExam() {
                     />
                   </div>
                 </div>
+              ) : writingTask1.chartData ? (
+                <ChartRenderer
+                  chartData={typeof writingTask1.chartData === 'string'
+                    ? (() => { try { return JSON.parse(writingTask1.chartData); }
+                        catch { return null; } })()
+                    : writingTask1.chartData}
+                  taskType={writingTask1.taskType || writingTask1.chartType || 'TABLE'}
+                />
               ) : writingTask1.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(writingTask1.chartDescription) ? (
                 <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12 }}>🖼️ CHART DESCRIPTION</div>
@@ -483,7 +777,19 @@ export default function WritingExam() {
                     Image will be uploaded by your teacher. Refer to the task instructions above and write your overview using the information given.
                   </p>
                 </div>
-              ) : null}
+              ) : (
+                <div style={{
+                  background: '#fef9c3',
+                  border: '1px solid #fcd34d',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  marginBottom: 16,
+                  fontSize: 13,
+                  color: '#92400e'
+                }}>
+                  📊 Chart will be uploaded by your teacher.
+                </div>
+              )}
             </div>
             );
           })()}

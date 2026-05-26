@@ -752,13 +752,12 @@ export default function WritingExam() {
                     />
                   </div>
                 </div>
-              ) : writingTask1.chartData ? (
+              ) : writingTask1.tableData &&
+                  writingTask1.tableData._writingTaskType &&
+                  writingTask1.tableData._writingTaskType !== 'ESSAY' ? (
                 <ChartRenderer
-                  chartData={typeof writingTask1.chartData === 'string'
-                    ? (() => { try { return JSON.parse(writingTask1.chartData); }
-                        catch { return null; } })()
-                    : writingTask1.chartData}
-                  taskType={writingTask1.taskType || writingTask1.chartType || 'TABLE'}
+                  chartData={writingTask1.tableData}
+                  taskType={writingTask1.tableData._writingTaskType}
                 />
               ) : writingTask1.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(writingTask1.chartDescription) ? (
                 <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center' }}>

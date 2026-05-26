@@ -12,11 +12,12 @@ export function readUser() {
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', href: '/student/dashboard', active: 'dashboard' },
   { key: 'practice', label: 'Practice', href: '/practice', active: 'practice' },
+  { key: 'learn', label: 'Learn', href: '/learn', active: 'learn' },
   { key: 'levels', label: 'Programme', href: '/levels', active: 'levels' },
   { key: 'placement', label: 'Placement', href: '/placement-test', active: 'placement' },
 ];
 
-/** @param {{ active?: 'dashboard' | 'practice' | 'levels' | 'placement' | null }} props */
+/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | null }} props */
 export default function StudentNav({ active = null }) {
   const navigate = useNavigate();
   const user = readUser();

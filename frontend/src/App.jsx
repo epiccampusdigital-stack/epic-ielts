@@ -23,6 +23,9 @@ import AdminLevels from './pages/AdminLevels';
 import PlacementTest from './pages/PlacementTest';
 import LevelPaymentSuccess from './pages/LevelPaymentSuccess';
 import PracticePapers from './pages/PracticePapers';
+import LearnPage from './pages/LearnPage';
+import LearnModule from './pages/LearnModule';
+import LearnLesson from './pages/LearnLesson';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -91,6 +94,15 @@ function App() {
       } />
       <Route path="/practice" element={
         <RequireStudentAccess><PracticePapers /></RequireStudentAccess>
+      } />
+      <Route path="/learn" element={
+        <RequireStudentAccess><LearnPage /></RequireStudentAccess>
+      } />
+      <Route path="/learn/:moduleId" element={
+        <RequireStudentAccess><LearnModule /></RequireStudentAccess>
+      } />
+      <Route path="/learn/:moduleId/:lessonId" element={
+        <RequireStudentAccess><LearnLesson /></RequireStudentAccess>
       } />
       <Route path="/placement-test" element={
         <RequireStudentAccess><PlacementTest /></RequireStudentAccess>

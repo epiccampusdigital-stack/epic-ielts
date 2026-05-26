@@ -1002,4 +1002,32 @@ router.post('/announce', auth, adminOnly, async (req, res) => {
   }
 });
 
+// TEMPORARY SEED ROUTE — delete after running once in production
+router.post('/seed-learn-prod', auth, adminOnly, async (req, res) => {
+  try {
+    const { modules } = require('../../scripts/seedLearn');
+
+    await prisma.learnProgress.deleteMany();
+    await prisma.learnLesson.deleteMany();
+    await prisma.learnModule.deleteMany();
+
+    const results = [];
+    for (const mod of modules) {
+      const { lessons, ...moduleData } = mod;
+      const created = await prisma.learnModule.create({ data: moduleData });
+      for (const lesson of lessons) {
+        await prisma.learnLesson.create({
+          data: { ...lesson, moduleId: created.id }
+        });
+      }
+      results.push(`${mod.title}: ${lessons.length} lessons`);
+    }
+
+    res.json({ success: true, seeded: results });
+  } catch (err) {
+    console.error('Seed learn error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

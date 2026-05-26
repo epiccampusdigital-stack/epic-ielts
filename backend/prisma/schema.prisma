@@ -28,6 +28,7 @@ model Student {
   attempts          Attempt[]
   feedbacks         Feedback[]
   studentLevels     StudentLevel[]
+  learnProgress     LearnProgress[]
   emailVerified     Boolean        @default(false)
   verificationToken String?
 }
@@ -259,4 +260,38 @@ model Feedback {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   student   Student  @relation(fields: [studentId], references: [id])
+}
+
+model LearnModule {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  icon        String
+  color       String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  lessons     LearnLesson[]
+}
+
+model LearnLesson {
+  id           Int      @id @default(autoincrement())
+  moduleId     Int
+  module       LearnModule @relation(fields: [moduleId], references: [id])
+  title        String
+  content      String   @db.Text
+  order        Int      @default(0)
+  estimatedMin Int      @default(5)
+  createdAt    DateTime @default(now())
+  progress     LearnProgress[]
+}
+
+model LearnProgress {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  student     Student  @relation(fields: [studentId], references: [id])
+  lessonId    Int
+  lesson      LearnLesson @relation(fields: [lessonId], references: [id])
+  completedAt DateTime @default(now())
+
+  @@unique([studentId, lessonId])
 }

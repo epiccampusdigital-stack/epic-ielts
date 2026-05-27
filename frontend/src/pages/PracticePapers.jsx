@@ -632,7 +632,7 @@ export default function PracticePapers() {
                         {label}
                       </span>
                     );
-                    actionLabel = 'Review →';
+                    actionLabel = 'Review results';
                     actionColor = C.textSecondary;
                   }
 
@@ -783,17 +783,53 @@ export default function PracticePapers() {
                           ⏱ {paper.timeLimitMin || 60} min
                           {lastTxt}
                         </div>
-                        <span
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: busy ? C.textMuted : actionColor,
-                            fontFamily: 'Inter, sans-serif',
-                            cursor: busy ? 'wait' : 'inherit',
-                          }}
-                        >
-                          {actionLabel}
-                        </span>
+                        {ps.kind === 'DONE' ? (
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: C.textSecondary,
+                                fontFamily: 'Inter, sans-serif',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Review →
+                            </span>
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                startPaper(paper.id);
+                              }}
+                              disabled={busy}
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: busy ? C.textMuted : C.primary,
+                                fontFamily: 'Inter, sans-serif',
+                                background: 'none',
+                                border: 'none',
+                                cursor: busy ? 'wait' : 'pointer',
+                                padding: 0,
+                              }}
+                            >
+                              {busy ? 'Starting...' : 'Retake →'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: busy ? C.textMuted : actionColor,
+                              fontFamily: 'Inter, sans-serif',
+                              cursor: busy ? 'wait' : 'inherit',
+                            }}
+                          >
+                            {actionLabel}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );

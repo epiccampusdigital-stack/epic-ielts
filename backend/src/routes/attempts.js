@@ -867,10 +867,21 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
         });
 
         if (overallBand) {
-          await prisma.result.update({
-            where: { attemptId },
-            data: { bandEstimate: parseFloat(overallBand) }
-          });
+          try {
+            await prisma.result.upsert({
+              where: { attemptId },
+              update: { bandEstimate: parseFloat(overallBand) },
+              create: {
+                attemptId,
+                bandEstimate: parseFloat(overallBand),
+                rawScore: 0,
+              }
+            });
+          } catch (resultErr) {
+            console.error('Speaking result update failed (non-fatal):',
+              resultErr.message);
+            // markingStatus already set to COMPLETE — do not rethrow
+          }
         }
 
         console.log('Speaking marked. Overall band:', overallBand);

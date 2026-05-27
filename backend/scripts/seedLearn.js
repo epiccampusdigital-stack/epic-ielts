@@ -1352,6 +1352,226 @@ Choose the correct collocation:
 **Answers:** done / take / significant`
       }
     ]
+  },
+  {
+    title: 'Exam Strategy',
+    description: 'Learn how to manage your time, handle pressure, and maximise your score on exam day',
+    icon: '🎯',
+    color: '#0891B2',
+    order: 6,
+    lessons: [
+      {
+        title: 'Time Management: Using Every Minute',
+        order: 1,
+        estimatedMin: 8,
+        content: `## Why this matters
+Most students who fail IELTS do not fail because they do not know English. They fail because they run out of time. Managing your time is a skill you can practise.
+
+## The Time Breakdown
+
+**Reading — 60 minutes, 40 questions**
+- 20 minutes per passage (3 passages)
+- If you spend more than 20 minutes on passage 1, you are in trouble
+- Never spend more than 2 minutes on one question — move on and come back
+
+**Writing — 60 minutes**
+- Task 1: 20 minutes (150 words minimum)
+- Task 2: 40 minutes (250 words minimum)
+- Task 2 is worth double the marks — protect those 40 minutes
+
+**Listening — 30 minutes + 10 minutes transfer time**
+- You hear the audio ONCE — no replays
+- Use the 10 minutes at the end to transfer answers carefully
+- Check spelling during transfer time
+
+**Speaking — 11-14 minutes**
+- Part 1: 4-5 minutes (short answers)
+- Part 2: 3-4 minutes (long turn)
+- Part 3: 4-5 minutes (discussion)
+- You cannot control the time — the examiner does
+
+## The Golden Rule
+
+Never get stuck on one question. A wrong answer and a blank answer both score zero. If you do not know — guess and move on.
+
+## Practice
+
+Next time you do a practice paper, set a timer. Stop exactly when time is up even if you have not finished. This trains your brain to work at exam speed.`
+      },
+      {
+        title: 'What To Do When You Are Stuck',
+        order: 2,
+        estimatedMin: 8,
+        content: `## Why this matters
+Every student gets stuck in the exam. The difference between Band 5 and Band 6 is knowing what to do next instead of panicking.
+
+## Reading — When You Cannot Find the Answer
+
+1. Re-read the question — did you understand it correctly?
+2. Look for synonyms — the passage will not use the exact same words as the question
+3. Narrow it down to two options — eliminate the obviously wrong ones
+4. Make your best guess — never leave a blank (no negative marking in IELTS)
+
+## Writing — When You Do Not Know What to Write
+
+1. For Task 1 — describe what you can see. Start with the most obvious trend.
+2. For Task 2 — use the universal structure: position + two reasons + examples + conclusion
+3. If you run out of ideas — use a Sri Lanka example. You know your country well.
+4. Keep writing — an incomplete essay scores very low. Always write something.
+
+## Listening — When You Miss an Answer
+
+Do not panic and keep thinking about the missed question. Let it go immediately.
+Focus on the next question — missing one answer and panicking causes you to miss three more.
+
+## Speaking — When You Do Not Understand the Question
+
+Say: "Could you repeat that please?" or "I am not sure I understand — do you mean...?"
+This is completely allowed and shows communication ability — not weakness.
+
+## When You Go Blank in Speaking
+
+Use a filler: "That is an interesting question. Let me think for a moment..."
+Then use the AREA formula — Answer, Reason, Example, Alternative.
+
+## The Most Important Rule
+
+Keep moving. Panic wastes more time than the original problem.`
+      },
+      {
+        title: 'How to Check Your Answers',
+        order: 3,
+        estimatedMin: 8,
+        content: `## Why this matters
+Students who check their answers properly gain 1-2 marks on average. At Band 5-6 level, that can be the difference between pass and fail.
+
+## Reading — Checking (last 5 minutes)
+
+- Check answers you were unsure about first
+- Re-read the question and your answer — does it actually answer what was asked?
+- Check spelling on short answer questions — one wrong letter means a wrong answer
+- Make sure you have not left any blanks
+
+## Writing — Checking (last 3-4 minutes)
+
+- Count your words approximately — Task 1 needs 150+, Task 2 needs 250+
+- Check for subject-verb agreement: "The data show" not "The data shows"
+- Check article errors: a/an/the — the most common mistake
+- Check tense consistency — if you started in past tense, stay in past tense
+- Does your essay have an introduction, body paragraphs, AND a conclusion?
+
+## Listening — During Transfer Time (10 minutes)
+
+- Copy answers exactly — do not change words
+- Check spelling carefully
+- Check plurals — "cars" not "car" if the audio said "cars"
+- Make sure every question has an answer
+
+## Speaking — You Cannot Check, But
+
+Self-correct naturally during your answer: "...what I mean is..."
+This scores marks, not loses them.
+
+## What NOT to Do When Checking
+
+Do not change an answer unless you are certain it is wrong. Your first instinct is usually correct.`
+      },
+      {
+        title: 'Exam Day: What To Do and What Not To Do',
+        order: 4,
+        estimatedMin: 8,
+        content: `## Why this matters
+Exam day mistakes cost students marks before they even sit down. These are things within your control.
+
+## The Night Before
+
+✅ Prepare your ID (passport or NIC) — you cannot enter without it
+✅ Know the exam centre location — do a test journey if possible
+✅ Sleep at least 7-8 hours — tired brains perform significantly worse
+✅ Set two alarms
+❌ Do not study late into the night — it does not help at this point
+❌ Do not try new practice papers the night before
+
+## The Morning Of
+
+✅ Eat a proper breakfast — your brain needs fuel for 3+ hours of concentration
+✅ Arrive 30 minutes early — late arrival causes panic
+✅ Bring water (check if allowed in the room)
+✅ Bring extra pens — at least two
+❌ Do not discuss the exam with other students outside — it increases anxiety
+❌ Do not look at your notes at the last minute — trust your preparation
+
+## In the Exam Room
+
+✅ Read all instructions carefully before starting
+✅ Write your candidate number on every answer sheet
+✅ If something is wrong (noisy room, broken equipment) — raise your hand immediately
+❌ Do not start before the invigilator says to begin
+❌ Do not panic if others seem to be writing more than you
+
+## After Each Section
+
+Take one slow breath before starting the next section. This resets your focus.
+
+## The Mindset
+
+You have prepared. Trust your preparation. Anxiety uses the same energy as thinking — redirect it into your answers.`
+      },
+      {
+        title: 'How to Improve Your Band Score Strategically',
+        order: 5,
+        estimatedMin: 10,
+        content: `## Why this matters
+Many students study hard but improve slowly because they practise the wrong things. This lesson shows you how to target your weakest areas for maximum improvement.
+
+## Step 1 — Know Your Current Bands
+
+Use your EPIC IELTS placement test results. Look at each skill separately. Be honest about where you are.
+
+## Step 2 — Calculate Your Gap
+
+Target band minus current band = your gap.
+If your target is 6.5 and your reading is 5.0, your gap is 1.5 bands.
+
+## Step 3 — What Your Gap Means
+
+- 0.5 bands gap — small technique fixes, focus on exam strategy
+- 1.0 band gap — consistent practice + grammar and vocabulary work
+- 1.5 bands gap — significant grammar improvement + regular practice needed
+- 2.0+ bands gap — foundational English work needed before exam technique
+
+## Step 4 — Prioritise Your Time
+
+**If Reading is your weakest:**
+Focus on question types, skimming and scanning, time management per passage
+
+**If Writing is your weakest:**
+Focus on Task 2 structure, paraphrasing, linking words, academic vocabulary
+
+**If Listening is your weakest:**
+Focus on prediction, note-taking while listening, checking spelling in transfer time
+
+**If Speaking is your weakest:**
+Focus on AREA formula for Part 1, extended answers for Part 2, abstract discussion for Part 3
+
+## Step 5 — Track Your Progress
+
+After every practice paper, record your band. Look for patterns:
+- Are you improving in some question types but not others?
+- Are you running out of time consistently?
+- Are you making the same mistakes repeatedly?
+
+## The Most Efficient Study Plan
+
+- 60% of your time on your weakest skill
+- 30% on your second weakest
+- 10% maintaining your strongest skill
+
+## The Honest Truth
+
+Most students improve 0.5 to 1.0 bands with 4-6 weeks of focused practice. Improving 2.0+ bands takes 3-6 months of serious study. Set realistic expectations and work consistently. Use EPIC Learn lessons before every practice paper.`
+      }
+    ]
   }
 ];
 

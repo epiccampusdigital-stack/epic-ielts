@@ -54,7 +54,16 @@ export default function ListeningExam() {
 
   useEffect(() => {
     if (timeLeft === null) return;
-    const id = setInterval(() => setTimeLeft(t => t - 1), 1000);
+    const id = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(id);
+          setTimeout(() => handleEnd(true), 100);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
     autosaveRef.current = setInterval(saveAnswers, 30000);
     timerRef.current = id;
     return () => { clearInterval(id); clearInterval(autosaveRef.current); };

@@ -358,10 +358,17 @@ export default function WritingExam() {
   useEffect(() => {
     if (timeLeft === null) return;
     const interval = setInterval(() => {
-      setTimeLeft(t => t - 1);
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(interval);
+          setTimeout(() => handleSubmit(true), 100);
+          return 0;
+        }
+        return t - 1;
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [timeLeft === null]);
 
   const wordCount = (text) => text.trim().split(/\s+/).filter(Boolean).length;
 

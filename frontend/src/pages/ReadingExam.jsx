@@ -330,7 +330,7 @@ export default function ReadingExam() {
       clearInterval(timerRef.current);
 
       try {
-         const formattedAnswers = auto ? [] : Object.entries(answers).map(([key, value]) => ({
+         const formattedAnswers = Object.entries(answers).map(([key, value]) => ({
             questionId: parseInt(key),
             studentAnswer: value
          }));

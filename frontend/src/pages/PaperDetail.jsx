@@ -31,6 +31,52 @@ const getFullUrl = (url) => {
   return API_URL + (url.startsWith('/') ? '' : '/') + url;
 };
 
+const TEST_TYPE_CHIP = {
+  READING: { bg: '#ede9fe', color: '#5b21b6' },
+  LISTENING: { bg: '#dbeafe', color: '#1e40af' },
+  WRITING: { bg: '#fce7f3', color: '#9d174d' },
+  SPEAKING: { bg: '#d1fae5', color: '#065f46' },
+};
+
+const statusChipStyle = (bg, color) => ({
+  background: bg,
+  color,
+  fontSize: '11px',
+  fontWeight: 800,
+  padding: '4px 10px',
+  borderRadius: '20px',
+  letterSpacing: '0.5px',
+});
+
+const parseQuestionOptions = (options) => {
+  if (Array.isArray(options)) return options;
+  if (typeof options === 'string') return options.split('\n').filter(Boolean);
+  return [];
+};
+
+const optionMatchesAnswer = (opt, correctAnswer) => {
+  const norm = (s) => String(s || '').trim().toLowerCase().replace(/^[a-d][.)]\s*/i, '');
+  const o = norm(opt);
+  const c = norm(correctAnswer);
+  if (!o || !c) return false;
+  if (o === c) return true;
+  const letter = o.charAt(0);
+  if (/^[a-d]$/.test(c) && letter === c) return true;
+  return o.includes(c) || c.includes(o);
+};
+
+const questionRangeLabel = (questions) => {
+  const nums = (questions || []).map(q => q.questionNumber).filter(n => n != null).sort((a, b) => a - b);
+  if (!nums.length) return 'QUESTIONS —';
+  if (nums.length === 1) return `QUESTIONS ${nums[0]}`;
+  return `QUESTIONS ${nums[0]}–${nums[nums.length - 1]}`;
+};
+
+const uniqueQuestionTypes = (questions) => {
+  const types = [...new Set((questions || []).map(q => q.questionType).filter(Boolean))];
+  return types.length ? types.join(' · ') : '';
+};
+
 // --- SUB-COMPONENTS ---
 
 const TableEditor = ({ data, onChange }) => {
@@ -141,6 +187,10 @@ export default function PaperDetail() {
   const [delSIds, setDelSIds] = useState([]);
   const [delPIds, setDelPIds] = useState([]);
   const [delWTIds, setDelWTIds] = useState([]);
+  const [collapsedPassages, setCollapsedPassages] = useState(new Set());
+  const [expandedPassages, setExpandedPassages] = useState(new Set());
+  const [expandedQuestions, setExpandedQuestions] = useState(new Set());
+  const [hoveredQuestion, setHoveredQuestion] = useState(null);
 
   useEffect(() => { load(); }, [id]);
 
@@ -361,13 +411,297 @@ export default function PaperDetail() {
 
   // --- RENDERERS ---
 
-  const renderListeningSection = (section, sIdx) => (
-    <div key={sIdx} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '2px solid #f1f5f9', paddingBottom: '16px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '900', color: '#1e293b' }}>Section {section.number}</h2>
-        {editMode && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#4f46e5', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>
-            {section.audioUrl ? '🎵 REPLACE AUDIO' : '🎤 UPLOAD AUDIO'}
+  const toggleInSet = (setter, key) => {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const countAllQuestions = () => {
+    if (!edited) return 0;
+    if (edited.testType === 'READING') {
+      const hasGroups = edited.passages?.some(p => p.groups?.length > 0);
+      if (hasGroups) {
+        return (edited.passages || []).flatMap(p => (p.groups || []).flatMap(g => g.questions || [])).length;
+      }
+      return (edited.questions || []).length;
+    }
+    if (edited.testType === 'LISTENING') {
+      return (edited.sections || []).flatMap(s => (s.groups || []).flatMap(g => g.questions || [])).length;
+    }
+    return (edited.questions || []).length;
+  };
+
+  const readingIsFlatFormat = edited?.testType === 'READING' &&
+    (edited.questions?.length > 0) &&
+    !edited.passages?.some(p => p.groups?.length > 0);
+
+  const paperIsActive = paper?.status === 'PUBLISHED';
+
+  const backBtnStyle = {
+    background: '#fff',
+    border: '1.5px solid #e2e8f0',
+    color: '#475569',
+    borderRadius: '10px',
+    padding: '8px 18px',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'Inter, sans-serif',
+  };
+
+  const renderActionButtons = () => (
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <button type="button" onClick={() => navigate('/admin/dashboard')} style={backBtnStyle}>← Back</button>
+      {!editMode ? (
+        <button type="button" onClick={() => setEditMode(true)} style={{ ...backBtnStyle, background: '#f59e0b', color: '#1a1a2e', border: 'none', fontWeight: 700 }}>Edit Mode</button>
+      ) : (
+        <>
+          <button type="button" onClick={() => { setEdited(JSON.parse(JSON.stringify(paper))); setEditMode(false); }} style={backBtnStyle}>Cancel</button>
+          <button type="button" onClick={save} disabled={saving} style={{ background: '#4f46e5', color: '#fff', fontWeight: 700, borderRadius: '10px', padding: '8px 18px', fontSize: '13px', border: 'none', cursor: saving ? 'wait' : 'pointer', fontFamily: 'Inter, sans-serif' }}>{saving ? 'Saving...' : 'Save'}</button>
+        </>
+      )}
+    </div>
+  );
+
+  const renderNavyHeader = ({ title, subtitle, count, collapseKey, headerRight }) => {
+    const collapsed = collapsedPassages.has(collapseKey);
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)',
+        borderRadius: collapsed ? '20px' : '20px 20px 0 0',
+        padding: '20px 28px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <div>
+          <div style={{ fontFamily: 'Playfair Display, serif', color: '#fff', fontSize: '18px', fontWeight: 700 }}>{title}</div>
+          {subtitle && (
+            <div style={{ color: '#a5b4fc', fontSize: '12px', fontWeight: 600, marginTop: '4px' }}>{subtitle}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {headerRight}
+          <span style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d', fontSize: '12px', fontWeight: 700, padding: '6px 14px', borderRadius: '20px' }}>
+            {count} question{count !== 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => toggleInSet(setCollapsedPassages, collapseKey)}
+            style={{ color: '#fff', background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', lineHeight: 1 }}
+          >
+            {collapsed ? '▸' : '▾'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPassageTextBlock = (text, textKey) => {
+    if (!text) return null;
+    const expanded = expandedPassages.has(textKey);
+    return (
+      <div style={{ padding: '20px 28px', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{
+          fontFamily: 'Lora, serif',
+          fontSize: '14px',
+          color: '#475569',
+          lineHeight: '1.8',
+          whiteSpace: 'pre-wrap',
+          maxHeight: expanded ? 'none' : '96px',
+          overflow: expanded ? 'visible' : 'hidden',
+        }}>
+          {text}
+        </div>
+        <button
+          type="button"
+          onClick={() => toggleInSet(setExpandedPassages, textKey)}
+          style={{ color: '#4f46e5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: '8px 0', display: 'block', background: 'none', border: 'none', fontFamily: 'Inter, sans-serif' }}
+        >
+          {expanded ? 'Hide passage ↑' : 'Show full passage ↓'}
+        </button>
+      </div>
+    );
+  };
+
+  const renderQuestionsSectionHeader = (label, total, shown) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 28px' }}>
+      <div style={{ fontSize: '12px', fontWeight: 800, color: '#4f46e5', letterSpacing: '0.8px', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>Showing {shown} of {total}</div>
+    </div>
+  );
+
+  const renderReadOnlyQuestionCard = (q, groupType, cardKey) => {
+    const qType = groupType || q.questionType;
+    const opts = parseQuestionOptions(q.options);
+    const isMC = qType === 'MULTIPLE_CHOICE';
+    const isTFNG = qType === 'TRUE_FALSE_NOT_GIVEN' || qType === 'YES_NO_NOT_GIVEN';
+    const tfngOptions = qType === 'YES_NO_NOT_GIVEN'
+      ? ['Yes', 'No', 'Not Given']
+      : ['True', 'False', 'Not Given'];
+    const hovered = hoveredQuestion === cardKey;
+
+    return (
+      <div
+        key={cardKey}
+        onMouseEnter={() => setHoveredQuestion(cardKey)}
+        onMouseLeave={() => setHoveredQuestion(null)}
+        style={{
+          background: hovered ? '#fafbff' : '#f8fafc',
+          border: `1px solid ${hovered ? '#c7d2fe' : '#e2e8f0'}`,
+          borderRadius: '12px',
+          padding: '14px 16px',
+          display: 'flex',
+          gap: '14px',
+          alignItems: 'flex-start',
+          transition: 'border-color 0.15s, background 0.15s',
+        }}
+      >
+        <div style={{
+          width: 28, height: 28, borderRadius: '8px', background: '#4f46e5', color: '#fff',
+          fontSize: '12px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          {q.questionNumber}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: '4px' }}>{qType}</div>
+          <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: 500, lineHeight: '1.5', marginBottom: '8px' }}>{q.content}</div>
+
+          {isMC && opts.length > 0 && (
+            <div style={{ marginBottom: '8px' }}>
+              {opts.map((opt, i) => {
+                const correct = optionMatchesAnswer(opt, q.correctAnswer);
+                return (
+                  <div key={i} style={{
+                    fontSize: '12px',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    marginBottom: '2px',
+                    background: correct ? '#dcfce7' : 'transparent',
+                    color: correct ? '#166534' : '#64748b',
+                    fontWeight: correct ? 700 : 400,
+                  }}>
+                    {opt}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {isTFNG && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              {tfngOptions.map(opt => {
+                const correct = optionMatchesAnswer(opt, q.correctAnswer);
+                return (
+                  <span key={opt} style={{
+                    fontSize: '12px',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: correct ? '#dcfce7' : 'transparent',
+                    color: correct ? '#166534' : '#64748b',
+                    fontWeight: correct ? 700 : 400,
+                    border: correct ? 'none' : '1px solid #e2e8f0',
+                  }}>
+                    {opt}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Correct answer</span>
+            <span style={{ background: '#f0fdf4', color: '#10b981', border: '1px solid #bbf7d0', fontWeight: 700, padding: '3px 10px', borderRadius: '6px', fontSize: '12px' }}>
+              {q.correctAnswer}
+            </span>
+          </div>
+          {q.explanation && (
+            <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '4px' }}>{q.explanation}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderQuestionListWithLimit = (questions, groupType, expandKey, labelPrefix, number) => {
+    const sorted = [...questions].sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+    const showAll = expandedQuestions.has(expandKey);
+    const visible = showAll ? sorted : sorted.slice(0, 5);
+    const remaining = sorted.length - visible.length;
+
+    return (
+      <div style={{ padding: '0 28px 28px' }}>
+        {renderQuestionsSectionHeader(`${labelPrefix} ${number}`, sorted.length, visible.length)}
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {visible.map((q, qIdx) => renderReadOnlyQuestionCard(q, groupType, `${expandKey}-q-${q.id || qIdx}`))}
+        </div>
+        {!showAll && remaining > 0 && (
+          <div style={{ background: '#f1f5f9', borderRadius: '10px', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px' }}>
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>+ {remaining} more question{remaining !== 1 ? 's' : ''}</span>
+            <button
+              type="button"
+              onClick={() => toggleInSet(setExpandedQuestions, expandKey)}
+              style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+            >
+              Show all
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderStatsRow = () => {
+    const totalQ = countAllQuestions();
+    const passageOrSectionCount = edited.testType === 'LISTENING'
+      ? (edited.sections?.length || 0)
+      : (edited.passages?.length || 0);
+    const passageLabel = edited.testType === 'LISTENING' ? 'Sections' : 'Passages';
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+        {[
+          { label: 'Total Questions', value: totalQ, color: '#4f46e5' },
+          { label: passageLabel, value: passageOrSectionCount, color: '#1e293b' },
+          { label: 'Time Limit', value: `${edited.timeLimitMin || paper?.timeLimitMin || '—'} min`, color: '#1e293b' },
+          { label: 'Status', value: paperIsActive ? 'Active' : 'Draft', color: paperIsActive ? '#10b981' : '#f59e0b' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '16px 20px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '6px' }}>{label}</div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color }}>{value}</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderListeningSection = (section, sIdx) => {
+    const collapseKey = `listening-${section.number ?? sIdx}`;
+    const collapsed = collapsedPassages.has(collapseKey);
+    const sectionQuestions = (section.groups || []).flatMap(g => g.questions || []);
+    const subtitle = questionRangeLabel(sectionQuestions);
+
+    return (
+    <div key={sIdx} style={{
+      background: '#fff',
+      borderRadius: collapsed ? '20px' : '20px',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+      marginBottom: '32px',
+      overflow: 'hidden',
+    }}>
+      {renderNavyHeader({
+        title: `Section ${section.number}${section.description ? ` — ${section.description}` : ''}`,
+        subtitle,
+        count: sectionQuestions.length,
+        collapseKey,
+        headerRight: editMode ? (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
+            {section.audioUrl ? '🎵 Replace' : '🎤 Upload'}
             <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={async e => {
               const url = await uploadAsset(e.target.files[0], 'audio');
               if (url) {
@@ -377,9 +711,11 @@ export default function PaperDetail() {
               }
             }} />
           </label>
-        )}
-      </div>
-      
+        ) : null,
+      })}
+
+      {!collapsed && (
+      <div style={{ padding: '24px 28px' }}>
       {section.audioUrl && <audio controls src={getFullUrl(section.audioUrl)} style={{ width: '100%', marginBottom: '24px' }} />}
       
       <div style={{ display: 'grid', gap: '24px' }}>
@@ -416,7 +752,7 @@ export default function PaperDetail() {
                 {(group.groupType === 'MAP_LABELING' || group.groupType === 'TABLE_COMPLETION') && (
                   <div>
                     <label style={lbl}>{group.groupType === 'MAP_LABELING' ? 'Map Image' : 'Optional Diagram'}</label>
-                    {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxHeight: '150px', display: 'block', marginBottom: '10px', borderRadius: '8px' }} />}
+                    {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxHeight: '150px', display: 'block', marginBottom: '10px', borderRadius: '8px' }} alt="" />}
                     <label style={{ display: 'inline-block', padding: '6px 12px', border: '1.5px solid #4f46e5', color: '#4f46e5', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}>
                       UPLOAD IMAGE <input type="file" style={{ display: 'none' }} onChange={async e => {
                         const url = await uploadAsset(e.target.files[0], 'image');
@@ -436,24 +772,25 @@ export default function PaperDetail() {
                   }} />
                 )}
 
-                <button onClick={() => removeGroup(sIdx, gIdx)} style={{ width: 'fit-content', background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>🗑 REMOVE GROUP</button>
+                <button type="button" onClick={() => removeGroup(sIdx, gIdx)} style={{ width: 'fit-content', background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>🗑 REMOVE GROUP</button>
               </div>
             ) : (
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5' }}>{group.instruction}</div>
                 <div style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8' }}>LIMIT: {group.wordLimit}</div>
-                {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: '12px', marginTop: '12px', border: '1px solid #e2e8f0' }} />}
+                {group.imageUrl && <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: '12px', marginTop: '12px', border: '1px solid #e2e8f0' }} alt="" />}
               </div>
             )}
 
             <div style={{ display: 'grid', gap: '12px' }}>
               {(group.questions || []).map((q, qIdx) => (
-                <div key={qIdx} style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div key={qIdx}>
                   {editMode ? (
+                <div style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                       <div style={{ width: '30px', textAlign: 'center' }}>
                         <input type="number" style={{ ...inp, padding: '4px', textAlign: 'center' }} value={q.questionNumber} onChange={e => updateQ(sIdx, gIdx, qIdx, 'questionNumber', parseInt(e.target.value))} />
-                        <button onClick={() => removeQ(sIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
+                        <button type="button" onClick={() => removeQ(sIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
                       </div>
                       <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
                         <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={q.content} onChange={e => updateQ(sIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question prompt (e.g. Name: Sarah ___)" />
@@ -486,34 +823,23 @@ export default function PaperDetail() {
                         </div>
                       </div>
                     </div>
+                </div>
                   ) : (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
-                      <div style={{ fontSize: '14px', flex: 1 }}>
-                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{q.content}</div>
-                        {group.groupType === 'MULTIPLE_CHOICE' && Array.isArray(q.options) && (
-                          <div style={{ display: 'grid', gap: '4px', marginLeft: '12px', marginBottom: '8px' }}>
-                            {q.options.map((opt, i) => (
-                              <div key={i} style={{ fontSize: '13px', color: '#64748b' }}>
-                                {opt}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <span style={{ fontWeight: '800', color: '#10b981' }}>{q.correctAnswer}</span>
-                      </div>
-                    </div>
+                    renderReadOnlyQuestionCard(q, group.groupType, `listen-${sIdx}-${gIdx}-${qIdx}`)
                   )}
                 </div>
               ))}
-              {editMode && <button onClick={() => addQuestion(sIdx, gIdx)} style={{ width: '100%', padding: '8px', border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>}
+              {editMode && <button type="button" onClick={() => addQuestion(sIdx, gIdx)} style={{ width: '100%', padding: '8px', border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>}
             </div>
           </div>
         ))}
-        {editMode && <button onClick={() => addGroup(sIdx)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#eff6ff', color: '#4f46e5', borderRadius: '16px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION GROUP</button>}
+        {editMode && <button type="button" onClick={() => addGroup(sIdx)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#eff6ff', color: '#4f46e5', borderRadius: '16px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION GROUP</button>}
       </div>
+      </div>
+      )}
     </div>
-  );
+    );
+  };
 
   const renderCompleteSetup = () => {
     const sections = paper.sections || [];
@@ -566,25 +892,41 @@ export default function PaperDetail() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px 20px' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px 20px 80px', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         
-        {/* TOP BAR */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <button onClick={() => navigate('/admin/dashboard')} style={{ padding: '10px 20px', background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontWeight: '700', color: '#475569', cursor: 'pointer' }}>← Dashboard</button>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {!editMode ? (
-              <button onClick={() => setEditMode(true)} style={{ padding: '10px 24px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}>Edit Paper</button>
-            ) : (
-              <>
-                <button onClick={() => { setEdited(JSON.parse(JSON.stringify(paper))); setEditMode(false); }} style={{ padding: '10px 24px', background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={save} disabled={saving} style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
-              </>
-            )}
+        {/* HEADER */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '26px', color: '#1a1a2e', marginBottom: '8px', marginTop: 0, fontWeight: 700 }}>
+              {editMode ? edited.title : paper.title}
+            </h1>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {(() => {
+                const tt = paper.testType || edited.testType;
+                const chip = TEST_TYPE_CHIP[tt] || { bg: '#f1f5f9', color: '#64748b' };
+                return <span style={statusChipStyle(chip.bg, chip.color)}>{tt}</span>;
+              })()}
+              <span style={statusChipStyle('#ecfdf5', '#065f46')}>{countAllQuestions()} questions</span>
+              {(edited.passages?.length > 0 || edited.sections?.length > 0) && (
+                <span style={statusChipStyle('#f0f9ff', '#0c4a6e')}>
+                  {edited.testType === 'LISTENING'
+                    ? `${edited.sections?.length || 0} sections`
+                    : `${edited.passages?.length || 0} passages`}
+                </span>
+              )}
+              {readingIsFlatFormat && (
+                <span style={statusChipStyle('#fef3c7', '#92400e')}>Legacy format</span>
+              )}
+              <span style={statusChipStyle('#f1f5f9', '#64748b')}>{paper.paperCode}</span>
+            </div>
           </div>
+          {renderActionButtons()}
         </div>
 
         {msg && <div style={{ padding: '16px', background: msg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: msg.includes('✅') ? '#166534' : '#dc2626', borderRadius: '12px', marginBottom: '24px', fontWeight: '700' }}>{msg}</div>}
+
+        {renderStatsRow()}
 
         {showSetup && renderCompleteSetup()}
 
@@ -607,20 +949,8 @@ export default function PaperDetail() {
             </div>
           ) : (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h1 style={{ fontSize: '32px', fontWeight: '900', color: '#1e293b', margin: '0 0 8px' }}>{paper.title}</h1>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <span style={{ background: '#4f46e5', color: '#fff', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '800' }}>{paper.testType}</span>
-                    <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '800' }}>{paper.paperCode}</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{paper.timeLimitMin} <span style={{ fontSize: '12px', color: '#94a3b8' }}>MINS</span></div>
-                  {paper.practiceMode && <span style={{ fontSize: '10px', fontWeight: '800', color: '#10b981' }}>REPLAY ENABLED</span>}
-                </div>
-              </div>
-              <p style={{ marginTop: '24px', color: '#64748b', fontSize: '15px', lineHeight: '1.6' }}>{paper.instructions}</p>
+              <p style={{ marginTop: 0, color: '#64748b', fontSize: '15px', lineHeight: '1.6' }}>{paper.instructions}</p>
+              {paper.practiceMode && <span style={{ fontSize: '10px', fontWeight: '800', color: '#10b981' }}>REPLAY ENABLED</span>}
             </div>
           )}
         </div>
@@ -637,12 +967,6 @@ export default function PaperDetail() {
           const hasGroups = edited.passages?.some(p => p.groups?.length > 0);
           const hasFlatQuestions = edited.questions?.length > 0;
           const isFlatFormat = hasFlatQuestions && !hasGroups;
-
-          const parseFlatOptions = (options) => {
-            if (Array.isArray(options)) return options;
-            if (typeof options === 'string') return options.split('\n').filter(Boolean);
-            return [];
-          };
 
           if (isFlatFormat) {
             const byPassage = {};
@@ -661,50 +985,29 @@ export default function PaperDetail() {
                 {passageNums.map(pn => {
                   const psg = passageByNum[pn];
                   const questions = byPassage[pn].sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+                  const collapseKey = `reading-flat-${pn}`;
+                  const collapsed = collapsedPassages.has(collapseKey);
+                  const subtitle = `${questionRangeLabel(questions)}  ·  ${uniqueQuestionTypes(questions)}`;
+
                   return (
-                    <div key={pn} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
-                      <h2 style={{ fontSize: '20px', fontWeight: '900', marginBottom: '20px' }}>Passage {pn}</h2>
-                      {psg?.title && (
-                        <h3 style={{ fontSize: '22px', fontFamily: 'Playfair Display, serif', marginBottom: '16px' }}>{psg.title}</h3>
+                    <div key={pn} style={{
+                      background: '#fff',
+                      borderRadius: collapsed ? '20px' : '20px',
+                      border: '1px solid #e2e8f0',
+                      overflow: 'hidden',
+                    }}>
+                      {renderNavyHeader({
+                        title: `Passage ${pn}${psg?.title ? ` — ${psg.title}` : ''}`,
+                        subtitle,
+                        count: questions.length,
+                        collapseKey,
+                      })}
+                      {!collapsed && (
+                        <>
+                          {!editMode && psg?.text && renderPassageTextBlock(psg.text, `flat-text-${pn}`)}
+                          {!editMode && renderQuestionListWithLimit(questions, null, `flat-q-${pn}`, 'QUESTIONS FOR PASSAGE', pn)}
+                        </>
                       )}
-                      {psg?.text && (
-                        <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Lora, serif', fontSize: '15px', color: '#334155', lineHeight: '1.8', marginBottom: '24px' }}>
-                          {psg.text}
-                        </div>
-                      )}
-                      <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '24px' }}>
-                        <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5', marginBottom: '16px' }}>
-                          QUESTIONS FOR PASSAGE {pn} ({questions.length})
-                        </h4>
-                        <div style={{ display: 'grid', gap: '12px' }}>
-                          {questions.map((q, qIdx) => {
-                            const opts = parseFlatOptions(q.options);
-                            const isMC = q.questionType === 'MULTIPLE_CHOICE';
-                            return (
-                              <div key={q.id || qIdx} style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                  <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
-                                  <div style={{ flex: 1, fontSize: '14px' }}>
-                                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', marginBottom: '4px' }}>{q.questionType}</div>
-                                    <div style={{ fontWeight: '600', marginBottom: '8px' }}>{q.content}</div>
-                                    {isMC && opts.length > 0 && (
-                                      <div style={{ display: 'grid', gap: '4px', marginLeft: '12px', marginBottom: '8px' }}>
-                                        {opts.map((opt, i) => (
-                                          <div key={i} style={{ fontSize: '13px', color: '#64748b' }}>{opt}</div>
-                                        ))}
-                                      </div>
-                                    )}
-                                    <div style={{ fontWeight: '700', color: '#10b981' }}>{q.correctAnswer}</div>
-                                    {q.explanation && (
-                                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{q.explanation}</div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
                     </div>
                   );
                 })}
@@ -714,25 +1017,41 @@ export default function PaperDetail() {
 
           return (
           <div style={{ display: 'grid', gap: '32px' }}>
-            {(edited.passages || []).sort((a,b)=>a.passageNumber-b.passageNumber).map((psg, pIdx) => (
-              <div key={pIdx} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '900' }}>Passage {psg.passageNumber}</h2>
-                  {editMode && <button onClick={() => { if(window.confirm('Delete passage?')) { if(psg.id) setDelPIds(p=>[...p,psg.id]); const n=[...edited.passages]; n.splice(pIdx,1); setEdited({...edited, passages:n}); } }} style={{ color: '#ef4444', border: 'none', background: 'none', fontWeight: '800', cursor: 'pointer' }}>🗑 DELETE PASSAGE</button>}
-                </div>
+            {(edited.passages || []).sort((a,b)=>a.passageNumber-b.passageNumber).map((psg, pIdx) => {
+              const collapseKey = `reading-grouped-${psg.passageNumber ?? pIdx}`;
+              const collapsed = collapsedPassages.has(collapseKey);
+              const passageQuestions = (psg.groups || []).flatMap(g => g.questions || []);
+              const subtitle = `${questionRangeLabel(passageQuestions)}  ·  ${uniqueQuestionTypes(passageQuestions)}`;
+
+              return (
+              <div key={pIdx} style={{
+                background: '#fff',
+                borderRadius: collapsed ? '20px' : '20px',
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden',
+              }}>
+                {renderNavyHeader({
+                  title: `Passage ${psg.passageNumber}${psg.title ? ` — ${psg.title}` : ''}`,
+                  subtitle,
+                  count: passageQuestions.length,
+                  collapseKey,
+                  headerRight: editMode ? (
+                    <button type="button" onClick={() => { if(window.confirm('Delete passage?')) { if(psg.id) setDelPIds(p=>[...p,psg.id]); const n=[...edited.passages]; n.splice(pIdx,1); setEdited({...edited, passages:n}); } }} style={{ color: '#fca5a5', border: 'none', background: 'none', fontWeight: 800, cursor: 'pointer', fontSize: '12px' }}>🗑 Delete</button>
+                  ) : null,
+                })}
+                {!collapsed && (
+                <>
                 {editMode ? (
-                  <div style={{ display: 'grid', gap: '16px' }}>
+                  <div style={{ display: 'grid', gap: '16px', padding: '24px 28px' }}>
                     <div><label style={lbl}>Title</label><input style={inp} value={psg.title} onChange={e => { const n=[...edited.passages]; n[pIdx].title=e.target.value; setEdited({...edited, passages:n}); }} /></div>
                     <div><label style={lbl}>Content</label><textarea style={{ ...inp, minHeight: '300px', fontFamily: 'Lora, serif', fontSize: '16px', lineHeight: '1.6' }} value={psg.text} onChange={e => { const n=[...edited.passages]; n[pIdx].text=e.target.value; setEdited({...edited, passages:n}); }} /></div>
                   </div>
                 ) : (
-                  <div>
-                    <h3 style={{ fontSize: '22px', fontFamily: 'Playfair Display, serif', marginBottom: '16px' }}>{psg.title}</h3>
-                    <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Lora, serif', fontSize: '15px', color: '#334155', lineHeight: '1.8' }}>{psg.text}</div>
-                  </div>
+                  renderPassageTextBlock(psg.text, `grouped-text-${psg.passageNumber}`)
                 )}
 
-                <div style={{ marginTop: '32px', borderTop: '2px solid #f1f5f9', paddingTop: '24px' }}>
+                {editMode ? (
+                <div style={{ marginTop: '0', borderTop: '2px solid #f1f5f9', padding: '24px 28px' }}>
                   <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5', marginBottom: '16px' }}>QUESTIONS FOR PASSAGE {psg.passageNumber}</h4>
                   <div style={{ display: 'grid', gap: '24px' }}>
                     {(psg.groups || []).map((group, gIdx) => (
@@ -784,11 +1103,10 @@ export default function PaperDetail() {
                         <div style={{ display: 'grid', gap: '12px' }}>
                           {(group.questions || []).map((q, qIdx) => (
                             <div key={qIdx} style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                              {editMode ? (
                                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                                   <div style={{ width: '30px', textAlign: 'center' }}>
                                     <input type="number" style={{ ...inp, padding: '4px', textAlign: 'center' }} value={q.questionNumber} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'questionNumber', parseInt(e.target.value))} />
-                                    <button onClick={() => removePassageQ(pIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
+                                    <button type="button" onClick={() => removePassageQ(pIdx, gIdx, qIdx)} style={{ marginTop: '8px', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
                                   </div>
                                   <div style={{ flex: 1, display: 'grid', gap: '8px' }}>
                                     <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} value={q.content} onChange={e => updatePassageQ(pIdx, gIdx, qIdx, 'content', e.target.value)} placeholder="Question content..." />
@@ -823,35 +1141,33 @@ export default function PaperDetail() {
                                     </div>
                                   </div>
                                 </div>
-                              ) : (
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                  <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
-                                  <div style={{ fontSize: '14px' }}>
-                                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>{q.content}</div>
-                                    {group.groupType === 'MULTIPLE_CHOICE' && Array.isArray(q.options) && (
-                                      <div style={{ display: 'grid', gap: '4px', marginLeft: '12px', marginBottom: '8px' }}>
-                                        {q.options.map((opt, i) => (
-                                          <div key={i} style={{ fontSize: '13px', color: '#64748b' }}>
-                                            {opt}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                    <div style={{ fontWeight: '700', color: '#10b981' }}>{q.correctAnswer}</div>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           ))}
-                          {editMode && <button onClick={() => addPassageQuestion(pIdx, gIdx)} style={{ width: '100%', padding: '8px', border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>}
+                          <button type="button" onClick={() => addPassageQuestion(pIdx, gIdx)} style={{ width: '100%', padding: '8px', border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', borderRadius: '10px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION</button>
                         </div>
                       </div>
                     ))}
-                    {editMode && <button onClick={() => addPassageGroup(pIdx)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#eff6ff', color: '#4f46e5', borderRadius: '16px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION GROUP</button>}
+                    <button type="button" onClick={() => addPassageGroup(pIdx)} style={{ width: '100%', padding: '12px', border: '2px dashed #4f46e5', background: '#eff6ff', color: '#4f46e5', borderRadius: '16px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}>+ ADD QUESTION GROUP</button>
                   </div>
                 </div>
+                ) : (
+                  <>
+                    {(psg.groups || []).map((group, gIdx) => (
+                      (group.instruction || group.wordLimit) ? (
+                        <div key={gIdx} style={{ padding: '12px 28px 0', fontSize: '13px', color: '#64748b' }}>
+                          <div style={{ fontWeight: 700, color: '#4f46e5' }}>{group.instruction}</div>
+                          {group.wordLimit && <div style={{ fontSize: '11px', marginTop: '2px' }}>LIMIT: {group.wordLimit}</div>}
+                        </div>
+                      ) : null
+                    ))}
+                    {renderQuestionListWithLimit(passageQuestions, null, `grouped-q-${psg.passageNumber}`, 'QUESTIONS FOR PASSAGE', psg.passageNumber)}
+                  </>
+                )}
+                </>
+                )}
               </div>
-            ))}
+              );
+            })}
             {editMode && <button onClick={addPassage} style={{ width: '100%', padding: '24px', border: '3px dashed #e2e8f0', background: '#fff', color: '#94a3b8', borderRadius: '24px', fontSize: '16px', fontWeight: '900', cursor: 'pointer' }}>➕ ADD NEW PASSAGE</button>}
           </div>
           );
@@ -859,12 +1175,24 @@ export default function PaperDetail() {
 
         {edited.testType === 'WRITING' && (
           <div style={{ display: 'grid', gap: '32px' }}>
-            {(edited.writingTasks || []).sort((a,b)=>a.taskNumber-b.taskNumber).map((task, idx) => (
-              <div key={idx} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '900' }}>Task {task.taskNumber}</h2>
-                  {editMode && <button onClick={() => removeWT(idx)} style={{ color: '#ef4444', border: 'none', background: 'none', fontWeight: '800', cursor: 'pointer' }}>🗑 DELETE TASK</button>}
+            {(edited.writingTasks || []).sort((a,b)=>a.taskNumber-b.taskNumber).map((task, idx) => {
+              const taskTitle = task.taskNumber === 1
+                ? `Task 1 — ${task.tableData ? 'Report' : 'Chart / Graph'}`
+                : 'Task 2 — Essay';
+              return (
+              <div key={idx} style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)',
+                  borderRadius: '20px 20px 0 0',
+                  padding: '20px 28px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  <div style={{ fontFamily: 'Playfair Display, serif', color: '#fff', fontSize: '18px', fontWeight: 700 }}>{taskTitle}</div>
+                  {editMode && <button type="button" onClick={() => removeWT(idx)} style={{ color: '#fca5a5', border: 'none', background: 'none', fontWeight: 800, cursor: 'pointer', fontSize: '12px' }}>🗑 Delete</button>}
                 </div>
+                <div style={{ padding: '32px' }}>
                 {editMode ? (
                   <div style={{ display: 'grid', gap: '20px' }}>
                     <div>
@@ -917,8 +1245,10 @@ export default function PaperDetail() {
                     <div style={{ marginTop: '20px', fontSize: '12px', fontWeight: '800', color: '#94a3b8' }}>WORD LIMIT: {task.minWords}+ WORDS</div>
                   </div>
                 )}
+                </div>
               </div>
-            ))}
+              );
+            })}
             {editMode && (edited.writingTasks?.length || 0) < 2 && <button onClick={addWritingTask} style={{ width: '100%', padding: '24px', border: '3px dashed #e2e8f0', background: '#fff', color: '#94a3b8', borderRadius: '24px', fontSize: '16px', fontWeight: '900', cursor: 'pointer' }}>➕ ADD WRITING TASK</button>}
           </div>
         )}
@@ -943,20 +1273,28 @@ export default function PaperDetail() {
               }[partNum];
 
               return (
-                <div key={partNum} style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
+                <div key={partNum} style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
 
-                  {/* Part header */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '2px solid #f1f5f9' }}>
-                    <span style={{ fontSize: '24px' }}>{partMeta.icon}</span>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2b55 100%)',
+                    borderRadius: '20px 20px 0 0',
+                    padding: '20px 28px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: partMeta.color }}>{partMeta.title}</h3>
-                      <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>{partMeta.desc}</p>
+                      <div style={{ fontFamily: 'Playfair Display, serif', color: '#fff', fontSize: '18px', fontWeight: 700 }}>
+                        Part {partNum} — {partMeta.title.split('—')[1]?.trim() || partMeta.title}
+                      </div>
+                      <div style={{ color: '#a5b4fc', fontSize: '12px', fontWeight: 600, marginTop: '4px' }}>{partMeta.desc}</div>
                     </div>
-                    <div style={{ marginLeft: 'auto', background: `${partMeta.color}15`, color: partMeta.color, borderRadius: '20px', padding: '4px 12px', fontSize: '12px', fontWeight: '700' }}>
+                    <span style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d', fontSize: '12px', fontWeight: 700, padding: '6px 14px', borderRadius: '20px' }}>
                       {partQuestions.length} question{partQuestions.length !== 1 ? 's' : ''}
-                    </div>
+                    </span>
                   </div>
 
+                  <div style={{ padding: '24px' }}>
                   {/* Cue card for Part 2 */}
                   {partNum === 2 && (
                     <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
@@ -1055,6 +1393,7 @@ export default function PaperDetail() {
                       + Add Question to Part {partNum}
                     </button>
                   )}
+                  </div>
                 </div>
               );
             })}
@@ -1065,6 +1404,29 @@ export default function PaperDetail() {
             </div>
           </div>
         )}
+
+        {/* STICKY BOTTOM ACTION BAR */}
+        <div style={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10,
+          background: '#fff',
+          borderTop: '1px solid #e2e8f0',
+          padding: '16px 28px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: '32px',
+          borderRadius: '14px',
+          boxShadow: '0 -4px 12px rgba(15,23,42,0.06)',
+        }}>
+          <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+            {editMode
+              ? 'Edit mode active · Don\'t forget to save'
+              : 'Read-only view · Enable Edit Mode to make changes'}
+          </span>
+          {renderActionButtons()}
+        </div>
       </div>
     </div>
   );

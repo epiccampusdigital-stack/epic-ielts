@@ -439,7 +439,24 @@ export default function PaperDetail() {
     (edited.questions?.length > 0) &&
     !edited.passages?.some(p => p.groups?.length > 0);
 
-  const paperIsActive = paper?.status === 'PUBLISHED';
+  const paperIsActive = paper?.isActive ?? paper?.status === 'PUBLISHED';
+
+  const countPassagesOrSections = () => {
+    if (!edited) return 0;
+    if (edited.testType === 'LISTENING') return edited.sections?.length || 0;
+    if ((edited.passages?.length || 0) > 0) return edited.passages.length;
+    if (readingIsFlatFormat) {
+      return new Set((edited.questions || []).map(q => q.passageNumber || 1)).size;
+    }
+    return edited.passages?.length || 0;
+  };
+
+  const formatPaperHeading = () => {
+    const tt = paper?.testType || edited?.testType || '';
+    const code = paper?.paperCode || edited?.paperCode || '';
+    const label = tt ? tt.charAt(0) + tt.slice(1).toLowerCase() : '';
+    return `${label} ${code}`.trim();
+  };
 
   const backBtnStyle = {
     background: '#fff',
@@ -463,6 +480,15 @@ export default function PaperDetail() {
           <button type="button" onClick={() => { setEdited(JSON.parse(JSON.stringify(paper))); setEditMode(false); }} style={backBtnStyle}>Cancel</button>
           <button type="button" onClick={save} disabled={saving} style={{ background: '#4f46e5', color: '#fff', fontWeight: 700, borderRadius: '10px', padding: '8px 18px', fontSize: '13px', border: 'none', cursor: saving ? 'wait' : 'pointer', fontFamily: 'Inter, sans-serif' }}>{saving ? 'Saving...' : 'Save'}</button>
         </>
+      )}
+    </div>
+  );
+
+  const renderBottomBarButtons = () => (
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <button type="button" onClick={() => navigate('/admin/dashboard')} style={backBtnStyle}>← Back</button>
+      {!editMode && (
+        <button type="button" onClick={() => setEditMode(true)} style={{ ...backBtnStyle, background: '#f59e0b', color: '#1a1a2e', border: 'none', fontWeight: 700 }}>Edit Mode</button>
       )}
     </div>
   );
@@ -512,7 +538,7 @@ export default function PaperDetail() {
           color: '#475569',
           lineHeight: '1.8',
           whiteSpace: 'pre-wrap',
-          maxHeight: expanded ? 'none' : '96px',
+          maxHeight: expanded ? 'none' : '4.05em',
           overflow: expanded ? 'visible' : 'hidden',
         }}>
           {text}
@@ -640,16 +666,13 @@ export default function PaperDetail() {
           {visible.map((q, qIdx) => renderReadOnlyQuestionCard(q, groupType, `${expandKey}-q-${q.id || qIdx}`))}
         </div>
         {!showAll && remaining > 0 && (
-          <div style={{ background: '#f1f5f9', borderRadius: '10px', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px' }}>
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>+ {remaining} more question{remaining !== 1 ? 's' : ''}</span>
-            <button
-              type="button"
-              onClick={() => toggleInSet(setExpandedQuestions, expandKey)}
-              style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
-            >
-              Show all
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => toggleInSet(setExpandedQuestions, expandKey)}
+            style={{ marginTop: '12px', background: 'none', border: 'none', color: '#4f46e5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: '8px 0', fontFamily: 'Inter, sans-serif' }}
+          >
+            Show {remaining} more →
+          </button>
         )}
       </div>
     );
@@ -657,9 +680,7 @@ export default function PaperDetail() {
 
   const renderStatsRow = () => {
     const totalQ = countAllQuestions();
-    const passageOrSectionCount = edited.testType === 'LISTENING'
-      ? (edited.sections?.length || 0)
-      : (edited.passages?.length || 0);
+    const passageOrSectionCount = countPassagesOrSections();
     const passageLabel = edited.testType === 'LISTENING' ? 'Sections' : 'Passages';
 
     return (
@@ -899,7 +920,7 @@ export default function PaperDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '26px', color: '#1a1a2e', marginBottom: '8px', marginTop: 0, fontWeight: 700 }}>
-              {editMode ? edited.title : paper.title}
+              {formatPaperHeading()}
             </h1>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
               {(() => {
@@ -908,11 +929,11 @@ export default function PaperDetail() {
                 return <span style={statusChipStyle(chip.bg, chip.color)}>{tt}</span>;
               })()}
               <span style={statusChipStyle('#ecfdf5', '#065f46')}>{countAllQuestions()} questions</span>
-              {(edited.passages?.length > 0 || edited.sections?.length > 0) && (
+              {countPassagesOrSections() > 0 && (
                 <span style={statusChipStyle('#f0f9ff', '#0c4a6e')}>
                   {edited.testType === 'LISTENING'
-                    ? `${edited.sections?.length || 0} sections`
-                    : `${edited.passages?.length || 0} passages`}
+                    ? `${countPassagesOrSections()} sections`
+                    : `${countPassagesOrSections()} passages`}
                 </span>
               )}
               {readingIsFlatFormat && (
@@ -1425,7 +1446,7 @@ export default function PaperDetail() {
               ? 'Edit mode active · Don\'t forget to save'
               : 'Read-only view · Enable Edit Mode to make changes'}
           </span>
-          {renderActionButtons()}
+          {renderBottomBarButtons()}
         </div>
       </div>
     </div>

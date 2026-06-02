@@ -633,7 +633,86 @@ export default function PaperDetail() {
           </div>
         )}
 
-        {edited.testType === 'READING' && (
+        {edited.testType === 'READING' && (() => {
+          const hasGroups = edited.passages?.some(p => p.groups?.length > 0);
+          const hasFlatQuestions = edited.questions?.length > 0;
+          const isFlatFormat = hasFlatQuestions && !hasGroups;
+
+          const parseFlatOptions = (options) => {
+            if (Array.isArray(options)) return options;
+            if (typeof options === 'string') return options.split('\n').filter(Boolean);
+            return [];
+          };
+
+          if (isFlatFormat) {
+            const byPassage = {};
+            (edited.questions || []).forEach(q => {
+              const pn = q.passageNumber || 1;
+              if (!byPassage[pn]) byPassage[pn] = [];
+              byPassage[pn].push(q);
+            });
+            const passageNums = Object.keys(byPassage).map(Number).sort((a, b) => a - b);
+            const passageByNum = Object.fromEntries(
+              (edited.passages || []).map(p => [p.passageNumber, p])
+            );
+
+            return (
+              <div style={{ display: 'grid', gap: '32px' }}>
+                {passageNums.map(pn => {
+                  const psg = passageByNum[pn];
+                  const questions = byPassage[pn].sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+                  return (
+                    <div key={pn} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
+                      <h2 style={{ fontSize: '20px', fontWeight: '900', marginBottom: '20px' }}>Passage {pn}</h2>
+                      {psg?.title && (
+                        <h3 style={{ fontSize: '22px', fontFamily: 'Playfair Display, serif', marginBottom: '16px' }}>{psg.title}</h3>
+                      )}
+                      {psg?.text && (
+                        <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Lora, serif', fontSize: '15px', color: '#334155', lineHeight: '1.8', marginBottom: '24px' }}>
+                          {psg.text}
+                        </div>
+                      )}
+                      <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '24px' }}>
+                        <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#4f46e5', marginBottom: '16px' }}>
+                          QUESTIONS FOR PASSAGE {pn} ({questions.length})
+                        </h4>
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                          {questions.map((q, qIdx) => {
+                            const opts = parseFlatOptions(q.options);
+                            const isMC = q.questionType === 'MULTIPLE_CHOICE';
+                            return (
+                              <div key={q.id || qIdx} style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                  <span style={{ fontWeight: '800', color: '#4f46e5' }}>{q.questionNumber}.</span>
+                                  <div style={{ flex: 1, fontSize: '14px' }}>
+                                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', marginBottom: '4px' }}>{q.questionType}</div>
+                                    <div style={{ fontWeight: '600', marginBottom: '8px' }}>{q.content}</div>
+                                    {isMC && opts.length > 0 && (
+                                      <div style={{ display: 'grid', gap: '4px', marginLeft: '12px', marginBottom: '8px' }}>
+                                        {opts.map((opt, i) => (
+                                          <div key={i} style={{ fontSize: '13px', color: '#64748b' }}>{opt}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div style={{ fontWeight: '700', color: '#10b981' }}>{q.correctAnswer}</div>
+                                    {q.explanation && (
+                                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{q.explanation}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          return (
           <div style={{ display: 'grid', gap: '32px' }}>
             {(edited.passages || []).sort((a,b)=>a.passageNumber-b.passageNumber).map((psg, pIdx) => (
               <div key={pIdx} style={{ background: '#fff', borderRadius: '24px', padding: '32px', border: '1px solid #e2e8f0' }}>
@@ -775,7 +854,8 @@ export default function PaperDetail() {
             ))}
             {editMode && <button onClick={addPassage} style={{ width: '100%', padding: '24px', border: '3px dashed #e2e8f0', background: '#fff', color: '#94a3b8', borderRadius: '24px', fontSize: '16px', fontWeight: '900', cursor: 'pointer' }}>➕ ADD NEW PASSAGE</button>}
           </div>
-        )}
+          );
+        })()}
 
         {edited.testType === 'WRITING' && (
           <div style={{ display: 'grid', gap: '32px' }}>

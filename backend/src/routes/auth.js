@@ -6,27 +6,27 @@ const crypto = require('crypto');
 const { sendWelcomeEmail } = require('../services/emailService');
 const prisma = new PrismaClient();
 
-// Simple in-memory rate limiter: 5 attempts per IP per 15 minutes
 const loginAttempts = new Map();
+const MAX_ATTEMPTS = 100;
+const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
-function rateLimit(req, res, next) {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+function checkRateLimit(ip, email) {
+  // Rate limit by email, not IP — so shared school WiFi doesn't block all students
+  const key = email ? email.toLowerCase() : ip;
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000;
-  const maxAttempts = 5;
-
-  const record = loginAttempts.get(ip);
-  if (record) {
-    // Purge attempts older than the window
-    record.times = record.times.filter(t => now - t < windowMs);
-    if (record.times.length >= maxAttempts) {
-      return res.status(429).json({ error: 'Too many login attempts. Please try again in 15 minutes.' });
-    }
-    record.times.push(now);
-  } else {
-    loginAttempts.set(ip, { times: [now] });
+  const record = loginAttempts.get(key) || { count: 0, resetAt: now + WINDOW_MS };
+  if (now > record.resetAt) {
+    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return false; // not limited
   }
-  next();
+  if (record.count >= MAX_ATTEMPTS) return true; // limited
+  loginAttempts.set(key, { ...record, count: record.count + 1 });
+  return false;
+}
+
+function clearRateLimit(ip, email) {
+  const key = email ? email.toLowerCase() : ip;
+  loginAttempts.delete(key);
 }
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
@@ -38,8 +38,13 @@ const signToken = (user) => jwt.sign(
 );
 
 // LOGIN
-router.post('/login', rateLimit, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const emailForLimit = req.body?.email || null;
+    if (checkRateLimit(ip, emailForLimit)) {
+      return res.status(429).json({ error: 'Too many login attempts. Please wait 5 minutes.' });
+    }
     const { email, password } = req.body;
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password required' });
@@ -57,6 +62,7 @@ router.post('/login', rateLimit, async (req, res) => {
         process.env.JWT_SECRET || 'epic-ielts-secret',
         { expiresIn: '12h' }
       );
+      clearRateLimit(ip, emailForLimit);
       return res.json({
         token,
         user: { id: 0, name: 'Admin', email: normalizedEmail, role: 'ADMIN', batch: null, isPaid: true }
@@ -79,6 +85,7 @@ router.post('/login', rateLimit, async (req, res) => {
     // }
 
     const token = signToken(user);
+    clearRateLimit(ip, emailForLimit);
     res.json({
       token,
       user: {
@@ -97,6 +104,11 @@ router.post('/login', rateLimit, async (req, res) => {
 // SIGNUP
 router.post('/signup', async (req, res) => {
   try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const emailForLimit = req.body?.email || null;
+    if (checkRateLimit(ip, emailForLimit)) {
+      return res.status(429).json({ error: 'Too many signup attempts. Please wait 5 minutes.' });
+    }
     const { name, email, password, address, age, city, phone, expectedBand } = req.body;
 
     if (!name || !email || !password)

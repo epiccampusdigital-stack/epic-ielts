@@ -18,6 +18,7 @@ export default function ListeningExam() {
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const autosaveRef = useRef(null);
+  const timerStartedRef = useRef(false);
   const answersRef = useRef({});
 
   const questionMap = useMemo(() => {
@@ -56,10 +57,15 @@ export default function ListeningExam() {
 
   useEffect(() => {
     if (timeLeft === null) return;
+    if (timerStartedRef.current) return;
+    timerStartedRef.current = true;
+
     const id = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
           clearInterval(id);
+          clearInterval(autosaveRef.current);
+          timerStartedRef.current = false;
           setTimeout(() => handleEnd(true), 100);
           return 0;
         }
@@ -68,8 +74,13 @@ export default function ListeningExam() {
     }, 1000);
     autosaveRef.current = setInterval(saveAnswers, 30000);
     timerRef.current = id;
-    return () => { clearInterval(id); clearInterval(autosaveRef.current); };
-  }, [timeLeft === null]);
+
+    return () => {
+      clearInterval(id);
+      clearInterval(autosaveRef.current);
+      timerStartedRef.current = false;
+    };
+  }, [timeLeft]);
 
   const saveAnswers = async () => {
     const payload = Object.entries(answersRef.current).map(([questionId, answer]) => ({

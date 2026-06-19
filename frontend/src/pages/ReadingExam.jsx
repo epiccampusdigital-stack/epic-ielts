@@ -27,6 +27,8 @@ export default function ReadingExam() {
 
    const navigate = useNavigate();
    const timerRef = useRef(null);
+   const timerStartedRef = useRef(false);
+   const autosaveIntervalRef = useRef(null);
    const answersRef = useRef({});
 
    useEffect(() => {
@@ -91,24 +93,28 @@ export default function ReadingExam() {
    }, [attemptId, navigate]);
 
    useEffect(() => {
-      if (timeLeft === null || submitting) return;
+      if (timeLeft === null) return;
+      if (timerStartedRef.current) return;
+      timerStartedRef.current = true;
 
       timerRef.current = setInterval(() => {
          setTimeLeft((t) => {
             if (t <= 60 && t > 59) setShowWarning(true);
-
             if (t <= 1) {
                clearInterval(timerRef.current);
+               timerStartedRef.current = false;
                setTimeout(() => handleEnd(true), 100);
                return 0;
             }
-
             return t - 1;
          });
       }, 1000);
 
-      return () => clearInterval(timerRef.current);
-   }, [timeLeft === null, submitting]);
+      return () => {
+         clearInterval(timerRef.current);
+         timerStartedRef.current = false;
+      };
+   }, [timeLeft]);
 
    const saveAnswers = async () => {
       const payload = Object.entries(answersRef.current).map(([questionId, answer]) => ({
@@ -126,9 +132,13 @@ export default function ReadingExam() {
 
    useEffect(() => {
       if (submitting || !timeLeft) return;
-      const interval = setInterval(saveAnswers, 30000);
-      return () => clearInterval(interval);
-   }, [answers, submitting, timeLeft]);
+      if (autosaveIntervalRef.current) return;
+      autosaveIntervalRef.current = setInterval(saveAnswers, 30000);
+      return () => {
+         clearInterval(autosaveIntervalRef.current);
+         autosaveIntervalRef.current = null;
+      };
+   }, [timeLeft, submitting]);
 
    const splitPassageText = (text) => {
       const full = text || '';

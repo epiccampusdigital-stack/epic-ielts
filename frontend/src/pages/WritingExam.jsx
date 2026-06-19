@@ -322,6 +322,7 @@ export default function WritingExam() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
   const timerRef = useRef();
+  const timerStartedRef = useRef(false);
   const task1Ref = useRef('');
   const task2Ref = useRef('');
 
@@ -369,18 +370,28 @@ export default function WritingExam() {
 
   useEffect(() => {
     if (timeLeft === null) return;
+    if (timerStartedRef.current) return;
+    timerStartedRef.current = true;
+
     const interval = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
           clearInterval(interval);
+          timerStartedRef.current = false;
           setTimeout(() => handleSubmit(true), 100);
           return 0;
         }
         return t - 1;
       });
     }, 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft === null]);
+
+    timerRef.current = interval;
+
+    return () => {
+      clearInterval(interval);
+      timerStartedRef.current = false;
+    };
+  }, [timeLeft]);
 
   const wordCount = (text) => text.trim().split(/\s+/).filter(Boolean).length;
 

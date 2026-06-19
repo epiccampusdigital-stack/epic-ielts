@@ -583,13 +583,29 @@ router.post('/:id/end', auth, async (req, res) => {
         });
       }
     } else {
-      await prisma.answer.deleteMany({ where: { attemptId } });
       correctCount = 0;
       const allQuestions = attempt.paper.questions;
+
+      // Load autosaved answers from DB as fallback
+      // if frontend sent empty (stale closure / timer expiry)
+      let answersToScore = Array.isArray(answers) ? answers : [];
+      if (answersToScore.length === 0) {
+        const saved = await prisma.answer.findMany({
+          where: { attemptId }
+        });
+        answersToScore = saved.map(a => ({
+          questionId: a.questionId,
+          studentAnswer: a.studentAnswer
+        }));
+      }
+
+      // Now safe to delete old answers and rescore
+      await prisma.answer.deleteMany({ where: { attemptId } });
+
       const answerData = allQuestions.map(question => {
-        const submitted = Array.isArray(answers)
-          ? answers.find(a => parseInt(a.questionId) === question.id)
-          : null;
+        const submitted = answersToScore.find(
+          a => parseInt(a.questionId) === question.id
+        );
         const studentAnswer = String(submitted?.studentAnswer || '').trim();
         const normalizedStudent = studentAnswer.toUpperCase();
         const extractedStudent = extractAnswerLetter(studentAnswer);

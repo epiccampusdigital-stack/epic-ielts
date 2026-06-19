@@ -334,9 +334,9 @@ export default function SpeakingExam() {
     try {
       await axios.post(`${API_URL}/api/attempts/${attemptId}/speaking/submit`, {}, api());
       navigate(`/exam/${attemptId}/speaking-results`);
-    } catch {
-      alert('Failed to submit. Try again.');
-      setSubmitting(false);
+    } catch (err) {
+      console.error('Speaking submit error:', err);
+      navigate(`/exam/${attemptId}/speaking-results`);
     }
   };
 

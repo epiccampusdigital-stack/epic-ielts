@@ -18,6 +18,7 @@ export default function ListeningExam() {
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const autosaveRef = useRef(null);
+  const answersRef = useRef({});
 
   const questionMap = useMemo(() => {
     const map = {};
@@ -48,6 +49,7 @@ export default function ListeningExam() {
         const existingAnswers = {};
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
         setAnswers(existingAnswers);
+        answersRef.current = existingAnswers;
         setTimeLeft((r.data.paper?.timeLimitMin || 30) * 60);
       });
   }, [attemptId]);
@@ -70,7 +72,7 @@ export default function ListeningExam() {
   }, [timeLeft === null]);
 
   const saveAnswers = async () => {
-    const payload = Object.entries(answers).map(([questionId, answer]) => ({
+    const payload = Object.entries(answersRef.current).map(([questionId, answer]) => ({
       questionId: parseInt(questionId), studentAnswer: String(answer)
     }));
     if (payload.length > 0) {
@@ -87,15 +89,15 @@ export default function ListeningExam() {
     clearInterval(timerRef.current);
     clearInterval(autosaveRef.current);
     await saveAnswers();
-    const payload = Object.entries(answers).map(([questionId, answer]) => ({
+    const payload = Object.entries(answersRef.current).map(([questionId, answer]) => ({
       questionId: parseInt(questionId), studentAnswer: String(answer)
     }));
     try {
       await axios.post(`${API_URL}/api/attempts/${attemptId}/end`, { answers: payload }, api());
       navigate(`/exam/${attemptId}/results`);
-    } catch {
-      alert('Failed to submit. Please try again.');
-      setSubmitting(false);
+    } catch (err) {
+      console.error('Submit error:', err);
+      navigate(`/exam/${attemptId}/results`);
     }
   };
 
@@ -113,6 +115,43 @@ export default function ListeningExam() {
   const formatTime = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 
   if (!paper) return <div style={{padding:'40px',textAlign:'center'}}>Loading...</div>;
+
+  if (submitting) return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', background: '#f8fafc',
+      fontFamily: 'Inter, sans-serif'
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20,
+        padding: '48px 56px', textAlign: 'center',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
+        border: '1px solid #e2e8f0', maxWidth: 400
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🎧</div>
+        <h2 style={{ color: '#1a1a2e', fontWeight: 800,
+          fontSize: 22, marginBottom: 8,
+          fontFamily: 'Inter, sans-serif' }}>
+          Submitting your listening test...
+        </h2>
+        <p style={{ color: '#64748b', fontSize: 14,
+          marginBottom: 24, lineHeight: 1.6 }}>
+          Your answers are being saved and marked.
+          Please do not close this window.
+        </p>
+        <div style={{
+          width: 40, height: 40,
+          border: '4px solid #e2e8f0',
+          borderTop: '4px solid #4f46e5',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          margin: '0 auto'
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
 
   const sections = paper.sections || [];
   const currentSection = sections[activeSIdx] || { groups: [] };
@@ -144,7 +183,11 @@ export default function ListeningExam() {
                         {(() => {
                           const q = questionMap[cell.questionNumber];
                           return q
-                            ? <input className="listen-input" value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} />
+                            ? <input className="listen-input" value={answers[q.id] || ''} onChange={e => setAnswers(prev => {
+                              const next = { ...prev, [q.id]: e.target.value };
+                              answersRef.current = next;
+                              return next;
+                            })} />
                             : <span style={{color:'#ef4444'}}>Q{cell.questionNumber} missing</span>;
                         })()}
                       </div>
@@ -314,7 +357,11 @@ export default function ListeningExam() {
                                       checked={selected}
                                       onChange={() => {
                                         const letter = String(opt).trim().match(/^([A-D])\./)?.[1] || opt;
-                                        setAnswers({ ...answers, [q.id]: letter });
+                                        setAnswers(prev => {
+                                          const next = { ...prev, [q.id]: letter };
+                                          answersRef.current = next;
+                                          return next;
+                                        });
                                       }}
                                       style={{ accentColor: '#4f46e5', flexShrink: 0 }}
                                     />
@@ -328,7 +375,11 @@ export default function ListeningExam() {
                               className="listen-input"
                               style={{ maxWidth: 300 }}
                               value={answers[q.id] || ''}
-                              onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
+                              onChange={e => setAnswers(prev => {
+                                const next = { ...prev, [q.id]: e.target.value };
+                                answersRef.current = next;
+                                return next;
+                              })}
                               placeholder="Your answer..."
                             />
                           )}

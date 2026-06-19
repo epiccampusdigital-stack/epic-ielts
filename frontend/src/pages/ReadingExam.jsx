@@ -27,6 +27,7 @@ export default function ReadingExam() {
 
    const navigate = useNavigate();
    const timerRef = useRef(null);
+   const answersRef = useRef({});
 
    useEffect(() => {
       const loadExam = async () => {
@@ -70,6 +71,12 @@ export default function ReadingExam() {
 
             setPaper(loadedPaper);
             setQuestions(loadedQuestions);
+            const existingAnswers = {};
+            (res.data.answers || []).forEach((a) => {
+               existingAnswers[a.questionId] = a.studentAnswer;
+            });
+            setAnswers(existingAnswers);
+            answersRef.current = existingAnswers;
             const timeInSeconds = (loadedPaper?.timeLimitMin || 60) * 60;
             setTimeLeft(timeInSeconds);
             setTotalTime(timeInSeconds);
@@ -104,7 +111,7 @@ export default function ReadingExam() {
    }, [timeLeft === null, submitting]);
 
    const saveAnswers = async () => {
-      const payload = Object.entries(answers).map(([questionId, answer]) => ({
+      const payload = Object.entries(answersRef.current).map(([questionId, answer]) => ({
          questionId: parseInt(questionId),
          studentAnswer: String(answer)
       }));
@@ -330,7 +337,7 @@ export default function ReadingExam() {
       clearInterval(timerRef.current);
 
       try {
-         const formattedAnswers = Object.entries(answers).map(([key, value]) => ({
+         const formattedAnswers = Object.entries(answersRef.current).map(([key, value]) => ({
             questionId: parseInt(key),
             studentAnswer: value
          }));
@@ -346,9 +353,8 @@ export default function ReadingExam() {
 
          navigate(`/exam/${attemptId}/results`);
       } catch (err) {
-         console.error('Submit exam error:', err);
-         alert('Failed to submit. Please try again.');
-         setSubmitting(false);
+         console.error('Submit error:', err);
+         navigate(`/exam/${attemptId}/results`);
       }
    };
 
@@ -359,10 +365,14 @@ export default function ReadingExam() {
    };
 
    const selectAnswer = (questionId, value) => {
-      setAnswers((prev) => ({
-         ...prev,
-         [questionId]: value
-      }));
+      setAnswers((prev) => {
+         const next = {
+            ...prev,
+            [questionId]: value
+         };
+         answersRef.current = next;
+         return next;
+      });
    };
 
    const getTimerStyle = () => {
@@ -398,6 +408,43 @@ export default function ReadingExam() {
          </div>
       );
    }
+
+   if (submitting) return (
+      <div style={{
+         display: 'flex', flexDirection: 'column',
+         alignItems: 'center', justifyContent: 'center',
+         minHeight: '100vh', background: '#f8fafc',
+         fontFamily: 'Inter, sans-serif'
+      }}>
+         <div style={{
+            background: '#fff', borderRadius: 20,
+            padding: '48px 56px', textAlign: 'center',
+            boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
+            border: '1px solid #e2e8f0', maxWidth: 400
+         }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
+            <h2 style={{ color: '#1a1a2e', fontWeight: 800,
+               fontSize: 22, marginBottom: 8,
+               fontFamily: 'Inter, sans-serif' }}>
+               Submitting your reading test...
+            </h2>
+            <p style={{ color: '#64748b', fontSize: 14,
+               marginBottom: 24, lineHeight: 1.6 }}>
+               Your answers are being saved and marked.
+               Please do not close this window.
+            </p>
+            <div style={{
+               width: 40, height: 40,
+               border: '4px solid #e2e8f0',
+               borderTop: '4px solid #4f46e5',
+               borderRadius: '50%',
+               animation: 'spin 1s linear infinite',
+               margin: '0 auto'
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+         </div>
+      </div>
+   );
 
    const passages = [...new Set(questions.map((q) => q.passageNumber || 1))]
       .filter(Boolean)

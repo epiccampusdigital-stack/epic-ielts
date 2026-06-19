@@ -333,8 +333,10 @@ export default function WritingExam() {
       .then(r => {
         setAttempt(r.data);
         setPaper(r.data.paper);
-        const mins = r.data.paper?.timeLimitMin || 60;
-        setTimeLeft(mins * 60);
+        const totalSeconds = ((r.data.paper?.timeLimitMin || 60) + (r.data.extraMinutes || 0)) * 60;
+        const startedAt = r.data.startedAt ? new Date(r.data.startedAt).getTime() : null;
+        const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+        setTimeLeft(Math.max(0, totalSeconds - elapsed));
       })
       .catch(e => console.error('Paper fetch error:', e));
 

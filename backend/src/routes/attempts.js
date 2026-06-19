@@ -414,7 +414,7 @@ router.post('/:id/start', auth, async (req, res) => {
     const attemptId = parseInt(req.params.id);
     const attempt = await prisma.attempt.update({
       where: { id: attemptId },
-      data: { status: 'IN_PROGRESS' },
+      data: { status: 'IN_PROGRESS', startedAt: new Date() },
       include: {
         paper: { include: { questions: { orderBy: { questionNumber: 'asc' } } } }
       }
@@ -643,10 +643,43 @@ router.post('/:id/end', auth, async (req, res) => {
       }
     });
 
-    await prisma.attempt.update({
+    const endedAttempt = await prisma.attempt.update({
       where: { id: attemptId },
-      data: { status: 'COMPLETED', endedAt: new Date() }
+      data: { status: 'COMPLETED', endedAt: new Date() },
+      select: { isPlacement: true, studentId: true, paper: { select: { testType: true } } }
     });
+
+    // If this was a placement attempt, check if all 4 skills now done
+    if (endedAttempt.isPlacement) {
+      const placementSkills = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
+      const completedPlacements = await prisma.attempt.findMany({
+        where: {
+          studentId: endedAttempt.studentId,
+          isPlacement: true,
+          status: 'COMPLETED',
+        },
+        include: { paper: { select: { testType: true } }, result: true }
+      });
+      const completedSkills = new Set(completedPlacements.map(a => a.paper?.testType));
+      const allDone = placementSkills.every(s => completedSkills.has(s));
+      if (allDone) {
+        // Calculate average band across all 4 placement attempts
+        const bands = completedPlacements.map(a => {
+          const r = a.result;
+          return r?.bandEstimate ? parseFloat(r.bandEstimate) : null;
+        }).filter(b => b !== null);
+        const avgBand = bands.length > 0
+          ? Math.round((bands.reduce((s, b) => s + b, 0) / bands.length) * 2) / 2
+          : null;
+        await prisma.student.update({
+          where: { id: endedAttempt.studentId },
+          data: {
+            placementDone: true,
+            ...(avgBand !== null && { placementBand: String(avgBand) })
+          }
+        });
+      }
+    }
 
     res.json({ message: 'Exam submitted', result });
 
@@ -1027,8 +1060,32 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
     }
 
     try {
-      await prisma.attempt.update({ where: { id: attemptId }, data: { status: 'COMPLETED', endedAt: new Date() } });
+      const writingEndedAttempt = await prisma.attempt.update({
+        where: { id: attemptId },
+        data: { status: 'COMPLETED', endedAt: new Date() },
+        select: { isPlacement: true, studentId: true, paper: { select: { testType: true } } }
+      });
       console.log(`Step 4: Attempt marked COMPLETED`);
+
+      if (writingEndedAttempt.isPlacement) {
+        const placementSkills = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
+        const completedPlacements = await prisma.attempt.findMany({
+          where: {
+            studentId: writingEndedAttempt.studentId,
+            isPlacement: true,
+            status: 'COMPLETED',
+          },
+          include: { paper: { select: { testType: true } }, result: true, writingSubmission: true }
+        });
+        const completedSkills = new Set(completedPlacements.map(a => a.paper?.testType));
+        const allDone = placementSkills.every(s => completedSkills.has(s));
+        if (allDone) {
+          await prisma.student.update({
+            where: { id: writingEndedAttempt.studentId },
+            data: { placementDone: true }
+          });
+        }
+      }
     } catch (attErr) {
       throw new Error('Failed to update attempt status: ' + attErr.message);
     }

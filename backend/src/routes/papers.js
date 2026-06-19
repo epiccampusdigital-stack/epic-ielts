@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
+const auth = require('../middleware/auth');
 const prisma = new PrismaClient();
 
 // One-shot seed endpoint — call POST /api/papers/seed-reading005 on Render to insert the paper
@@ -68,7 +69,7 @@ router.post('/seed-reading005', async (req, res) => {
   }
 });
 
-router.get('/assigned', async (req, res) => {
+router.get('/assigned', auth, async (req, res) => {
   try {
     const { type } = req.query;
     const where = { status: 'ACTIVE' };

@@ -51,7 +51,10 @@ export default function ListeningExam() {
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
         setAnswers(existingAnswers);
         answersRef.current = existingAnswers;
-        setTimeLeft((r.data.paper?.timeLimitMin || 30) * 60);
+        const totalSeconds = ((r.data.paper?.timeLimitMin || 30) + (r.data.extraMinutes || 0)) * 60;
+        const startedAt = r.data.startedAt ? new Date(r.data.startedAt).getTime() : null;
+        const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+        setTimeLeft(Math.max(0, totalSeconds - elapsed));
       });
   }, [attemptId]);
 

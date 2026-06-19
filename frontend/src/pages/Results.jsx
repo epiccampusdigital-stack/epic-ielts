@@ -77,7 +77,7 @@ useEffect(() => {
   pollFeedback(); // immediate first call
   pollInterval = setInterval(pollFeedback, 4000);
   return () => clearInterval(pollInterval);
-}, [attemptId, aiFeedback]);
+}, [attemptId, aiFeedback, pollCount]);
 
 const fetchExplanation = async (answer) => {
   const qId = answer.question?.id;

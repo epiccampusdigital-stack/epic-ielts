@@ -14,6 +14,7 @@ export default function WritingResults() {
   const [loading, setLoading] = useState(true);
   const [modelActiveTask, setModelActiveTask] = useState('task1');
   const [modelActiveBand, setModelActiveBand] = useState('band7');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     axios.get(`${API_URL}/api/attempts/${attemptId}/writing/result`, api())
@@ -39,56 +40,52 @@ export default function WritingResults() {
       .catch(() => setLoading(false));
   }, [attemptId]);
 
-  const pollAI = async () => {
+  useEffect(() => {
     if (!attemptId) return;
-    setFeedbackLoading(true);
+    let cancelled = false;
+    let intervalId = null;
     let attempts = 0;
     const maxAttempts = 30;
 
     const check = async () => {
+      if (cancelled) return;
       try {
         const res = await axios.get(`${API_URL}/api/attempts/${attemptId}/writing/feedback`, api());
+        if (cancelled) return;
         if (res.data.status === 'ready' && res.data.feedback) {
           setFeedback(res.data.feedback);
           setFeedbackLoading(false);
-          return true;
+          if (intervalId) clearInterval(intervalId);
+          return;
         }
         if (res.data.status === 'error' || res.data.markingStatus === 'FAILED') {
           setFeedbackLoading(false);
-          return true;
+          if (intervalId) clearInterval(intervalId);
+          return;
         }
       } catch (err) {
         console.error('AI poll error:', err);
       }
-      return false;
+      attempts++;
+      if (attempts >= maxAttempts) {
+        setFeedbackLoading(false);
+        if (intervalId) clearInterval(intervalId);
+      }
     };
 
-    const interval = setInterval(async () => {
-      const done = await check();
-      attempts++;
-      if (done || attempts >= maxAttempts) {
-        clearInterval(interval);
-        setFeedbackLoading(false);
-      }
-    }, 4000);
+    check();
+    intervalId = setInterval(check, 4000);
 
-    await check();
-  };
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [attemptId, retryCount]);
 
-  useEffect(() => {
-    pollAI();
-  }, [attemptId]);
-
-  const handleRetryAI = async () => {
+  const handleRetryAI = () => {
     setFeedbackLoading(true);
-    try {
-      // Trigger fresh marking via the common AI feedback endpoint
-      await axios.get(`${API_URL}/api/attempts/${attemptId}/ai-feedback`, api());
-      pollAI();
-    } catch (err) {
-      console.error('Retry error:', err);
-      setFeedbackLoading(false);
-    }
+    setFeedback(null);
+    setRetryCount(c => c + 1);
   };
 
   if (loading) return (

@@ -23,6 +23,8 @@ export default function SpeakingResults() {
   useEffect(() => {
     if (!attemptId) return;
     let tries = 0;
+    let intervalId = null;
+
     const poll = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/attempts/${attemptId}/speaking/feedback`, api());
@@ -30,14 +32,20 @@ export default function SpeakingResults() {
         if (res.data.status === 'ready') {
           setFeedback(res.data.feedback);
           setFeedbackLoading(false);
-          clearInterval(interval);
+          if (intervalId) clearInterval(intervalId);
+          return;
         }
       } catch (e) { console.error(e); }
-      if (++tries >= 30) { setFeedbackLoading(false); clearInterval(interval); }
+      tries++;
+      if (tries >= 30) {
+        setFeedbackLoading(false);
+        if (intervalId) clearInterval(intervalId);
+      }
     };
+
     poll();
-    const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
+    intervalId = setInterval(poll, 5000);
+    return () => { if (intervalId) clearInterval(intervalId); };
   }, [attemptId]);
 
   if (loading) return (

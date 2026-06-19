@@ -29,12 +29,7 @@ export default function ExamGreeting() {
 
          try {
             let res;
-
-            try {
-               res = await axios.get(`${API_URL}/api/attempts/${attemptId}`, api());
-            } catch {
-               res = await axios.get(`${API_URL}/api/attempts/${attemptId}/result`, api());
-            }
+            res = await axios.get(`${API_URL}/api/attempts/${attemptId}`, api());
 
             setAttempt(res.data);
             setPaper(res.data.paper);

@@ -125,7 +125,7 @@ Return ONLY JSON:
   "finalStudentReport": "4-5 sentence personal message to ${paperSummary.studentName || 'the student'} about their score of ${paperSummary.rawScore}/40 band ${paperSummary.bandEstimate}, what they did well, main weakness, and one clear improvement tip."
 }`;
 
-    const response = await callClaudeWithRetry(prompt, 600);
+    const response = await callClaudeWithRetry(prompt, 1000);
     const responseText = response.content?.[0]?.text || '';
     const parsed = safeExtractJson(responseText);
     if (!parsed) { 
@@ -216,7 +216,7 @@ ${(task1Prompt || 'Describe the chart or diagram.').substring(0, 300)}
 ${task1TooShort}
 
 TASK 1 RESPONSE:
-${task1Words < 5 ? '[NO RESPONSE — Student left Task 1 blank]' : (task1Response || '').substring(0, 800)}
+${task1Words < 5 ? '[NO RESPONSE — Student left Task 1 blank]' : (task1Response || '').substring(0, 2000)}
 ═══════════════════════════════════
 TASK 2 PROMPT:
 ${(task2Prompt || 'Write an essay.').substring(0, 300)}
@@ -224,7 +224,7 @@ ${(task2Prompt || 'Write an essay.').substring(0, 300)}
 ${task2TooShort}
 
 TASK 2 RESPONSE:
-${task2Words < 5 ? '[NO RESPONSE — Student left Task 2 blank]' : (task2Response || '').substring(0, 1200)}
+${task2Words < 5 ? '[NO RESPONSE — Student left Task 2 blank]' : (task2Response || '').substring(0, 3000)}
 ═══════════════════════════════════
 
 MARKING RULES YOU MUST FOLLOW:
@@ -269,7 +269,7 @@ The example values above (5.5, 5.0 etc) are just placeholders — do NOT copy th
 Keep ALL strings on one line.
 Do not add any fields not shown above.`;
 
-    const response = await callClaudeWithRetry(prompt, 1000);
+    const response = await callClaudeWithRetry(prompt, 2000);
     const responseText = response.content?.[0]?.text || '';
     console.log('Writing Claude raw response snippet:', responseText.substring(0, 300));
 
@@ -332,25 +332,57 @@ Reply in plain text only. Do not use JSON. Do not use brackets. Do not number yo
 
 async function gradeSpeakingAttempt(transcript, partNumber, questionPrompt, studentName, expectedBand) {
   console.log('gradeSpeakingAttempt called for:', studentName, 'Part:', partNumber);
-  const prompt = `You are a certified IELTS Speaking examiner. Evaluate this speaking response.
+  const prompt = `You are a certified IELTS Speaking examiner. Evaluate this speaking response strictly using official IELTS band descriptors.
 
-STUDENT: ${studentName || 'Student'} TARGET: ${expectedBand || 'not set'}
+STUDENT: ${studentName || 'Student'}
+TARGET BAND: ${expectedBand || 'not specified'}
 PART: ${partNumber || 1}
 QUESTION: ${questionPrompt || 'Speaking question'}
-TRANSCRIPT: ${(transcript || '').substring(0, 800)}
+TRANSCRIPT: ${(transcript || '').substring(0, 1200)}
 
-Return ONLY JSON:
+OFFICIAL IELTS SPEAKING BAND DESCRIPTORS:
+Band 9: Speaks fluently with only rare repetition. Coherent, appropriate, accurate and flexible use of grammar and vocabulary.
+Band 8: Fluent with only occasional hesitation. Good range of vocabulary and grammar. Minor errors only.
+Band 7: Speaks at length without noticeable effort. Some hesitation. Good range of vocabulary with occasional inaccuracies. Flexible use of grammar.
+Band 6: Willing to speak at length, though may lose coherence. Adequate vocabulary range with some errors. Mix of simple and complex structures.
+Band 5: Usually maintains flow but relies on repetition. Limited range of vocabulary and grammar. Makes frequent errors. Often difficult to understand.
+Band 4: Cannot respond without noticeable pauses. Very limited vocabulary. Many errors. Only basic sentence forms used.
+Band 3: Speaks with long pauses. Very limited language. Hard to understand. Little communication possible.
+Band 2: Barely communicates. Single words or short phrases only.
+Band 1: No real communication.
+
+MARKING CRITERIA (mark each out of 9, use 0.5 steps):
+- Fluency & Coherence: flow of speech, use of discourse markers, logical organisation
+- Lexical Resource: range and accuracy of vocabulary, ability to paraphrase
+- Grammatical Range & Accuracy: range of structures, frequency of errors
+- Pronunciation: clear articulation, intonation, stress patterns
+
+IMPORTANT RULES:
+1. If transcript is very short (under 30 words), cap band at 4.0
+2. If transcript shows mostly simple sentences and basic vocabulary, band should be 4.0-5.5
+3. Band 6+ requires clear coherent speech with some complex vocabulary
+4. Band 7+ requires genuinely fluent, natural speech with wide vocabulary
+5. Be honest — do not be generous. Award what the evidence shows.
+6. Overall band = average of the 4 criteria, rounded to nearest 0.5
+
+Return ONLY this JSON. No markdown. No backticks. Start with { end with }:
 {
-  "band": 6.0,
-  "fluencyCoherence": 6.0,
-  "lexicalResource": 6.0,
-  "grammaticalRange": 6.0,
-  "pronunciation": 6.0,
-  "feedback": "...", "strengths": [], "improvements": [], "keyTricks": [], "finalReport": "..."
-}`;
+  "band": 5.0,
+  "fluencyCoherence": 5.0,
+  "lexicalResource": 5.0,
+  "grammaticalRange": 5.0,
+  "pronunciation": 5.0,
+  "feedback": "Specific feedback on this response in 2-3 sentences.",
+  "strengths": ["specific strength observed in transcript"],
+  "improvements": ["specific improvement needed based on transcript"],
+  "keyTricks": ["one practical tip for this part type"],
+  "finalReport": "2-3 sentence personal message to the student about their performance."
+}
+Replace ALL values with your honest assessment based on the transcript.
+The example values (5.0) are placeholders only — do NOT copy them.`;
 
   try {
-    const response = await callClaudeWithRetry(prompt, 600);
+    const response = await callClaudeWithRetry(prompt, 1200);
     const parsed = safeExtractJson(response.content?.[0]?.text || '');
     return parsed;
   } catch (e) {

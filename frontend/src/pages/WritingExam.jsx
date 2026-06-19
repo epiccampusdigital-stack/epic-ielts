@@ -322,6 +322,8 @@ export default function WritingExam() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
   const timerRef = useRef();
+  const task1Ref = useRef('');
+  const task2Ref = useRef('');
 
   useEffect(() => {
     if (!attemptId) return;
@@ -338,8 +340,10 @@ export default function WritingExam() {
     axios.get(`${API_URL}/api/attempts/${attemptId}/writing/result`, api())
       .then(r => {
         if (r.data?.writingSubmission) {
-          setTask1(r.data.writingSubmission.task1Response || '');
-          setTask2(r.data.writingSubmission.task2Response || '');
+          const t1 = r.data.writingSubmission.task1Response || '';
+          const t2 = r.data.writingSubmission.task2Response || '';
+          setTask1(t1); task1Ref.current = t1;
+          setTask2(t2); task2Ref.current = t2;
         }
       })
       .catch(e => console.error('Submission fetch error:', e));
@@ -348,8 +352,16 @@ export default function WritingExam() {
     axios.get(`${API_URL}/api/attempts/${attemptId}/ai-feedback`, api())
       .then(r => {
         if (r.data?.feedback) {
-          setTask1(prev => prev || r.data.feedback.task1Response || '');
-          setTask2(prev => prev || r.data.feedback.task2Response || '');
+          setTask1(prev => {
+            const v = prev || r.data.feedback.task1Response || '';
+            task1Ref.current = v;
+            return v;
+          });
+          setTask2(prev => {
+            const v = prev || r.data.feedback.task2Response || '';
+            task2Ref.current = v;
+            return v;
+          });
         }
       })
       .catch(() => {});
@@ -390,16 +402,21 @@ export default function WritingExam() {
     }
     setSubmitting(true);
     clearInterval(timerRef.current);
+    // Use refs so auto-submit always has the latest text
+    // even if called from inside a stale closure
+    const finalTask1 = task1Ref.current || task1;
+    const finalTask2 = task2Ref.current || task2;
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: task1, task2Response: task2 },
+        { task1Response: finalTask1, task2Response: finalTask2 },
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);
     } catch (err) {
-      alert('Failed to submit. Please try again.');
-      setSubmitting(false);
+      console.error('Auto-submit error:', err);
+      // Still navigate - backend will mark with whatever was saved
+      navigate(`/exam/${attemptId}/writing-results`);
     }
   };
 
@@ -410,7 +427,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: task1, task2Response: task2 },
+        { task1Response: task1Ref.current || task1, task2Response: task2Ref.current || task2 },
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);
@@ -428,7 +445,9 @@ export default function WritingExam() {
   const writingTask2 = writingTasks.find(t => t.taskNumber === 2);
   const currentTask = task === 1 ? writingTask1 : task === 2 ? writingTask2 : writingTasks.find(t => t.taskNumber === task);
   const currentText = task === 1 ? task1 : task2;
-  const setCurrentText = task === 1 ? setTask1 : setTask2;
+  const setCurrentText = task === 1
+    ? (v) => { setTask1(v); task1Ref.current = v; }
+    : (v) => { setTask2(v); task2Ref.current = v; };
   const minWords = currentTask?.minWords || (task === 1 ? 150 : 250);
   const wc = wordCount(currentText);
   const wcColor = wc >= minWords ? '#16a34a' : wc >= minWords * 0.8 ? '#d97706' : '#dc2626';
@@ -513,6 +532,39 @@ export default function WritingExam() {
       </div>
     );
   }
+
+  if (submitting) return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', background: '#f8fafc',
+      fontFamily: 'Inter, sans-serif'
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20,
+        padding: '48px 56px', textAlign: 'center',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
+        border: '1px solid #e2e8f0', maxWidth: 400
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>✍️</div>
+        <h2 style={{ color: '#1a1a2e', fontWeight: 800,
+          fontSize: 22, marginBottom: 8, fontFamily: 'Inter, sans-serif' }}>
+          Submitting your writing...
+        </h2>
+        <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24,
+          lineHeight: 1.6 }}>
+          Your answers are being saved and sent for AI marking.
+          Please do not close this window.
+        </p>
+        <div style={{
+          width: 40, height: 40, border: '4px solid #e2e8f0',
+          borderTop: '4px solid #4f46e5', borderRadius: '50%',
+          animation: 'spin 1s linear infinite', margin: '0 auto'
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', background: '#f0f7ff', overflow: 'hidden' }}>

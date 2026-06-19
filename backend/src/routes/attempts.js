@@ -550,21 +550,34 @@ router.post('/:id/end', auth, async (req, res) => {
 
     if (testType === 'WRITING') {
       if (writingSubmission) {
+        const endExistingSub = await prisma.writingSubmission.findUnique({
+          where: { attemptId }
+        });
+
+        const endSafeTask1 = (writingSubmission.task1Response && writingSubmission.task1Response.trim().length > 0)
+          ? writingSubmission.task1Response
+          : (endExistingSub?.task1Response || '');
+
+        const endSafeTask2 = (writingSubmission.task2Response && writingSubmission.task2Response.trim().length > 0)
+          ? writingSubmission.task2Response
+          : (endExistingSub?.task2Response || '');
+
+        const endTask1Words = endSafeTask1.trim().split(/\s+/).filter(Boolean).length;
+        const endTask2Words = endSafeTask2.trim().split(/\s+/).filter(Boolean).length;
+
         await prisma.writingSubmission.upsert({
           where: { attemptId },
-          update: {
-            task1Response: writingSubmission.task1Response,
-            task2Response: writingSubmission.task2Response,
-            task1WordCount: writingSubmission.task1Response?.split(/\s+/).length || 0,
-            task2WordCount: writingSubmission.task2Response?.split(/\s+/).length || 0,
-            markingStatus: 'PENDING_AI'
-          },
           create: {
             attemptId,
-            task1Response: writingSubmission.task1Response,
-            task2Response: writingSubmission.task2Response,
-            task1WordCount: writingSubmission.task1Response?.split(/\s+/).length || 0,
-            task2WordCount: writingSubmission.task2Response?.split(/\s+/).length || 0,
+            task1Response: endSafeTask1,
+            task2Response: endSafeTask2,
+            task1WordCount: endTask1Words,
+            task2WordCount: endTask2Words,
+            markingStatus: 'PENDING_AI'
+          },
+          update: {
+            ...(endSafeTask1.length > 0 && { task1Response: endSafeTask1, task1WordCount: endTask1Words }),
+            ...(endSafeTask2.length > 0 && { task2Response: endSafeTask2, task2WordCount: endTask2Words }),
             markingStatus: 'PENDING_AI'
           }
         });
@@ -953,10 +966,39 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
     console.log(`Step 2: Word counts calculated (${task1Words}, ${task2Words})`);
 
     try {
+      // Load any existing submission first so we never overwrite
+      // saved text with empty strings if the AI failed and retried
+      const existingSub = await prisma.writingSubmission.findUnique({
+        where: { attemptId }
+      });
+
+      const safeTask1 = (task1Response && task1Response.trim().length > 0)
+        ? task1Response
+        : (existingSub?.task1Response || '');
+
+      const safeTask2 = (task2Response && task2Response.trim().length > 0)
+        ? task2Response
+        : (existingSub?.task2Response || '');
+
+      const safeTask1Words = safeTask1.trim().split(/\s+/).filter(Boolean).length;
+      const safeTask2Words = safeTask2.trim().split(/\s+/).filter(Boolean).length;
+
       await prisma.writingSubmission.upsert({
         where: { attemptId },
-        create: { attemptId, task1Response: task1Response || '', task2Response: task2Response || '', task1WordCount: task1Words, task2WordCount: task2Words, markingStatus: 'PENDING_AI' },
-        update: { task1Response: task1Response || '', task2Response: task2Response || '', task1WordCount: task1Words, task2WordCount: task2Words, markingStatus: 'PENDING_AI' }
+        create: {
+          attemptId,
+          task1Response: safeTask1,
+          task2Response: safeTask2,
+          task1WordCount: safeTask1Words,
+          task2WordCount: safeTask2Words,
+          markingStatus: 'PENDING_AI'
+        },
+        update: {
+          // Only update text if new text is non-empty
+          ...(safeTask1.length > 0 && { task1Response: safeTask1, task1WordCount: safeTask1Words }),
+          ...(safeTask2.length > 0 && { task2Response: safeTask2, task2WordCount: safeTask2Words }),
+          markingStatus: 'PENDING_AI'
+        }
       });
       console.log(`Step 3: WritingSubmission upserted`);
     } catch (wsErr) {

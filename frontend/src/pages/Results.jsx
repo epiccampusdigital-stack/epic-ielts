@@ -168,47 +168,73 @@ const fetchExplanation = async (answer) => {
     const result = data.result || {};
     const ai = aiFeedback || {};
     
-    // Flatten all questions from the paper structure to ensure correct sequencing
-    let allQuestions = [];
-    const paper = data.paper || {};
-    
-    if (paper.sections && paper.sections.length > 0) {
-      // Listening hierarchical structure
-      paper.sections.forEach(s => {
-        (s.groups || []).forEach(g => {
-          (g.questions || []).forEach(q => {
-            allQuestions.push(q);
-          });
-        });
-      });
-    } else if (paper.passages && paper.passages.length > 0) {
-      // Reading hierarchical structure
-      paper.passages.forEach(p => {
-        (p.groups || []).forEach(g => {
-          (g.questions || []).forEach(q => {
-            allQuestions.push(q);
-          });
-        });
-      });
-    } else {
-      // Fallback to flat questions
-      allQuestions = [...(paper.questions || [])];
-    }
+      const paper = data.paper || {};
 
-    // Sort strictly by question number
-    allQuestions.sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+      // Build allQuestions from paper structure (hierarchical or flat)
+      let allQuestions = [];
+      if (paper.sections && paper.sections.length > 0) {
+         // Listening: sections -> groups -> questions
+         paper.sections.forEach(s => {
+            (s.groups || []).forEach(g => {
+               (g.questions || []).forEach(q => allQuestions.push(q));
+            });
+         });
+      } else if (paper.passages && paper.passages.length > 0) {
+         // Reading 007+: passages -> groups -> questions
+         paper.passages.forEach(p => {
+            (p.groups || []).forEach(g => {
+               (g.questions || []).forEach(q => allQuestions.push(q));
+            });
+         });
+      } else if (paper.questions && paper.questions.length > 0) {
+         // Reading 001-006: flat questions array
+         allQuestions = [...paper.questions];
+      }
 
-    // Map student answers to the full list of paper questions
-    const answers = allQuestions.map(q => {
-      const studentAnswer = (data.answers || []).find(ans => ans.questionId === q.id);
-      return {
-        id: studentAnswer?.id || `q-${q.id}`,
-        questionId: q.id,
-        question: q,
-        studentAnswer: studentAnswer?.studentAnswer || '',
-        isCorrect: studentAnswer?.isCorrect ?? false
-      };
-    });
+      allQuestions.sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
+
+      // Build answers array - merge paper questions with student answers
+      // If allQuestions is populated, use it as the source of truth for question metadata
+      // If empty (question data not in paper object), fall back to data.answers directly
+      //   which has the full question join from the backend
+      let answers = [];
+
+      if (allQuestions.length > 0) {
+         answers = allQuestions.map(q => {
+            const sa = (data.answers || []).find(a => a.questionId === q.id);
+            return {
+               id: sa?.id || `q-${q.id}`,
+               questionId: q.id,
+               question: {
+                  ...q,
+                  correctAnswer: q.correctAnswer || sa?.question?.correctAnswer || sa?.correctAnswer,
+                  passageNumber: q.passageNumber || sa?.question?.passageNumber,
+                  questionType: q.questionType || sa?.question?.questionType,
+               },
+               studentAnswer: sa?.studentAnswer || '',
+               isCorrect: sa?.isCorrect ?? false,
+               passageNumber: q.passageNumber,
+               correctAnswer: q.correctAnswer,
+               questionType: q.questionType,
+            };
+         });
+      } else {
+         // Flat fallback: use data.answers directly - already has question join
+         answers = (data.answers || [])
+            .map(a => ({
+               id: a.id,
+               questionId: a.questionId,
+               question: a.question || {},
+               studentAnswer: a.studentAnswer || '',
+               isCorrect: a.isCorrect ?? false,
+               passageNumber: a.question?.passageNumber ?? a.passageNumber,
+               correctAnswer: a.question?.correctAnswer ?? a.correctAnswer,
+               questionType: a.question?.questionType ?? a.questionType,
+            }))
+            .sort((a, b) =>
+               (a.question?.questionNumber || 0) - (b.question?.questionNumber || 0)
+            );
+      }
    const rawScore = result.rawScore ?? cachedScore?.rawScore ?? 0;
    const band = result.bandEstimate ?? cachedScore?.bandEstimate ?? 0;
     const correct = (data.answers || []).filter(a => a.isCorrect === true).length;
@@ -388,7 +414,7 @@ const fetchExplanation = async (answer) => {
                                  const pAnswers = answers.filter(a => {
                                     const pn = a.question?.passageNumber ?? a.passageNumber ?? null;
                                     if (pn !== null) return pn === pNum;
-                                    const qn = a.question?.questionNumber ?? 0;
+                                    const qn = a.question?.questionNumber || 0;
                                     if (pNum === 1) return qn >= 1 && qn <= 13;
                                     if (pNum === 2) return qn >= 14 && qn <= 26;
                                     return qn >= 27 && qn <= 40;

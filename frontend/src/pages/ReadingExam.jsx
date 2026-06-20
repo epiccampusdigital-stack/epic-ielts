@@ -355,7 +355,7 @@ export default function ReadingExam() {
             studentAnswer: value
          }));
 
-         await axios.post(
+         const endRes = await axios.post(
             `${API_URL}/api/attempts/${attemptId}/end`,
             {
                answers: formattedAnswers,
@@ -363,6 +363,18 @@ export default function ReadingExam() {
             },
             api()
          );
+         // Cache score so results page shows immediately
+         if (endRes.data?.rawScore != null) {
+            try {
+               sessionStorage.setItem(
+                  `score_${attemptId}`,
+                  JSON.stringify({
+                     rawScore: endRes.data.rawScore,
+                     bandEstimate: endRes.data.bandEstimate
+                  })
+               );
+            } catch(e) {}
+         }
 
          navigate(`/exam/${attemptId}/results`);
       } catch (err) {

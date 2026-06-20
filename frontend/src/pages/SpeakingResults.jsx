@@ -172,7 +172,7 @@ export default function SpeakingResults() {
         ) : (
           <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:40, textAlign:'center', marginBottom:24 }}>
             <p style={{ color:'rgba(255,255,255,0.4)', marginBottom:16 }}>AI feedback not available yet.</p>
-            <button onClick={() => window.location.reload()}
+            <button onClick={() => { setFeedbackLoading(true); }}
               style={{ padding:'10px 24px', background:'#2563eb', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
               Refresh
             </button>

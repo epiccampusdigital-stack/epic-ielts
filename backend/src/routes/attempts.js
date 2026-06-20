@@ -394,6 +394,28 @@ router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
       return res.json({ id: attempt.id, attemptId: attempt.id });
     }
 
+    // Auto-close any stuck IN_PROGRESS attempts for this student+paper
+    const existingOpen = await prisma.attempt.findMany({
+      where: { studentId, paperId: pid, status: 'IN_PROGRESS', endedAt: null }
+    });
+    if (existingOpen.length > 0) {
+      const openIds = existingOpen.map(a => a.id);
+      await prisma.attempt.updateMany({
+        where: { id: { in: openIds } },
+        data: { status: 'COMPLETED', endedAt: new Date() }
+      });
+      for (const openId of openIds) {
+        const existingResult = await prisma.result.findUnique({
+          where: { attemptId: openId }
+        });
+        if (!existingResult) {
+          await prisma.result.create({
+            data: { attemptId: openId, rawScore: 0, bandEstimate: 0 }
+          });
+        }
+      }
+    }
+
     const attempt = await prisma.attempt.create({
       data: {
         studentId,
@@ -450,12 +472,10 @@ router.get('/:id/result', auth, async (req, res) => {
 
     let aiFeedback = aiCache.get(attemptId);
     if (!aiFeedback && attempt.status === 'COMPLETED' && attempt.result) {
-      if (attempt.result.aiFeedbackJson) {
-        aiFeedback = JSON.parse(attempt.result.aiFeedbackJson);
-      } else {
-        aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
+      aiFeedback = await createAiFeedback(attempt, attempt.result, attempt.answers);
+      if (aiFeedback) {
+        aiCache.set(attemptId, aiFeedback);
       }
-      aiCache.set(attemptId, aiFeedback);
     }
 
     res.json({ ...attempt, aiFeedback });
@@ -681,7 +701,13 @@ router.post('/:id/end', auth, async (req, res) => {
       }
     }
 
-    res.json({ message: 'Exam submitted', result });
+    res.json({
+      message: 'Exam submitted',
+      result,
+      rawScore: result.rawScore,
+      bandEstimate: result.bandEstimate,
+      attemptId
+    });
 
     // Background AI
     try {

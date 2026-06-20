@@ -107,7 +107,22 @@ export default function ListeningExam() {
       questionId: parseInt(questionId), studentAnswer: String(answer)
     }));
     try {
-      await axios.post(`${API_URL}/api/attempts/${attemptId}/end`, { answers: payload }, api());
+      const endRes = await axios.post(
+        `${API_URL}/api/attempts/${attemptId}/end`,
+        { answers: payload },
+        api()
+      );
+      if (endRes.data?.rawScore != null) {
+        try {
+          sessionStorage.setItem(
+            `score_${attemptId}`,
+            JSON.stringify({
+              rawScore: endRes.data.rawScore,
+              bandEstimate: endRes.data.bandEstimate
+            })
+          );
+        } catch(e) {}
+      }
       navigate(`/exam/${attemptId}/results`);
     } catch (err) {
       console.error('Submit error:', err);

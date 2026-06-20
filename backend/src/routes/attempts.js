@@ -463,7 +463,23 @@ router.get('/:id/result', auth, async (req, res) => {
             writingTasks: { orderBy: { taskNumber: 'asc' } }
           }
         },
-        answers: { include: { question: true } },
+        answers: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                questionNumber: true,
+                questionType: true,
+                correctAnswer: true,
+                passageNumber: true,
+                content: true,
+                explanation: true,
+                options: true,
+              }
+            }
+          },
+          orderBy: { questionId: 'asc' }
+        },
         result: true
       }
     });

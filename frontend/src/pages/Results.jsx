@@ -388,12 +388,10 @@ const fetchExplanation = async (answer) => {
                                  const pAnswers = answers.filter(a => {
                                     const pn = a.question?.passageNumber ?? a.passageNumber ?? null;
                                     if (pn !== null) return pn === pNum;
-                                    // Distribute evenly if no passageNumber: Q1-13 = P1, Q14-26 = P2, Q27-40 = P3
                                     const qn = a.question?.questionNumber ?? 0;
                                     if (pNum === 1) return qn >= 1 && qn <= 13;
                                     if (pNum === 2) return qn >= 14 && qn <= 26;
-                                    if (pNum === 3) return qn >= 27 && qn <= 40;
-                                    return false;
+                                    return qn >= 27 && qn <= 40;
                                  });
                       const pCorrect = pAnswers.filter(a => a.isCorrect).length;
                       const pTotal = pAnswers.length || 1;

@@ -385,7 +385,16 @@ const fetchExplanation = async (answer) => {
                   <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Passage</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[1, 2, 3].map(pNum => {
-                      const pAnswers = answers.filter(a => (a.question?.passageNumber ?? 1) === pNum);
+                                 const pAnswers = answers.filter(a => {
+                                    const pn = a.question?.passageNumber ?? a.passageNumber ?? null;
+                                    if (pn !== null) return pn === pNum;
+                                    // Distribute evenly if no passageNumber: Q1-13 = P1, Q14-26 = P2, Q27-40 = P3
+                                    const qn = a.question?.questionNumber ?? 0;
+                                    if (pNum === 1) return qn >= 1 && qn <= 13;
+                                    if (pNum === 2) return qn >= 14 && qn <= 26;
+                                    if (pNum === 3) return qn >= 27 && qn <= 40;
+                                    return false;
+                                 });
                       const pCorrect = pAnswers.filter(a => a.isCorrect).length;
                       const pTotal = pAnswers.length || 1;
                       const pct = Math.round((pCorrect / pTotal) * 100);
@@ -411,7 +420,7 @@ const fetchExplanation = async (answer) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(
                       answers.reduce((acc, a) => {
-                        const type = a.question?.questionType || 'Other';
+                        const type = a.question?.questionType || a.questionType || 'Other';
                         if (!acc[type]) acc[type] = { correct: 0, total: 0 };
                         acc[type].total++;
                         if (a.isCorrect) acc[type].correct++;
@@ -519,7 +528,7 @@ const fetchExplanation = async (answer) => {
                               <span style={{
                                  fontSize: 12, color: '#16a34a', fontWeight: 600
                               }}>
-                                 {a.question?.correctAnswer}
+                                 {a.question?.correctAnswer || a.correctAnswer || '—'}
                               </span>
                                  {a.isCorrect ? '✓' : '✗'}
                               </div>

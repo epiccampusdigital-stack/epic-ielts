@@ -785,7 +785,7 @@ export default function WritingExam() {
               letterSpacing: '0.02em'
             }}
           >
-            {teachingMode ? '📖 Teaching' : '⏱ Exam'}
+            {teachingMode ? 'TEACHING' : 'EXAM MODE'}
           </button>
 
           {/* Timer */}

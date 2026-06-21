@@ -1110,7 +1110,7 @@ export default function ReadingExam() {
                      letterSpacing: '0.02em'
                   }}
                >
-                  {teachingMode ? '📖 Teaching' : '⏱ Exam'}
+                  {teachingMode ? 'TEACHING' : 'EXAM MODE'}
                </button>
 
                <div style={{

@@ -40,6 +40,20 @@ router.post('/', auth, adminOnly, async (req, res) => {
       "Note Completion":          "NOTE_COMPLETION",
       "Form Completion":          "FORM_COMPLETION",
       "Map / Diagram Labeling":   "MAP_LABELING",
+      "Paragraph Matching":       "PARAGRAPH_MATCHING",
+      "PARAGRAPH_MATCHING":       "PARAGRAPH_MATCHING",
+      "TRUE_FALSE_NOT_GIVEN":     "TRUE_FALSE_NOT_GIVEN",
+      "FALSE_NOT_GIVEN":          "TRUE_FALSE_NOT_GIVEN",
+      "MULTIPLE_CHOICE":          "MULTIPLE_CHOICE",
+      "SENTENCE_COMPLETION":      "SENTENCE_COMPLETION",
+      "SHORT_ANSWER":             "SHORT_ANSWER",
+      "FILL_IN_THE_BLANK":        "FILL_IN_THE_BLANK",
+      "HEADING_MATCHING":         "HEADING_MATCHING",
+      "MATCHING":                 "MATCHING",
+      "SUMMARY_COMPLETION":       "SUMMARY_COMPLETION",
+      "TABLE_COMPLETION":         "TABLE_COMPLETION",
+      "NOTE_COMPLETION":          "NOTE_COMPLETION",
+      "YES_NO_NOT_GIVEN":         "YES_NO_NOT_GIVEN",
     };
 
     /** Accept display labels, Prisma enum strings, and common aliases (e.g. MCQ). */
@@ -49,6 +63,9 @@ router.post('/', auth, adminOnly, async (req, res) => {
       YNNG: 'YES_NO_NOT_GIVEN',
       SA: 'SHORT_ANSWER',
       SC: 'SENTENCE_COMPLETION',
+      PM: 'PARAGRAPH_MATCHING',
+      PARA_MATCH: 'PARAGRAPH_MATCHING',
+      PARAGRAPH_MATCHING: 'PARAGRAPH_MATCHING',
     };
     const normalizeType = (t) => {
       if (t == null || t === '') return null;

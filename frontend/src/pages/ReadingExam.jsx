@@ -24,12 +24,16 @@ export default function ReadingExam() {
    const [showWarning, setShowWarning] = useState(false);
    const [wordPopup, setWordPopup] = useState(null);
    const [wordLoading, setWordLoading] = useState(false);
+   const [teachingMode, setTeachingMode] = useState(false);
 
    const navigate = useNavigate();
    const timerRef = useRef(null);
    const timerStartedRef = useRef(false);
    const autosaveIntervalRef = useRef(null);
    const answersRef = useRef({});
+   const teachingModeRef = useRef(false);
+   const pausedSecondsRef = useRef(0);
+   const pauseStartRef = useRef(null);
 
    useEffect(() => {
       const loadExam = async () => {
@@ -109,6 +113,7 @@ export default function ReadingExam() {
                setTimeout(() => handleEnd(true), 100);
                return 0;
             }
+            if (teachingModeRef.current) return t;
             return t - 1;
          });
       }, 1000);
@@ -132,6 +137,55 @@ export default function ReadingExam() {
          console.error('Autosave failed:', e.message);
       }
    };
+
+   const toggleTeachingMode = async () => {
+      const entering = !teachingMode;
+      setTeachingMode(entering);
+      teachingModeRef.current = entering;
+
+      if (entering) {
+         pauseStartRef.current = Date.now();
+      } else {
+         if (pauseStartRef.current) {
+            pausedSecondsRef.current += Math.floor((Date.now() - pauseStartRef.current) / 1000);
+            pauseStartRef.current = null;
+         }
+      }
+
+      try {
+         await axios.post(
+            `${API_URL}/api/attempts/${attemptId}/teaching-mode`,
+            { paused: entering },
+            api()
+         );
+      } catch (e) {
+         console.error('Teaching mode toggle error:', e);
+      }
+   };
+
+   useEffect(() => {
+      if (submitting) return;
+      const poll = setInterval(async () => {
+         try {
+            const res = await axios.get(
+               `${API_URL}/api/attempts/admin/teaching-mode-status`,
+               api()
+            );
+            const shouldBePaused = res.data.paused;
+            if (shouldBePaused !== teachingModeRef.current) {
+               setTeachingMode(shouldBePaused);
+               teachingModeRef.current = shouldBePaused;
+               if (shouldBePaused) {
+                  pauseStartRef.current = Date.now();
+               } else if (pauseStartRef.current) {
+                  pausedSecondsRef.current += Math.floor((Date.now() - pauseStartRef.current) / 1000);
+                  pauseStartRef.current = null;
+               }
+            }
+         } catch (e) {}
+      }, 5000);
+      return () => clearInterval(poll);
+   }, [submitting]);
 
    useEffect(() => {
       if (submitting || !timeLeft) return;
@@ -1032,18 +1086,60 @@ export default function ReadingExam() {
                ))}
             </div>
 
-            <div style={{
-               background: timerStyle.bg,
-               color: timerStyle.color,
-               padding: '8px 20px',
-               borderRadius: '8px',
-               fontWeight: '700',
-               fontSize: '18px',
-               minWidth: '90px',
-               textAlign: 'center',
-               animation: timeLeft < 300 ? 'timerPulse 1s infinite' : 'none'
-            }}>
-               {timeLeft !== null ? formatTime(timeLeft) : '--:--'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+               <button
+                  onClick={toggleTeachingMode}
+                  style={{
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: 6,
+                     padding: '6px 14px',
+                     background: teachingMode
+                        ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                        : 'rgba(255,255,255,0.1)',
+                     color: teachingMode ? '#1a1a2e' : 'rgba(255,255,255,0.8)',
+                     border: teachingMode
+                        ? '1.5px solid #f59e0b'
+                        : '1.5px solid rgba(255,255,255,0.2)',
+                     borderRadius: 8,
+                     fontSize: 12,
+                     fontWeight: 700,
+                     cursor: 'pointer',
+                     fontFamily: 'Inter, sans-serif',
+                     transition: 'all 0.2s',
+                     letterSpacing: '0.02em'
+                  }}
+               >
+                  {teachingMode ? '📖 Teaching' : '⏱ Exam'}
+               </button>
+
+               <div style={{
+                  background: timerStyle.bg,
+                  color: teachingMode ? '#f59e0b' : (timeLeft < 300 ? '#ef4444' : '#ffffff'),
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '18px',
+                  minWidth: '90px',
+                  textAlign: 'center',
+                  animation: timeLeft < 300 ? 'timerPulse 1s infinite' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+               }}>
+                  {timeLeft !== null ? formatTime(timeLeft) : '--:--'}
+                  {teachingMode && (
+                     <span style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        color: '#f59e0b',
+                        letterSpacing: '0.1em',
+                        marginLeft: 4
+                     }}>
+                        PAUSED
+                     </span>
+                  )}
+               </div>
             </div>
          </div>
 
@@ -1098,6 +1194,37 @@ export default function ReadingExam() {
             </div>
 
             <div className="questions-section">
+               {teachingMode && (
+                  <div style={{
+                     background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+                     border: '2px solid #f59e0b',
+                     borderRadius: 12,
+                     padding: '12px 20px',
+                     margin: '16px 24px 0',
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: 12
+                  }}>
+                     <span style={{ fontSize: 20 }}>📖</span>
+                     <div>
+                        <div style={{
+                           fontWeight: 700,
+                           fontSize: 13,
+                           color: '#92400e'
+                        }}>
+                           Teaching Mode — Timer Paused
+                        </div>
+                        <div style={{
+                           fontSize: 11,
+                           color: '#b45309',
+                           marginTop: 2
+                        }}>
+                           Your answers are saved. Click ⏱ Exam to resume your timer.
+                        </div>
+                     </div>
+                  </div>
+               )}
+
                <div style={{
                   padding: '20px 24px 0',
                   borderBottom: '1px solid #f1f5f9',

@@ -257,6 +257,9 @@ export default function AdminDashboard() {
                ))}
             </div>
 
+            {/* Teaching Mode Global Control */}
+            <TeachingModeControl />
+
             {/* TABS CONTAINER */}
             <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
 
@@ -673,6 +676,83 @@ export default function AdminDashboard() {
                </div>
             </div>
          )}
+      </div>
+   );
+}
+
+function TeachingModeControl() {
+   const [globalPaused, setGlobalPaused] = useState(false);
+   const [busy, setBusy] = useState(false);
+   const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+
+   const toggle = async () => {
+      setBusy(true);
+      try {
+         const res = await axios.post(
+            `${API_URL}/api/attempts/admin/teaching-mode-all`,
+            { paused: !globalPaused },
+            api()
+         );
+         setGlobalPaused(res.data.paused);
+      } catch (e) {
+         alert('Failed to toggle teaching mode');
+      }
+      setBusy(false);
+   };
+
+   return (
+      <div style={{
+         background: globalPaused
+            ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
+            : 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+         border: `2px solid ${globalPaused ? '#f59e0b' : '#10b981'}`,
+         borderRadius: 16,
+         padding: '20px 24px',
+         marginBottom: 24,
+         display: 'flex',
+         alignItems: 'center',
+         justifyContent: 'space-between',
+         flexWrap: 'wrap',
+         gap: 16
+      }}>
+         <div>
+            <div style={{
+               fontWeight: 800,
+               fontSize: 15,
+               color: globalPaused ? '#92400e' : '#166534',
+               marginBottom: 4
+            }}>
+               {globalPaused ? '📖 Teaching Mode is ON — All student timers paused' : '⏱ Exam Mode — All student timers running'}
+            </div>
+            <div style={{
+               fontSize: 12,
+               color: globalPaused ? '#b45309' : '#15803d'
+            }}>
+               {globalPaused
+                  ? 'Students see a "Timer Paused" banner. They can still read and type answers.'
+                  : 'Students are in exam mode. Click to pause all timers for a teaching moment.'}
+            </div>
+         </div>
+         <button
+            onClick={toggle}
+            disabled={busy}
+            style={{
+               padding: '12px 28px',
+               background: globalPaused ? '#f59e0b' : '#1a1a2e',
+               color: globalPaused ? '#1a1a2e' : '#ffffff',
+               border: 'none',
+               borderRadius: 10,
+               fontWeight: 700,
+               fontSize: 13,
+               cursor: busy ? 'not-allowed' : 'pointer',
+               fontFamily: 'Inter, sans-serif',
+               opacity: busy ? 0.7 : 1,
+               transition: 'all 0.2s',
+               whiteSpace: 'nowrap'
+            }}
+         >
+            {busy ? 'Updating...' : globalPaused ? '▶ Resume All Timers' : '⏸ Pause All Timers'}
+         </button>
       </div>
    );
 }

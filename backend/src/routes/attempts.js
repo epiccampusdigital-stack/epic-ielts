@@ -10,6 +10,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+global.teachingModePaused = false;
+
 const aiCache = new Map();
 
 const PLACEMENT_SKILLS = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
@@ -1225,6 +1227,41 @@ router.post('/:id/explain-answer', auth, async (req, res) => {
     console.error('Explain endpoint error:', err.message);
     res.status(500).json({ explanation: `The correct answer is "${req.body.correctAnswer}". Review the passage carefully for keywords related to this question.` });
   }
+});
+
+router.post('/:id/teaching-mode', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    const { paused } = req.body;
+    void attemptId;
+    res.json({ success: true, paused });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/teaching-mode-all', auth, async (req, res) => {
+  try {
+    const user = await prisma.student.findUnique({
+      where: { id: req.user.id },
+      select: { isAdmin: true, email: true }
+    });
+
+    const adminEmail = process.env.ADMIN_EMAIL || 'epiccampusdigital@gmail.com';
+    if (!user?.isAdmin && user?.email !== adminEmail) {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    const { paused } = req.body;
+    global.teachingModePaused = paused;
+    res.json({ success: true, paused, timestamp: Date.now() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/admin/teaching-mode-status', auth, async (req, res) => {
+  res.json({ paused: global.teachingModePaused || false });
 });
 
 module.exports = router;

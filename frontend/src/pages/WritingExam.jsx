@@ -321,10 +321,14 @@ export default function WritingExam() {
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
+  const [teachingMode, setTeachingMode] = useState(false);
   const timerRef = useRef();
   const timerStartedRef = useRef(false);
   const task1Ref = useRef('');
   const task2Ref = useRef('');
+  const teachingModeRef = useRef(false);
+  const pausedSecondsRef = useRef(0);
+  const pauseStartRef = useRef(null);
 
   useEffect(() => {
     if (!attemptId) return;
@@ -383,6 +387,7 @@ export default function WritingExam() {
           setTimeout(() => handleSubmit(true), 100);
           return 0;
         }
+        if (teachingModeRef.current) return t;
         return t - 1;
       });
     }, 1000);
@@ -406,6 +411,53 @@ export default function WritingExam() {
   const timerColor = timeLeft !== null
     ? timeLeft < 300 ? '#dc2626' : timeLeft < 600 ? '#d97706' : '#1e3a5f'
     : '#1e3a5f';
+
+  const toggleTeachingMode = async () => {
+    const entering = !teachingMode;
+    setTeachingMode(entering);
+    teachingModeRef.current = entering;
+
+    if (entering) {
+      pauseStartRef.current = Date.now();
+    } else if (pauseStartRef.current) {
+      pausedSecondsRef.current += Math.floor((Date.now() - pauseStartRef.current) / 1000);
+      pauseStartRef.current = null;
+    }
+
+    try {
+      await axios.post(
+        `${API_URL}/api/attempts/${attemptId}/teaching-mode`,
+        { paused: entering },
+        api()
+      );
+    } catch (e) {
+      console.error('Teaching mode toggle error:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (submitting) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}/api/attempts/admin/teaching-mode-status`,
+          api()
+        );
+        const shouldBePaused = res.data.paused;
+        if (shouldBePaused !== teachingModeRef.current) {
+          setTeachingMode(shouldBePaused);
+          teachingModeRef.current = shouldBePaused;
+          if (shouldBePaused) {
+            pauseStartRef.current = Date.now();
+          } else if (pauseStartRef.current) {
+            pausedSecondsRef.current += Math.floor((Date.now() - pauseStartRef.current) / 1000);
+            pauseStartRef.current = null;
+          }
+        }
+      } catch (e) {}
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [submitting]);
 
   const handleSubmit = async (auto = false) => {
     if (!auto) {
@@ -710,15 +762,56 @@ export default function WritingExam() {
             ))}
           </div>
 
+          <button
+            onClick={toggleTeachingMode}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 14px',
+              background: teachingMode
+                ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                : 'rgba(255,255,255,0.1)',
+              color: teachingMode ? '#1a1a2e' : 'rgba(255,255,255,0.8)',
+              border: teachingMode
+                ? '1.5px solid #f59e0b'
+                : '1.5px solid rgba(255,255,255,0.2)',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'Inter, sans-serif',
+              transition: 'all 0.2s',
+              letterSpacing: '0.02em'
+            }}
+          >
+            {teachingMode ? '📖 Teaching' : '⏱ Exam'}
+          </button>
+
           {/* Timer */}
           <div style={{
             background: timeLeft < 300 ? '#dc2626' : timeLeft < 600 ? '#d97706' : 'rgba(255,255,255,0.15)',
-            color: '#ffffff', padding: '6px 16px', borderRadius: 8,
+            color: teachingMode ? '#f59e0b' : (timeLeft < 300 ? '#ef4444' : '#ffffff'),
+            padding: '6px 16px', borderRadius: 8,
             fontWeight: 700, fontSize: 16, fontVariantNumeric: 'tabular-nums',
             minWidth: 80, textAlign: 'center',
-            border: timeLeft < 300 ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent'
+            border: timeLeft < 300 ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             {timeLeft !== null ? formatTime(timeLeft) : '--:--'}
+            {teachingMode && (
+              <span style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: '#f59e0b',
+                letterSpacing: '0.1em',
+                marginLeft: 4
+              }}>
+                PAUSED
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -879,6 +972,37 @@ export default function WritingExam() {
 
         {/* Right — Writing area */}
         <div className="questions-section" style={{ display: 'flex', flexDirection: 'column', padding: 20, gap: 12 }}>
+          {teachingMode && (
+            <div style={{
+              background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+              border: '2px solid #f59e0b',
+              borderRadius: 12,
+              padding: '12px 20px',
+              marginBottom: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12
+            }}>
+              <span style={{ fontSize: 20 }}>📖</span>
+              <div>
+                <div style={{
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: '#92400e'
+                }}>
+                  Teaching Mode — Timer Paused
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  color: '#b45309',
+                  marginTop: 2
+                }}>
+                  Your answers are saved. Click ⏱ Exam to resume your timer.
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e3a5f', margin: 0 }}>
               Your Answer — Task {task}

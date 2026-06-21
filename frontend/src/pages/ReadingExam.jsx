@@ -32,8 +32,6 @@ export default function ReadingExam() {
    const autosaveIntervalRef = useRef(null);
    const answersRef = useRef({});
    const teachingModeRef = useRef(false);
-   const pausedSecondsRef = useRef(0);
-   const pauseStartRef = useRef(null);
 
    useEffect(() => {
       const loadExam = async () => {
@@ -138,54 +136,11 @@ export default function ReadingExam() {
       }
    };
 
-   const toggleTeachingMode = async () => {
+   const toggleTeachingMode = () => {
       const entering = !teachingMode;
       setTeachingMode(entering);
       teachingModeRef.current = entering;
-
-      if (entering) {
-         pauseStartRef.current = Date.now();
-      } else {
-         if (pauseStartRef.current) {
-            pausedSecondsRef.current += Math.floor((Date.now() - pauseStartRef.current) / 1000);
-            pauseStartRef.current = null;
-         }
-      }
-
-      try {
-         await axios.post(
-            `${API_URL}/api/attempts/${attemptId}/teaching-mode`,
-            { paused: entering },
-            api()
-         );
-      } catch (e) {
-         console.error('Teaching mode toggle error:', e);
-      }
    };
-
-   useEffect(() => {
-      if (submitting) return;
-      const poll = setInterval(async () => {
-         try {
-            const res = await axios.get(
-               `${API_URL}/api/attempts/admin/teaching-mode-status`,
-               api()
-            );
-            const shouldBePaused = res.data.paused;
-            if (shouldBePaused !== teachingModeRef.current) {
-               setTeachingMode(shouldBePaused);
-               teachingModeRef.current = shouldBePaused;
-               if (shouldBePaused) {
-                  pauseStartRef.current = Date.now();
-               } else if (pauseStartRef.current) {
-                  pausedSecondsRef.current += Math.floor((Date.now() - pauseStartRef.current) / 1000);
-                  pauseStartRef.current = null;
-               }
-            }
-         } catch (e) {}
-      }, 5000);
-      return () => clearInterval(poll);
-   }, [submitting]);
 
    useEffect(() => {
       if (submitting || !timeLeft) return;

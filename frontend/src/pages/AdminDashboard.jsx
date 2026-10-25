@@ -124,8 +124,9 @@ export default function AdminDashboard() {
       return { bg: '#fef2f2', color: '#dc2626' };
    };
 
-   const avgBand = results.length > 0
-      ? (results.reduce((sum, r) => sum + (r.result?.bandEstimate || 0), 0) / results.filter(r => r.result?.bandEstimate).length || 0).toFixed(1)
+   const banded = results.filter(r => r.result?.bandEstimate);
+   const avgBand = banded.length > 0
+      ? (banded.reduce((sum, r) => sum + r.result.bandEstimate, 0) / banded.length).toFixed(1)
       : '—';
 
    const todayResults = results.filter(r => {

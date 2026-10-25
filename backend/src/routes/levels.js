@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const auth = require('../middleware/auth');
+const adminOnly = require('../middleware/adminOnly');
 
 // GET all levels with sections and paper availability
 router.get('/', auth, async (req, res) => {
@@ -48,7 +49,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Admin: GET all levels (includes draft papers too)
-router.get('/admin', auth, async (req, res) => {
+router.get('/admin', auth, adminOnly, async (req, res) => {
   try {
     const levels = await prisma.level.findMany({
       orderBy: { levelNumber: 'asc' },
@@ -89,7 +90,7 @@ router.get('/admin', auth, async (req, res) => {
 });
 
 // Admin: update a section's paper codes
-router.put('/sections/:id', auth, async (req, res) => {
+router.put('/sections/:id', auth, adminOnly, async (req, res) => {
   try {
     const { readingCode, writingCode, listeningCode, speakingCode } = req.body;
     const updated = await prisma.levelSection.update({

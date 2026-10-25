@@ -49,8 +49,8 @@ router.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'Invalid message format' });
     }
 
-    // Max 20 messages in history to prevent token abuse
-    const trimmed = messages.slice(-20);
+    // Max 20 messages in history and 2,000 characters each to prevent token abuse
+    const trimmed = messages.slice(-20).map(m => ({ role: m.role, content: m.content.slice(0, 2000) }));
 
     const reply = await agentChat(trimmed);
     res.json({ reply });

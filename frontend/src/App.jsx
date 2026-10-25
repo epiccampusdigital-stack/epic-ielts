@@ -56,12 +56,24 @@ function RequireAuth({ children }) {
 
 function RequireAdmin({ children }) {
   if (!isLoggedIn()) return <Navigate to="/" replace />;
+  if (isProgramTeacher()) return <Navigate to="/teacher" replace />;
   if (!isAdmin()) return <Navigate to="/student/dashboard" replace />;
+  return children;
+}
+
+function isProgramTeacher() {
+  return getUser()?.role === 'PROGRAM_TEACHER';
+}
+
+function RequireStaff({ children }) {
+  if (!isLoggedIn()) return <Navigate to="/" replace />;
+  if (!isAdmin() && !isProgramTeacher()) return <Navigate to="/student/dashboard" replace />;
   return children;
 }
 
 function RequireStudentAccess({ children }) {
   if (!isLoggedIn()) return <Navigate to="/" replace />;
+  if (isProgramTeacher()) return <Navigate to="/teacher" replace />;
   if (isAdmin()) return <Navigate to="/admin/dashboard" replace />;
   return children;
 }
@@ -156,6 +168,9 @@ function App() {
       } />
       <Route path="/admin/program" element={
         <RequireAdmin><AdminProgram /></RequireAdmin>
+      } />
+      <Route path="/teacher" element={
+        <RequireStaff><AdminProgram /></RequireStaff>
       } />
 
       {/* Fallback */}

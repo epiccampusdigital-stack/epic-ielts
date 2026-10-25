@@ -72,7 +72,8 @@ router.post('/login', async (req, res) => {
     const user = await prisma.student.findUnique({ where: { email: normalizedEmail } });
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
-    // Block any DB user with ADMIN role (security: admin must use env var only)
+    // Block any DB user with ADMIN role (security: admin must use env var only).
+    // PROGRAM_TEACHER (programme tracker only) is allowed through.
     if (user.role === 'ADMIN' || user.role === 'TEACHER') {
       return res.status(403).json({ error: 'Access denied. Use admin credentials.' });
     }

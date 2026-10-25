@@ -154,7 +154,11 @@ export default function AdminProgram() {
 
       <header style={{ background: C.navy, color: '#fff' }}>
         <div className="pg-wrap" style={{ paddingTop: 14, paddingBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <button onClick={() => navigate('/admin/dashboard')} style={{ ...btn(), background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}>← Dashboard</button>
+          {user.role === 'PROGRAM_TEACHER' ? (
+            <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/'); }} style={{ ...btn(), background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}>Sign out</button>
+          ) : (
+            <button onClick={() => navigate('/admin/dashboard')} style={{ ...btn(), background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}>← Dashboard</button>
+          )}
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.gold, fontWeight: 600 }}>Program tracker</div>
             <div style={{ fontSize: 17, fontWeight: 700 }}>{data?.program?.name || 'Residential programme'}</div>

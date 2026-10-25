@@ -63,7 +63,9 @@ export default function Login() {
   const finishLogin = (token, user) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
-    if (user.role === 'ADMIN' || user.role === 'TEACHER') {
+    if (user.role === 'PROGRAM_TEACHER') {
+      navigate('/teacher');
+    } else if (user.role === 'ADMIN' || user.role === 'TEACHER') {
       navigate('/admin/dashboard');
     } else {
       navigate('/student/dashboard');

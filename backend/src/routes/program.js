@@ -1,7 +1,6 @@
 // Residential programme tracker API. Admins and teachers can use it; schedule-wide changes are admin only.
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const adminOnly = require('../middleware/adminOnly');
 const svc = require('../services/programService');
 const T = require('../services/programTime');
 
@@ -35,7 +34,12 @@ router.all('/cron', wrap(async (req, res) => {
   res.json({ ok: true, at: new Date().toISOString(), results: await svc.tick() });
 }));
 
-router.use(auth, adminOnly);
+// Admins, existing teacher accounts and programme teachers can use the tracker.
+// PROGRAM_TEACHER logins never pass adminOnly, so they cannot reach the rest of the admin API.
+router.use(auth, (req, res, next) => {
+  if (['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'].includes(req.user?.role)) return next();
+  return res.status(403).json({ error: 'Staff only' });
+});
 
 // Express 5 has no inline regex in paths: numeric params are checked here, anything else falls through
 for (const name of ['id', 'sid', 'tid', 'psid', 'rid']) {
@@ -225,10 +229,10 @@ router.post('/teachers/:tid/login', adminRoleOnly, wrap(async (req, res) => {
   if (!account) {
     tempPassword = Math.random().toString(36).slice(2, 10);
     account = await prisma.student.create({
-      data: { email, name: t.name, password: await bcrypt.hash(tempPassword, 10), role: 'TEACHER', emailVerified: true, phone: t.phone || null },
+      data: { email, name: t.name, password: await bcrypt.hash(tempPassword, 10), role: 'PROGRAM_TEACHER', emailVerified: true, phone: t.phone || null },
     });
-  } else if (account.role === 'STUDENT') {
-    throw new Error('That email belongs to a student account');
+  } else if (account.role !== 'PROGRAM_TEACHER') {
+    throw new Error('That email already belongs to another account. Use a different email.');
   }
   await prisma.programTeacher.update({ where: { id: t.id }, data: { accountId: account.id, email } });
   res.json({ email, tempPassword, accountId: account.id });

@@ -1,11 +1,13 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
+const adminOnly = require('../middleware/adminOnly');
 const prisma = new PrismaClient();
 const { normalizeTrack } = require('../utils_track');
 
 // One-shot seed endpoint — call POST /api/papers/seed-reading005 on Render to insert the paper
-router.post('/seed-reading005', async (req, res) => {
+// Was open to anyone and could wipe paper 005 plus every attempt on it: admin only now
+router.post('/seed-reading005', auth, adminOnly, async (req, res) => {
   try {
     const paperData = require('../data/papers/reading005');
 
@@ -102,7 +104,7 @@ router.get('/assigned', auth, async (req, res) => {
   }
 });
 
-router.get('/debug', async (req, res) => {
+router.get('/debug', auth, adminOnly, async (req, res) => {
   try {
     const all = await prisma.paper.findMany({ orderBy: { id: 'desc' } });
     res.json({ total: all.length, papers: all.map(p => ({ id: p.id, code: p.paperCode, type: p.testType, status: p.status })) });
@@ -111,7 +113,8 @@ router.get('/debug', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+// Full paper with answers: staff only (the student exam screens load papers through /api/attempts)
+router.get('/:id', auth, adminOnly, async (req, res) => {
   try {
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(req.params.id) },

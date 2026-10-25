@@ -3,9 +3,29 @@ const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
 const { requirePaidOrFirstExam } = require('../middleware/accessControl');
 const { normalizeTrack } = require('../utils_track');
+
+// Never send password hashes or tokens to the browser
+const STUDENT_PUBLIC = { id: true, name: true, email: true, batch: true, role: true };
+
 const { gradeAttempt } = require('../services/claudeMarking');
 
 const router = express.Router();
+
+// Students can only open their own attempts. Admins and teachers can open any.
+router.use('/:id', (req, res, next) => {
+  if (!/^\d+$/.test(req.params.id)) return next();
+  auth(req, res, async () => {
+    try {
+      if (req.user.role === 'ADMIN' || req.user.role === 'TEACHER') return next();
+      const owner = await prisma.attempt.findUnique({ where: { id: parseInt(req.params.id) }, select: { studentId: true } });
+      if (!owner) return res.status(404).json({ message: 'Attempt not found' });
+      if (owner.studentId !== req.user.id) return res.status(403).json({ message: 'This is not your attempt' });
+      next();
+    } catch (err) {
+      res.status(500).json({ message: 'Access check failed', details: err.message });
+    }
+  });
+});
 const prisma = new PrismaClient();
 const multer = require('multer');
 const path = require('path');
@@ -482,7 +502,7 @@ router.get('/:id/result', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
-        student: true,
+        student: { select: STUDENT_PUBLIC },
         paper: {
           include: {
             sections: { include: { groups: { include: { questions: true } } }, orderBy: { number: 'asc' } },
@@ -558,7 +578,7 @@ router.get('/:id', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
-        student: true,
+        student: { select: STUDENT_PUBLIC },
         paper: {
           include: {
             questions: { orderBy: { questionNumber: 'asc' } },
@@ -588,6 +608,14 @@ router.get('/:id', auth, async (req, res) => {
     });
 
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+    // Hide answers from students while the exam is still running
+    const isStaff = req.user.role === 'ADMIN' || req.user.role === 'TEACHER';
+    if (!isStaff && attempt.status !== 'COMPLETED') {
+      const hide = q => { delete q.correctAnswer; delete q.explanation; };
+      (attempt.paper?.questions || []).forEach(hide);
+      (attempt.paper?.passages || []).forEach(p => (p.groups || []).forEach(g => (g.questions || []).forEach(hide)));
+      (attempt.paper?.sections || []).forEach(sec => (sec.groups || []).forEach(g => (g.questions || []).forEach(hide)));
+    }
     res.json(attempt);
   } catch (error) {
     console.error('Attempt fetch error:', error);
@@ -603,7 +631,7 @@ router.post('/:id/end', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
-        student: true,
+        student: { select: STUDENT_PUBLIC },
         paper: { include: { questions: { orderBy: { questionNumber: 'asc' } }, writingTasks: { orderBy: { taskNumber: 'asc' } } } },
         answers: { include: { question: true } }
       }
@@ -695,7 +723,8 @@ router.post('/:id/end', auth, async (req, res) => {
 
       const finalAnswers = await prisma.answer.findMany({ where: { attemptId } });
       correctCount = finalAnswers.filter(a => a.isCorrect).length;
-      bandEstimate = calculateBand(correctCount);
+      // General English quizzes are scored, not banded, so they don't skew IELTS averages
+      bandEstimate = attempt.paper.track === 'GENERAL' ? null : calculateBand(correctCount);
     }
 
     await prisma.result.deleteMany({ where: { attemptId } });
@@ -793,7 +822,7 @@ router.get('/:id/ai-feedback', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
-        student: true,
+        student: { select: STUDENT_PUBLIC },
         paper: { include: { questions: { orderBy: { questionNumber: 'asc' } }, writingTasks: { orderBy: { taskNumber: 'asc' } } } },
         answers: { include: { question: true } },
         result: true
@@ -888,7 +917,7 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
-        student: true,
+        student: { select: STUDENT_PUBLIC },
         speakingSubmission: true,
         // FIX 1: include paper with sections and questions
         paper: {
@@ -1046,7 +1075,7 @@ router.get('/:id/speaking/result', auth, async (req, res) => {
     const attemptId = parseInt(req.params.id);
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      include: { paper: true, speakingSubmission: true, result: true, student: true }
+      include: { paper: true, speakingSubmission: true, result: true, student: { select: STUDENT_PUBLIC } }
     });
     if (!attempt) return res.status(404).json({ error: 'Not found' });
     res.json(attempt);
@@ -1078,7 +1107,7 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      include: { student: true, paper: { include: { writingTasks: true } } }
+      include: { student: { select: STUDENT_PUBLIC }, paper: { include: { writingTasks: true } } }
     });
 
     console.log(`Step 1: Attempt ${attemptId} data fetched`);
@@ -1175,7 +1204,7 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
       try {
         const updatedAttempt = await prisma.attempt.findUnique({
           where: { id: attemptId },
-          include: { student: true, paper: { include: { writingTasks: true } }, result: true }
+          include: { student: { select: STUDENT_PUBLIC }, paper: { include: { writingTasks: true } }, result: true }
         });
         if (updatedAttempt && updatedAttempt.result) {
           await createAiFeedback(updatedAttempt, updatedAttempt.result, []);
@@ -1268,13 +1297,10 @@ router.post('/:id/teaching-mode', auth, async (req, res) => {
 
 router.post('/admin/teaching-mode-all', auth, async (req, res) => {
   try {
-    const user = await prisma.student.findUnique({
-      where: { id: req.user.id },
-      select: { isAdmin: true, email: true }
-    });
-
+    // The old check looked up an "isAdmin" column that does not exist (and the env admin has no DB row),
+    // so it always refused. The signed token already carries the role.
     const adminEmail = process.env.ADMIN_EMAIL || 'epiccampusdigital@gmail.com';
-    if (!user?.isAdmin && user?.email !== adminEmail) {
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'TEACHER' && req.user.email !== adminEmail) {
       return res.status(403).json({ error: 'Admin only' });
     }
 

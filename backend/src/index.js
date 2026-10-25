@@ -4,6 +4,8 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
+// Render sits behind a proxy: without this every visitor shares one IP, so per-IP limits hit everyone at once
+app.set('trust proxy', 1);
 
 app.use(cors({
   origin: [
@@ -84,6 +86,10 @@ app.use((err, req, res, next) => {
   console.error('Global error:', err.stack);
   res.status(500).json({ error: err.message });
 });
+
+if (!process.env.JWT_SECRET) {
+  console.error('WARNING: JWT_SECRET is not set. Logins are signed with the default secret in the code. Set JWT_SECRET on Render.');
+}
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {

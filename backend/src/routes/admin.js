@@ -1010,9 +1010,11 @@ router.post('/seed-learn-prod', auth, adminOnly, async (req, res) => {
   try {
     const { modules } = require('../../scripts/seedLearn');
 
-    await prisma.learnProgress.deleteMany();
-    await prisma.learnLesson.deleteMany();
-    await prisma.learnModule.deleteMany();
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only the admin can do this' });
+    // Only the IELTS modules are rebuilt; General English modules and their progress are left alone
+    await prisma.learnProgress.deleteMany({ where: { lesson: { module: { track: 'IELTS' } } } });
+    await prisma.learnLesson.deleteMany({ where: { module: { track: 'IELTS' } } });
+    await prisma.learnModule.deleteMany({ where: { track: 'IELTS' } });
 
     const results = [];
     for (const mod of modules) {
@@ -1029,6 +1031,18 @@ router.post('/seed-learn-prod', auth, adminOnly, async (req, res) => {
     res.json({ success: true, seeded: results });
   } catch (err) {
     console.error('Seed learn error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// General English: 30 daily lessons + 5 weekly quizzes. Safe to run again (keeps progress and attempted quizzes).
+router.post('/seed-general-english', auth, adminOnly, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Only the admin can do this' });
+    const { seedGeneralEnglish } = require('../../scripts/generalEnglish');
+    res.json({ success: true, ...(await seedGeneralEnglish(prisma)) });
+  } catch (err) {
+    console.error('Seed general english error:', err);
     res.status(500).json({ error: err.message });
   }
 });

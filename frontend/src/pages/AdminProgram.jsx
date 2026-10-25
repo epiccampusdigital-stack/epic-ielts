@@ -660,6 +660,21 @@ function Teachers({ programId, data, flash, isAdmin, onChanged }) {
           <button style={{ ...btn('primary'), marginTop: 12 }} onClick={saveSettings}>Save settings</button>
         </div>
       )}
+
+      {isAdmin && (
+        <div style={{ ...card, padding: 16, display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: 640 }}>
+            <b>General English content</b>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Loads the 30 daily lessons (one per programme day) and the 5 weekly quizzes into the General English tab. Safe to run again: student progress is kept.</div>
+          </div>
+          <button style={btn()} onClick={async () => {
+            try {
+              const r = await axios.post(`${API_URL}/api/admin/seed-general-english`, {}, api());
+              flash(`General English loaded: ${r.data.lessons} lessons, ${r.data.quizzes} new quizzes.`);
+            } catch (e) { flash(errText(e)); }
+          }}>Load lessons & quizzes</button>
+        </div>
+      )}
     </div>
   );
 }

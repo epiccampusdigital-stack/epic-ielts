@@ -237,6 +237,9 @@ const fetchExplanation = async (answer) => {
       }
    const rawScore = result.rawScore ?? cachedScore?.rawScore ?? 0;
    const band = result.bandEstimate ?? cachedScore?.bandEstimate ?? 0;
+   const totalQ = data.paper?.questions?.length || (data.answers || []).length || 40;
+   const isGE = data.paper?.track === 'GENERAL' || /^GE[-_]/i.test(String(data.paper?.paperCode || ''));
+   const pct = totalQ ? Math.round((rawScore / totalQ) * 100) : 0;
     const correct = (data.answers || []).filter(a => a.isCorrect === true).length;
     const wrong = (data.answers || []).filter(a => a.isCorrect === false).length;
     const hasAI = aiFeedback && aiFeedback.finalStudentReport;
@@ -247,7 +250,7 @@ const fetchExplanation = async (answer) => {
       return '#dc2626';
    };
 
-   const bandColor = getBandColor(band);
+   const bandColor = isGE ? (pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626') : getBandColor(band);
 
    return (
       <div style={{
@@ -339,7 +342,7 @@ const fetchExplanation = async (answer) => {
                fontSize: 11, color: 'rgba(255,255,255,0.6)',
                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8
             }}>
-               EPIC IELTS CBT Platform
+               {isGE ? 'EPIC General English' : 'EPIC IELTS CBT Platform'}
             </p>
             <h1 style={{
                fontFamily: "'Playfair Display', serif",
@@ -348,7 +351,7 @@ const fetchExplanation = async (answer) => {
                Test Complete! 🎉
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 32 }}>
-               EPIC IELTS — {data.paper?.testType} {data.paper?.paperCode}
+               {isGE ? data.paper?.title : <>EPIC IELTS — {data.paper?.testType} {data.paper?.paperCode}</>}
             </p>
 
             {/* Band circle */}
@@ -369,9 +372,9 @@ const fetchExplanation = async (answer) => {
                   fontFamily: "'Playfair Display', serif",
                   fontSize: 40, fontWeight: 700,
                   color: bandColor, lineHeight: 1
-               }}>{Number(band).toFixed(1)}</span>
+               }}>{isGE ? `${pct}%` : Number(band).toFixed(1)}</span>
                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>
-                  IELTS BAND
+                  {isGE ? 'SCORE' : 'IELTS BAND'}
                </span>
             </div>
          </div>
@@ -381,10 +384,10 @@ const fetchExplanation = async (answer) => {
             {/* Metric cards */}
             <div className="metrics-grid">
                {[
-                  { icon: '📊', label: 'Raw Score', value: `${rawScore}/40`, color: '#2563eb' },
+                  { icon: '📊', label: 'Raw Score', value: `${rawScore}/${totalQ}`, color: '#2563eb' },
                   { icon: '✅', label: 'Correct', value: correct, color: '#16a34a' },
                   { icon: '❌', label: 'Wrong', value: wrong, color: '#dc2626' },
-                  { icon: '⭐', label: 'Band', value: Number(band).toFixed(1), color: bandColor }
+                  isGE ? { icon: '⭐', label: 'Score', value: `${pct}%`, color: bandColor } : { icon: '⭐', label: 'Band', value: Number(band).toFixed(1), color: bandColor }
                ].map(({ icon, label, value, color }) => (
                   <div key={label} className="metric-card">
                      <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>

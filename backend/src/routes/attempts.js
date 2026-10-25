@@ -80,6 +80,28 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     }
   }
 
+  // General English quizzes: short score-based feedback, no IELTS band talk and no AI cost
+  if (attempt.paper?.track === 'GENERAL' && testType !== 'WRITING' && testType !== 'SPEAKING') {
+    const total = attempt.paper?.questions?.length || savedAnswers.length || 0;
+    const raw = result.rawScore || 0;
+    const pct = total ? Math.round((raw / total) * 100) : 0;
+    const wrong = savedAnswers.filter(a => !a.isCorrect).map(a => a.question?.questionNumber).filter(Boolean).sort((x, y) => x - y);
+    const feedback = {
+      studentName, testType, paperCode: attempt.paper?.paperCode,
+      score: `${raw}/${total}`, percentage: pct, bandEstimate: null, track: 'GENERAL',
+      criterionScores: {}, correctAnswers: [], studentAnswers: [],
+      mistakeAnalysis: wrong.length ? [`Look again at question${wrong.length > 1 ? 's' : ''} ${wrong.join(', ')}. Read the explanation under each one.`] : ['No mistakes. Excellent work.'],
+      strengths: [pct >= 80 ? 'Strong understanding of this week\'s English.' : pct >= 50 ? 'Good basic understanding.' : 'You finished the quiz.'],
+      weakAreas: wrong.length ? ['Review the lesson for the questions you missed.'] : [],
+      improvementAdvice: ['Re-read this week\'s lessons in General English > Learn.', 'Try the quiz again tomorrow.'],
+      teacherSummary: `${studentName} scored ${raw}/${total} (${pct}%).`,
+      progressComment: '',
+      finalStudentReport: `You scored ${raw} out of ${total} (${pct}%). ${pct >= 80 ? 'Great job!' : pct >= 50 ? 'Good effort. Check your mistakes below.' : 'Keep going. Read the lessons again and retry.'}`,
+    };
+    await prisma.result.update({ where: { attemptId }, data: { aiFeedbackJson: JSON.stringify(feedback) } });
+    return feedback;
+  }
+
   // Fetch previous 3 completed attempts for context
   const previousAttempts = await prisma.attempt.findMany({
     where: {
@@ -717,7 +739,7 @@ router.post('/:id/end', auth, async (req, res) => {
           where: { id: endedAttempt.studentId },
           data: {
             placementDone: true,
-            ...(avgBand !== null && { placementBand: String(avgBand) })
+            ...(avgBand !== null && { placementBand: avgBand })
           }
         });
       }

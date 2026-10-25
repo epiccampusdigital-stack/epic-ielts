@@ -42,12 +42,16 @@ async function requirePaidOrFirstExam(req, res, next) {
     // Fetch paper
     const paper = await prisma.paper.findUnique({
       where: { id: parseInt(paperId) },
-      select: { id: true, testType: true, paperCode: true, status: true }
+      select: { id: true, testType: true, paperCode: true, status: true, track: true }
     });
     if (!paper) return res.status(404).json({ error: 'Paper not found' });
 
     // Rule 2: paper code 001 is always free (placement test)
-    if (paper.paperCode === '001') return next();
+    if (paper.track !== 'GENERAL' && paper.paperCode === '001') return next();
+
+    // Rule 2b: General English papers are open to every logged-in student
+    // (set GENERAL_ENGLISH_FREE=false on Render to put them behind paid access).
+    if (paper.track === 'GENERAL' && process.env.GENERAL_ENGLISH_FREE !== 'false') return next();
 
     // Fetch student with purchased levels
     const student = await prisma.student.findUnique({

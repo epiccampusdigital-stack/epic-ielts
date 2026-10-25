@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getTrack, setTrack } from '../utils/track';
 
 export function readUser() {
   try {
@@ -58,6 +59,14 @@ export default function StudentNav({ active = null }) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  const track = getTrack();
+  const switchTrack = next => {
+    if (next === track) return;
+    setTrack(next);
+    // Every page refetches for the chosen track
+    window.location.reload();
+  };
 
   const go = href => {
     navigate(href);
@@ -119,6 +128,12 @@ export default function StudentNav({ active = null }) {
         @media (max-width: 639px) {
           .sn-avatar-name { display: none !important; }
         }
+        .sn-track-mobile { display: none; }
+        @media (max-width: 767px) {
+          .sn-track-top { display: none; }
+          .sn-track-mobile { display: block; padding: 12px 24px; border-bottom: 1px solid #F1F5F9; }
+        }
+        .sn-mobile-slide.sn-mobile-open { max-height: 360px; }
       `}</style>
 
       {/* Top row: logo · centre · avatar */}
@@ -141,6 +156,10 @@ export default function StudentNav({ active = null }) {
           <img src="/logo.png" alt="" style={{ height: 28 }} onError={e => { e.target.style.display = 'none'; }} />
           <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '0.02em', color: '#0F172A' }}>EPIC IELTS</span>
         </button>
+
+        <div className="sn-track-top">
+          <TrackToggle track={track} onChange={switchTrack} />
+        </div>
 
         <div
           className="sn-center-slot"
@@ -373,6 +392,9 @@ export default function StudentNav({ active = null }) {
 
       {/* Full-width slide-down (mobile); kept in DOM hidden on desktop */}
       <div ref={mobilePanelRef} className={`sn-mobile-slide ${mobileOpen ? 'sn-mobile-open' : ''}`}>
+        <div className="sn-track-mobile">
+          <TrackToggle track={track} onChange={switchTrack} />
+        </div>
         <nav aria-label="Mobile main">
           {NAV.map((item, idx) => {
             const isAct = active === item.active;
@@ -404,6 +426,56 @@ export default function StudentNav({ active = null }) {
           })}
         </nav>
       </div>
+    </div>
+  );
+}
+
+function TrackToggle({ track, onChange }) {
+  const opts = [
+    { key: 'IELTS', label: 'IELTS' },
+    { key: 'GENERAL', label: 'General English' },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Course"
+      style={{
+        display: 'inline-flex',
+        padding: 3,
+        borderRadius: 10,
+        background: '#F1F5F9',
+        border: '1px solid #E2E8F0',
+        gap: 2,
+      }}
+    >
+      {opts.map(o => {
+        const on = o.key === track;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.key)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              border: 'none',
+              cursor: on ? 'default' : 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: on ? 600 : 500,
+              whiteSpace: 'nowrap',
+              color: on ? '#0F172A' : '#64748B',
+              background: on ? 'white' : 'transparent',
+              boxShadow: on ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
+              transition: 'background 150ms, color 150ms',
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

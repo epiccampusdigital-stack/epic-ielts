@@ -74,6 +74,7 @@ app.use('/api/feedback', require('./routes/feedback'));
 app.use('/api/levels', require('./routes/levels'));
 app.use('/api/learn', require('./routes/learn'));
 app.use('/api/agent', require('./routes/agent'));
+app.use('/api/program', require('./routes/program'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'EPIC IELTS API running' });
@@ -88,4 +89,9 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`EPIC IELTS Backend running on port ${PORT}`);
   console.log('AI Key loaded:', !!process.env.ANTHROPIC_API_KEY);
+  try {
+    require('./services/programService').startScheduler();
+  } catch (e) {
+    console.error('Programme scheduler failed to start:', e.message);
+  }
 });

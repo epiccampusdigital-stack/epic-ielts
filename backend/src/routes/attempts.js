@@ -2,6 +2,7 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
 const { requirePaidOrFirstExam } = require('../middleware/accessControl');
+const { normalizeTrack } = require('../utils_track');
 const { gradeAttempt } = require('../services/claudeMarking');
 
 const router = express.Router();
@@ -239,10 +240,13 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 
 router.get('/history/mine', auth, async (req, res) => {
   try {
+    // Optional ?track=IELTS|GENERAL keeps band averages from mixing tracks. No param = everything (old behaviour).
+    const where = { studentId: req.user.id, endedAt: { not: null } };
+    if (req.query.track) where.paper = { track: normalizeTrack(req.query.track) };
     const attempts = await prisma.attempt.findMany({
-      where: { studentId: req.user.id, endedAt: { not: null } },
+      where,
       include: {
-        paper: { select: { title: true, testType: true, paperCode: true } },
+        paper: { select: { title: true, testType: true, paperCode: true, track: true } },
         result: true,
         writingSubmission: {
           select: { markingStatus: true, overallBand: true, task1Band: true, task2Band: true, modelAnswers: true }

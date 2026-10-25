@@ -46,6 +46,7 @@ model Paper {
   assignedBatches String        @default("ALL")
   order           Int           @default(0)
   practiceMode    Boolean       @default(false)
+  track           String        @default("IELTS") // IELTS | GENERAL
   questions       Question[]
   passages        Passage[]
   sections        Section[]
@@ -269,6 +270,7 @@ model LearnModule {
   icon        String
   color       String
   order       Int      @default(0)
+  track       String   @default("IELTS") // IELTS | GENERAL
   createdAt   DateTime @default(now())
   lessons     LearnLesson[]
 }
@@ -294,4 +296,139 @@ model LearnProgress {
   completedAt DateTime @default(now())
 
   @@unique([studentId, lessonId])
+}
+
+// ─── Residential programme tracker ──────────────────────────────────────────
+
+model Program {
+  id            Int                 @id @default(autoincrement())
+  name          String
+  startDate     String              // YYYY-MM-DD (Asia/Colombo)
+  totalDays     Int                 @default(30)
+  dayStartTime  String              @default("08:30")
+  dayEndTime    String              @default("20:30")
+  koreanSiteUrl String?
+  adminPhone    String?
+  remindMinutes Int                 @default(30)
+  status        String              @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  days          ProgramDay[]
+  sessions      ProgramSession[]
+  students      ProgramStudent[]
+  reminders     ProgramReminder[]
+  changeLogs    ProgramChangeLog[]
+}
+
+model ProgramTeacher {
+  id        Int               @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  subject   String            @default("ENGLISH") // ENGLISH | KOREAN | IT | OTHER
+  focus     String?
+  confirmed Boolean           @default(true)
+  active    Boolean           @default(true)
+  accountId Int?
+  notes     String?           @db.Text
+  createdAt DateTime          @default(now())
+  sessions  ProgramSession[]
+  reminders ProgramReminder[]
+}
+
+model ProgramDay {
+  id           Int     @id @default(autoincrement())
+  programId    Int
+  program      Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  dayNumber    Int
+  date         String  // YYYY-MM-DD
+  theme        String?
+  englishFocus String? @db.Text
+  koreanFocus  String? @db.Text
+  itLabTask    String? @db.Text
+  notes        String? @db.Text
+
+  @@unique([programId, dayNumber])
+}
+
+model ProgramSession {
+  id          Int                 @id @default(autoincrement())
+  programId   Int
+  program     Program             @relation(fields: [programId], references: [id], onDelete: Cascade)
+  dayNumber   Int
+  startTime   String              // HH:MM
+  endTime     String
+  subject     String              // ENGLISH | KOREAN | IT_LAB | ACTIVITY | BREAK | ASSESSMENT | ADMIN
+  language    String?             // EN | KR | null
+  title       String
+  description String?             @db.Text
+  teacherId   Int?
+  teacher     ProgramTeacher?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  room        String?
+  link        String?
+  status      String              @default("SCHEDULED") // SCHEDULED | DONE | CANCELLED
+  notes       String?             @db.Text
+  doneAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  attendance  ProgramAttendance[]
+  reminders   ProgramReminder[]
+
+  @@index([programId, dayNumber])
+}
+
+model ProgramStudent {
+  id          Int                 @id @default(autoincrement())
+  programId   Int
+  program     Program             @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String?
+  scholarship String?             // FULL | PARTIAL
+  studentId   Int?
+  notes       String?             @db.Text
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  attendance  ProgramAttendance[]
+}
+
+model ProgramAttendance {
+  id               Int            @id @default(autoincrement())
+  sessionId        Int
+  session          ProgramSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  programStudentId Int
+  student          ProgramStudent @relation(fields: [programStudentId], references: [id], onDelete: Cascade)
+  status           String         // PRESENT | LATE | ABSENT | EXCUSED
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([sessionId, programStudentId])
+}
+
+model ProgramReminder {
+  id        Int             @id @default(autoincrement())
+  programId Int
+  program   Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  teacherId Int?
+  teacher   ProgramTeacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  sessionId Int?
+  session   ProgramSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  kind      String          // NIGHT_BEFORE | SESSION_SOON | DAILY_BRIEF | CHANGE | CUSTOM | ADMIN_DIGEST
+  message   String          @db.Text
+  dueAt     DateTime
+  status    String          @default("PENDING") // PENDING | SENT | SKIPPED | FAILED
+  channel   String?         // WHATSAPP_LINK | WHATSAPP_API
+  sentAt    DateTime?
+  error     String?         @db.Text
+  dedupeKey String          @unique
+  createdAt DateTime        @default(now())
+
+  @@index([programId, status, dueAt])
+}
+
+model ProgramChangeLog {
+  id        Int      @id @default(autoincrement())
+  programId Int
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  summary   String   @db.Text
+  actor     String?
+  createdAt DateTime @default(now())
 }

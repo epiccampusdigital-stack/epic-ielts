@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import { trackParam, getTrack } from '../utils/track';
 import StudentNav from '../components/StudentNav';
 
 const api = () => ({
@@ -150,9 +151,9 @@ export default function PracticePapers() {
     const load = async () => {
       try {
         const [papersRes, levelsRes, historyRes] = await Promise.all([
-          axios.get(`${API_URL}/api/papers/assigned`, api()),
+          axios.get(`${API_URL}/api/papers/assigned?${trackParam()}`, api()),
           axios.get(`${API_URL}/api/payments/my-levels`, api()),
-          axios.get(`${API_URL}/api/attempts/history/mine`, api()),
+          axios.get(`${API_URL}/api/attempts/history/mine?${trackParam()}`, api()),
         ]);
         setPapers(Array.isArray(papersRes.data) ? papersRes.data : []);
         setMyLevels(levelsRes.data || {});
@@ -299,8 +300,13 @@ export default function PracticePapers() {
         <div style={{ textAlign: 'center', padding: '64px 24px' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
           <div style={{ fontSize: 17, fontWeight: 700, color: C.text }}>
-            No papers available.
+            {getTrack() === 'GENERAL' ? 'General English papers are on the way.' : 'No papers available.'}
           </div>
+          {getTrack() === 'GENERAL' && (
+            <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>
+              Your teacher will add them soon. Switch to IELTS at the top to keep practising.
+            </div>
+          )}
         </div>
       </div>
     );

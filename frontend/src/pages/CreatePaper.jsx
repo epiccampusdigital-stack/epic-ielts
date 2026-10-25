@@ -19,6 +19,7 @@ export default function CreatePaper() {
   const [title, setTitle]     = useState('');
   const [code, setCode]       = useState('');
   const [time, setTime]       = useState(60);
+  const [track, setTrack]     = useState('IELTS');
   const [saving, setSaving]   = useState(false);
   const [err, setErr]         = useState('');
 
@@ -30,7 +31,7 @@ export default function CreatePaper() {
     if (!title.trim() || !code.trim()) { setErr('Title and Code are required.'); return; }
     setSaving(true); setErr('');
     try {
-      const r = await axios.post(`${API_URL}/api/admin/papers`, { paperCode: code, testType: type, title, timeLimitMin: time, status:'ACTIVE', instructions:'' }, auth());
+      const r = await axios.post(`${API_URL}/api/admin/papers`, { paperCode: code, testType: type, title, timeLimitMin: time, status:'ACTIVE', instructions:'', track }, auth());
       navigate(`/admin/papers/${r.data.id}`);
     } catch(e) {
       setErr(e.response?.data?.error || e.message);
@@ -96,6 +97,19 @@ export default function CreatePaper() {
                   type==='LISTENING' ? 'e.g. IELTS Listening — Urban Development Recording' :
                                        'e.g. IELTS Speaking — Daily Life & Work'
                 }/>
+              </div>
+              <div>
+                <label style={lbl}>Course</label>
+                <div style={{display:'flex', gap:'8px'}}>
+                  {[['IELTS','IELTS'],['GENERAL','General English']].map(([k,l]) => (
+                    <button key={k} type="button" onClick={()=>setTrack(k)}
+                      style={{padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:600, fontFamily:'Inter,sans-serif',
+                        border: track===k ? '1.5px solid #4f46e5' : '1.5px solid #e2e8f0', background: track===k ? '#eef2ff' : '#fff', color: track===k ? '#4338ca' : '#475569'}}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <p style={{fontSize:'12px', color:'#94a3b8', margin:'6px 0 0'}}>General English papers only show in the General English tab. Tip: codes like GE-001 keep them apart from IELTS codes.</p>
               </div>
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
                 <div>

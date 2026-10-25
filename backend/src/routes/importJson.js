@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
+const { trackForPaper } = require('../utils_track');
 const prisma = new PrismaClient();
 const auth = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
@@ -145,6 +146,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
           data: {
             title: data.title,
             paperCode: data.code,
+            track: trackForPaper(data.track, data.code),
             testType: 'WRITING',
             timeLimitMin: parseInt(data.timeMinutes) || 60,
             instructions: data.overallInstructions || '',
@@ -243,6 +245,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
           data: {
             title: data.title,
             paperCode: data.code,
+            track: trackForPaper(data.track, data.code),
             testType: 'SPEAKING',
             timeLimitMin: parseInt(data.timeMinutes, 10) || 15,
             instructions: data.overallInstructions || '',
@@ -333,6 +336,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
         data: {
           title: data.title,
           paperCode: data.code,
+            track: trackForPaper(data.track, data.code),
           testType: data.testType,
           timeLimitMin: parseInt(data.timeMinutes) || 60,
           instructions: data.overallInstructions || '',

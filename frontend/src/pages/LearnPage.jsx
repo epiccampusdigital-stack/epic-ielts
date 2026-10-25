@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import { trackParam, getTrack } from '../utils/track';
 import StudentNav from '../components/StudentNav';
 
 const api = () => ({
@@ -14,7 +15,7 @@ export default function LearnPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get(`${API_URL}/api/learn/modules`, api())
+    axios.get(`${API_URL}/api/learn/modules?${trackParam()}`, api())
       .then(res => setModules(res.data))
       .catch(err => console.error('Learn load error:', err.message))
       .finally(() => setLoading(false));
@@ -44,12 +45,18 @@ export default function LearnPage() {
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700,
             color: '#0F172A', letterSpacing: '-0.01em' }}>
-            📚 EPIC Learn
+            📚 {getTrack() === 'GENERAL' ? 'General English' : 'EPIC Learn'}
           </h1>
           <p style={{ margin: 0, fontSize: 15, color: '#475569' }}>
-            Build the skills behind your band score. Work through lessons
-            at your own pace.
+            {getTrack() === 'GENERAL'
+              ? 'One lesson for every day of your programme. Read it, then do the practice at the end.'
+              : 'Build the skills behind your band score. Work through lessons at your own pace.'}
           </p>
+          {modules.length === 0 && (
+            <p style={{ marginTop: 24, fontSize: 15, color: '#64748B' }}>
+              No lessons here yet. Your teacher will add them soon.
+            </p>
+          )}
         </div>
 
         {/* Module grid */}

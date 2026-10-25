@@ -26,6 +26,7 @@ import PracticePapers from './pages/PracticePapers';
 import LearnPage from './pages/LearnPage';
 import LearnModule from './pages/LearnModule';
 import LearnLesson from './pages/LearnLesson';
+import AdminProgram from './pages/AdminProgram';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -152,6 +153,9 @@ function App() {
       } />
       <Route path="/admin/levels" element={
         <RequireAdmin><AdminLevels /></RequireAdmin>
+      } />
+      <Route path="/admin/program" element={
+        <RequireAdmin><AdminProgram /></RequireAdmin>
       } />
 
       {/* Fallback */}

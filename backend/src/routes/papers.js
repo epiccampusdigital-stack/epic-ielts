@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
 const prisma = new PrismaClient();
+const { normalizeTrack } = require('../utils_track');
 
 // One-shot seed endpoint — call POST /api/papers/seed-reading005 on Render to insert the paper
 router.post('/seed-reading005', async (req, res) => {
@@ -71,8 +72,9 @@ router.post('/seed-reading005', async (req, res) => {
 
 router.get('/assigned', auth, async (req, res) => {
   try {
-    const { type } = req.query;
-    const where = { status: 'ACTIVE' };
+    const { type, track } = req.query;
+    // Default stays IELTS so existing callers (dashboard, placement test) are unchanged.
+    const where = { status: 'ACTIVE', track: normalizeTrack(track) };
     if (type && type !== 'ALL') where.testType = type.toUpperCase();
 
     const papers = await prisma.paper.findMany({
@@ -84,7 +86,8 @@ router.get('/assigned', auth, async (req, res) => {
         title: true,
         timeLimitMin: true,
         status: true,
-        order: true
+        order: true,
+        track: true
       },
       orderBy: [
         { order: 'asc' },
@@ -92,7 +95,6 @@ router.get('/assigned', auth, async (req, res) => {
       ]
     });
 
-    console.log('Papers returned:', papers.length, papers.map(p => p.paperCode + '-' + p.testType));
     res.json(papers);
   } catch (err) {
     console.error('Papers error:', err.message);

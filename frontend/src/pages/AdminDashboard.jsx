@@ -224,7 +224,11 @@ export default function AdminDashboard() {
                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #fbbf24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a2e', fontSize: '12px', fontWeight: '700' }}>
                   {user.name?.charAt(0) || 'A'}
                </div>
-               <button onClick={() => { localStorage.clear(); navigate('/login'); }}
+               <button onClick={() => navigate('/admin/program')}
+                  style={{ padding: '6px 12px', background: '#f59e0b', color: '#1a1a2e', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                  Program tracker
+               </button>
+               <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/'); }}
                   style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
                   Logout
                </button>
@@ -444,6 +448,7 @@ export default function AdminDashboard() {
                                     <div>
                                        <div style={{ fontWeight: 700, color: '#1e3a5f', fontSize: 15, marginBottom: 3 }}>{p.testType} {p.paperCode} — {p.title}</div>
                                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: p.track === 'GENERAL' ? '#ecfeff' : '#eef2ff', color: p.track === 'GENERAL' ? '#0e7490' : '#4338ca', fontWeight: 600 }}>{p.track === 'GENERAL' ? 'General English' : 'IELTS'}</span>
                                           <span style={{ fontSize: 11, color: '#64748b' }}>⏱ {p.timeLimitMin} min</span>
                                           <span style={{ fontSize: 11, color: '#64748b' }}>ID: {p.id}</span>
                                           <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: p.status === 'ACTIVE' ? '#f0fdf4' : '#fef3c7', color: p.status === 'ACTIVE' ? '#16a34a' : '#d97706', fontWeight: 600 }}>{p.status}</span>

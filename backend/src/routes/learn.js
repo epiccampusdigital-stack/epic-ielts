@@ -4,6 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
 
 const prisma = new PrismaClient();
+const { normalizeTrack } = require('../utils_track');
 
 // GET /api/learn/modules
 // Returns all modules with lessons and student progress
@@ -11,7 +12,12 @@ router.get('/modules', auth, async (req, res) => {
   try {
     const studentId = req.user.id;
 
+    // ?track=GENERAL for General English, ?track=ALL for everything. Default IELTS.
+    const rawTrack = String(req.query.track || '').toUpperCase();
+    const where = rawTrack === 'ALL' ? {} : { track: normalizeTrack(rawTrack) };
+
     const modules = await prisma.learnModule.findMany({
+      where,
       orderBy: { order: 'asc' },
       include: {
         lessons: {
@@ -38,6 +44,7 @@ router.get('/modules', auth, async (req, res) => {
       icon: mod.icon,
       color: mod.color,
       order: mod.order,
+      track: mod.track,
       lessons: mod.lessons.map(l => ({
         id: l.id,
         title: l.title,

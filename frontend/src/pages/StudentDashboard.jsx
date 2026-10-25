@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import { trackParam } from '../utils/track';
 import StudentNav from '../components/StudentNav';
 import AgentWidget from '../components/AgentWidget';
 
@@ -369,9 +370,9 @@ export default function StudentDashboard() {
     const load = async () => {
       let histFail = false;
       const results = await Promise.allSettled([
-        axios.get(`${API_URL}/api/attempts/history/mine`, api()),
+        axios.get(`${API_URL}/api/attempts/history/mine?${trackParam()}`, api()),
         axios.get(`${API_URL}/api/payments/my-levels`, api()),
-        axios.get(`${API_URL}/api/papers/assigned`, api()),
+        axios.get(`${API_URL}/api/papers/assigned?${trackParam()}`, api()),
       ]);
       const [historyRes, levelsRes, papersRes] = results;
       if (historyRes.status === 'fulfilled') {

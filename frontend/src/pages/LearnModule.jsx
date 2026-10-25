@@ -15,7 +15,7 @@ export default function LearnModule() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get(`${API_URL}/api/learn/modules`, api())
+    axios.get(`${API_URL}/api/learn/modules?track=ALL`, api())
       .then(res => {
         const found = res.data.find(m => m.id === parseInt(moduleId));
         setMod(found || null);

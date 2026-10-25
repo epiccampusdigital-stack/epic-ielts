@@ -9,6 +9,7 @@ const fs = require('fs');
 const prisma = new PrismaClient();
 
 const adminOnly = require('../middleware/adminOnly');
+const { trackForPaper } = require('../utils_track');
 const { sendAccessGrantedEmail, sendAnnouncementEmail, sendNewPaperEmail } = require('../services/emailService');
 
 const { storage: cloudinaryStorage } = require('../config/cloudinary');
@@ -173,7 +174,7 @@ router.get('/papers', auth, adminOnly, async (req, res) => {
 
 router.post('/papers/import-ai', auth, adminOnly, async (req, res) => {
   try {
-    const { rawText, testType, paperCode, title } = req.body;
+    const { rawText, testType, paperCode, title, track } = req.body;
     console.log('IMPORT AI CALLED - type:', testType, 'code:', paperCode, 'textLength:', rawText?.length);
 
     if (!rawText || rawText.trim().length < 10) {
@@ -363,6 +364,7 @@ ${rawText.substring(0, 6000)}`
     const paper = await prisma.paper.create({
       data: {
         paperCode: finalCode,
+        track: trackForPaper(track, finalCode),
         testType: type,
         title: String(title || parsed.title || 'Imported Paper'),
         timeLimitMin: parseInt(parsed.timeLimitMin) || 60,
@@ -500,9 +502,10 @@ ${rawText.substring(0, 6000)}`
 
 router.post('/papers', auth, adminOnly, async (req, res) => {
   try {
-    const { paperCode, testType, title, timeLimitMin, instructions, status } = req.body;
+    const { paperCode, testType, title, timeLimitMin, instructions, status, track } = req.body;
     const paper = await prisma.paper.create({
       data: {
+        track: trackForPaper(track, paperCode),
         paperCode: String(paperCode),
         testType: String(testType).toUpperCase(),
         title: String(title),

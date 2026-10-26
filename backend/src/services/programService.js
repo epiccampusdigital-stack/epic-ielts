@@ -140,8 +140,10 @@ async function expireOld(programId, now = new Date()) {
 
 // ─── WhatsApp ────────────────────────────────────────────────────────────────
 
+// Two ways to send: Meta's Cloud API directly (WHATSAPP_TOKEN + WHATSAPP_PHONE_ID), or through
+// 360dialog for a number shared with the WhatsApp Business app (coexistence): WHATSAPP_360_KEY.
 function whatsappApiConfigured() {
-  return !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+  return !!(process.env.WHATSAPP_360_KEY || (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID));
 }
 
 // With WHATSAPP_TEMPLATE set (the name of an approved utility template with one body variable {{1}}),
@@ -163,9 +165,14 @@ function waBody(to, text) {
 async function sendWhatsApp(phone, text) {
   const to = T.normalizePhone(phone);
   if (!to) throw new Error('No valid phone number');
-  const res = await fetch(`https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+  const via360 = !!process.env.WHATSAPP_360_KEY;
+  const url = via360 ? 'https://waba-v2.360dialog.io/messages' : `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
+  const headers = via360
+    ? { 'D360-API-KEY': process.env.WHATSAPP_360_KEY, 'Content-Type': 'application/json' }
+    : { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' };
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(waBody(to, text)),
   });
   if (!res.ok) {

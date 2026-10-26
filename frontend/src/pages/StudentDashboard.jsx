@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
-import { trackParam } from '../utils/track';
+import { trackParam, getTrack } from '../utils/track';
+import GeneralDashboard from './GeneralDashboard';
 import StudentNav from '../components/StudentNav';
 import AgentWidget from '../components/AgentWidget';
 
@@ -324,7 +325,12 @@ function getCoachMessage({
   };
 }
 
+// General English has no IELTS band: it gets its own dashboard with scores out of 100
 export default function StudentDashboard() {
+  return getTrack() === 'GENERAL' ? <GeneralDashboard /> : <IeltsDashboard />;
+}
+
+function IeltsDashboard() {
   const [rawHistory, setRawHistory] = useState([]);
   const [myLevels, setMyLevels] = useState({
     hasFullAccess: false,

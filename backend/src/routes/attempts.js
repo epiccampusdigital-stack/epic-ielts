@@ -288,7 +288,7 @@ router.get('/history/mine', auth, async (req, res) => {
     const attempts = await prisma.attempt.findMany({
       where,
       include: {
-        paper: { select: { title: true, testType: true, paperCode: true, track: true } },
+        paper: { select: { title: true, testType: true, paperCode: true, track: true, _count: { select: { questions: true } } } },
         result: true,
         writingSubmission: {
           select: { markingStatus: true, overallBand: true, task1Band: true, task2Band: true, modelAnswers: true }

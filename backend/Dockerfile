@@ -5,5 +5,6 @@ RUN npm install --production
 COPY prisma ./prisma
 RUN npx prisma generate
 COPY src ./src
+COPY scripts ./scripts
 EXPOSE 3001
 CMD ["node", "src/index.js"]

@@ -22,20 +22,20 @@ export default function LearnPage() {
   }, []);
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
       <div style={{ display: 'flex', alignItems: 'center',
         justifyContent: 'center', minHeight: '60vh',
-        color: '#94A3B8', fontSize: 15 }}>
+        color: '#8495b0', fontSize: 15 }}>
         Loading lessons...
       </div>
     </div>
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
 
       <div style={{ maxWidth: 1100, margin: '0 auto',
@@ -44,16 +44,15 @@ export default function LearnPage() {
         {/* Page header */}
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700,
-            color: '#0F172A', letterSpacing: '-0.01em' }}>
-            📚 {getTrack() === 'GENERAL' ? 'General English' : 'EPIC Learn'}
+            color: '#0f1114', letterSpacing: '-0.01em' }}>{getTrack() === 'GENERAL' ? 'General English' : 'EPIC Learn'}
           </h1>
-          <p style={{ margin: 0, fontSize: 15, color: '#475569' }}>
+          <p style={{ margin: 0, fontSize: 15, color: '#5b6780' }}>
             {getTrack() === 'GENERAL'
               ? 'One lesson for every day of your programme. Read it, then do the practice at the end.'
               : 'Build the skills behind your band score. Work through lessons at your own pace.'}
           </p>
           {modules.length === 0 && (
-            <p style={{ marginTop: 24, fontSize: 15, color: '#64748B' }}>
+            <p style={{ marginTop: 24, fontSize: 15, color: '#5b6780' }}>
               No lessons here yet. Your teacher will add them soon.
             </p>
           )}
@@ -88,8 +87,8 @@ export default function LearnPage() {
                   background: 'white',
                   borderRadius: 16,
                   padding: 24,
-                  border: '1px solid #E2E8F0',
-                  borderTop: `4px solid ${mod.color}`,
+                  border: '1px solid #dae1ed',
+                  
                   cursor: 'pointer',
                   transition: 'all 180ms ease',
                   outline: 'none',
@@ -109,13 +108,13 @@ export default function LearnPage() {
                 {/* Icon + title */}
                 <div style={{ display: 'flex', alignItems: 'center',
                   gap: 12, marginBottom: 8 }}>
-                  <span style={{ fontSize: 28 }}>{mod.icon}</span>
+                  
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700,
-                      color: '#0F172A' }}>
+                      color: '#0f1114' }}>
                       {mod.title}
                     </div>
-                    <div style={{ fontSize: 12, color: '#94A3B8',
+                    <div style={{ fontSize: 12, color: '#8495b0',
                       marginTop: 2 }}>
                       {mod.totalLessons} lesson{mod.totalLessons !== 1
                         ? 's' : ''}
@@ -138,7 +137,7 @@ export default function LearnPage() {
 
                 {/* Description */}
                 <p style={{ margin: '0 0 20px', fontSize: 13,
-                  color: '#475569', lineHeight: 1.5 }}>
+                  color: '#5b6780', lineHeight: 1.5 }}>
                   {mod.description}
                 </p>
 
@@ -148,7 +147,7 @@ export default function LearnPage() {
                     display: 'flex', justifyContent: 'space-between',
                     alignItems: 'center', marginBottom: 6,
                   }}>
-                    <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                    <span style={{ fontSize: 12, color: '#8495b0' }}>
                       {mod.completedLessons}/{mod.totalLessons} completed
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 600,
@@ -157,7 +156,7 @@ export default function LearnPage() {
                     </span>
                   </div>
                   <div style={{
-                    height: 6, background: '#F1F5F9',
+                    height: 6, background: '#e8eef7',
                     borderRadius: 9999, overflow: 'hidden',
                   }}>
                     <div style={{
@@ -176,18 +175,18 @@ export default function LearnPage() {
                     <div key={lesson.id} style={{
                       display: 'flex', alignItems: 'center',
                       gap: 8, padding: '6px 0',
-                      borderTop: '1px solid #F8FAFC',
+                      borderTop: '1px solid #f7f9fc',
                       fontSize: 13,
                     }}>
                       <span style={{
                         width: 18, height: 18,
                         borderRadius: '50%',
                         background: lesson.isCompleted
-                          ? mod.color : '#F1F5F9',
+                          ? mod.color : '#e8eef7',
                         display: 'flex', alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: 9,
-                        color: lesson.isCompleted ? 'white' : '#94A3B8',
+                        color: lesson.isCompleted ? 'white' : '#8495b0',
                         flexShrink: 0,
                         fontWeight: 700,
                       }}>
@@ -195,7 +194,7 @@ export default function LearnPage() {
                       </span>
                       <span style={{
                         color: lesson.isCompleted
-                          ? '#475569' : '#0F172A',
+                          ? '#5b6780' : '#0f1114',
                         textDecoration: lesson.isCompleted
                           ? 'none' : 'none',
                       }}>
@@ -204,7 +203,7 @@ export default function LearnPage() {
                       <span style={{
                         marginLeft: 'auto',
                         fontSize: 11,
-                        color: '#94A3B8',
+                        color: '#8495b0',
                       }}>
                         {lesson.estimatedMin} min
                       </span>
@@ -212,7 +211,7 @@ export default function LearnPage() {
                   ))}
                   {mod.lessons.length > 3 && (
                     <div style={{
-                      fontSize: 12, color: '#94A3B8',
+                      fontSize: 12, color: '#8495b0',
                       marginTop: 8, textAlign: 'center',
                     }}>
                       +{mod.lessons.length - 3} more lessons
@@ -226,7 +225,7 @@ export default function LearnPage() {
 
         {modules.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '80px 0',
-            color: '#94A3B8' }}>
+            color: '#8495b0' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
             <div style={{ fontSize: 16 }}>No lessons available yet.</div>
           </div>

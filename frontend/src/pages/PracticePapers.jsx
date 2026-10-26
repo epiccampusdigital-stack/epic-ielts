@@ -10,31 +10,31 @@ const api = () => ({
 });
 
 const C = {
-  primary: '#4F46E5',
-  primaryHover: '#4338CA',
-  primarySoft: '#EEF2FF',
-  accent: '#7C3AED',
-  accentSoft: '#F5F3FF',
-  pageBg: '#F8FAFC',
+  primary: '#0056d2',
+  primaryHover: '#0048b0',
+  primarySoft: '#e3eeff',
+  accent: '#003b8f',
+  accentSoft: '#f0f6ff',
+  pageBg: '#f7f9fc',
   cardBg: '#FFFFFF',
-  cardBorder: '#E2E8F0',
-  subtleBorder: '#F1F5F9',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
+  cardBorder: '#dae1ed',
+  subtleBorder: '#e8eef7',
+  text: '#0f1114',
+  textSecondary: '#5b6780',
+  textMuted: '#8495b0',
   success: '#059669',
   warning: '#D97706',
-  neutralBand: '#64748B',
+  neutralBand: '#5b6780',
   shadow: '0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.03)',
   shadowHover: '0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)',
   transition: '180ms cubic-bezier(0.4, 0, 0.2, 1)',
 };
 
 const SKILL_STYLE = {
-  READING: { stroke: '#2563EB', soft: '#EFF6FF', icon: '📖', label: 'Reading' },
-  WRITING: { stroke: '#D97706', soft: '#FFFBEB', icon: '✍️', label: 'Writing' },
-  LISTENING: { stroke: '#7C3AED', soft: '#F5F3FF', icon: '🎧', label: 'Listening' },
-  SPEAKING: { stroke: '#DB2777', soft: '#FDF2F8', icon: '🎤', label: 'Speaking' },
+  READING: { stroke: '#0056d2', soft: '#f0f6ff', label: 'Reading' },
+  WRITING: { stroke: '#D97706', soft: '#FFFBEB', label: 'Writing' },
+  LISTENING: { stroke: '#003b8f', soft: '#f0f6ff', label: 'Listening' },
+  SPEAKING: { stroke: '#DB2777', soft: '#FDF2F8', label: 'Speaking' },
 };
 
 const SKILL_ORDER = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
@@ -85,12 +85,12 @@ function relativeTime(date) {
 
 function bandPillTone(band) {
   if (band == null || !Number.isFinite(Number(band))) {
-    return { bg: '#F1F5F9', fg: C.neutralBand };
+    return { bg: '#e8eef7', fg: C.neutralBand };
   }
   const b = Number(band);
   if (b >= 7) return { bg: '#ECFDF5', fg: C.success };
   if (b >= 5.5) return { bg: '#FFFBEB', fg: '#B45309' };
-  return { bg: '#F1F5F9', fg: C.neutralBand };
+  return { bg: '#e8eef7', fg: C.neutralBand };
 }
 
 /** @returns {{ kind:'LOCKED' } | { kind:'IN_PROGRESS', attemptId:number|string } | { kind:'NEW' } | { kind:'DONE', bestBand: number|null, lastAttemptId: number|string, lastDone: Date|null }} */
@@ -111,6 +111,15 @@ function getPaperState(paper, attempts, paperUnlocked) {
     .map(Number);
   const bestBand =
     numericBands.length === 0 ? null : Math.max(...numericBands);
+  // General English: best score out of 100 instead of a band
+  const pcts = completed.map(a => {
+    const raw = a.result?.rawScore;
+    if (raw == null) return null;
+    if (paper.testType === 'WRITING' || paper.testType === 'SPEAKING') return Math.round(raw);
+    const total = a.paper?._count?.questions;
+    return total ? Math.round((raw / total) * 100) : null;
+  }).filter(v => v != null);
+  const bestPct = pcts.length ? Math.max(...pcts) : null;
 
   const lastCompleted = [...completed].sort(
     (a, b) =>
@@ -124,6 +133,7 @@ function getPaperState(paper, attempts, paperUnlocked) {
   return {
     kind: 'DONE',
     bestBand: bestBand == null ? null : bestBand,
+    bestPct,
     lastAttemptId: lastCompleted.id,
     lastDone,
   };
@@ -259,7 +269,7 @@ export default function PracticePapers() {
       <div
         style={{
           minHeight: '100vh',
-          fontFamily: 'Inter, sans-serif',
+          fontFamily: 'Source Sans Pro, sans-serif',
           background: C.pageBg,
         }}
       >
@@ -283,7 +293,7 @@ export default function PracticePapers() {
       <div
         style={{
           minHeight: '100vh',
-          fontFamily: 'Inter, sans-serif',
+          fontFamily: 'Source Sans Pro, sans-serif',
           background: C.pageBg,
         }}
       >
@@ -317,7 +327,7 @@ export default function PracticePapers() {
       style={{
         minHeight: '100vh',
         background: C.pageBg,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'Source Sans Pro, sans-serif',
       }}
     >
       <style>{`
@@ -357,7 +367,7 @@ export default function PracticePapers() {
           </span>
         ) : (
           <>
-            <span style={{ fontSize: 14, fontWeight: 500, color: C.textSecondary }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: C.textSecondary }}>
               Free papers only · Upgrade to unlock all
             </span>
             <button
@@ -372,7 +382,7 @@ export default function PracticePapers() {
                 cursor: 'pointer',
                 fontSize: 13,
                 fontWeight: 700,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'Source Sans Pro, sans-serif',
               }}
             >
               Unlock All →
@@ -427,7 +437,7 @@ export default function PracticePapers() {
                   borderRadius: 9999,
                   fontSize: 13,
                   fontWeight: 600,
-                  fontFamily: 'Inter, sans-serif',
+                  fontFamily: 'Source Sans Pro, sans-serif',
                   cursor: 'pointer',
                   border: selected
                     ? `1px solid ${C.primary}`
@@ -438,8 +448,8 @@ export default function PracticePapers() {
                 }}
                 onMouseEnter={e => {
                   if (!selected) {
-                    e.currentTarget.style.borderColor = '#CBD5E1';
-                    e.currentTarget.style.background = '#F8FAFC';
+                    e.currentTarget.style.borderColor = '#c3cddd';
+                    e.currentTarget.style.background = '#f7f9fc';
                   }
                 }}
                 onMouseLeave={e => {
@@ -452,7 +462,7 @@ export default function PracticePapers() {
                 {label}{' '}
                 <span
                   style={{
-                    fontWeight: 500,
+                    fontWeight: 400,
                     fontSize: 11,
                     opacity: selected ? 0.95 : 1,
                   }}
@@ -486,7 +496,7 @@ export default function PracticePapers() {
                 <div style={{ fontSize: 17, fontWeight: 600, color: C.text }}>
                   No {skillMeta.label} papers yet
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: C.textMuted, marginTop: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 400, color: C.textMuted, marginTop: 8 }}>
                   Check back soon.
                 </div>
               </div>
@@ -515,9 +525,6 @@ export default function PracticePapers() {
                       gap: 12,
                     }}
                   >
-                    <span style={{ fontSize: 28, lineHeight: 1 }}>
-                      {skillMeta.icon}
-                    </span>
                     <h2
                       style={{
                         margin: 0,
@@ -533,7 +540,7 @@ export default function PracticePapers() {
                     style={{
                       marginTop: 6,
                       fontSize: 13,
-                      fontWeight: 500,
+                      fontWeight: 400,
                       color: C.textMuted,
                     }}
                   >
@@ -570,7 +577,7 @@ export default function PracticePapers() {
                           fontWeight: 600,
                           borderRadius: 9999,
                           padding: '4px 10px',
-                          background: '#F1F5F9',
+                          background: '#e8eef7',
                           color: C.textMuted,
                         }}
                       >
@@ -608,7 +615,7 @@ export default function PracticePapers() {
                           fontWeight: 600,
                           borderRadius: 9999,
                           padding: '4px 10px',
-                          background: '#F1F5F9',
+                          background: '#e8eef7',
                           color: C.textSecondary,
                         }}
                       >
@@ -619,8 +626,9 @@ export default function PracticePapers() {
                     actionColor = C.primary;
                   } else {
                     const tone = bandPillTone(ps.bestBand);
-                    const label =
-                      ps.bestBand != null && Number.isFinite(Number(ps.bestBand))
+                    const label = paper.track === 'GENERAL'
+                      ? (ps.bestPct != null ? `Best score ${ps.bestPct}/100` : 'Completed')
+                      : ps.bestBand != null && Number.isFinite(Number(ps.bestBand))
                         ? `Best Band ${Number(ps.bestBand).toFixed(1)}`
                         : 'Completed';
                     statusEl = (
@@ -672,9 +680,6 @@ export default function PracticePapers() {
                         borderRadius: 16,
                         padding: 20,
                         border: `1px solid ${C.cardBorder}`,
-                        borderTopWidth: 3,
-                        borderTopStyle: 'solid',
-                        borderTopColor: skillMeta.stroke,
                         boxShadow: C.shadow,
                         cursor: busy ? 'wait' : 'pointer',
                         position: 'relative',
@@ -785,7 +790,7 @@ export default function PracticePapers() {
                           flexWrap: 'wrap',
                         }}
                       >
-                        <div style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>
+                        <div style={{ fontSize: 12, fontWeight: 400, color: C.textMuted }}>
                           ⏱ {paper.timeLimitMin || 60} min
                           {lastTxt}
                         </div>
@@ -796,7 +801,7 @@ export default function PracticePapers() {
                                 fontSize: 13,
                                 fontWeight: 600,
                                 color: C.textSecondary,
-                                fontFamily: 'Inter, sans-serif',
+                                fontFamily: 'Source Sans Pro, sans-serif',
                                 cursor: 'pointer',
                               }}
                             >
@@ -813,7 +818,7 @@ export default function PracticePapers() {
                                 fontSize: 13,
                                 fontWeight: 600,
                                 color: busy ? C.textMuted : C.primary,
-                                fontFamily: 'Inter, sans-serif',
+                                fontFamily: 'Source Sans Pro, sans-serif',
                                 background: 'none',
                                 border: 'none',
                                 cursor: busy ? 'wait' : 'pointer',
@@ -829,7 +834,7 @@ export default function PracticePapers() {
                               fontSize: 13,
                               fontWeight: 600,
                               color: busy ? C.textMuted : actionColor,
-                              fontFamily: 'Inter, sans-serif',
+                              fontFamily: 'Source Sans Pro, sans-serif',
                               cursor: busy ? 'wait' : 'inherit',
                             }}
                           >

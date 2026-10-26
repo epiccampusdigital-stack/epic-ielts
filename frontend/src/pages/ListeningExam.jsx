@@ -205,30 +205,30 @@ export default function ListeningExam() {
     <div style={{
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      minHeight: '100vh', background: '#f8fafc',
-      fontFamily: 'Inter, sans-serif'
+      minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif'
     }}>
       <div style={{
         background: '#fff', borderRadius: 20,
         padding: '48px 56px', textAlign: 'center',
         boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
-        border: '1px solid #e2e8f0', maxWidth: 400
+        border: '1px solid #dae1ed', maxWidth: 400
       }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🎧</div>
-        <h2 style={{ color: '#1a1a2e', fontWeight: 800,
+        <h2 style={{ color: '#0f1114', fontWeight: 700,
           fontSize: 22, marginBottom: 8,
-          fontFamily: 'Inter, sans-serif' }}>
+          fontFamily: 'Source Sans Pro, sans-serif' }}>
           Submitting your listening test...
         </h2>
-        <p style={{ color: '#64748b', fontSize: 14,
+        <p style={{ color: '#5b6780', fontSize: 14,
           marginBottom: 24, lineHeight: 1.6 }}>
           Your answers are being saved and marked.
           Please do not close this window.
         </p>
         <div style={{
           width: 40, height: 40,
-          border: '4px solid #e2e8f0',
-          borderTop: '4px solid #4f46e5',
+          border: '4px solid #dae1ed',
+          borderTop: '4px solid #0056d2',
           borderRadius: '50%',
           animation: 'spin 1s linear infinite',
           margin: '0 auto'
@@ -248,12 +248,12 @@ export default function ListeningExam() {
   const renderTable = (tableData) => {
     if (!tableData) return null;
     return (
-      <div style={{ overflowX: 'auto', margin: '20px 0', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
+      <div style={{ overflowX: 'auto', margin: '20px 0', border: '1px solid #dae1ed', borderRadius: '12px', background: '#fff' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
-            <tr style={{ background: '#f8fafc' }}>
+            <tr style={{ background: '#f7f9fc' }}>
               {(tableData.headers || []).map((h, i) => (
-                <th key={i} style={{ padding: '12px', border: '1px solid #e2e8f0', color: '#475569', fontWeight: '700' }}>{h}</th>
+                <th key={i} style={{ padding: '12px', border: '1px solid #dae1ed', color: '#5b6780', fontWeight: '700' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -261,10 +261,10 @@ export default function ListeningExam() {
             {(tableData.rows || []).map((row, ri) => (
               <tr key={ri}>
                 {row.map((cell, ci) => (
-                  <td key={ci} style={{ padding: '12px', border: '1px solid #e2e8f0' }}>
+                  <td key={ci} style={{ padding: '12px', border: '1px solid #dae1ed' }}>
                     {cell.blank ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: '800', color: '#4f46e5' }}>{cell.questionNumber}</span>
+                        <span style={{ fontWeight: 700, color: '#0056d2' }}>{cell.questionNumber}</span>
                         {(() => {
                           const q = questionMap[cell.questionNumber];
                           return q
@@ -277,7 +277,7 @@ export default function ListeningExam() {
                         })()}
                       </div>
                     ) : (
-                      <span style={{ color: '#1e293b' }}>{cell.text}</span>
+                      <span style={{ color: '#0f1114' }}>{cell.text}</span>
                     )}
                   </td>
                 ))}
@@ -290,42 +290,42 @@ export default function ListeningExam() {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', background: '#f8fafc', overflow: 'hidden' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Source Sans Pro, sans-serif', background: '#f7f9fc', overflow: 'hidden' }}>
       <style>{`
-        .listen-input { width: 100%; border: none; border-bottom: 2px solid #cbd5e1; padding: 6px 2px; font-size: 14px; color: #1e293b; background: transparent; outline: none; transition: border-color 0.2s; }
-        .listen-input:focus { border-bottom-color: #4f46e5; }
-        .choice-btn { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 12px; background: #fff; cursor: pointer; margin-bottom: 8px; width: 100%; text-align: left; }
-        .choice-btn.selected { border-color: #4f46e5; background: #f5f3ff; }
+        .listen-input { width: 100%; border: none; border-bottom: 2px solid #c3cddd; padding: 6px 2px; font-size: 14px; color: #0f1114; background: transparent; outline: none; transition: border-color 0.2s; }
+        .listen-input:focus { border-bottom-color: #0056d2; }
+        .choice-btn { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1.5px solid #dae1ed; border-radius: 12px; background: #fff; cursor: pointer; margin-bottom: 8px; width: 100%; text-align: left; }
+        .choice-btn.selected { border-color: #0056d2; background: #f0f6ff; }
       `}</style>
 
       {showInstructions && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
           <div style={{ background: '#fff', borderRadius: 24, padding: 48, maxWidth: 600, width: '90%', textAlign: 'center' }}>
-            <h2 style={{ fontSize: 32, fontWeight: 900, color: '#1e293b', marginBottom: 16 }}>IELTS Listening Test</h2>
-            <div style={{ textAlign: 'left', background: '#f1f5f9', padding: 24, borderRadius: 16, marginBottom: 32 }}>
-              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 15, color: '#475569', lineHeight: 1.8 }}>
+            <h2 style={{ fontSize: 32, fontWeight: 700, color: '#0f1114', marginBottom: 16 }}>IELTS Listening Test</h2>
+            <div style={{ textAlign: 'left', background: '#e8eef7', padding: 24, borderRadius: 16, marginBottom: 32 }}>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 15, color: '#5b6780', lineHeight: 1.8 }}>
                 <li>There are 4 sections. Audio plays <b>ONCE ONLY</b> (unless Practice Mode).</li>
                 <li>Answer questions as you listen.</li>
                 <li>10 minutes transfer time included in the total timer.</li>
               </ul>
             </div>
-            <button onClick={() => setShowInstructions(false)} style={{ padding: '18px 48px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 16, fontSize: 18, fontWeight: 800, cursor: 'pointer' }}>Start Exam</button>
+            <button onClick={() => setShowInstructions(false)} style={{ padding: '18px 48px', background: '#0056d2', color: '#fff', border: 'none', borderRadius: 16, fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>Start Exam</button>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ background: '#fff', padding: '0 32px', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ background: '#fff', padding: '0 32px', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #dae1ed' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <img src="/logo.png" style={{ height: 32 }} alt="EPIC" />
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#1e293b' }}>{paper.paperCode}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#0f1114' }}>{paper.paperCode}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>TIME LEFT</span>
-            <span style={{ fontSize: 24, fontWeight: 900, color: timeLeft < 300 ? '#ef4444' : '#1e293b', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
+          <div style={{ background: '#f7f9fc', border: '1px solid #dae1ed', padding: '8px 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#5b6780' }}>TIME LEFT</span>
+            <span style={{ fontSize: 24, fontWeight: 700, color: timeLeft < 300 ? '#ef4444' : '#0f1114', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
           </div>
-          <button onClick={() => handleEnd(false)} disabled={submitting} style={{ padding: '12px 28px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>
+          <button onClick={() => handleEnd(false)} disabled={submitting} style={{ padding: '12px 28px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>
             {submitting ? 'Submitting...' : 'Finish Test'}
           </button>
         </div>
@@ -333,16 +333,16 @@ export default function ListeningExam() {
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div style={{ width: '380px', borderRight: '1px solid #e2e8f0', background: '#fff', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: '380px', borderRight: '1px solid #dae1ed', background: '#fff', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: 32, flex: 1 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 24 }}>Sections</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f1114', marginBottom: 24 }}>Sections</h3>
             <div style={{ display: 'grid', gap: 12 }}>
               {sections.map((s, idx) => {
                 const sQs = (s.groups || []).flatMap(g => g.questions || []);
                 const sMin = sQs.length ? Math.min(...sQs.map(q => q.questionNumber || 0)) : '?';
                 const sMax = sQs.length ? Math.max(...sQs.map(q => q.questionNumber || 0)) : '?';
                 return (
-                  <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid', borderColor: activeSIdx === idx ? '#4f46e5' : '#e2e8f0', background: activeSIdx === idx ? '#f5f3ff' : '#fff', color: activeSIdx === idx ? '#4f46e5' : '#64748b', fontWeight: 800, cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid', borderColor: activeSIdx === idx ? '#0056d2' : '#dae1ed', background: activeSIdx === idx ? '#f0f6ff' : '#fff', color: activeSIdx === idx ? '#0056d2' : '#5b6780', fontWeight: 700, cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div>Section {s.number}</div>
                       <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, marginTop: 2 }}>Q{sMin}–{sMax}</div>
@@ -353,28 +353,28 @@ export default function ListeningExam() {
               })}
             </div>
 
-            <div style={{ marginTop: 40, background: '#f1f5f9', borderRadius: 20, padding: 24, textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', marginBottom: 12 }}>AUDIO CONTROL</div>
+            <div style={{ marginTop: 40, background: '#e8eef7', borderRadius: 20, padding: 24, textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#5b6780', marginBottom: 12 }}>AUDIO CONTROL</div>
               {(() => {
                 const audioUrl = currentSection.audioUrl || paper.audioUrl || null;
                 if (!audioUrl && scriptFor(currentSection)) {
                   const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
                   if (!canSpeak) return <div style={{ fontSize: 12, color: '#b42318' }}>This browser cannot play the recording. Please use Chrome or Edge.</div>;
-                  if (ttsPlaying === currentSection.id) return <div style={{ fontSize: 13, color: '#4f46e5', fontWeight: 800 }}>Playing... the recording plays twice</div>;
-                  if (playedSections[currentSection.id] && !paper.practiceMode) return <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>✅ Played</div>;
+                  if (ttsPlaying === currentSection.id) return <div style={{ fontSize: 13, color: '#0056d2', fontWeight: 700 }}>Playing... the recording plays twice</div>;
+                  if (playedSections[currentSection.id] && !paper.practiceMode) return <div style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>✅ Played</div>;
                   return (
-                    <button onClick={() => speakScript(currentSection)} style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>▶ Play recording (plays twice)</button>
+                    <button onClick={() => speakScript(currentSection)} style={{ width: '100%', padding: '14px', background: '#0056d2', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Play recording (plays twice)</button>
                   );
                 }
-                if (!audioUrl) return <div style={{ fontSize: 12, color: '#94a3b8' }}>No audio file attached</div>;
+                if (!audioUrl) return <div style={{ fontSize: 12, color: '#8495b0' }}>No audio file attached</div>;
                 return (
                   <>
                     <audio ref={audioRef} src={getFullUrl(audioUrl)} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
                     {!paper.practiceMode && (
                       playedSections[currentSection.id] ? (
-                        <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>✅ Played Once</div>
+                        <div style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>✅ Played Once</div>
                       ) : (
-                        <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>▶ Play Audio</button>
+                        <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#0056d2', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Play Audio</button>
                       )
                     )}
                   </>
@@ -387,14 +387,14 @@ export default function ListeningExam() {
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '48px 64px', background: '#fff' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#0f1114', marginBottom: 8 }}>
               Section {currentSection.number}
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#64748b', marginLeft: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#5b6780', marginLeft: 12 }}>
                 Questions {minQ}–{maxQ}
               </span>
             </h1>
             {currentSection.description && (
-              <p style={{ fontSize: 14, color: '#64748b', marginBottom: 40, lineHeight: 1.6 }}>{currentSection.description}</p>
+              <p style={{ fontSize: 14, color: '#5b6780', marginBottom: 40, lineHeight: 1.6 }}>{currentSection.description}</p>
             )}
 
             {sortByNumber((currentSection.groups || []).flatMap(g => [])).length === 0 && (
@@ -403,13 +403,13 @@ export default function ListeningExam() {
 
             {(currentSection.groups || []).map((group, gIdx) => (
               <div key={gIdx} style={{ marginBottom: 48 }}>
-                <div style={{ background: '#f8fafc', borderLeft: '4px solid #4f46e5', padding: 20, borderRadius: '4px 16px 16px 4px', marginBottom: 24 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 4, whiteSpace: 'pre-wrap' }}>{group.instruction}</div>
-                  {group.wordLimit && <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>Write: {group.wordLimit}</div>}
+                <div style={{ background: '#f7f9fc', borderLeft: '4px solid #0056d2', padding: 20, borderRadius: '4px 16px 16px 4px', marginBottom: 24 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0f1114', marginBottom: 4, whiteSpace: 'pre-wrap' }}>{group.instruction}</div>
+                  {group.wordLimit && <div style={{ fontSize: 12, fontWeight: 700, color: '#5b6780' }}>Write: {group.wordLimit}</div>}
                 </div>
 
                 {group.imageUrl && (
-                  <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: 16, marginBottom: 24, border: '1px solid #e2e8f0' }} alt="Question diagram" />
+                  <img src={getFullUrl(group.imageUrl)} style={{ maxWidth: '100%', borderRadius: 16, marginBottom: 24, border: '1px solid #dae1ed' }} alt="Question diagram" />
                 )}
 
                 {group.groupType === 'TABLE_COMPLETION' && renderTable(group.tableData)}
@@ -422,11 +422,11 @@ export default function ListeningExam() {
 
                     return (
                       <div key={q.id} style={{ display: 'flex', gap: 16 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: answers[q.id] ? '#4f46e5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: answers[q.id] ? '#fff' : '#475569', flexShrink: 0, transition: 'all 0.2s' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: answers[q.id] ? '#0056d2' : '#e8eef7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: answers[q.id] ? '#fff' : '#5b6780', flexShrink: 0, transition: 'all 0.2s' }}>
                           {q.questionNumber}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 15, color: '#1e293b', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
+                          <div style={{ fontSize: 15, color: '#0f1114', lineHeight: 1.6, marginBottom: 12 }}>{q.content}</div>
                           {(q.questionType === 'MULTIPLE_CHOICE' ||
                             q.questionType === 'Multiple Choice' ||
                             q.groupType === 'MULTIPLE_CHOICE' ||
@@ -444,7 +444,7 @@ export default function ListeningExam() {
                                 const optLetter = String(opt).trim().match(/^([A-D])\./)?.[1] || opt;
                                 const selected = answers[q.id] === optLetter || answers[q.id] === opt;
                                 return (
-                                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: selected ? '#f5f3ff' : '#fff', border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', width: '100%' }}>
+                                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: selected ? '#f0f6ff' : '#fff', border: `1.5px solid ${selected ? '#0056d2' : '#dae1ed'}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', width: '100%' }}>
                                     <input
                                       type="radio"
                                       name={`q${q.id}`}
@@ -457,9 +457,9 @@ export default function ListeningExam() {
                                           return next;
                                         });
                                       }}
-                                      style={{ accentColor: '#4f46e5', flexShrink: 0 }}
+                                      style={{ accentColor: '#0056d2', flexShrink: 0 }}
                                     />
-                                    <span style={{ fontSize: 14, fontWeight: selected ? 700 : 500, color: selected ? '#4f46e5' : '#475569', lineHeight: 1.4 }}>{opt}</span>
+                                    <span style={{ fontSize: 14, fontWeight: selected ? 700 : 500, color: selected ? '#0056d2' : '#5b6780', lineHeight: 1.4 }}>{opt}</span>
                                   </label>
                                 );
                               })}
@@ -489,13 +489,13 @@ export default function ListeningExam() {
       </div>
 
       {/* Navigator Footer */}
-      <div style={{ height: 64, background: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <div style={{ height: 64, background: '#fff', borderTop: '1px solid #dae1ed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         {sections.map((s, idx) => {
           const sQs = (s.groups || []).flatMap(g => g.questions || []);
           const sMin = sQs.length ? Math.min(...sQs.map(q => q.questionNumber || 0)) : '?';
           const sMax = sQs.length ? Math.max(...sQs.map(q => q.questionNumber || 0)) : '?';
           return (
-            <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: activeSIdx === idx ? '#1e293b' : '#f1f5f9', color: activeSIdx === idx ? '#fff' : '#64748b', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            <button key={s.id} onClick={() => setActiveSIdx(idx)} style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: activeSIdx === idx ? '#0f1114' : '#e8eef7', color: activeSIdx === idx ? '#fff' : '#5b6780', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
               Section {s.number}
               <span style={{ fontSize: 10, marginLeft: 6, opacity: 0.7 }}>Q{sMin}–{sMax}</span>
             </button>

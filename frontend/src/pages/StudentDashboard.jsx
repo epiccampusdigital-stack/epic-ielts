@@ -36,28 +36,28 @@ const SKILL_ICONS = {
 
 /** Spec skill colours */
 const SKILL_STYLE = {
-  READING: { stroke: '#2563EB', top: '#2563EB', bgSoft: '#EFF6FF' },
+  READING: { stroke: '#0056d2', top: '#0056d2', bgSoft: '#f0f6ff' },
   WRITING: { stroke: '#D97706', top: '#D97706', bgSoft: '#FFFBEB' },
-  LISTENING: { stroke: '#7C3AED', top: '#7C3AED', bgSoft: '#F5F3FF' },
+  LISTENING: { stroke: '#003b8f', top: '#003b8f', bgSoft: '#f0f6ff' },
   SPEAKING: { stroke: '#DB2777', top: '#DB2777', bgSoft: '#FDF2F8' },
 };
 
 const C = {
-  pageBg: '#F8FAFC',
+  pageBg: '#f7f9fc',
   cardBg: '#FFFFFF',
-  cardBorder: '#E2E8F0',
-  subtleBorder: '#F1F5F9',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
-  primary: '#4F46E5',
-  primaryHover: '#4338CA',
-  primarySoft: '#EEF2FF',
-  accent: '#7C3AED',
-  accentSoft: '#F5F3FF',
+  cardBorder: '#dae1ed',
+  subtleBorder: '#e8eef7',
+  text: '#0f1114',
+  textSecondary: '#5b6780',
+  textMuted: '#8495b0',
+  primary: '#0056d2',
+  primaryHover: '#0048b0',
+  primarySoft: '#e3eeff',
+  accent: '#003b8f',
+  accentSoft: '#f0f6ff',
   success: '#059669',
   warning: '#D97706',
-  neutralBand: '#64748B',
+  neutralBand: '#5b6780',
   shadow: '0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.03)',
   shadowHover: '0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)',
   shadowHero: '0 10px 30px rgba(79,70,229,0.06)',
@@ -195,7 +195,7 @@ function SvgSparkline({ values, stroke, dashed, stretch }) {
           y1="12"
           x2="96"
           y2="12"
-          stroke="#E2E8F0"
+          stroke="#dae1ed"
           strokeWidth="1"
           strokeDasharray="4 4"
           strokeLinecap="round"
@@ -326,25 +326,7 @@ function getCoachMessage({
 }
 
 // General English has no IELTS band: it gets its own dashboard with scores out of 100
-// New students (no placement test taken yet) are sent to the placement test once per login session.
-const WELCOME_KEY = 'epicPlacementPrompted';
-
 export default function StudentDashboard() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    let seen = false;
-    try { seen = sessionStorage.getItem(WELCOME_KEY) === '1'; } catch { /* storage blocked */ }
-    if (seen) return;
-    let cancelled = false;
-    axios.get(`${API_URL}/api/attempts/placement/mine`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-      .then(res => {
-        try { sessionStorage.setItem(WELCOME_KEY, '1'); } catch { /* storage blocked */ }
-        const none = Array.isArray(res.data) && res.data.length === 0;
-        if (none && !cancelled) navigate('/placement-test?welcome=1', { replace: true });
-      })
-      .catch(() => { /* dashboard still works without it */ });
-    return () => { cancelled = true; };
-  }, [navigate]);
   return getTrack() === 'GENERAL' ? <GeneralDashboard /> : <IeltsDashboard />;
 }
 
@@ -814,12 +796,12 @@ function IeltsDashboard() {
         style={{
           minHeight: '100vh',
           background: C.pageBg,
-          fontFamily: 'Inter, sans-serif',
+          fontFamily: 'Source Sans Pro, sans-serif',
         }}
       >
         <style>{`
           .dash-page { box-sizing: border-box; }
-          .dash-skel { background: #E2E8F0; border-radius: 16px; animation: dashPulse 1.2s ease-in-out infinite; }
+          .dash-skel { background: #dae1ed; border-radius: 16px; animation: dashPulse 1.2s ease-in-out infinite; }
           @keyframes dashPulse { 0%,100%{ opacity:1 } 50%{ opacity:0.55 } }
           @media (max-width: 767px) {
             .dash-hero-inner { flex-direction: column !important; }
@@ -870,7 +852,7 @@ function IeltsDashboard() {
       style={{
         minHeight: '100vh',
         background: C.pageBg,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'Source Sans Pro, sans-serif',
         color: C.text,
       }}
     >
@@ -928,19 +910,19 @@ function IeltsDashboard() {
         }
         .dash-skill-card { transition: transform ${C.transition}, box-shadow ${C.transition}, border-color ${C.transition}; }
         .dash-skill-card.skill-READING:hover {
-          border-color: #2563EB !important;
+          border-color: #0056d2 !important;
         }
         .dash-skill-card.skill-WRITING:hover {
           border-color: #D97706 !important;
         }
         .dash-skill-card.skill-LISTENING:hover {
-          border-color: #7C3AED !important;
+          border-color: #003b8f !important;
         }
         .dash-skill-card.skill-SPEAKING:hover {
           border-color: #DB2777 !important;
         }
         .dash-row-hover { transition: background ${C.transition}; }
-        .dash-row-hover:hover { background: #F8FAFC; }
+        .dash-row-hover:hover { background: #f7f9fc; }
         .dash-session-pulse { animation: sessionGlow 2s ease-in-out infinite; }
         @media (max-width: 767px) {
           .dash-hero-inner { flex-direction: column !important; }
@@ -990,8 +972,8 @@ function IeltsDashboard() {
           >
             <defs>
               <radialGradient id="dashBlob1" cx="0%" cy="0%" r="60%">
-                <stop offset="0%" stopColor="#A5B4FC" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#A5B4FC" stopOpacity="0" />
+                <stop offset="0%" stopColor="#9cc0f5" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#9cc0f5" stopOpacity="0" />
               </radialGradient>
               <radialGradient id="dashBlob2" cx="100%" cy="100%" r="50%">
                 <stop offset="0%" stopColor="#C4B5FD" stopOpacity="0.4" />
@@ -1021,7 +1003,7 @@ function IeltsDashboard() {
                   color: C.text,
                   margin: '0 0 16px',
                   lineHeight: 1.2,
-                  fontFamily: 'Inter, sans-serif',
+                  fontFamily: 'Source Sans Pro, sans-serif',
                 }}
               >
                 Hello, {firstName} 👋
@@ -1043,7 +1025,7 @@ function IeltsDashboard() {
                       style={{
                         padding: '6px 10px',
                         fontSize: 13,
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Source Sans Pro, sans-serif',
                         border: `1px solid ${C.cardBorder}`,
                         borderRadius: 10,
                       }}
@@ -1059,7 +1041,7 @@ function IeltsDashboard() {
                         cursor: 'pointer',
                         fontSize: 16,
                         color: C.textMuted,
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Source Sans Pro, sans-serif',
                       }}
                     >
                       ✕
@@ -1081,7 +1063,7 @@ function IeltsDashboard() {
                       fontSize: 13,
                       fontWeight: 600,
                       cursor: 'pointer',
-                      fontFamily: 'Inter, sans-serif',
+                      fontFamily: 'Source Sans Pro, sans-serif',
                     }}
                   >
                     📅 Set your exam date
@@ -1103,7 +1085,7 @@ function IeltsDashboard() {
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: 'pointer',
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Source Sans Pro, sans-serif',
                       }}
                     >
                       📅 Exam in {daysToExam} day{daysToExam === 1 ? '' : 's'}
@@ -1139,7 +1121,7 @@ function IeltsDashboard() {
                       fontSize: 13,
                       fontWeight: 600,
                       cursor: 'pointer',
-                      fontFamily: 'Inter, sans-serif',
+                      fontFamily: 'Source Sans Pro, sans-serif',
                     }}
                   >
                     📅 Exam is today — give it your best.
@@ -1155,12 +1137,12 @@ function IeltsDashboard() {
                       padding: '4px 12px',
                       borderRadius: 9999,
                       border: 'none',
-                      background: '#F1F5F9',
+                      background: '#e8eef7',
                       color: C.textSecondary,
                       fontSize: 13,
                       fontWeight: 600,
                       cursor: 'pointer',
-                      fontFamily: 'Inter, sans-serif',
+                      fontFamily: 'Source Sans Pro, sans-serif',
                       textAlign: 'left',
                     }}
                   >
@@ -1179,7 +1161,7 @@ function IeltsDashboard() {
                         width: 24,
                         textAlign: 'center',
                         fontSize: 11,
-                        fontWeight: 500,
+                        fontWeight: 400,
                         color: C.textMuted,
                         flexShrink: 0,
                       }}
@@ -1247,14 +1229,14 @@ function IeltsDashboard() {
                         key={`${cell.key}-dot`}
                         style={{
                           ...base,
-                          background: '#F1F5F9',
+                          background: '#e8eef7',
                           border: '2px solid transparent',
                         }}
                       />
                     );
                   })}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: C.textMuted, marginTop: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 400, color: C.textMuted, marginTop: 8 }}>
                   Last 7 days · {streak}-day streak
                 </div>
               </div>
@@ -1307,9 +1289,9 @@ function IeltsDashboard() {
                     fontSize: 72,
                     fontWeight: 700,
                     fontVariantNumeric: 'tabular-nums',
-                    color: currentBand != null ? C.primary : '#CBD5E1',
+                    color: currentBand != null ? C.primary : '#c3cddd',
                     lineHeight: 1,
-                    fontFamily: 'Inter, sans-serif',
+                    fontFamily: 'Source Sans Pro, sans-serif',
                   }}
                 >
                   {currentBand != null ? Number(currentBand).toFixed(1) : '—'}
@@ -1384,7 +1366,7 @@ function IeltsDashboard() {
                     />
                   )}
                 </div>
-                <div style={{ marginTop: 12, fontSize: 12, fontWeight: 500 }}>
+                <div style={{ marginTop: 12, fontSize: 12, fontWeight: 400 }}>
                   {currentBand == null ? null : goalReached ? (
                     <span style={{ color: C.success }}>🎯 Goal reached</span>
                   ) : (
@@ -1456,7 +1438,7 @@ function IeltsDashboard() {
                 boxShadow: C.shadow,
                 transition: `background ${C.transition}, box-shadow ${C.transition}, transform ${C.transition}`,
                 opacity: todayBusy ? 0.75 : 1,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'Source Sans Pro, sans-serif',
               }}
               onMouseEnter={e => {
                 if (!todayBusy) e.currentTarget.style.background = C.primaryHover;
@@ -1522,7 +1504,7 @@ function IeltsDashboard() {
                   color: '#FFFFFF',
                   fontSize: 13,
                   fontWeight: 600,
-                  fontFamily: 'Inter, sans-serif',
+                  fontFamily: 'Source Sans Pro, sans-serif',
                   opacity: focusBusy ? 0.85 : 1,
                   transition: `background ${C.transition}`,
                 }}
@@ -1570,7 +1552,7 @@ function IeltsDashboard() {
                   borderRadius: 16,
                   padding: 20,
                   border: `1px solid ${C.cardBorder}`,
-                  borderTop: `4px solid ${meta.top}`,
+                  
                   boxShadow: C.shadow,
                   cursor: 'pointer',
                 }}
@@ -1611,7 +1593,7 @@ function IeltsDashboard() {
                       fontSize: 32,
                       fontWeight: 700,
                       fontVariantNumeric: 'tabular-nums',
-                      color: st.latest != null ? meta.stroke : '#CBD5E1',
+                      color: st.latest != null ? meta.stroke : '#c3cddd',
                     }}
                   >
                     {st.latest != null ? Number(st.latest).toFixed(1) : '—'}
@@ -1627,7 +1609,7 @@ function IeltsDashboard() {
                           ? { background: '#ECFDF5', color: C.success }
                           : st.trend < 0
                             ? { background: '#FFFBEB', color: C.warning }
-                            : { background: '#F1F5F9', color: C.neutralBand }),
+                            : { background: '#e8eef7', color: C.neutralBand }),
                       }}
                     >
                       {st.trend > 0 ? `▲ +${st.trend.toFixed(1)}` : st.trend < 0 ? `▼ ${st.trend.toFixed(1)}` : '● 0.0'}
@@ -1656,7 +1638,7 @@ function IeltsDashboard() {
               fontWeight: 600,
               color: C.text,
               margin: '0 0 16px',
-              fontFamily: 'Inter, sans-serif',
+              fontFamily: 'Source Sans Pro, sans-serif',
             }}
           >
             Recent activity
@@ -1672,7 +1654,7 @@ function IeltsDashboard() {
           ) : (
             <>
               {narrative && (
-                <p style={{ fontSize: 15, color: '#334155', margin: '0 0 24px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: 15, color: '#1e2229', margin: '0 0 24px', lineHeight: 1.5 }}>
                   In the last {narrative.N} days you&apos;ve done {narrative.X} paper
                   {narrative.X === 1 ? '' : 's'}. Average band: {narrative.avg}.
                 </p>
@@ -1705,7 +1687,7 @@ function IeltsDashboard() {
                       <div style={{ minWidth: 0, paddingRight: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 20 }}>{SKILL_ICONS[skill]}</span>
-                          <span style={{ fontSize: 14, fontWeight: 500, color: C.text }}>
+                          <span style={{ fontSize: 14, fontWeight: 400, color: C.text }}>
                             {attempt.paper?.title || SKILL_LABEL[skill]}
                           </span>
                           {attempt.paper?.paperCode && (
@@ -1743,10 +1725,10 @@ function IeltsDashboard() {
                     background: 'none',
                     padding: 0,
                     fontSize: 13,
-                    fontWeight: 500,
+                    fontWeight: 400,
                     color: C.primary,
                     cursor: 'pointer',
-                    fontFamily: 'Inter, sans-serif',
+                    fontFamily: 'Source Sans Pro, sans-serif',
                     textDecoration: 'none',
                   }}
                 >
@@ -1790,7 +1772,7 @@ function IeltsDashboard() {
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                color: '#2563EB',
+                color: '#0056d2',
               }}
             >
               PRACTICE
@@ -1799,7 +1781,7 @@ function IeltsDashboard() {
             <p style={{ fontSize: 13, color: C.textMuted, margin: '8px 0 16px' }}>
               {totalPapers} papers · {completedPaperCount} done
             </p>
-            <div style={{ height: 4, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
+            <div style={{ height: 4, background: '#e8eef7', borderRadius: 9999, overflow: 'hidden' }}>
               <div
                 style={{
                   height: '100%',
@@ -1849,7 +1831,7 @@ function IeltsDashboard() {
                 ? `Level ${levelInfo.level} ${levelInfo.name}`
                 : 'Take placement test to unlock'}
             </p>
-            <div style={{ height: 4, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
+            <div style={{ height: 4, background: '#e8eef7', borderRadius: 9999, overflow: 'hidden' }}>
               <div
                 style={{
                   height: '100%',
@@ -1940,7 +1922,7 @@ function IeltsDashboard() {
               const writingBar = (label, bb, bbOk) => (
                 <div key={label} style={{ marginBottom: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: C.textSecondary }}>{label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 400, color: C.textSecondary }}>{label}</span>
                     <span
                       style={{
                         fontSize: 16,
@@ -1956,7 +1938,7 @@ function IeltsDashboard() {
                     style={{
                       height: 6,
                       borderRadius: 9999,
-                      background: '#F1F5F9',
+                      background: '#e8eef7',
                       overflow: 'hidden',
                     }}
                   >
@@ -1965,7 +1947,7 @@ function IeltsDashboard() {
                         height: '100%',
                         width: bbOk ? `${Math.min(100, Math.max(0, (Number(bb) / 9) * 100))}%` : 0,
                         borderRadius: 9999,
-                        background: bbOk ? `${meta.stroke}` : '#E2E8F0',
+                        background: bbOk ? `${meta.stroke}` : '#dae1ed',
                         opacity: bbOk ? 0.85 : 0.35,
                         transition: 'width 260ms cubic-bezier(0.4, 0, 0.2, 1)',
                       }}
@@ -1998,7 +1980,7 @@ function IeltsDashboard() {
                             fontSize: 24,
                             fontWeight: 700,
                             fontVariantNumeric: 'tabular-nums',
-                            color: st.latest != null ? meta.stroke : '#CBD5E1',
+                            color: st.latest != null ? meta.stroke : '#c3cddd',
                           }}
                         >
                           {st.latest != null ? Number(st.latest).toFixed(1) : '—'}
@@ -2014,7 +1996,7 @@ function IeltsDashboard() {
                                 ? { background: '#ECFDF5', color: C.success }
                                 : st.trend < 0
                                   ? { background: '#FFFBEB', color: C.warning }
-                                  : { background: '#F1F5F9', color: C.neutralBand }),
+                                  : { background: '#e8eef7', color: C.neutralBand }),
                             }}
                           >
                             {st.trend > 0
@@ -2045,10 +2027,10 @@ function IeltsDashboard() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         transition: `background ${C.transition}, color ${C.transition}`,
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Source Sans Pro, sans-serif',
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.background = '#F1F5F9';
+                        e.currentTarget.style.background = '#e8eef7';
                         e.currentTarget.style.color = C.text;
                       }}
                       onMouseLeave={e => {
@@ -2088,7 +2070,7 @@ function IeltsDashboard() {
                           >
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 14, fontWeight: 500, color: C.text }}>
+                                <span style={{ fontSize: 14, fontWeight: 400, color: C.text }}>
                                   {attempt.paper?.title || SKILL_LABEL[skill]}
                                 </span>
                                 {attempt.paper?.paperCode && (
@@ -2213,7 +2195,7 @@ function IeltsDashboard() {
                             COMPLETE
                           </span>
                         ) : (
-                          <div style={{ fontSize: 13, fontWeight: 500, color: C.textMuted, marginBottom: 12 }}>
+                          <div style={{ fontSize: 13, fontWeight: 400, color: C.textMuted, marginBottom: 12 }}>
                             Marking in progress…
                           </div>
                         )}
@@ -2242,11 +2224,11 @@ function IeltsDashboard() {
                                 background: 'none',
                                 padding: 0,
                                 fontSize: 13,
-                                fontWeight: 500,
+                                fontWeight: 400,
                                 color: C.primary,
                                 cursor: 'pointer',
                                 textDecoration: 'none',
-                                fontFamily: 'Inter, sans-serif',
+                                fontFamily: 'Source Sans Pro, sans-serif',
                               }}
                             >
                               Read more →
@@ -2300,10 +2282,10 @@ function IeltsDashboard() {
                         background: 'none',
                         padding: 0,
                         fontSize: 13,
-                        fontWeight: 500,
+                        fontWeight: 400,
                         color: C.primary,
                         cursor: 'pointer',
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Source Sans Pro, sans-serif',
                         textDecoration: 'none',
                       }}
                       onMouseEnter={e => {

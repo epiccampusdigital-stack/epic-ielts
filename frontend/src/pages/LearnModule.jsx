@@ -25,24 +25,24 @@ export default function LearnModule() {
   }, [moduleId]);
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
       <div style={{ display: 'flex', alignItems: 'center',
         justifyContent: 'center', minHeight: '60vh',
-        color: '#94A3B8' }}>Loading...</div>
+        color: '#8495b0' }}>Loading...</div>
     </div>
   );
 
   if (!mod) return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
       <div style={{ textAlign: 'center', padding: 80,
-        color: '#94A3B8' }}>
+        color: '#8495b0' }}>
         Module not found.{' '}
         <button onClick={() => navigate('/learn')}
-          style={{ color: '#4F46E5', background: 'none',
+          style={{ color: '#0056d2', background: 'none',
             border: 'none', cursor: 'pointer' }}>
           Back to Learn
         </button>
@@ -55,8 +55,8 @@ export default function LearnModule() {
     : 0;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
 
       <div style={{ maxWidth: 760, margin: '0 auto',
@@ -65,29 +65,29 @@ export default function LearnModule() {
         {/* Breadcrumb */}
         <button onClick={() => navigate('/learn')}
           style={{ background: 'none', border: 'none',
-            color: '#4F46E5', cursor: 'pointer', fontSize: 13,
-            padding: 0, marginBottom: 24, fontFamily: 'Inter' }}>
+            color: '#0056d2', cursor: 'pointer', fontSize: 13,
+            padding: 0, marginBottom: 24, fontFamily: 'Source Sans Pro' }}>
           ← Back to Learn
         </button>
 
         {/* Module header */}
         <div style={{
           background: 'white', borderRadius: 16,
-          padding: '28px 32px', border: '1px solid #E2E8F0',
+          padding: '28px 32px', border: '1px solid #dae1ed',
           borderTop: `4px solid ${mod.color}`,
           marginBottom: 24,
           boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center',
             gap: 16, marginBottom: 12 }}>
-            <span style={{ fontSize: 36 }}>{mod.icon}</span>
+            
             <div>
               <h1 style={{ margin: '0 0 4px', fontSize: 22,
-                fontWeight: 700, color: '#0F172A' }}>
+                fontWeight: 700, color: '#0f1114' }}>
                 {mod.title}
               </h1>
               <p style={{ margin: 0, fontSize: 14,
-                color: '#475569' }}>
+                color: '#5b6780' }}>
                 {mod.description}
               </p>
             </div>
@@ -99,14 +99,14 @@ export default function LearnModule() {
               display: 'flex', justifyContent: 'space-between',
               marginBottom: 6, fontSize: 12,
             }}>
-              <span style={{ color: '#94A3B8' }}>
+              <span style={{ color: '#8495b0' }}>
                 {mod.completedLessons}/{mod.totalLessons} lessons completed
               </span>
               <span style={{ fontWeight: 600, color: mod.color }}>
                 {pct}%
               </span>
             </div>
-            <div style={{ height: 6, background: '#F1F5F9',
+            <div style={{ height: 6, background: '#e8eef7',
               borderRadius: 9999 }}>
               <div style={{
                 height: '100%', width: `${pct}%`,
@@ -134,7 +134,7 @@ export default function LearnModule() {
               }}
               style={{
                 background: 'white', borderRadius: 12,
-                padding: '16px 20px', border: '1px solid #E2E8F0',
+                padding: '16px 20px', border: '1px solid #dae1ed',
                 display: 'flex', alignItems: 'center', gap: 16,
                 cursor: 'pointer', outline: 'none',
                 transition: 'all 180ms ease',
@@ -145,19 +145,19 @@ export default function LearnModule() {
                 e.currentTarget.style.transform = 'translateX(4px)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = '#E2E8F0';
+                e.currentTarget.style.borderColor = '#dae1ed';
                 e.currentTarget.style.transform = 'translateX(0)';
               }}
             >
               {/* Completion circle */}
               <div style={{
                 width: 36, height: 36, borderRadius: '50%',
-                background: lesson.isCompleted ? mod.color : '#F1F5F9',
+                background: lesson.isCompleted ? mod.color : '#e8eef7',
                 display: 'flex', alignItems: 'center',
                 justifyContent: 'center', flexShrink: 0,
                 fontSize: lesson.isCompleted ? 14 : 13,
                 fontWeight: 700,
-                color: lesson.isCompleted ? 'white' : '#94A3B8',
+                color: lesson.isCompleted ? 'white' : '#8495b0',
               }}>
                 {lesson.isCompleted ? '✓' : idx + 1}
               </div>
@@ -166,11 +166,11 @@ export default function LearnModule() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 600,
-                  color: '#0F172A', marginBottom: 2,
+                  color: '#0f1114', marginBottom: 2,
                 }}>
                   {lesson.title}
                 </div>
-                <div style={{ fontSize: 12, color: '#94A3B8' }}>
+                <div style={{ fontSize: 12, color: '#8495b0' }}>
                   {lesson.estimatedMin} min read
                   {lesson.isCompleted && (
                     <span style={{ color: '#059669', marginLeft: 8 }}>
@@ -181,7 +181,7 @@ export default function LearnModule() {
               </div>
 
               {/* Arrow */}
-              <span style={{ color: '#94A3B8', fontSize: 18 }}>›</span>
+              <span style={{ color: '#8495b0', fontSize: 18 }}>›</span>
             </div>
           ))}
         </div>

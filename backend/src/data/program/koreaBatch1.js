@@ -1,5 +1,8 @@
 // 30-day residential programme: Korea scholarship batch 1.
-// 50% English / 50% Korean teaching time. Day 1 = Fri 30 Oct 2026.
+// Two teaching blocks a day: a 4-hour block (8:30 to 12:30) and a 3-hour block (1:30 to 4:30).
+// The languages swap every day, so English and Korean get the same time (105 hours each).
+// Odd days: English morning, Korean afternoon. Even days: Korean morning, English afternoon.
+// The last part of every block is IT lab practice of that block's lesson. Day 1 = Fri 30 Oct 2026.
 // Everything here is a starting point: the tracker lets admins edit any day or session.
 
 const PROGRAM = {
@@ -7,20 +10,20 @@ const PROGRAM = {
   startDate: '2026-10-30',
   totalDays: 30,
   dayStartTime: '08:30',
-  dayEndTime: '20:30',
+  dayEndTime: '19:30',
   koreanSiteUrl: 'https://estudy-topik.info-belearn.chatgpt.site',
   remindMinutes: 30,
 };
 
 // Teacher slots. Names/phones are filled in by the admin in the tracker.
 const TEACHERS = [
-  // Teacher 1 is available before 1 PM only: every one of her sessions ends by 10:30
-  { key: 'EN_MORNING', name: 'English Teacher 1', subject: 'ENGLISH', focus: 'Grammar, writing, reading & vocabulary (mornings only)', confirmed: true },
-  { key: 'EN_SPEAKING', name: 'English Teacher 2', subject: 'ENGLISH', focus: 'Speaking & interviews', confirmed: true },
-  { key: 'EN_LISTENING', name: 'English Teacher 3', subject: 'ENGLISH', focus: 'Listening & IT lab', confirmed: true },
-  { key: 'EN_SUPPORT', name: 'English Teacher 4 (TBC)', subject: 'ENGLISH', focus: 'IT lab & evening clubs', confirmed: false },
-  { key: 'KR_1', name: 'Korean Teacher 1', subject: 'KOREAN', focus: 'Korean (morning blocks)', confirmed: true },
-  { key: 'KR_2', name: 'Korean Teacher 2 (optional)', subject: 'KOREAN', focus: 'Korean (afternoon blocks)', confirmed: false },
+  // Teacher 1 is available before 1 PM only: she teaches the English morning block on odd days (ends 12:30)
+  { key: 'EN_MORNING', name: 'English Teacher 1', subject: 'ENGLISH', focus: 'English morning block on odd days: grammar, writing & speaking (mornings only)', confirmed: true },
+  { key: 'EN_SPEAKING', name: 'English Teacher 2', subject: 'ENGLISH', focus: 'Mock scholarship interviews and final presentations', confirmed: true },
+  { key: 'EN_LISTENING', name: 'English Teacher 3', subject: 'ENGLISH', focus: 'English afternoon block on even days: reading, vocabulary & listening', confirmed: true },
+  { key: 'EN_SUPPORT', name: 'English Teacher 4 (TBC)', subject: 'ENGLISH', focus: 'Cover teacher if someone cannot come', confirmed: false },
+  { key: 'KR_1', name: 'Korean Teacher 1', subject: 'KOREAN', focus: 'Korean lessons (staff)', confirmed: true },
+  { key: 'KR_2', name: 'Korean Teacher 2', subject: 'KOREAN', focus: 'Korean practice & Korean IT lab (staff)', confirmed: true },
 ];
 
 // English syllabus: one row per teaching day.
@@ -75,15 +78,14 @@ const KOREAN = [
   'Final Korean test', 'Graduation speech in Korean',
 ];
 
-// Evening events that replace the default evening slot
+// One evening activity a week, run by campus staff (no teacher cost)
 const EVENINGS = {
-  1: { subject: 'ACTIVITY', language: null, title: 'Welcome night & icebreakers' },
-  5: { subject: 'ACTIVITY', language: 'EN', title: 'Presentation night #1: "This is me" (2 min each)', teacher: 'EN_SPEAKING' },
-  11: { subject: 'ACTIVITY', language: 'EN', title: 'Debate night #1: City life or village life?', teacher: 'EN_SPEAKING' },
-  17: { subject: 'ACTIVITY', language: 'EN', title: 'Presentation night #2: "My best memory"', teacher: 'EN_SPEAKING' },
-  23: { subject: 'ACTIVITY', language: 'EN', title: 'Debate night #2: Is studying abroad worth it?', teacher: 'EN_SPEAKING' },
-  29: { subject: 'ACTIVITY', language: null, title: 'Rehearsal for graduation presentations' },
-  30: { subject: 'ACTIVITY', language: null, title: 'Graduation ceremony & certificates' },
+  1: { subject: 'ACTIVITY', language: null, title: 'Welcome night & icebreakers', description: 'Run by campus staff.' },
+  5: { subject: 'ACTIVITY', language: 'EN', title: 'Presentation night #1: "This is me" (2 min each)', description: 'Run by campus staff. Students use their Day 3 and Day 5 writing.' },
+  11: { subject: 'ACTIVITY', language: 'EN', title: 'Debate night #1: City life or village life?', description: 'Run by campus staff.' },
+  17: { subject: 'ACTIVITY', language: 'EN', title: 'Presentation night #2: "My best memory"', description: 'Run by campus staff.' },
+  23: { subject: 'ACTIVITY', language: 'EN', title: 'Debate night #2: Is studying abroad worth it?', description: 'Run by campus staff.' },
+  30: { subject: 'ACTIVITY', language: null, title: 'Graduation ceremony & certificates', description: 'Run by campus staff with all teachers invited.' },
 };
 
 const MOCK_INTERVIEW_DAYS = { 10: 1, 20: 2, 27: 3 };
@@ -116,78 +118,71 @@ function buildDays() {
   });
 }
 
-// Daily template. Teacher keys rotate so the 4 English teachers share the load by skill.
+// Daily template: a 4-hour block and a 3-hour block, languages swap every day.
 function buildSessions() {
   const sessions = [];
   ENGLISH.forEach((en, i) => {
     const day = i + 1;
     const odd = day % 2 === 1;
     const kr = KOREAN[i];
-    const enA = odd ? { teacher: 'EN_MORNING', skill: 'Grammar & writing', topic: en.g } : { teacher: 'EN_MORNING', skill: 'Reading & vocabulary', topic: en.r };
-    const enB = odd ? { teacher: 'EN_SPEAKING', skill: 'Speaking', topic: en.s } : { teacher: 'EN_LISTENING', skill: 'Listening', topic: en.l };
     const add = s => sessions.push({ dayNumber: day, ...s });
+    const enLab = { subject: 'IT_LAB', language: 'EN', title: 'IT lab: English practice', description: itLabTaskFor(day, en).split(' Korean:')[0], link: '/learn' };
+    const krLab = { subject: 'IT_LAB', language: 'KR', title: 'IT lab: Korean practice', description: `Practise "${kr}" on the Korean site.`, link: 'KOREAN_SITE' };
+    const mid = en.test === 'MID' ? 'Mid-programme' : 'Final';
 
-    // 08:30 warm-up (alternates language; evenings alternate the other way)
-    if (day === 1) {
-      add({ startTime: '08:30', endTime: '09:00', subject: 'ADMIN', language: null, title: 'Welcome & orientation', description: 'Rules, timetable, room allocation, site logins.' });
+    if (odd) {
+      // 8:30 to 12:30 English (4 hours), English Teacher 1
+      if (day === 1) {
+        add({ startTime: '08:30', endTime: '09:00', subject: 'ADMIN', language: null, title: 'Welcome & orientation', description: 'Rules, timetable, rooms, site logins.' });
+        add({ startTime: '09:00', endTime: '11:00', subject: 'ASSESSMENT', language: 'EN', title: 'English placement test, parts 1 to 3 (IT lab)', description: 'Grammar, vocabulary and reading; listening; writing. On epicielts.live (it opens on first login).', teacher: 'EN_MORNING' });
+        add({ startTime: '11:00', endTime: '11:15', subject: 'BREAK', language: null, title: 'Tea break' });
+        add({ startTime: '11:15', endTime: '12:30', subject: 'ENGLISH', language: 'EN', title: 'Placement part 4 (speaking) + English: Speaking', description: `${en.theme}. ${en.s}`, teacher: 'EN_MORNING' });
+      } else if (en.test) {
+        add({ startTime: '08:30', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: `${mid} English test: reading & writing`, teacher: 'EN_MORNING' });
+        add({ startTime: '10:30', endTime: '10:45', subject: 'BREAK', language: null, title: 'Tea break' });
+        add({ startTime: '10:45', endTime: '12:30', subject: 'ASSESSMENT', language: 'EN', title: `${mid} English test: listening & speaking`, teacher: 'EN_MORNING' });
+      } else {
+        add({ startTime: '08:30', endTime: '10:30', subject: 'ENGLISH', language: 'EN', title: 'English: Grammar & writing', description: `${en.theme}. ${en.g}`, teacher: 'EN_MORNING' });
+        add({ startTime: '10:30', endTime: '10:45', subject: 'BREAK', language: null, title: 'Tea break' });
+        if (MOCK_INTERVIEW_DAYS[day]) {
+          add({ startTime: '10:45', endTime: '12:30', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
+        } else {
+          add({ startTime: '10:45', endTime: '11:45', subject: 'ENGLISH', language: 'EN', title: 'English: Speaking', description: `${en.theme}. ${en.s}`, teacher: 'EN_MORNING' });
+          add({ startTime: '11:45', endTime: '12:30', ...enLab, teacher: 'EN_MORNING' });
+        }
+      }
+      add({ startTime: '12:30', endTime: '13:30', subject: 'BREAK', language: null, title: 'Lunch' });
+      // 1:30 to 4:30 Korean (3 hours)
+      add({ startTime: '13:30', endTime: '15:30', subject: en.test ? 'ASSESSMENT' : 'KOREAN', language: 'KR', title: en.test ? kr : `Korean: ${kr}`, teacher: 'KR_1' });
+      add({ startTime: '15:30', endTime: '15:45', subject: 'BREAK', language: null, title: 'Short break' });
+      add({ startTime: '15:45', endTime: '16:30', ...krLab, teacher: 'KR_2' });
     } else {
-      add(odd
-        ? { startTime: '08:30', endTime: '09:00', subject: 'ACTIVITY', language: 'KR', title: 'Korean warm-up game', teacher: 'KR_1' }
-        : { startTime: '08:30', endTime: '09:00', subject: 'ACTIVITY', language: 'EN', title: 'English warm-up game', teacher: enA.teacher });
+      // 8:30 to 12:30 Korean (4 hours)
+      add({ startTime: '08:30', endTime: '10:30', subject: 'KOREAN', language: 'KR', title: en.graduation ? 'Final Korean presentations' : `Korean: ${kr}`, teacher: 'KR_1' });
+      add({ startTime: '10:30', endTime: '10:45', subject: 'BREAK', language: null, title: 'Tea break' });
+      const krPractice = (day === 20) ? 'Korean mock interview: self-introduction' : en.graduation ? 'Graduation speech practice in Korean' : `Korean practice: ${kr}`;
+      add({ startTime: '10:45', endTime: '11:45', subject: 'KOREAN', language: 'KR', title: krPractice, teacher: 'KR_2' });
+      add({ startTime: '11:45', endTime: '12:30', ...krLab, teacher: 'KR_2' });
+      add({ startTime: '12:30', endTime: '13:30', subject: 'BREAK', language: null, title: 'Lunch' });
+      // 1:30 to 4:30 English (3 hours), English Teacher 3
+      if (en.graduation) {
+        add({ startTime: '13:30', endTime: '15:00', subject: 'ACTIVITY', language: 'EN', title: 'Final English presentations', teacher: 'EN_LISTENING' });
+        add({ startTime: '15:00', endTime: '16:30', subject: 'ASSESSMENT', language: 'EN', title: 'Final mock interviews', teacher: 'EN_SPEAKING' });
+      } else {
+        add({ startTime: '13:30', endTime: '14:45', subject: 'ENGLISH', language: 'EN', title: 'English: Reading & vocabulary', description: `${en.theme}. ${en.r}`, teacher: 'EN_LISTENING' });
+        add({ startTime: '14:45', endTime: '15:00', subject: 'BREAK', language: null, title: 'Short break' });
+        if (MOCK_INTERVIEW_DAYS[day]) {
+          add({ startTime: '15:00', endTime: '16:30', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
+        } else {
+          add({ startTime: '15:00', endTime: '15:45', subject: 'ENGLISH', language: 'EN', title: 'English: Listening', description: `${en.theme}. ${en.l}`, teacher: 'EN_LISTENING' });
+          add({ startTime: '15:45', endTime: '16:30', ...enLab, teacher: 'EN_LISTENING' });
+        }
+      }
     }
 
-    // 09:00 English block A
-    if (day === 1) {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: 'English placement test (IT lab)', description: 'Students take the placement test on epicielts.live.', teacher: 'EN_MORNING' });
-    } else if (en.test) {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: `${en.test === 'MID' ? 'Mid-programme' : 'Final'} English test: reading & writing`, teacher: 'EN_MORNING' });
-    } else if (en.graduation) {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ACTIVITY', language: 'EN', title: 'Final English presentations', teacher: 'EN_MORNING' });
-    } else {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ENGLISH', language: 'EN', title: `English: ${enA.skill}`, description: `${en.theme}. ${enA.topic}`, teacher: enA.teacher });
-    }
-    add({ startTime: '10:30', endTime: '10:45', subject: 'BREAK', language: null, title: 'Tea break' });
-
-    // 10:45 Korean block A
-    add({
-      startTime: '10:45', endTime: '12:15', subject: en.test ? 'ASSESSMENT' : 'KOREAN', language: 'KR',
-      title: en.test ? kr : en.graduation ? 'Final Korean presentations' : `Korean: ${kr}`, teacher: 'KR_1',
-    });
-    add({ startTime: '12:15', endTime: '13:15', subject: 'BREAK', language: null, title: 'Lunch' });
-
-    // 13:15 English block B (mock interviews replace it on interview days)
-    if (MOCK_INTERVIEW_DAYS[day]) {
-      add({ startTime: '13:15', endTime: '14:45', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
-    } else if (en.test) {
-      add({ startTime: '13:15', endTime: '14:45', subject: 'ASSESSMENT', language: 'EN', title: `${en.test === 'MID' ? 'Mid-programme' : 'Final'} English test: listening & speaking`, teacher: 'EN_LISTENING' });
-    } else if (en.graduation) {
-      add({ startTime: '13:15', endTime: '14:45', subject: 'ASSESSMENT', language: 'EN', title: 'Final mock interviews', teacher: 'EN_SPEAKING' });
-    } else {
-      add({ startTime: '13:15', endTime: '14:45', subject: 'ENGLISH', language: 'EN', title: `English: ${enB.skill}`, description: `${en.theme}. ${enB.topic}`, teacher: enB.teacher });
-    }
-    add({ startTime: '14:45', endTime: '15:00', subject: 'BREAK', language: null, title: 'Short break' });
-
-    // 15:00 Korean block B
-    const krBTitle = (day === 20 || day === 27) ? 'Korean mock interview: self-introduction'
-      : en.graduation ? 'Graduation speech practice in Korean'
-      : en.test ? 'Korean test review' : `Korean practice: ${kr}`;
-    add({ startTime: '15:00', endTime: '16:30', subject: 'KOREAN', language: 'KR', title: krBTitle, teacher: 'KR_2' });
-    add({ startTime: '16:30', endTime: '16:45', subject: 'BREAK', language: null, title: 'Tea break' });
-
-    // IT lab: practice what was taught today
-    add({ startTime: '16:45', endTime: '17:45', subject: 'IT_LAB', language: 'EN', title: 'IT lab: English practice', description: itLabTaskFor(day, en).split(' Korean:')[0], teacher: odd ? 'EN_LISTENING' : 'EN_SUPPORT', link: '/learn' });
-    add({ startTime: '17:45', endTime: '18:45', subject: 'IT_LAB', language: 'KR', title: 'IT lab: Korean practice', description: `Practise "${kr}" on the Korean site.`, teacher: odd ? 'KR_2' : 'KR_1', link: 'KOREAN_SITE' });
-    add({ startTime: '18:45', endTime: '19:30', subject: 'BREAK', language: null, title: 'Dinner' });
-
-    // 19:30 evening
+    // One evening a week, run by campus staff
     const ev = EVENINGS[day];
-    if (ev) {
-      add({ startTime: '19:30', endTime: '20:30', ...ev });
-    } else if (odd) {
-      add({ startTime: '19:30', endTime: '20:30', subject: 'ACTIVITY', language: 'EN', title: 'English evening: games & conversation club', teacher: 'EN_SUPPORT' });
-    } else {
-      add({ startTime: '19:30', endTime: '20:30', subject: 'ACTIVITY', language: 'KR', title: 'Korean evening: culture, songs & vocab games', teacher: 'KR_1' });
-    }
+    if (ev) add({ startTime: '18:30', endTime: '19:30', ...ev });
   });
   return sessions;
 }

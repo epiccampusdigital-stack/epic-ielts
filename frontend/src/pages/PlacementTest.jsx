@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getTrack, setTrack } from '../utils/track';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { getTrack } from '../utils/track';
 import GeneralPlacement from './GeneralPlacement';
-import PlacementWelcome from './PlacementWelcome';
 import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
@@ -12,18 +11,18 @@ const api = () => ({
 });
 
 const C = {
-  primary: '#4F46E5',
-  primaryHover: '#4338CA',
-  primarySoft: '#EEF2FF',
-  accent: '#7C3AED',
-  accentSoft: '#F5F3FF',
-  pageBg: '#F8FAFC',
+  primary: '#0056d2',
+  primaryHover: '#0048b0',
+  primarySoft: '#e3eeff',
+  accent: '#003b8f',
+  accentSoft: '#f0f6ff',
+  pageBg: '#f7f9fc',
   cardBg: '#FFFFFF',
-  cardBorder: '#E2E8F0',
-  subtleBorder: '#F1F5F9',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
+  cardBorder: '#dae1ed',
+  subtleBorder: '#e8eef7',
+  text: '#0f1114',
+  textSecondary: '#5b6780',
+  textMuted: '#8495b0',
   success: '#059669',
   shadow: '0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.03)',
   shadowHover: '0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)',
@@ -31,9 +30,9 @@ const C = {
 };
 
 const SKILL_STYLE = {
-  READING: { stroke: '#2563EB', soft: '#EFF6FF', icon: '📖', label: 'Reading', time: '60 min' },
+  READING: { stroke: '#0056d2', soft: '#f0f6ff', icon: '📖', label: 'Reading', time: '60 min' },
   WRITING: { stroke: '#D97706', soft: '#FFFBEB', icon: '✍️', label: 'Writing', time: '60 min' },
-  LISTENING: { stroke: '#7C3AED', soft: '#F5F3FF', icon: '🎧', label: 'Listening', time: '30 min' },
+  LISTENING: { stroke: '#003b8f', soft: '#f0f6ff', icon: '🎧', label: 'Listening', time: '30 min' },
   SPEAKING: { stroke: '#DB2777', soft: '#FDF2F8', icon: '🎤', label: 'Speaking', time: '15 min' },
 };
 
@@ -55,9 +54,9 @@ function placementAttemptBand(attempt) {
   );
 }
 
-// One placement page per course. New students land here with ?welcome=1 and choose their course first.
+// One placement page per course. Old ?welcome=1 links go to the course chooser.
 export default function PlacementTest() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const [track, setTrackState] = useState(getTrack());
 
   useEffect(() => {
@@ -66,17 +65,7 @@ export default function PlacementTest() {
     return () => window.removeEventListener('epic-track-change', onChange);
   }, []);
 
-  if (params.get('welcome') === '1') {
-    return (
-      <PlacementWelcome
-        onChoose={t => {
-          setTrack(t);
-          setTrackState(t);
-          setParams({}, { replace: true });
-        }}
-      />
-    );
-  }
+  if (params.get('welcome') === '1') return <Navigate to="/choose-course" replace />;
   return track === 'GENERAL' ? <GeneralPlacement /> : <IeltsPlacement />;
 }
 
@@ -183,7 +172,7 @@ function IeltsPlacement() {
       <div
         style={{
           minHeight: '100vh',
-          fontFamily: 'Inter, sans-serif',
+          fontFamily: 'Source Sans Pro, sans-serif',
           background: C.pageBg,
         }}
       >
@@ -211,7 +200,7 @@ function IeltsPlacement() {
       style={{
         minHeight: '100vh',
         background: C.pageBg,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'Source Sans Pro, sans-serif',
       }}
     >
       <style>{`
@@ -236,7 +225,7 @@ function IeltsPlacement() {
         {/* Hero */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: C.text, margin: '0 0 10px' }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: '0 0 10px' }}>
             Free IELTS Placement Test
           </h1>
           <p style={{ color: C.textSecondary, fontSize: 14, maxWidth: 480, margin: '0 auto 20px' }}>
@@ -279,7 +268,7 @@ function IeltsPlacement() {
             <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>
               Progress: {completedCount}/4 tests completed
             </div>
-            <div style={{ height: 6, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
+            <div style={{ height: 6, background: '#e8eef7', borderRadius: 9999, overflow: 'hidden' }}>
               <div
                 style={{
                   width: `${(completedCount / 4) * 100}%`,
@@ -291,7 +280,7 @@ function IeltsPlacement() {
               />
             </div>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: completedCount === 4 ? C.primary : C.textMuted }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: completedCount === 4 ? C.primary : C.textMuted }}>
             {completedCount === 4 ? '✓ Done!' : `${completedCount}/4`}
           </div>
         </div>
@@ -321,7 +310,7 @@ function IeltsPlacement() {
             >
               Your placement
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: '0 0 8px' }}>
               Band {recommendation.band} — Level {recommendation.level}{' '}
               {LEVEL_NAMES[recommendation.level]}
             </h2>
@@ -341,7 +330,7 @@ function IeltsPlacement() {
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: 'pointer',
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'Source Sans Pro, sans-serif',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.background = C.primaryHover;
@@ -409,7 +398,7 @@ function IeltsPlacement() {
                 )}
                 <div style={{ fontSize: 30, marginBottom: 10 }}>{meta.icon}</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>{meta.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: C.textMuted, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 400, color: C.textMuted, marginBottom: 16 }}>
                   {meta.time} · Free placement paper
                 </div>
                 {isDone ? (
@@ -429,10 +418,10 @@ function IeltsPlacement() {
                         fontSize: 12,
                         color: C.textMuted,
                         cursor: isResetting || isStarting ? 'not-allowed' : 'pointer',
-                        fontWeight: 500,
+                        fontWeight: 400,
                         textDecoration: 'underline',
                         textUnderlineOffset: 2,
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Source Sans Pro, sans-serif',
                       }}
                     >
                       {isResetting ? 'Resetting...' : 'Redo this section →'}
@@ -453,7 +442,7 @@ function IeltsPlacement() {
                       fontSize: 14,
                       fontWeight: 600,
                       cursor: isStarting ? 'not-allowed' : 'pointer',
-                      fontFamily: 'Inter, sans-serif',
+                      fontFamily: 'Source Sans Pro, sans-serif',
                     }}
                   >
                     {isStarting ? 'Starting...' : `Start ${meta.label} →`}
@@ -475,7 +464,7 @@ function IeltsPlacement() {
             border: `1px solid ${C.cardBorder}`,
           }}
         >
-          <h3 style={{ margin: '0 0 16px', color: C.text, fontSize: 15, fontWeight: 800 }}>How it works</h3>
+          <h3 style={{ margin: '0 0 16px', color: C.text, fontSize: 15, fontWeight: 700 }}>How it works</h3>
           <div style={{ display: 'grid', gap: 12 }}>
             {[
               'Complete all 4 placement tests — Reading, Writing, Listening and Speaking',
@@ -493,7 +482,7 @@ function IeltsPlacement() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontWeight: 900,
+                    fontWeight: 700,
                     fontSize: 12,
                     flexShrink: 0,
                     color: C.primary,

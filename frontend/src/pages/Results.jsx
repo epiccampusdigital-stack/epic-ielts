@@ -119,11 +119,11 @@ const fetchExplanation = async (answer) => {
    if (loading) return (
       <div style={{
          minHeight: '100vh',
-         background: '#f0f7ff',
+         background: '#f0f6ff',
          display: 'flex',
          alignItems: 'center',
          justifyContent: 'center',
-         fontFamily: "'Inter', sans-serif"
+         fontFamily: "Source Sans Pro, sans-serif"
       }}>
          <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -131,7 +131,7 @@ const fetchExplanation = async (answer) => {
       `}</style>
          <div style={{
             background: '#ffffff',
-            border: '1px solid #dbeafe',
+            border: '1px solid #e3eeff',
             borderRadius: 24,
             padding: '48px 56px',
             textAlign: 'center',
@@ -140,16 +140,16 @@ const fetchExplanation = async (answer) => {
             <div style={{
                width: 64, height: 64,
                borderRadius: '50%',
-               border: '4px solid #dbeafe',
-               borderTopColor: '#2563eb',
+               border: '4px solid #e3eeff',
+               borderTopColor: '#0056d2',
                animation: 'spin 0.85s linear infinite',
                margin: '0 auto 24px'
             }} />
-            <h2 style={{ color: '#1e3a5f', fontSize: 22, marginBottom: 8, fontWeight: 800 }}>
+            <h2 style={{ color: '#002761', fontSize: 22, marginBottom: 8, fontWeight: 700 }}>
                EPIC AI is analysing your test
             </h2>
             <p style={{
-               color: '#64748b', fontSize: 14, margin: 0,
+               color: '#5b6780', fontSize: 14, margin: 0,
                animation: 'pulse 1.5s ease-in-out infinite'
             }}>
                Marking answers, calculating your band score, and preparing personalised examiner feedback...
@@ -159,7 +159,7 @@ const fetchExplanation = async (answer) => {
    );
 
    if (!data) return (
-      <div style={{ padding: 40, fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ padding: 40, fontFamily: 'Source Sans Pro, sans-serif' }}>
          Results not found.
          <button onClick={() => navigate('/student/dashboard')}>Back</button>
       </div>
@@ -255,8 +255,8 @@ const fetchExplanation = async (answer) => {
    return (
       <div style={{
          minHeight: '100vh',
-         background: '#f0f7ff',
-         fontFamily: "'Inter', sans-serif"
+         background: '#f0f6ff',
+         fontFamily: "Source Sans Pro, sans-serif"
       }}>
          <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap');
@@ -275,16 +275,16 @@ const fetchExplanation = async (answer) => {
         .result-section {
           background: white;
           border-radius: 16px;
-          border: 1px solid #dbeafe;
+          border: 1px solid #e3eeff;
           padding: 24px;
           margin-bottom: 20px;
           animation: fadeUp 0.4s ease both;
         }
-        .answer-row:hover { background: #f0f7ff; }
+        .answer-row:hover { background: #f0f6ff; }
         .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
         @media (min-width: 768px) { .metrics-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; } }
         
-        .metric-card { background: white; border: 1px solid #dbeafe; border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(37,99,235,0.06); }
+        .metric-card { background: white; border: 1px solid #e3eeff; border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(37,99,235,0.06); }
         @media (min-width: 768px) { .metric-card { padding: 20px 16px; } }
         
         .feedback-split { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 18px; }
@@ -298,16 +298,16 @@ const fetchExplanation = async (answer) => {
         
         .explain-btn {
           font-size: 10px;
-          background: #eff6ff;
-          color: #2563eb;
-          border: 1px solid #bfdbfe;
+          background: #f0f6ff;
+          color: #0056d2;
+          border: 1px solid #c9dcfb;
           border-radius: 4px;
           padding: 2px 6px;
           cursor: pointer;
           font-weight: 600;
           transition: all 0.2s;
         }
-        .explain-btn:hover { background: #dbeafe; }
+        .explain-btn:hover { background: #e3eeff; }
       `}</style>
 
          {/* Confetti for good scores */}
@@ -318,7 +318,7 @@ const fetchExplanation = async (answer) => {
                left: `${Math.random() * 100}%`,
                width: '10px',
                height: '10px',
-               background: ['#2563eb', '#f59e0b', '#10b981', '#ec4899', '#3b82f6'][i % 5],
+               background: ['#0056d2', '#f59e0b', '#10b981', '#ec4899', '#3b82f6'][i % 5],
                borderRadius: Math.random() > 0.5 ? '50%' : '2px',
                animation: `confetti ${2 + Math.random() * 3}s ease-in ${Math.random() * 2}s forwards`,
                pointerEvents: 'none',
@@ -328,7 +328,7 @@ const fetchExplanation = async (answer) => {
 
          {/* Header */}
          <div className="result-header" style={{
-            background: 'linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)',
+            background: 'linear-gradient(135deg, #002761 0%, #0048b0 100%)',
             textAlign: 'center',
             position: 'relative',
             overflow: 'hidden'
@@ -345,7 +345,7 @@ const fetchExplanation = async (answer) => {
                {isGE ? 'EPIC General English' : 'EPIC IELTS CBT Platform'}
             </p>
             <h1 style={{
-               fontFamily: "'Playfair Display', serif",
+               fontFamily: "Source Sans Pro, Arial, sans-serif",
                fontSize: 28, fontWeight: 700, color: '#ffffff', marginBottom: 6
             }}>
                Test Complete! 🎉
@@ -369,11 +369,11 @@ const fetchExplanation = async (answer) => {
                boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
             }}>
                <span style={{
-                  fontFamily: "'Playfair Display', serif",
+                  fontFamily: "Source Sans Pro, Arial, sans-serif",
                   fontSize: 40, fontWeight: 700,
                   color: bandColor, lineHeight: 1
                }}>{isGE ? `${pct}%` : Number(band).toFixed(1)}</span>
-               <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>
+               <span style={{ fontSize: 10, color: '#8495b0', fontWeight: 600, marginTop: 2 }}>
                   {isGE ? 'SCORE' : 'IELTS BAND'}
                </span>
             </div>
@@ -384,7 +384,7 @@ const fetchExplanation = async (answer) => {
             {/* Metric cards */}
             <div className="metrics-grid">
                {[
-                  { icon: '📊', label: 'Raw Score', value: `${rawScore}/${totalQ}`, color: '#2563eb' },
+                  { icon: '📊', label: 'Raw Score', value: `${rawScore}/${totalQ}`, color: '#0056d2' },
                   { icon: '✅', label: 'Correct', value: correct, color: '#16a34a' },
                   { icon: '❌', label: 'Wrong', value: wrong, color: '#dc2626' },
                   isGE ? { icon: '⭐', label: 'Level', value: pct >= 90 ? 'B2' : pct >= 75 ? 'B1' : pct >= 50 ? 'A2' : pct >= 25 ? 'A1' : 'Pre-A1', color: bandColor } : { icon: '⭐', label: 'Band', value: Number(band).toFixed(1), color: bandColor }
@@ -392,26 +392,26 @@ const fetchExplanation = async (answer) => {
                   <div key={label} className="metric-card">
                      <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
                      <div style={{
-                        fontFamily: "'Playfair Display', serif",
+                        fontFamily: "Source Sans Pro, Arial, sans-serif",
                         fontSize: 24, fontWeight: 700,
                         color, marginBottom: 4
                      }}>{value}</div>
-                     <div style={{ color: '#64748b', fontSize: 11, fontWeight: 500 }}>{label}</div>
+                     <div style={{ color: '#5b6780', fontSize: 11, fontWeight: 400 }}>{label}</div>
                   </div>
                ))}
             </div>
 
             {/* Score Breakdown Section */}
             <div className="result-section" style={{ animationDelay: '0.05s', padding: '20px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #dbeafe' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #e3eeff' }}>
                 <span style={{ fontSize: 20 }}>📊</span>
-                <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 18, fontWeight: 800 }}>Performance Breakdown</h2>
+                <h2 style={{ margin: 0, color: '#002761', fontSize: 18, fontWeight: 700 }}>Performance Breakdown</h2>
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 {/* Passage Breakdown */}
                 <div>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Passage</h3>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#5b6780', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Passage</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[1, 2, 3].map(pNum => {
                                  const pAnswers = answers.filter(a => {
@@ -427,12 +427,12 @@ const fetchExplanation = async (answer) => {
                       const pct = Math.round((pCorrect / pTotal) * 100);
                       
                       return (
-                        <div key={pNum} style={{ background: '#f8faff', padding: '10px 14px', borderRadius: 10, border: '1px solid #eef2ff' }}>
+                        <div key={pNum} style={{ background: '#f7f9fc', padding: '10px 14px', borderRadius: 10, border: '1px solid #e3eeff' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#1e3a5f' }}>Passage {pNum}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb' }}>{pCorrect}/{pAnswers.length}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#002761' }}>Passage {pNum}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#0056d2' }}>{pCorrect}/{pAnswers.length}</span>
                           </div>
-                          <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: 6, background: '#dae1ed', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${pct}%`, background: pct > 70 ? '#16a34a' : pct > 40 ? '#f59e0b' : '#dc2626', transition: 'width 1s ease-out' }} />
                           </div>
                         </div>
@@ -443,7 +443,7 @@ const fetchExplanation = async (answer) => {
 
                 {/* Question Type Breakdown */}
                 <div>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Question Type</h3>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#5b6780', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Question Type</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(
                       answers.reduce((acc, a) => {
@@ -456,13 +456,13 @@ const fetchExplanation = async (answer) => {
                     ).map(([type, stats]) => {
                       const pct = Math.round((stats.correct / stats.total) * 100);
                       return (
-                        <div key={type} style={{ background: '#f8faff', padding: '10px 14px', borderRadius: 10, border: '1px solid #eef2ff' }}>
+                        <div key={type} style={{ background: '#f7f9fc', padding: '10px 14px', borderRadius: 10, border: '1px solid #e3eeff' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: '#1e3a5f', textTransform: 'capitalize' }}>{type.toLowerCase().replace(/_/g, ' ')}</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{stats.correct}/{stats.total}</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#002761', textTransform: 'capitalize' }}>{type.toLowerCase().replace(/_/g, ' ')}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#0056d2' }}>{stats.correct}/{stats.total}</span>
                           </div>
-                          <div style={{ height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: '#2563eb' }} />
+                          <div style={{ height: 4, background: '#dae1ed', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: '#0056d2' }} />
                           </div>
                         </div>
                       );
@@ -479,12 +479,12 @@ const fetchExplanation = async (answer) => {
                   justifyContent: 'space-between',
                   marginBottom: 16,
                   paddingBottom: 12,
-                  borderBottom: '1px solid #dbeafe'
+                  borderBottom: '1px solid #e3eeff'
                }}>
-                  <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 17, fontWeight: 800 }}>
+                  <h2 style={{ margin: 0, color: '#002761', fontSize: 17, fontWeight: 700 }}>
                      Answer Review
                   </h2>
-                  <span style={{ fontSize: 12, color: '#64748b' }}>
+                  <span style={{ fontSize: 12, color: '#5b6780' }}>
                      {correct} correct · {wrong} wrong
                   </span>
                </div>
@@ -497,21 +497,21 @@ const fetchExplanation = async (answer) => {
                         gridTemplateColumns: '50px 1fr 140px 140px 60px',
                         gap: 12,
                         padding: '10px 16px',
-                        background: '#f0f7ff',
+                        background: '#f0f6ff',
                         borderRadius: 8,
                         marginBottom: 4
                      }}>
                         {['No.', 'Question', 'Your Answer', 'Correct Answer', '✓/✗'].map(h => (
                            <span key={h} style={{
                               fontSize: 10, fontWeight: 700,
-                              color: '#1d4ed8',
+                              color: '#0048b0',
                               textTransform: 'uppercase', letterSpacing: '0.05em'
                            }}>{h}</span>
                         ))}
                      </div>
 
                      {answers.length === 0 ? (
-                        <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+                        <div style={{ padding: 24, color: '#5b6780', textAlign: 'center', fontSize: 13 }}>
                            No answers were submitted.
                         </div>
                      ) : (
@@ -524,19 +524,19 @@ const fetchExplanation = async (answer) => {
                                  gridTemplateColumns: '50px 1fr 140px 140px 60px',
                                  gap: 12,
                                  padding: '13px 16px',
-                                 borderBottom: i < answers.length - 1 ? '1px solid #f0f7ff' : 'none',
+                                 borderBottom: i < answers.length - 1 ? '1px solid #f0f6ff' : 'none',
                                  alignItems: 'center',
                                  background: i % 2 === 0 ? '#ffffff' : '#f8fbff',
                                  transition: 'background 0.15s'
                               }}
                            >
                               <span style={{
-                                 fontSize: 12, fontWeight: 700, color: '#2563eb'
+                                 fontSize: 12, fontWeight: 700, color: '#0056d2'
                               }}>
                                  {i + 1}
                               </span>
                               <span style={{
-                                 fontSize: 11, color: '#475569', lineHeight: 1.4,
+                                 fontSize: 11, color: '#5b6780', lineHeight: 1.4,
                                  overflow: 'hidden',
                                  display: '-webkit-box',
                                  WebkitLineClamp: 2,
@@ -546,7 +546,7 @@ const fetchExplanation = async (answer) => {
                               </span>
                               <span style={{
                                 fontSize: 13,
-                                color: !a.studentAnswer ? '#94a3b8' : a.isCorrect ? '#16a34a' : '#dc2626',
+                                color: !a.studentAnswer ? '#8495b0' : a.isCorrect ? '#16a34a' : '#dc2626',
                                 fontWeight: a.studentAnswer ? 600 : 400,
                                 fontStyle: !a.studentAnswer ? 'italic' : 'normal'
                               }}>
@@ -568,14 +568,14 @@ const fetchExplanation = async (answer) => {
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          color: '#2563eb',
+          color: '#0056d2',
           fontSize: 13,
           fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
           gap: 6,
           padding: '6px 0',
-          fontFamily: 'Inter, sans-serif'
+          fontFamily: 'Source Sans Pro, sans-serif'
         }}
       >
         <span style={{ fontSize: 10 }}>{openExplanations[a.question?.id] ? '▼' : '▶'}</span>
@@ -586,21 +586,21 @@ const fetchExplanation = async (answer) => {
       <div style={{
         gridColumn: '1 / -1',
         margin: '0 0 16px 16px',
-        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+        background: 'linear-gradient(135deg, #f0f6ff 0%, #e3eeff 100%)',
         border: '1px solid #93c5fd',
-        borderLeft: '4px solid #2563eb',
+        borderLeft: '4px solid #0056d2',
         borderRadius: '0 12px 12px 12px',
         padding: '18px 22px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: 20 }}>🤖</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#0048b0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             EPIC AI Examiner Explanation
           </span>
         </div>
         <div style={{
           fontSize: 14,
-          color: '#1e3a5f',
+          color: '#002761',
           lineHeight: 1.9,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
@@ -611,8 +611,8 @@ const fetchExplanation = async (answer) => {
         }}>
           {loadingExplanation[a.question?.id]
             ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#2563eb' }}>
-                <div style={{ width: 16, height: 16, border: '2px solid #dbeafe', borderTop: '2px solid #2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0056d2' }}>
+                <div style={{ width: 16, height: 16, border: '2px solid #e3eeff', borderTop: '2px solid #0056d2', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
                 Generating personalised explanation...
               </div>
             )
@@ -628,7 +628,7 @@ const fetchExplanation = async (answer) => {
           }
         </div>
         {!loadingExplanation[a.question?.id] && explanations[a.question?.id] && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #bfdbfe', fontSize: 12, color: '#3b82f6', fontStyle: 'italic' }}>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #c9dcfb', fontSize: 12, color: '#3b82f6', fontStyle: 'italic' }}>
             💡 Tip: Use this explanation to improve your understanding of {a.question?.questionType?.replace(/_/g, ' ')} questions.
           </div>
         )}
@@ -644,25 +644,25 @@ const fetchExplanation = async (answer) => {
                 </div>
 
             {/* AI Feedback */}
-            <div className="result-section" style={{ border: '1px solid #bfdbfe', animationDelay: '0.1s', padding: '20px' }}>
+            <div className="result-section" style={{ border: '1px solid #c9dcfb', animationDelay: '0.1s', padding: '20px' }}>
                <div style={{
                   display: 'flex', alignItems: 'center',
                   gap: 12, marginBottom: 20,
                   paddingBottom: 16,
-                  borderBottom: '1px solid #dbeafe'
+                  borderBottom: '1px solid #e3eeff'
                }}>
                   <div style={{
                      width: 40, height: 40,
                      borderRadius: '50%',
-                     background: '#eff6ff',
+                     background: '#f0f6ff',
                      display: 'flex', alignItems: 'center',
                      justifyContent: 'center', fontSize: 20
                   }}>🤖</div>
                   <div>
-                     <h2 style={{ margin: 0, color: '#1e3a5f', fontSize: 18, fontWeight: 800 }}>
+                     <h2 style={{ margin: 0, color: '#002761', fontSize: 18, fontWeight: 700 }}>
                         EPIC AI Examiner Feedback
                      </h2>
-                     <p className="mobile-hide" style={{ margin: '2px 0 0', color: '#64748b', fontSize: 12 }}>
+                     <p className="mobile-hide" style={{ margin: '2px 0 0', color: '#5b6780', fontSize: 12 }}>
                         Personalised analysis based on your answers and performance
                      </p>
                   </div>
@@ -673,34 +673,34 @@ const fetchExplanation = async (answer) => {
                     <div style={{
                       textAlign: 'center', padding: '24px',
                       background: 'white', borderRadius: 16,
-                      border: '1px solid #dbeafe',
+                      border: '1px solid #e3eeff',
                       marginBottom: 16
                     }}>
                       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                       <div style={{
                         width: 32, height: 32,
-                        border: '3px solid #dbeafe',
-                        borderTopColor: '#2563eb',
+                        border: '3px solid #e3eeff',
+                        borderTopColor: '#0056d2',
                         borderRadius: '50%',
                         animation: 'spin 0.8s linear infinite',
                         margin: '0 auto 12px'
                       }} />
-                      <p style={{ color: '#2563eb', fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
+                      <p style={{ color: '#0056d2', fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
                         EPIC AI is analysing your answers...
                       </p>
-                      <p style={{ color: '#64748b', fontSize: 12 }}>
+                      <p style={{ color: '#5b6780', fontSize: 12 }}>
                         This takes 10-20 seconds. Please wait.
                       </p>
                     </div>
                   ) : !hasAI ? (
-                    <div style={{ textAlign: 'center', padding: 24, background: 'white', borderRadius: 16, border: '1px solid #dbeafe', marginBottom: 16 }}>
-                      <p style={{ color: '#64748b', marginBottom: 12, fontSize: 14 }}>
+                    <div style={{ textAlign: 'center', padding: 24, background: 'white', borderRadius: 16, border: '1px solid #e3eeff', marginBottom: 16 }}>
+                      <p style={{ color: '#5b6780', marginBottom: 12, fontSize: 14 }}>
                         Your score and answers are shown above.
                         Detailed AI feedback is being generated -
                         please check back in a moment or click below to retry.
                       </p>
                       <button onClick={() => { setAiFeedbackLoading(true); setPollCount(p => p + 1); }}
-                        style={{ padding: '8px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                        style={{ padding: '8px 20px', background: '#0056d2', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
                         Try Again
                       </button>
                     </div>
@@ -708,15 +708,15 @@ const fetchExplanation = async (answer) => {
                      <>
                         {ai.finalStudentReport && (
                            <div style={{
-                              background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                              background: 'linear-gradient(135deg, #f0f6ff, #e3eeff)',
                               borderRadius: 14, padding: 18,
-                              border: '1px solid #bfdbfe',
+                              border: '1px solid #c9dcfb',
                               marginBottom: 16
                            }}>
-                              <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                              <h3 style={{ marginTop: 0, color: '#0048b0', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
                                  📜 Examiner's Report
                               </h3>
-                              <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#1e3a5f', fontSize: 13 }}>
+                              <p style={{ lineHeight: 1.7, marginBottom: 0, color: '#002761', fontSize: 13 }}>
                                  {ai.finalStudentReport}
                               </p>
                            </div>
@@ -738,18 +738,18 @@ const fetchExplanation = async (answer) => {
 
                         <div className="feedback-split">
                            <div style={{
-                              background: '#f8faff', borderRadius: 12, padding: 16,
-                              border: '1px solid #dbeafe'
+                              background: '#f7f9fc', borderRadius: 12, padding: 16,
+                              border: '1px solid #e3eeff'
                            }}>
-                              <h3 style={{ marginTop: 0, color: '#1d4ed8', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                              <h3 style={{ marginTop: 0, color: '#0048b0', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                                  ✅ Strengths
                               </h3>
                               <ul style={{ paddingLeft: 16, margin: 0, lineHeight: 1.7 }}>
                                  {Array.isArray(ai.strengths)
                                     ? ai.strengths.map((s, i) => (
-                                       <li key={i} style={{ color: '#1e3a5f', fontSize: 12 }}>{s}</li>
+                                       <li key={i} style={{ color: '#002761', fontSize: 12 }}>{s}</li>
                                     ))
-                                    : <li style={{ color: '#1e3a5f', fontSize: 12 }}>{ai.strengths || 'Good performance overall.'}</li>
+                                    : <li style={{ color: '#002761', fontSize: 12 }}>{ai.strengths || 'Good performance overall.'}</li>
                                  }
                               </ul>
                            </div>
@@ -774,8 +774,8 @@ const fetchExplanation = async (answer) => {
 
                         {ai.questionTypeAnalysis && Object.keys(ai.questionTypeAnalysis).length > 0 && (
                            <div style={{
-                              background: '#faf5ff', borderRadius: 12, padding: 16,
-                              border: '1px solid #e9d5ff', marginBottom: 16
+                              background: '#f0f6ff', borderRadius: 12, padding: 16,
+                              border: '1px solid #c9dcfb', marginBottom: 16
                            }}>
                               <h3 style={{ marginTop: 0, color: '#6b21a8', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
                                  🔬 Question Type Analysis
@@ -854,7 +854,7 @@ const fetchExplanation = async (answer) => {
                   onClick={() => navigate('/student/dashboard')}
                   style={{
                      padding: '13px 32px',
-                     background: '#2563eb',
+                     background: '#0056d2',
                      color: 'white',
                      border: 'none',
                      borderRadius: 10,
@@ -863,8 +863,8 @@ const fetchExplanation = async (answer) => {
                      fontSize: 15,
                      transition: 'all 0.2s'
                   }}
-                  onMouseEnter={e => e.target.style.background = '#1d4ed8'}
-                  onMouseLeave={e => e.target.style.background = '#2563eb'}
+                  onMouseEnter={e => e.target.style.background = '#0048b0'}
+                  onMouseLeave={e => e.target.style.background = '#0056d2'}
                >
                   ← Back to Dashboard
                </button>

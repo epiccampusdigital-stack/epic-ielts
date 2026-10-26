@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 import AgentWidget from '../components/AgentWidget';
+import { setTrack } from '../utils/track';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   '176832951489-8e1f4h848679ur3ci27ccpkv5upi6aci.apps.googleusercontent.com';
@@ -10,27 +11,11 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
 const WHATSAPP = '94777644946';
 const WHATSAPP_SHOWN = '+94 77 764 4946';
 
-// Layout: a dark navy hero and closing band framing light sections, one idea per section, a 1120px column.
-// Shared EPIC theme (site, tracker, print pack and deck): navy, indigo for English and actions,
-// gold for highlights and Korean, Playfair Display headings, Inter text, Lora for reading passages.
+// Layout: white canvas, a navy callout card beside the sign-in card, then catalogue-style sections.
 const K = {
-  ink: '#1A1A2E',
-  sub: '#475569',
-  faint: '#64748B',
-  paper: '#F8FAFC',
-  card: '#FFFFFF',
-  rule: '#E2E8F0',
-  indigo: '#4F46E5',
-  indigoDark: '#4338CA',
-  indigoSoft: '#EEF2FF',
-  navy: '#1A1A2E',
-  navyDeep: '#12122A',
-  navyText: '#CBD5E1',
-  gold: '#F59E0B',
-  goldSoft: '#FFFBEB',
-  marker: '#FDE68A',
-  right: '#15803D',
-  wrong: '#B42318',
+  ink: '#0f1114', sub: '#5b6780', faint: '#8495b0', paper: '#ffffff', card: '#ffffff', rule: '#dae1ed', tint: '#e8eef7',
+  indigo: '#0056d2', indigoDark: '#0048b0', indigoSoft: '#e3eeff', xsoft: '#f0f6ff', navy: '#002761', navyMid: '#003b8f', navyText: '#c9d6ec',
+  right: '#276a1a', wrong: '#d30a28',
 };
 
 // A short Reading passage with one question of each True / False / Not given type
@@ -81,7 +66,7 @@ function SampleExam() {
   return (
     <div className="xw" role="group" aria-label="Sample Reading questions">
       <div className="xw-bar">
-        <span className="xw-brand">EPIC IELTS</span>
+        <span className="xw-brand">EPIC Campus</span>
         <span className="xw-part">Reading, Part 1</span>
         <span className="xw-clock">Time left <ExamClock /></span>
       </div>
@@ -149,16 +134,16 @@ export default function Login() {
   const [loginPassword, setLoginPassword] = useState('');
   const [signup, setSignup] = useState({
     name: '', email: '', password: '', confirmPassword: '',
-    age: '', city: '', phone: '', expectedBand: '',
+    age: '', city: '', phone: '', expectedBand: '', course: '',
   });
 
   const finishLogin = (token, user) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
-    try { sessionStorage.removeItem('epicPlacementPrompted'); } catch { /* storage blocked */ }
+    if (user.course) setTrack(user.course);
     if (user.role === 'PROGRAM_TEACHER') navigate('/teacher');
     else if (user.role === 'ADMIN' || user.role === 'TEACHER') navigate('/admin/dashboard');
-    else navigate('/student/dashboard');
+    else navigate('/choose-course');
   };
 
   useEffect(() => {
@@ -219,11 +204,12 @@ export default function Login() {
     setError(''); setNotice('');
     if (signup.password !== signup.confirmPassword) { setError('The two passwords are different.'); return; }
     if (signup.password.length < 6) { setError('Use at least 6 characters for your password.'); return; }
+    if (!signup.course) { setError('Choose your course: IELTS or General English.'); return; }
     setLoading(true);
     try {
       await axios.post(`${API_URL}/api/auth/signup`, {
         name: signup.name, email: signup.email, password: signup.password,
-        age: signup.age, city: signup.city, phone: signup.phone, expectedBand: signup.expectedBand,
+        age: signup.age, city: signup.city, phone: signup.phone, expectedBand: signup.course === 'IELTS' ? signup.expectedBand : '', course: signup.course,
       });
       setMode('login');
       setLoginEmail(signup.email);
@@ -245,6 +231,25 @@ export default function Login() {
     window.setTimeout(() => firstFieldRef.current?.focus({ preventScroll: true }), reducedMotion() ? 0 : 450);
   };
 
+  const COURSES = [
+    {
+      key: 'IELTS', tag: 'Exam preparation', title: 'IELTS Academic', who: 'For students with a test date or a band to reach',
+      text: 'Timed computer-based papers in Reading, Listening, Writing and Speaking, marked when you finish.',
+      chips: ['Reading', 'Listening', 'Writing', 'Speaking'], meta: 'Band score for every skill', tone: '#e3eeff', ink: '#003b8f',
+    },
+    {
+      key: 'GENERAL', tag: 'Everyday English', title: 'General English', who: 'For students going abroad to study or work',
+      text: 'A short lesson every day for 30 days, a quiz each week, and practice for interviews and personal statements.',
+      chips: ['Grammar', 'Vocabulary', 'Interviews', 'Emails'], meta: 'Score out of 100 and a CEFR level', tone: '#e9f5e6', ink: '#276a1a',
+    },
+    {
+      key: 'KOREA', tag: 'Live-in programme', title: 'Korea Scholarship Programme', who: 'For scholarship students going to South Korea',
+      text: '30 days at Epic Campus in Galle: English and Korean every day, mock interviews and a final test.',
+      chips: ['English', 'Korean', 'TOPIK I', 'Mock interviews'], meta: '10 students per intake', tone: '#fff4e8', ink: '#a32e00',
+    },
+  ];
+  const PILLS = ['IELTS Reading', 'IELTS Listening', 'IELTS Writing', 'IELTS Speaking', 'General English', 'Grammar', 'Vocabulary', 'Scholarship interviews', 'Personal statements', 'Korean (TOPIK I)'];
+
   return (
     <div className="lp">
       <style>{css}</style>
@@ -253,51 +258,50 @@ export default function Login() {
         <div className="lp-wrap lp-header-row">
           <button type="button" className="lp-brand" onClick={() => window.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' })}>
             <img src="/logo.png" alt="" height="28" onError={e => { e.target.style.display = 'none'; }} />
-            <span>EPIC IELTS</span>
+            <span>EPIC Campus</span>
           </button>
           <nav className="lp-nav" aria-label="Sections">
+            <button type="button" onClick={() => scrollToId('courses')}>Courses</button>
             <button type="button" onClick={() => scrollToId('try')}>Try a question</button>
             <button type="button" onClick={() => scrollToId('how')}>How it works</button>
-            <button type="button" onClick={() => scrollToId('courses')}>Courses</button>
             <button type="button" onClick={() => scrollToId('prices')}>Prices</button>
-            <button type="button" onClick={() => scrollToId('faq')}>Questions</button>
+            <button type="button" onClick={() => scrollToId('faq')}>FAQ</button>
           </nav>
           <div className="lp-header-actions">
-            <button type="button" className="lp-btn lp-btn-on-dark" onClick={() => openAuth('login')}>Sign in</button>
-            <button type="button" className="lp-btn lp-btn-primary lp-hide-sm" onClick={() => openAuth('signup')}>Start free</button>
+            <button type="button" className="lp-btn lp-btn-link" onClick={() => openAuth('login')}>Log in</button>
+            <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth('signup')}>Join for free</button>
           </div>
         </div>
       </header>
 
       <main>
-        {/* 1. Hero: what it is, and the way in */}
-        <section className="lp-section lp-hero">
+        {/* Hero: navy pitch card beside the sign-in card */}
+        <section className="lp-hero">
           <div className="lp-wrap lp-hero-grid">
-            <div className="lp-hero-copy">
-              <h1>Practise IELTS the way the real test feels.</h1>
-              <p className="lp-lede">
-                Timed, computer-based papers for Reading, Listening, Writing and Speaking, marked as soon as you finish. Made by Epic Campus in Sri Lanka for our own students.
-              </p>
+            <div className="lp-pitch">
+              <p className="lp-eyebrow">Epic Campus, Galle</p>
+              <h1>English for your next step abroad</h1>
+              <p className="lp-lede">IELTS practice that feels like the real computer test, and a General English course for students heading to university overseas. Every test is marked as soon as you finish.</p>
               <div className="lp-cta-row">
-                <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => openAuth('signup')}>Create a free account</button>
-                <button type="button" className="lp-btn lp-btn-on-dark lp-btn-lg" onClick={() => scrollToId('try')}>Try a question first</button>
+                <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => openAuth('signup')}>Join for free</button>
+                <button type="button" className="lp-btn lp-btn-outline-light lp-btn-lg" onClick={() => scrollToId('courses')}>See the courses</button>
               </div>
               <ul className="lp-ticks">
-                <li>Free placement test in all four skills</li>
-                <li>Your first paper in each skill is free</li>
-                <li>No card needed to start</li>
+                <li>Free placement test</li>
+                <li>First paper in each skill free</li>
+                <li>No card needed</li>
               </ul>
             </div>
 
             <div className="lp-auth" id="signin">
               <div className="lp-tabs" role="tablist" aria-label="Account">
-                <button role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'on' : ''} onClick={() => switchMode('login')}>Sign in</button>
+                <button role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'on' : ''} onClick={() => switchMode('login')}>Log in</button>
                 <button role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'on' : ''} onClick={() => switchMode('signup')}>Create account</button>
               </div>
 
               <div className="lp-auth-body">
                 <div className="lp-google"><div id="google-btn" /></div>
-                {googleReady && <div className="lp-or"><span>or use your email</span></div>}
+                {googleReady && <div className="lp-or"><span>or</span></div>}
 
                 {notice && <p className="lp-notice" role="status">{notice}</p>}
                 {error && <p className="lp-error" role="alert">{error}</p>}
@@ -311,13 +315,21 @@ export default function Login() {
                       <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
                       <button type="button" onClick={() => setShowPassword(s => !s)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? 'Hide' : 'Show'}</button>
                     </span>
-                    <button className="lp-btn lp-btn-primary lp-submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
+                    <button className="lp-btn lp-btn-primary lp-submit" disabled={loading}>{loading ? 'Logging in…' : 'Log in'}</button>
                     <p className="lp-small">
-                      Forgot your password? <a href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent('Hi, I forgot my EPIC IELTS password. My email is: ')}`} target="_blank" rel="noreferrer">Message us on WhatsApp</a> and we will reset it.
+                      Forgot your password? <a href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent('Hi, I forgot my EPIC password. My email is: ')}`} target="_blank" rel="noreferrer">Message us on WhatsApp</a>
                     </p>
                   </form>
                 ) : (
                   <form onSubmit={handleSignup} className="lp-form">
+                    <span className="lp-label" id="su-course-label">Your course</span>
+                    <div className="lp-course-pick" role="radiogroup" aria-labelledby="su-course-label">
+                      {[['IELTS', 'IELTS', 'Exam practice and band scores'], ['GENERAL', 'General English', 'Daily lessons and a score out of 100']].map(([k, t, d]) => (
+                        <button key={k} type="button" role="radio" aria-checked={signup.course === k} className={signup.course === k ? 'on' : ''} onClick={() => up('course', k)}>
+                          <b>{t}</b><span>{d}</span>
+                        </button>
+                      ))}
+                    </div>
                     <label htmlFor="su-name">Full name</label>
                     <input id="su-name" ref={firstFieldRef} required autoComplete="name" value={signup.name} onChange={e => up('name', e.target.value)} />
                     <label htmlFor="su-email">Email</label>
@@ -334,7 +346,7 @@ export default function Login() {
                         <input id="su-pw2" type="password" required autoComplete="new-password" value={signup.confirmPassword} onChange={e => up('confirmPassword', e.target.value)} />
                       </div>
                     </div>
-                    <div className="lp-row lp-row3">
+                    <div className={`lp-row ${signup.course === 'IELTS' ? 'lp-row3' : ''}`}>
                       <div className="lp-field">
                         <label htmlFor="su-age">Age</label>
                         <input id="su-age" type="number" min="10" max="99" value={signup.age} onChange={e => up('age', e.target.value)} />
@@ -343,16 +355,18 @@ export default function Login() {
                         <label htmlFor="su-city">City</label>
                         <input id="su-city" autoComplete="address-level2" value={signup.city} onChange={e => up('city', e.target.value)} />
                       </div>
-                      <div className="lp-field">
-                        <label htmlFor="su-band">Target band</label>
-                        <select id="su-band" value={signup.expectedBand} onChange={e => up('expectedBand', e.target.value)}>
-                          <option value="">Not sure</option>
-                          {['5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0'].map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                      </div>
+                      {signup.course === 'IELTS' && (
+                        <div className="lp-field">
+                          <label htmlFor="su-band">Target band</label>
+                          <select id="su-band" value={signup.expectedBand} onChange={e => up('expectedBand', e.target.value)}>
+                            <option value="">Not sure</option>
+                            {['5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0'].map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        </div>
+                      )}
                     </div>
                     <button className="lp-btn lp-btn-primary lp-submit" disabled={loading}>{loading ? 'Creating account…' : 'Create account'}</button>
-                    <p className="lp-small">Your first paper in each skill is free. No card needed.</p>
+                    <p className="lp-small">You can switch course any time after you log in.</p>
                   </form>
                 )}
               </div>
@@ -360,150 +374,149 @@ export default function Login() {
           </div>
         </section>
 
-        {/* 2. Try it: the product, shown as the real exam screen */}
-        <section className="lp-section lp-white lp-glow" id="try">
+        {/* What do you want to learn */}
+        <section className="lp-section lp-pills-section">
+          <div className="lp-wrap">
+            <h2 className="lp-h2">What do you want to learn?</h2>
+            <div className="lp-pills">
+              {PILLS.map(p => <button key={p} type="button" className="lp-pill" onClick={() => scrollToId('courses')}>{p}</button>)}
+            </div>
+          </div>
+        </section>
+
+        {/* Courses as catalogue tiles */}
+        <section className="lp-section" id="courses">
           <div className="lp-wrap">
             <div className="lp-head">
-              <h2>Try a real question</h2>
-              <p>This is what a Reading paper looks like on the site, with the passage, the questions and the clock running. Answer the three questions to see how marking works.</p>
+              <h2 className="lp-h2">Courses</h2>
+              <p>One account works for IELTS and General English. Pick your course when you log in and switch whenever you like.</p>
+            </div>
+            <div className="lp-tiles">
+              {COURSES.map(c => (
+                <article key={c.key} className="lp-tile">
+                  <div className="lp-tile-top" style={{ background: c.tone }}>
+                    <span style={{ color: c.ink }}>{c.tag}</span>
+                  </div>
+                  <div className="lp-tile-body">
+                    <p className="lp-provider"><img src="/logo.png" alt="" height="16" onError={e => { e.target.style.display = 'none'; }} />Epic Campus</p>
+                    <h3>{c.title}</h3>
+                    <p className="lp-tile-who">{c.who}</p>
+                    <p className="lp-tile-text">{c.text}</p>
+                    <div className="lp-chips">{c.chips.map(x => <span key={x}>{x}</span>)}</div>
+                  </div>
+                  <div className="lp-tile-foot">
+                    <span>{c.meta}</span>
+                    {c.key === 'KOREA'
+                      ? <a className="lp-tile-link" href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent('Hi, I would like to know about the next Korea scholarship programme intake.')}`} target="_blank" rel="noreferrer">Ask about the next intake</a>
+                      : <button type="button" className="lp-tile-link" onClick={() => { up('course', c.key); openAuth('signup'); }}>Start free</button>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Try it */}
+        <section className="lp-section lp-tint" id="try">
+          <div className="lp-wrap">
+            <div className="lp-head">
+              <h2 className="lp-h2">Try a real question</h2>
+              <p>This is what a Reading paper looks like on the site. Answer the three questions to see how marking works.</p>
             </div>
             <SampleExam />
           </div>
         </section>
 
-        {/* 3. How it works: a real sequence, so it is numbered */}
+        {/* How it works */}
         <section className="lp-section" id="how">
           <div className="lp-wrap">
             <div className="lp-head">
-              <h2>How it works</h2>
-              <p>Three steps from your first login to your first band score.</p>
+              <h2 className="lp-h2">How it works</h2>
             </div>
             <ol className="lp-steps">
               <li>
+                <h3>Choose your course</h3>
+                <p>IELTS or General English. You can switch at any time from the top bar.</p>
+              </li>
+              <li>
                 <h3>Take the placement test</h3>
-                <p>One short paper in each skill. It is free and gives you a starting band, so you know where to begin.</p>
+                <p>It is free and shows where you are in grammar, vocabulary, reading, listening, writing and speaking.</p>
               </li>
               <li>
-                <h3>Practise full timed papers</h3>
-                <p>Papers follow the computer test’s format, timing and question types. Your answers save as you go.</p>
-              </li>
-              <li>
-                <h3>Read your feedback</h3>
-                <p>See every answer explained, your band for each skill, and what to work on next. Retake papers to track your progress.</p>
+                <h3>Practise and track your score</h3>
+                <p>Lessons, timed papers and quizzes. Your scores go straight to your dashboard so you can see your progress.</p>
               </li>
             </ol>
           </div>
         </section>
 
-        {/* 4. The four skills: what each paper is and how it is marked */}
-        <section className="lp-section lp-dark" id="skills">
+        {/* Navy stat band */}
+        <section className="lp-section lp-section-tight">
           <div className="lp-wrap">
-            <div className="lp-head">
-              <h2>All four skills, marked</h2>
-              <p>Each skill is timed and marked the way the real test treats it.</p>
-            </div>
-            <div className="lp-table-wrap">
-              <table className="lp-skills">
-                <thead>
-                  <tr><th scope="col">Skill</th><th scope="col">What you do</th><th scope="col">How it is marked</th></tr>
-                </thead>
-                <tbody>
-                  <tr><th scope="row">Reading</th><td data-label="What you do">3 passages, 40 questions, 60 minutes</td><td data-label="How it is marked">Instantly, with the reason for every answer</td></tr>
-                  <tr><th scope="row">Listening</th><td data-label="What you do">4 recordings, 40 questions</td><td data-label="How it is marked">Instantly, with the reason for every answer</td></tr>
-                  <tr><th scope="row">Writing</th><td data-label="What you do">Task 1 (150 words) and Task 2 (250 words), 60 minutes</td><td data-label="How it is marked">A band for each task against the official band descriptors, with written comments</td></tr>
-                  <tr><th scope="row">Speaking</th><td data-label="What you do">Parts 1, 2 and 3, recorded in your browser</td><td data-label="How it is marked">Your answers are transcribed, then given a band and comments</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        {/* 5. Courses */}
-        <section className="lp-section lp-tint" id="courses">
-          <div className="lp-wrap">
-            <div className="lp-head">
-              <h2>Courses</h2>
-              <p>One account gives you both. Switch between them from the top of your dashboard.</p>
-            </div>
-            <div className="lp-courses">
-              <article className="lp-course">
-                <h3>IELTS</h3>
-                <p>Full Academic papers in all four skills, from your first practice paper to exam-ready. Best when you have a test date or a band to reach.</p>
-                <ul>
-                  <li>Placement test and band tracking</li>
-                  <li>Levels that move you up step by step</li>
-                  <li>Lessons on grammar, vocabulary and test strategy</li>
-                </ul>
-              </article>
-              <article className="lp-course">
-                <h3>General English</h3>
-                <p>Everyday English for students heading abroad. One short lesson a day with practice at the end, and a quiz each week.</p>
-                <ul>
-                  <li>30 daily lessons, from introductions to interviews</li>
-                  <li>Weekly quizzes with your score</li>
-                  <li>Scholarship interview and personal statement practice</li>
-                </ul>
-              </article>
-            </div>
-
-            <aside className="lp-korea">
-              <div>
-                <h3>Korea scholarship programme</h3>
-                <p>A 30-day live-in course at Epic Campus that mixes English and Korean for students going to South Korea on university scholarships.</p>
+            <div className="lp-stats">
+              <div className="lp-stats-copy">
+                <h2>Marked the moment you finish</h2>
+                <p>Reading and Listening answers are checked instantly with a reason for every answer. Writing and Speaking are marked against clear criteria with written comments.</p>
               </div>
-              <a className="lp-btn lp-btn-ghost" href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent('Hi, I would like to know about the next Korea scholarship programme intake.')}`} target="_blank" rel="noreferrer">Ask about the next intake</a>
-            </aside>
+              <dl className="lp-stats-grid">
+                <div><dt>4</dt><dd>skills in every course</dd></div>
+                <div><dt>30</dt><dd>daily General English lessons</dd></div>
+                <div><dt>5</dt><dd>weekly quizzes</dd></div>
+                <div><dt>0</dt><dd>cost to start</dd></div>
+              </dl>
+            </div>
           </div>
         </section>
 
-        {/* 6. Prices */}
-        <section className="lp-section lp-white lp-glow" id="prices">
+        {/* Prices */}
+        <section className="lp-section" id="prices">
           <div className="lp-wrap">
             <div className="lp-head">
-              <h2>Prices</h2>
-              <p>Start free. Pay only when you want more papers, by card inside your account. General English is included for everyone.</p>
+              <h2 className="lp-h2">Prices</h2>
+              <p>Start free. Pay only when you want more IELTS papers. General English is included for everyone.</p>
             </div>
             <div className="lp-plans">
               <article className="lp-plan">
                 <h3>Start</h3>
                 <p className="lp-price">Free</p>
                 <ul>
-                  <li>Placement test in all four skills</li>
-                  <li>Your first paper in each skill</li>
-                  <li>General English lessons and quizzes</li>
+                  <li>Placement test</li>
+                  <li>Your first IELTS paper in each skill</li>
+                  <li>All General English lessons and quizzes</li>
                 </ul>
-                <button type="button" className="lp-btn lp-btn-ghost" onClick={() => openAuth('signup')}>Create a free account</button>
+                <button type="button" className="lp-btn lp-btn-secondary" onClick={() => openAuth('signup')}>Join for free</button>
               </article>
               <article className="lp-plan">
-                <h3>One level</h3>
+                <h3>One IELTS level</h3>
                 <p className="lp-price">LKR 2,000</p>
                 <ul>
                   <li>A set of papers in all four skills</li>
                   <li>Writing and Speaking bands with comments</li>
                   <li>Buy the next level when you are ready</li>
                 </ul>
-                <button type="button" className="lp-btn lp-btn-ghost" onClick={() => openAuth('signup')}>Start free, buy later</button>
+                <button type="button" className="lp-btn lp-btn-secondary" onClick={() => openAuth('signup')}>Start free, buy later</button>
               </article>
               <article className="lp-plan lp-plan-full">
-                <h3>Full access</h3>
+                <p className="lp-plan-flag">Best value</p>
+                <h3>Full IELTS access</h3>
                 <p className="lp-price">LKR 10,000</p>
                 <ul>
                   <li>Every paper in every level</li>
                   <li>All four skills, with retakes</li>
                   <li>Everything in General English</li>
                 </ul>
-                <button type="button" className="lp-btn lp-btn-gold" onClick={() => openAuth('signup')}>Start free, unlock later</button>
+                <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth('signup')}>Join for free</button>
               </article>
             </div>
           </div>
         </section>
 
-        {/* 7. Questions */}
-        <section className="lp-section" id="faq">
+        {/* FAQ */}
+        <section className="lp-section lp-tint" id="faq">
           <div className="lp-wrap lp-faq-grid">
             <div className="lp-head">
-              <h2>Questions</h2>
-              <p>Anything else, message us on WhatsApp at <span className="lp-nowrap">{WHATSAPP_SHOWN}</span>.</p>
+              <h2 className="lp-h2">Frequently asked questions</h2>
+              <p>Anything else? Message us on WhatsApp at <span className="lp-nowrap">{WHATSAPP_SHOWN}</span>.</p>
             </div>
             <div className="lp-faq">
               <details>
@@ -511,33 +524,22 @@ export default function Login() {
                 <p>No. It is practice made by Epic Campus. The papers follow the format, timing and question types of the computer-delivered IELTS, so the real test feels familiar on the day.</p>
               </details>
               <details>
-                <summary>How accurate are the Writing and Speaking bands?</summary>
-                <p>They are marked against the public IELTS band descriptors and come with comments that explain the band. Treat them as a practice estimate to guide what you work on next.</p>
+                <summary>What is the difference between IELTS and General English?</summary>
+                <p>IELTS gives you full exam papers and a band score. General English is a daily course for everyday and university English, with a score out of 100 and a level instead of a band.</p>
               </details>
               <details>
-                <summary>What can I do for free?</summary>
-                <p>Create an account, take the placement test, and do your first paper in each skill. General English lessons are included for everyone.</p>
+                <summary>How accurate are the Writing and Speaking marks?</summary>
+                <p>They are marked against clear criteria and come with comments that explain the mark. Treat them as a practice estimate to guide what you work on next.</p>
               </details>
               <details>
                 <summary>I am an Epic Campus student. Do I pay?</summary>
-                <p>Ask your teacher. Class students usually get access through Epic Campus.</p>
+                <p>Ask your teacher. Class and programme students usually get access through Epic Campus.</p>
               </details>
               <details>
                 <summary>I forgot my password.</summary>
-                <p>Message us on WhatsApp with the email you signed up with and we will reset it for you.</p>
+                <p>Message us on WhatsApp with the email you signed up with and we will reset it.</p>
               </details>
             </div>
-          </div>
-        </section>
-
-        {/* 8. Closing call to action */}
-        <section className="lp-section lp-closing">
-          <div className="lp-wrap lp-closing-row">
-            <div>
-              <h2>Start with the free placement test.</h2>
-              <p>It takes one sitting and tells you where you stand in every skill.</p>
-            </div>
-            <button type="button" className="lp-btn lp-btn-gold lp-btn-lg" onClick={() => openAuth('signup')}>Create a free account</button>
           </div>
         </section>
       </main>
@@ -545,8 +547,8 @@ export default function Login() {
       <footer className="lp-foot">
         <div className="lp-wrap lp-foot-row">
           <div>
-            <p className="lp-foot-name">Epic Campus (Pvt) Ltd, Sri Lanka</p>
-            <p className="lp-foot-note">EPIC IELTS is independent practice and is not affiliated with the IELTS test partners.</p>
+            <p className="lp-foot-name">Epic Campus (Pvt) Ltd, Galle, Sri Lanka</p>
+            <p className="lp-foot-note">EPIC IELTS practice is independent and is not affiliated with the IELTS test partners.</p>
           </div>
           <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noreferrer">WhatsApp {WHATSAPP_SHOWN}</a>
         </div>
@@ -558,271 +560,220 @@ export default function Login() {
 }
 
 const css = `
-.lp { min-height: 100vh; background: ${K.paper}; color: ${K.ink}; font-family: Inter, system-ui, sans-serif; font-size: 17px; line-height: 1.6; }
+.lp { min-height: 100vh; background: #fff; color: ${K.ink}; font-family: 'Source Sans Pro', 'Source Sans 3', Arial, sans-serif; font-size: 16px; line-height: 1.5; }
 .lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
 .lp a { color: ${K.indigo}; text-underline-offset: 2px; }
-.lp h1, .lp h2, .lp h3 { font-family: 'Playfair Display', Georgia, serif; color: ${K.ink}; margin: 0; text-wrap: balance; }
+.lp h1, .lp h2, .lp h3 { font-family: inherit; color: ${K.ink}; margin: 0; font-weight: 600; text-wrap: balance; }
 .lp p { margin: 0; }
 .lp button { font: inherit; }
-.lp-wrap { max-width: 1120px; margin: 0 auto; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+.lp-wrap { max-width: 1184px; margin: 0 auto; padding-left: max(48px, env(safe-area-inset-left, 0px)); padding-right: max(48px, env(safe-area-inset-right, 0px)); }
 .lp-nowrap { white-space: nowrap; }
 
-/* Buttons */
-.lp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid transparent; transition: background 150ms, border-color 150ms, color 150ms; white-space: nowrap; }
-.lp-btn-lg { height: 50px; padding: 0 24px; font-size: 16px; }
+/* Buttons: 8px rectangles for actions, capsules only for filters */
+.lp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.14px; cursor: pointer; text-decoration: none; border: 1px solid transparent; white-space: nowrap; transition: background 150ms, border-color 150ms; }
+.lp-btn-lg { height: 48px; padding: 0 24px; font-size: 16px; }
 .lp-btn-primary { background: ${K.indigo}; color: #fff !important; }
 .lp-btn-primary:hover { background: ${K.indigoDark}; }
-.lp-btn-ghost { background: ${K.card}; color: ${K.ink} !important; border-color: ${K.rule}; }
-.lp-btn-ghost:hover { border-color: ${K.ink}; }
-.lp-btn-on-dark { background: rgba(255, 255, 255, 0.04); color: #FFFFFF !important; border-color: rgba(255, 255, 255, 0.28); }
-.lp-btn-on-dark:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.5); }
-.lp-btn-gold { background: ${K.gold}; color: ${K.navy} !important; }
-.lp-btn-gold:hover { background: #FBBF24; }
-.lp-btn-primary { box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35); }
+.lp-btn-secondary { background: #fff; color: ${K.ink} !important; border-color: ${K.ink}; }
+.lp-btn-secondary:hover { background: ${K.xsoft}; }
+.lp-btn-link { background: none; color: ${K.indigo} !important; padding: 0 12px; }
+.lp-btn-link:hover { text-decoration: underline; }
+.lp-btn-outline-light { background: transparent; color: #fff !important; border-color: rgba(255,255,255,0.7); }
+.lp-btn-outline-light:hover { background: rgba(255,255,255,0.08); }
 .lp-btn:disabled { opacity: 0.7; cursor: progress; }
 .lp :focus-visible { outline: 2px solid ${K.indigo}; outline-offset: 2px; }
-.lp-header :focus-visible, .lp-hero-copy :focus-visible, .lp-closing :focus-visible { outline-color: ${K.gold}; }
 
-/* Header */
-.lp::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: ${K.navy}; }
-.lp-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; background: rgba(26, 26, 46, 0.97); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-.lp-header-row { display: flex; align-items: center; gap: 24px; height: 68px; }
-.lp-brand { display: inline-flex; align-items: center; gap: 10px; background: none; border: none; padding: 0; cursor: pointer; color: #FFFFFF; font-weight: 700; font-size: 16px; letter-spacing: 0.04em; }
-.lp-nav { display: flex; gap: 4px; margin-left: auto; }
-.lp-nav button { background: none; border: none; padding: 8px 12px; border-radius: 6px; color: ${K.navyText}; font-size: 15px; cursor: pointer; }
-.lp-nav button:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.07); }
-.lp-header-actions { display: flex; gap: 10px; }
+/* Top nav: white, hairline */
+.lp-header { position: sticky; top: 0; z-index: 50; background: #fff; border-bottom: 1px solid ${K.rule}; }
+.lp-header-row { display: flex; align-items: center; gap: 24px; height: 72px; }
+.lp-brand { display: inline-flex; align-items: center; gap: 10px; background: none; border: none; padding: 0; cursor: pointer; color: ${K.indigo}; font-weight: 700; font-size: 20px; letter-spacing: -0.2px; }
+.lp-nav { display: flex; gap: 4px; margin-left: 16px; }
+.lp-nav button { background: none; border: none; padding: 0 10px; height: 40px; color: ${K.ink}; font-size: 16px; font-weight: 600; cursor: pointer; }
+.lp-nav button:hover { color: ${K.indigo}; }
+.lp-header-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; }
 
 /* Sections */
-.lp-section { padding-block: 104px; scroll-margin-top: 68px; }
-.lp-white { background: ${K.card}; border-top: 1px solid ${K.rule}; border-bottom: 1px solid ${K.rule}; }
-.lp-glow { background: radial-gradient(900px 360px at 50% 0%, rgba(79, 70, 229, 0.09), transparent 70%), ${K.card}; }
-.lp-tint { background: linear-gradient(180deg, ${K.paper} 0%, ${K.indigoSoft} 100%); }
-.lp-head { max-width: 640px; margin-bottom: 48px; display: grid; gap: 14px; }
-.lp-head h2 { font-size: 40px; line-height: 1.15; letter-spacing: -0.01em; }
-.lp-head p { font-size: 18px; color: ${K.sub}; }
-.lp-head::before { content: ''; display: block; width: 44px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, ${K.gold}, #FCD34D); margin-bottom: 6px; }
-.lp-closing .lp-closing-row > div::before { content: ''; display: block; width: 44px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, ${K.gold}, #FCD34D); margin-bottom: 20px; }
-
-/* Dark band (four skills) */
-.lp-dark { color: #FFFFFF; background:
-    radial-gradient(700px 380px at 100% 0%, rgba(245, 158, 11, 0.16), transparent 70%),
-    radial-gradient(800px 460px at 0% 100%, rgba(79, 70, 229, 0.42), transparent 70%),
-    linear-gradient(180deg, ${K.navy}, ${K.navyDeep}); }
-.lp-dark .lp-head h2 { color: #FFFFFF; }
-.lp-dark .lp-head p { color: ${K.navyText}; }
-.lp-dark .lp-skills th, .lp-dark .lp-skills td { border-bottom-color: rgba(255, 255, 255, 0.12); }
-.lp-dark .lp-skills thead th { color: #94A3B8; border-bottom: 2px solid ${K.gold}; }
-.lp-dark .lp-skills tbody th { color: #FFFFFF; }
-.lp-dark .lp-skills td { color: ${K.navyText}; }
-.lp-dark .lp-skills tbody tr { transition: background 150ms; }
-.lp-dark .lp-skills tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
-
-/* Price cards */
-.lp-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: stretch; }
-.lp-plan { background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 14px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 12px 30px rgba(26, 26, 46, 0.06); }
-.lp-plan h3 { font-size: 22px; }
-.lp-price { font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: lining-nums; }
-.lp-plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: ${K.sub}; flex: 1; }
-.lp-plan li { padding-left: 24px; position: relative; }
-.lp-plan li::before { content: ''; position: absolute; left: 2px; top: 0.45em; width: 11px; height: 6px; border-left: 2px solid ${K.indigo}; border-bottom: 2px solid ${K.indigo}; transform: rotate(-45deg); }
-.lp-plan .lp-btn { width: 100%; margin-top: 8px; }
-.lp-plan-full { color: #FFFFFF; border-color: transparent; background:
-    radial-gradient(420px 260px at 100% 0%, rgba(245, 158, 11, 0.25), transparent 70%),
-    linear-gradient(160deg, #2A2970 0%, ${K.navy} 70%); box-shadow: 0 24px 60px rgba(26, 26, 46, 0.28); }
-.lp-plan-full h3, .lp-plan-full .lp-price { color: #FFFFFF; }
-.lp-plan-full ul { color: ${K.navyText}; }
-.lp-plan-full li::before { border-color: ${K.gold}; }
+.lp-section { padding-block: 64px; scroll-margin-top: 72px; }
+.lp-section-tight { padding-block: 16px 64px; }
+.lp-tint { background: ${K.xsoft}; }
+.lp-head { max-width: 680px; margin-bottom: 32px; display: grid; gap: 8px; }
+.lp-h2 { font-size: 28px; line-height: 1.2; letter-spacing: -0.28px; }
+.lp-head p { font-size: 16px; color: ${K.sub}; }
 
 /* Hero */
-.lp-hero { padding-block: 96px 112px; color: #FFFFFF; position: relative; overflow: hidden;
-  background:
-    radial-gradient(720px 520px at 8% 0%, rgba(79, 70, 229, 0.55), transparent 65%),
-    radial-gradient(560px 420px at 95% 35%, rgba(245, 158, 11, 0.20), transparent 70%),
-    radial-gradient(800px 500px at 60% 120%, rgba(99, 102, 241, 0.30), transparent 70%),
-    linear-gradient(180deg, ${K.navy} 0%, ${K.navyDeep} 100%); }
-.lp-hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.35;
-  background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-  background-size: 56px 56px; mask-image: radial-gradient(ellipse at 30% 30%, #000 20%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse at 30% 30%, #000 20%, transparent 70%); }
-.lp-hero .lp-wrap { position: relative; z-index: 1; }
-.lp-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 80px; align-items: center; }
-.lp-hero-copy { display: grid; gap: 28px; }
-.lp-hero h1 { font-size: 62px; line-height: 1.05; letter-spacing: -0.02em; max-width: 13ch; color: #FFFFFF; }
-.lp-lede { font-size: 20px; line-height: 1.6; color: ${K.navyText}; max-width: 32em; }
-.lp-cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.lp-ticks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; color: #E2E8F0; font-size: 16px; }
-.lp-ticks li { display: flex; gap: 10px; align-items: baseline; }
-.lp-ticks li::before { content: ''; flex: none; width: 14px; height: 8px; border-left: 2px solid ${K.gold}; border-bottom: 2px solid ${K.gold}; transform: translateY(-3px) rotate(-45deg); }
+.lp-hero { padding-block: 32px 48px; }
+.lp-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 24px; align-items: stretch; }
+.lp-pitch { background: ${K.navy}; color: #fff; border-radius: 16px; padding: 48px; display: flex; flex-direction: column; justify-content: center; gap: 20px; }
+.lp-eyebrow { font-size: 14px; font-weight: 600; color: #b0e5fb; letter-spacing: 0.2px; }
+.lp-pitch h1 { color: #fff; font-size: 44px; line-height: 1.1; letter-spacing: -0.6px; max-width: 14ch; }
+.lp-lede { font-size: 18px; line-height: 1.55; color: ${K.navyText}; max-width: 34em; }
+.lp-cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.lp-ticks { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; color: ${K.navyText}; font-size: 14px; }
+.lp-ticks li { display: flex; gap: 8px; align-items: center; }
+.lp-ticks li::before { content: ''; width: 12px; height: 7px; border-left: 2px solid #b0e5fb; border-bottom: 2px solid #b0e5fb; transform: translateY(-2px) rotate(-45deg); }
 
 /* Auth card */
-.lp-auth { background: ${K.card}; color: ${K.ink}; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 14px; box-shadow: 0 30px 80px rgba(8, 8, 30, 0.45), 0 2px 6px rgba(8, 8, 30, 0.2); scroll-margin-top: 92px; overflow: hidden; }
+.lp-auth { background: #fff; border: 1px solid ${K.rule}; border-radius: 16px; scroll-margin-top: 96px; overflow: hidden; }
 .lp-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid ${K.rule}; }
-.lp-tabs button { padding: 18px 0 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: ${K.faint}; font-size: 15px; cursor: pointer; }
-.lp-tabs button.on { color: ${K.ink}; font-weight: 600; border-bottom-color: ${K.ink}; }
-.lp-auth-body { padding: 28px 32px 32px; }
+.lp-tabs button { height: 52px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: ${K.sub}; font-size: 16px; font-weight: 600; cursor: pointer; }
+.lp-tabs button.on { color: ${K.indigo}; border-bottom-color: ${K.indigo}; }
+.lp-auth-body { padding: 24px 32px 32px; }
 .lp-google { display: flex; justify-content: center; }
 .lp-google:empty { display: none; }
-.lp-or { display: flex; align-items: center; gap: 12px; font-size: 13px; color: ${K.faint}; margin: 20px 0 4px; }
+.lp-or { display: flex; align-items: center; gap: 12px; font-size: 14px; color: ${K.sub}; margin: 16px 0 4px; }
 .lp-or::before, .lp-or::after { content: ''; flex: 1; height: 1px; background: ${K.rule}; }
-.lp-form { display: grid; gap: 8px; }
-.lp-form label { font-size: 14px; font-weight: 600; color: ${K.ink}; margin-top: 10px; }
-.lp-form label:first-child { margin-top: 0; }
-.lp-field { display: grid; gap: 8px; min-width: 0; }
-.lp-field label { margin-top: 10px; }
-.lp-form input, .lp-form select { font: inherit; font-size: 16px; height: 46px; padding: 0 12px; border: 1px solid ${K.rule}; border-radius: 6px; background: #fff; color: ${K.ink}; width: 100%; min-width: 0; }
-.lp-form input:focus, .lp-form select:focus { outline: 2px solid ${K.indigo}; outline-offset: 0; border-color: ${K.indigo}; }
+.lp-form { display: grid; gap: 6px; }
+.lp-form label, .lp-label { font-size: 14px; font-weight: 600; color: ${K.ink}; margin-top: 12px; }
+.lp-form > label:first-child, .lp-form > .lp-label:first-child { margin-top: 0; }
+.lp-field { display: grid; gap: 6px; min-width: 0; }
+.lp-form input, .lp-form select { font: inherit; font-size: 16px; height: 48px; padding: 0 12px; border: 1px solid ${K.sub}; border-radius: 8px; background: #fff; color: ${K.ink}; width: 100%; min-width: 0; }
+.lp-form input:focus, .lp-form select:focus { outline: none; border: 2px solid ${K.indigo}; padding: 0 11px; }
 .lp-pw { position: relative; display: block; }
 .lp-pw input { padding-right: 68px; }
-.lp-pw button { position: absolute; right: 6px; top: 7px; height: 32px; padding: 0 10px; font-size: 14px; color: ${K.sub}; background: none; border: none; cursor: pointer; border-radius: 4px; }
+.lp-pw button { position: absolute; right: 6px; top: 8px; height: 32px; padding: 0 10px; font-size: 14px; font-weight: 600; color: ${K.indigo}; background: none; border: none; cursor: pointer; border-radius: 4px; }
 .lp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .lp-row3 { grid-template-columns: 0.7fr 1fr 1fr; }
-.lp-submit { width: 100%; height: 48px; margin-top: 18px; font-size: 16px; }
-.lp-small { font-size: 14px; line-height: 1.55; color: ${K.sub}; margin-top: 10px !important; }
-.lp-error, .lp-notice { margin: 16px 0 4px !important; padding: 10px 12px; font-size: 14px; border-radius: 4px; }
-.lp-error { border-left: 3px solid ${K.wrong}; background: #FEF3F2; color: ${K.wrong}; }
-.lp-notice { border-left: 3px solid ${K.right}; background: #ECFDF3; color: ${K.right}; }
+.lp-course-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lp-course-pick button { text-align: left; display: grid; gap: 2px; padding: 12px; border: 1px solid ${K.rule}; border-radius: 8px; background: #fff; cursor: pointer; color: ${K.ink}; }
+.lp-course-pick button b { font-size: 15px; }
+.lp-course-pick button span { font-size: 13px; color: ${K.sub}; line-height: 1.35; }
+.lp-course-pick button.on { border: 2px solid ${K.indigo}; padding: 11px; background: ${K.xsoft}; }
+.lp-submit { width: 100%; height: 48px; margin-top: 20px; font-size: 16px; }
+.lp-small { font-size: 14px; color: ${K.sub}; margin-top: 12px !important; }
+.lp-error, .lp-notice { margin: 16px 0 4px !important; padding: 10px 12px; font-size: 14px; border-radius: 8px; }
+.lp-error { background: #fdecee; color: ${K.wrong}; }
+.lp-notice { background: #e9f5e6; color: ${K.right}; }
+
+/* Pills */
+.lp-pills-section { padding-block: 16px 24px; }
+.lp-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.lp-pill { height: 36px; padding: 0 16px; border-radius: 50px; border: 1px solid ${K.rule}; background: #fff; color: ${K.ink}; font-size: 14px; font-weight: 600; letter-spacing: 0.14px; cursor: pointer; }
+.lp-pill:hover { background: ${K.tint}; border-color: ${K.tint}; }
+
+/* Course tiles */
+.lp-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.lp-tile { border: 1px solid ${K.rule}; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; background: #fff; transition: border-color 150ms; }
+.lp-tile:hover { border-color: ${K.indigo}; }
+.lp-tile-top { height: 112px; display: flex; align-items: flex-end; padding: 16px; }
+.lp-tile-top span { font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+.lp-tile-body { padding: 16px 16px 0; display: grid; gap: 8px; flex: 1; align-content: start; }
+.lp-provider { display: flex; align-items: center; gap: 6px; font-size: 14px; color: ${K.sub}; }
+.lp-tile h3 { font-size: 20px; line-height: 1.3; letter-spacing: -0.1px; }
+.lp-tile-who { font-size: 14px; font-weight: 600; color: ${K.ink}; }
+.lp-tile-text { font-size: 14px; color: ${K.sub}; line-height: 1.43; }
+.lp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.lp-chips span { font-size: 13px; padding: 2px 8px; border-radius: 2px; background: ${K.tint}; color: ${K.navy}; }
+.lp-tile-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; margin-top: 12px; border-top: 1px solid ${K.rule}; font-size: 13px; color: ${K.sub}; }
+.lp-tile-link { background: none; border: none; padding: 0; color: ${K.indigo}; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.lp-tile-link:hover { text-decoration: underline; }
 
 /* Sample exam window */
-.xw { background: ${K.card}; border: 1px solid #CBD5E1; border-radius: 12px; overflow: hidden; box-shadow: 0 30px 70px rgba(26, 26, 46, 0.14), 0 2px 6px rgba(26, 26, 46, 0.06); }
-.xw-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: linear-gradient(90deg, ${K.navy}, #24245A); color: ${K.navyText}; font-size: 14px; }
-.xw-brand { color: #FFFFFF; font-weight: 700; letter-spacing: 0.04em; }
-.xw-part { padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, 0.18); }
+.xw { background: #fff; border: 1px solid ${K.rule}; border-radius: 16px; overflow: hidden; }
+.xw-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: ${K.navy}; color: ${K.navyText}; font-size: 14px; }
+.xw-brand { color: #fff; font-weight: 700; }
+.xw-part { padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.2); }
 .xw-clock { margin-left: auto; display: inline-flex; gap: 8px; align-items: baseline; }
-.xw-time { font-variant-numeric: tabular-nums; font-weight: 700; color: ${K.gold}; font-size: 16px; }
+.xw-time { font-variant-numeric: tabular-nums; font-weight: 700; color: #fff; font-size: 16px; }
 .xw-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.xw-passage { padding: 32px 36px; border-right: 1px solid ${K.rule}; display: grid; gap: 16px; align-content: start; background: #FCFCFD; }
-.xw-passage h3 { font-size: 22px; }
-.xw-passage p { font-family: Lora, Georgia, serif; font-size: 17px; line-height: 1.8; color: ${K.ink}; }
-.xw-qs { padding: 32px 36px; display: grid; gap: 22px; align-content: start; }
-.xw-inst { font-size: 15px; color: ${K.sub}; }
-.xw-q { display: grid; gap: 12px; padding-left: 14px; border-left: 3px solid transparent; }
+.xw-passage { padding: 32px; border-right: 1px solid ${K.rule}; display: grid; gap: 12px; align-content: start; }
+.xw-passage h3 { font-size: 20px; }
+.xw-passage p { font-size: 16px; line-height: 1.6; color: ${K.ink}; }
+.xw-qs { padding: 32px; display: grid; gap: 20px; align-content: start; }
+.xw-inst { font-size: 14px; color: ${K.sub}; }
+.xw-q { display: grid; gap: 10px; padding-left: 12px; border-left: 3px solid transparent; }
 .xw-q.is-current { border-left-color: ${K.indigo}; }
-.xw-stem { font-size: 16px; font-weight: 600; display: flex; gap: 12px; align-items: baseline; }
-.xw-num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1.5px solid ${K.ink}; border-radius: 50%; font-size: 12px; font-weight: 700; transform: translateY(-1px); }
-.xw-opts { display: flex; gap: 8px; flex-wrap: wrap; padding-left: 36px; }
-.xw-opt { font-size: 14px; padding: 7px 14px; border-radius: 4px; border: 1px solid ${K.rule}; background: #fff; color: ${K.ink}; cursor: pointer; }
+.xw-stem { font-size: 16px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+.xw-num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: ${K.tint}; color: ${K.navy}; font-size: 12px; font-weight: 700; }
+.xw-opts { display: flex; gap: 8px; flex-wrap: wrap; padding-left: 34px; }
+.xw-opt { font-size: 14px; font-weight: 600; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid ${K.rule}; background: #fff; color: ${K.ink}; cursor: pointer; }
 .xw-opt:hover { border-color: ${K.ink}; }
-.xw-opt.is-right { background: ${K.marker}; border-color: ${K.gold}; font-weight: 600; }
+.xw-opt.is-right { background: #e9f5e6; border-color: ${K.right}; color: ${K.right}; }
 .xw-opt.is-wrong { border-color: ${K.wrong}; color: ${K.wrong}; text-decoration: line-through; }
 .xw-opt.is-off { color: ${K.faint}; }
-.xw-why { font-size: 14px; line-height: 1.55; color: ${K.sub}; padding-left: 36px; }
+.xw-why { font-size: 14px; color: ${K.sub}; padding-left: 34px; }
 .xw-why b { color: ${K.ink}; }
-.xw-foot { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 12px 20px; border-top: 1px solid ${K.rule}; background: ${K.paper}; flex-wrap: wrap; }
+.xw-foot { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 12px 20px; border-top: 1px solid ${K.rule}; flex-wrap: wrap; }
 .xw-nav { display: flex; gap: 6px; }
 .xw-dot { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid ${K.rule}; border-radius: 4px; font-size: 13px; font-weight: 600; background: #fff; color: ${K.sub}; }
-.xw-dot.is-done { background: ${K.ink}; border-color: ${K.ink}; color: #fff; }
+.xw-dot.is-done { background: ${K.navy}; border-color: ${K.navy}; color: #fff; }
 .xw-dot.is-current { outline: 2px solid ${K.indigo}; outline-offset: 1px; }
 .xw-score { font-size: 14px; color: ${K.sub}; font-variant-numeric: tabular-nums; }
 
 /* How it works */
-.lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; counter-reset: step; }
-.lp-steps li { counter-increment: step; display: grid; gap: 12px; align-content: start; padding: 28px; background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 12px; }
-.lp-steps li::before { content: counter(step); display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; font-family: 'Playfair Display', Georgia, serif; font-size: 24px; font-weight: 700; color: ${K.navy}; background: linear-gradient(145deg, #FCD34D, ${K.gold}); box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35); }
-.lp-steps li { box-shadow: 0 12px 30px rgba(26, 26, 46, 0.05); }
-.lp-steps h3 { font-size: 22px; }
-.lp-steps p { color: ${K.sub}; }
+.lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: step; }
+.lp-steps li { counter-increment: step; display: grid; gap: 8px; align-content: start; padding: 24px; border: 1px solid ${K.rule}; border-radius: 16px; }
+.lp-steps li::before { content: 'Step ' counter(step); font-size: 14px; font-weight: 600; color: ${K.indigo}; }
+.lp-steps h3 { font-size: 20px; }
+.lp-steps p { color: ${K.sub}; font-size: 16px; }
 
-/* Skills table */
-.lp-table-wrap { overflow-x: auto; }
-.lp-skills { width: 100%; border-collapse: collapse; min-width: 640px; }
-.lp-skills th, .lp-skills td { text-align: left; vertical-align: top; padding: 20px 24px 20px 0; border-bottom: 1px solid ${K.rule}; }
-.lp-skills thead th { font-family: Inter, system-ui, sans-serif; font-size: 14px; font-weight: 600; color: ${K.faint}; padding-top: 0; border-bottom: 2px solid ${K.ink}; }
-.lp-skills tbody th { font-family: 'Playfair Display', Georgia, serif; font-size: 20px; font-weight: 700; width: 18%; }
-.lp-skills td { color: ${K.sub}; width: 41%; }
-
-/* Courses */
-.lp-courses { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.lp-course { position: relative; overflow: hidden; background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 14px; padding: 40px 36px 36px; display: grid; gap: 14px; align-content: start; box-shadow: 0 12px 30px rgba(79, 70, 229, 0.07); }
-.lp-course::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, ${K.indigo}, #8B5CF6 55%, ${K.gold}); }
-.lp-course h3 { font-size: 26px; }
-.lp-course p { color: ${K.sub}; }
-.lp-course ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.lp-course li { padding-left: 20px; position: relative; }
-.lp-course li::before { content: ''; position: absolute; left: 0; top: 0.65em; width: 8px; height: 8px; background: ${K.indigo}; border-radius: 2px; }
-.lp-korea { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 28px 36px; background: ${K.goldSoft}; border: 1px solid #FCD34D; border-radius: 14px; }
-.lp-korea > div { display: grid; gap: 8px; max-width: 640px; }
-.lp-korea h3 { font-size: 22px; }
-.lp-korea p { color: ${K.sub}; }
+/* Navy stat band */
+.lp-stats { background: ${K.navy}; color: #fff; border-radius: 16px; padding: 48px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+.lp-stats-copy { display: grid; gap: 12px; }
+.lp-stats h2 { color: #fff; font-size: 28px; letter-spacing: -0.28px; }
+.lp-stats p { color: ${K.navyText}; font-size: 16px; }
+.lp-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px 32px; margin: 0; }
+.lp-stats-grid div { border-left: 2px solid ${K.indigo}; padding-left: 16px; }
+.lp-stats-grid dt { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.5px; }
+.lp-stats-grid dd { margin: 6px 0 0; color: ${K.navyText}; font-size: 14px; }
 
 /* Prices */
-.lp-faq-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 80px; align-items: start; }
-.lp-faq-grid .lp-head { margin-bottom: 0; }
+.lp-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
+.lp-plan { border: 1px solid ${K.rule}; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 12px; position: relative; }
+.lp-plan h3 { font-size: 20px; }
+.lp-price { font-size: 36px; font-weight: 600; line-height: 1.1; letter-spacing: -0.4px; }
+.lp-plan ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; color: ${K.sub}; flex: 1; font-size: 16px; }
+.lp-plan li { padding-left: 24px; position: relative; }
+.lp-plan li::before { content: ''; position: absolute; left: 2px; top: 0.45em; width: 11px; height: 6px; border-left: 2px solid ${K.indigo}; border-bottom: 2px solid ${K.indigo}; transform: rotate(-45deg); }
+.lp-plan .lp-btn { width: 100%; margin-top: 12px; }
+.lp-plan-full { border: 2px solid ${K.indigo}; padding: 31px; }
+.lp-plan-flag { position: absolute; top: -12px; left: 24px; background: ${K.indigo}; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 4px; letter-spacing: 0.3px; }
 
 /* FAQ */
-.lp-faq { border-top: 2px solid ${K.ink}; }
+.lp-faq-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 64px; align-items: start; }
+.lp-faq-grid .lp-head { margin-bottom: 0; }
+.lp-faq { border-top: 1px solid ${K.rule}; }
 .lp-faq details { border-bottom: 1px solid ${K.rule}; }
-.lp-faq summary { cursor: pointer; list-style: none; padding: 20px 40px 20px 0; font-weight: 600; position: relative; }
+.lp-faq summary { cursor: pointer; list-style: none; padding: 16px 40px 16px 0; font-weight: 600; font-size: 16px; position: relative; }
 .lp-faq summary::-webkit-details-marker { display: none; }
-.lp-faq summary::after { content: '+'; position: absolute; right: 4px; top: 16px; font-size: 24px; font-weight: 400; color: ${K.sub}; }
-.lp-faq details[open] summary::after { content: '−'; }
-.lp-faq details p { padding: 0 40px 22px 0; color: ${K.sub}; }
-
-/* Closing */
-.lp-closing { padding-block: 96px; background:
-    radial-gradient(600px 300px at 90% 0%, rgba(245, 158, 11, 0.22), transparent 70%),
-    radial-gradient(700px 400px at 0% 100%, rgba(79, 70, 229, 0.45), transparent 70%),
-    linear-gradient(180deg, ${K.navy}, ${K.navyDeep}); }
-.lp-closing-row { display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
-.lp-closing h2 { color: #FFFFFF; font-size: 40px; line-height: 1.15; }
-.lp-closing p { color: ${K.navyText}; font-size: 18px; margin-top: 10px; }
+.lp-faq summary::after { content: ''; position: absolute; right: 8px; top: 22px; width: 8px; height: 8px; border-right: 2px solid ${K.ink}; border-bottom: 2px solid ${K.ink}; transform: rotate(45deg); transition: transform 150ms; }
+.lp-faq details[open] summary::after { transform: rotate(-135deg); top: 26px; }
+.lp-faq details p { padding: 0 40px 16px 0; color: ${K.sub}; }
 
 /* Footer */
-.lp-foot { padding-block: 36px 104px; font-size: 14px; color: #94A3B8; background: ${K.navyDeep}; border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.lp-foot a { color: ${K.gold}; }
+.lp-foot { padding-block: 32px 96px; font-size: 14px; color: ${K.sub}; border-top: 1px solid ${K.rule}; }
 .lp-foot-row { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-.lp-foot-name { color: #FFFFFF; font-weight: 600; }
+.lp-foot-name { color: ${K.ink}; font-weight: 600; }
 .lp-foot-note { margin-top: 4px !important; max-width: 46em; }
+.lp-foot a { font-weight: 600; text-decoration: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  .lp * { transition: none !important; scroll-behavior: auto !important; }
-}
-
-@media (max-width: 1000px) {
+@media (prefers-reduced-motion: reduce) { .lp * { transition: none !important; } }
+@media (max-width: 1080px) {
   .lp-nav { display: none; }
-  .lp-header-actions { margin-left: auto; }
-  .lp-hero-grid { grid-template-columns: 1fr; gap: 56px; }
-  .lp-hero h1 { max-width: 16ch; }
-  .lp-auth { max-width: 520px; }
-  .lp-faq-grid { grid-template-columns: 1fr; gap: 32px; }
-  .lp-plans { grid-template-columns: 1fr; max-width: 520px; }
+  .lp-hero-grid { grid-template-columns: 1fr; }
+  .lp-auth { max-width: 560px; }
+  .lp-tiles, .lp-plans { grid-template-columns: 1fr 1fr; }
+  .lp-faq-grid, .lp-stats { grid-template-columns: 1fr; gap: 32px; }
 }
 @media (max-width: 760px) {
-  .lp { font-size: 16px; }
-  .lp-section { padding-block: 72px; }
-  .lp-hero { padding-block: 48px 72px; }
-  .lp-hero h1 { font-size: 40px; }
-  .lp-lede { font-size: 18px; }
-  .lp-head { margin-bottom: 32px; }
-  .lp-head h2, .lp-closing h2 { font-size: 30px; }
-  .lp-head p { font-size: 16px; }
-  .lp-steps { grid-template-columns: 1fr; gap: 32px; }
-  .lp-courses { grid-template-columns: 1fr; }
-  .lp-course { padding: 28px 24px; }
-  .lp-korea { flex-direction: column; align-items: flex-start; padding: 24px; }
+  .lp-wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .lp-header-row { height: 64px; }
+  .lp-section { padding-block: 48px; }
+  .lp-hero { padding-block: 16px 32px; }
+  .lp-pitch { padding: 28px 24px; }
+  .lp-pitch h1 { font-size: 32px; }
+  .lp-lede { font-size: 16px; }
+  .lp-h2 { font-size: 24px; }
+  .lp-tiles, .lp-plans, .lp-steps { grid-template-columns: 1fr; }
+  .lp-stats { padding: 28px 24px; }
+  .lp-stats-grid dt { font-size: 36px; }
   .xw-body { grid-template-columns: 1fr; }
-  .xw-passage { border-right: none; border-bottom: 1px solid ${K.rule}; padding: 24px 20px; }
-  .xw-qs { padding: 24px 20px; }
+  .xw-passage { border-right: none; border-bottom: 1px solid ${K.rule}; padding: 20px; }
+  .xw-qs { padding: 20px; }
   .xw-part { display: none; }
   .xw-opts, .xw-why { padding-left: 0; }
-  .lp-closing { padding-block: 64px; }
-  .lp-skills { min-width: 0; }
-  .lp-skills thead { display: none; }
-  .lp-skills, .lp-skills tbody, .lp-skills tr, .lp-skills th, .lp-skills td { display: block; width: auto !important; }
-  .lp-skills tr { padding: 20px 0; border-bottom: 1px solid ${K.rule}; }
-  .lp-skills tr:first-child { border-top: 2px solid ${K.gold}; }
-  .lp-dark .lp-skills tr { border-bottom-color: rgba(255, 255, 255, 0.12); }
-  .lp-dark .lp-skills td::before { color: #94A3B8; }
-  .lp-skills th, .lp-skills td { padding: 0; border: none; }
-  .lp-skills td { margin-top: 10px; }
-  .lp-skills td::before { content: attr(data-label); display: block; font-size: 13px; font-weight: 600; color: ${K.faint}; }
-}
-@media (max-width: 520px) {
-  .lp-wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .lp-hide-sm { display: none; }
-  .lp-hero h1 { font-size: 34px; }
-  .lp-cta-row .lp-btn { width: 100%; }
-  .lp-auth-body { padding: 22px 18px 24px; }
+  .lp-auth-body { padding: 20px 16px 24px; }
   .lp-row, .lp-row3 { grid-template-columns: 1fr; gap: 0; }
-  .lp-plan { padding: 26px 22px; }
+  .lp-cta-row .lp-btn { flex: 1; }
+  .lp-brand span { font-size: 18px; }
 }
 `;

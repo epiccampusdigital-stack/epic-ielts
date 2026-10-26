@@ -11,14 +11,10 @@ import { PARTS, LEVEL_TEXT, levelFor, partScore, isGePlacementPaper } from '../u
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 const C = {
-  navy: '#1A1A2E', deep: '#12122A', indigo: '#4F46E5', indigoSoft: '#EEF2FF', gold: '#F59E0B',
-  bg: '#F8FAFC', card: '#FFFFFF', line: '#E2E8F0', text: '#1A1A2E', sub: '#475569', faint: '#64748B',
+  navy: '#002761', deep: '#002761', indigo: '#0056d2', indigoSoft: '#e3eeff', gold: '#0056d2',
+  bg: '#f7f9fc', card: '#FFFFFF', line: '#dae1ed', text: '#0f1114', sub: '#5b6780', faint: '#5b6780',
 };
-const SERIF = "'Playfair Display', Georgia, serif";
-
-function Mark() {
-  return <div style={{ width: 32, height: 3, background: C.gold, borderRadius: 2, marginBottom: 12 }} />;
-}
+const SERIF = "Source Sans Pro, Arial, sans-serif";
 
 export default function GeneralPlacement() {
   const navigate = useNavigate();
@@ -78,11 +74,11 @@ export default function GeneralPlacement() {
   const nextUp = rows.find(r => r.result.state === 'todo' && r.paper);
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'Inter, sans-serif', color: C.text }}>
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'Source Sans Pro, sans-serif', color: C.text }}>
       <style>{`
         .gp-row { transition: border-color 160ms ease, box-shadow 160ms ease; }
-        .gp-row:hover { border-color: #C7D2FE; box-shadow: 0 6px 18px rgba(26,26,46,0.06); }
-        .gp-btn:focus-visible { outline: 3px solid #A5B4FC; outline-offset: 2px; }
+        .gp-row:hover { border-color: #b9d2f7; box-shadow: 0 6px 18px rgba(26,26,46,0.06); }
+        .gp-btn:focus-visible { outline: 3px solid #9cc0f5; outline-offset: 2px; }
         @media (max-width: 640px) {
           .gp-row { grid-template-columns: 40px 1fr !important; }
           .gp-row .gp-side { grid-column: 1 / -1; justify-content: flex-start !important; }
@@ -94,27 +90,27 @@ export default function GeneralPlacement() {
 
       <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 16px 64px' }}>
         <section className="gp-hero" style={{
-          background: `radial-gradient(circle at 85% 10%, rgba(245,158,11,0.18), transparent 45%), linear-gradient(135deg, ${C.deep} 0%, ${C.navy} 55%, #2A2560 100%)`,
+          background: '#002761',
           color: '#fff', borderRadius: 20, padding: '36px 40px', marginBottom: 28,
         }}>
           <div className="gp-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#FCD34D', fontWeight: 600, marginBottom: 10 }}>
+              <div style={{ fontSize: 14, color: '#b0e5fb', fontWeight: 600, marginBottom: 10 }}>
                 General English · Day 1
               </div>
               <h1 style={{ fontFamily: SERIF, fontSize: 32, lineHeight: 1.15, margin: '0 0 12px', fontWeight: 700 }}>
                 Placement test
               </h1>
-              <p style={{ margin: 0, color: '#CBD5E1', fontSize: 15, lineHeight: 1.6, maxWidth: 480 }}>
+              <p style={{ margin: 0, color: '#c3cddd', fontSize: 15, lineHeight: 1.6, maxWidth: 480 }}>
                 Four short tests that show your teachers where your English is today: grammar, vocabulary,
                 reading, listening, writing and speaking. There is no pass or fail. Just do your best.
               </p>
             </div>
             <div style={{ textAlign: 'center', minWidth: 150 }}>
-              <div style={{ fontFamily: SERIF, fontSize: 52, fontWeight: 700, lineHeight: 1 }}>
+              <div style={{ fontFamily: SERIF, fontSize: 52, fontWeight: 600, lineHeight: 1 }}>
                 {overall == null ? '–' : overall}
               </div>
-              <div style={{ fontSize: 12, color: '#CBD5E1', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: '#c3cddd', marginTop: 4 }}>
                 {allDone ? 'overall, out of 100' : scored.length ? 'so far, out of 100' : 'out of 100'}
               </div>
               <div style={{ marginTop: 12, display: 'inline-block', padding: '5px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.1)', fontSize: 13, fontWeight: 600 }}>
@@ -132,8 +128,7 @@ export default function GeneralPlacement() {
 
         {allDone && (
           <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: '24px 28px', marginBottom: 28 }}>
-            <Mark />
-            <h2 style={{ fontFamily: SERIF, fontSize: 22, margin: '0 0 6px' }}>Your level: {levelFor(overall)}</h2>
+                        <h2 style={{ fontFamily: SERIF, fontSize: 22, margin: '0 0 6px' }}>Your level: {levelFor(overall)}</h2>
             <p style={{ margin: '0 0 18px', color: C.sub, fontSize: 15, lineHeight: 1.6 }}>{LEVEL_TEXT[levelFor(overall)]} Your teachers will use this to plan your group.</p>
             <button className="gp-btn" type="button" onClick={() => navigate('/learn')} style={{
               padding: '11px 22px', background: C.indigo, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
@@ -141,8 +136,7 @@ export default function GeneralPlacement() {
           </section>
         )}
 
-        <Mark />
-        <h2 style={{ fontFamily: SERIF, fontSize: 22, margin: '0 0 6px' }}>The four parts</h2>
+                <h2 style={{ fontFamily: SERIF, fontSize: 22, margin: '0 0 6px' }}>The four parts</h2>
         <p style={{ margin: '0 0 18px', color: C.sub, fontSize: 14 }}>
           Take them in order if you can. Each part is timed and you can only take it once, unless your teacher asks you to redo it.
         </p>
@@ -157,7 +151,7 @@ export default function GeneralPlacement() {
               return (
                 <div key={r.skill} className="gp-row" style={{
                   display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 16, alignItems: 'center',
-                  background: C.card, border: `1px solid ${isNext ? '#A5B4FC' : C.line}`, borderRadius: 14, padding: '18px 20px',
+                  background: C.card, border: `1px solid ${isNext ? '#9cc0f5' : C.line}`, borderRadius: 14, padding: '18px 20px',
                 }}>
                   <div style={{
                     width: 40, height: 40, borderRadius: 10, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 15,
@@ -171,7 +165,7 @@ export default function GeneralPlacement() {
                     {s.state === 'done' && (
                       <>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{s.score}<span style={{ fontSize: 13, color: C.faint, fontFamily: 'Inter, sans-serif' }}> /100</span></div>
+                          <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 600, lineHeight: 1 }}>{s.score}<span style={{ fontSize: 13, color: C.faint, fontFamily: 'Source Sans Pro, sans-serif' }}> /100</span></div>
                           <div style={{ fontSize: 12, color: C.indigo, fontWeight: 600, marginTop: 4 }}>Level {levelFor(s.score)}</div>
                         </div>
                         <button className="gp-btn" type="button" onClick={() => navigate(`/exam/${r.attempt.id}/${r.skill === 'WRITING' ? 'writing-results' : r.skill === 'SPEAKING' ? 'speaking-results' : 'results'}`)} style={linkBtn}>Details</button>
@@ -218,6 +212,6 @@ export default function GeneralPlacement() {
 
 const linkBtn = {
   padding: '8px 14px', borderRadius: 10, border: `1px solid ${C.line}`, background: '#fff', color: C.text,
-  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Source Sans Pro, sans-serif',
 };
 

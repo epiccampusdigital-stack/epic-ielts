@@ -6,7 +6,7 @@ function renderInline(text) {
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <strong key={i} style={{ fontWeight: 600, color: '#0F172A' }}>
+        <strong key={i} style={{ fontWeight: 600, color: '#0f1114' }}>
           {part.slice(2, -2)}
         </strong>
       );
@@ -32,7 +32,7 @@ function renderMarkdown(text) {
       const content = line.replace(/^[-•]\s/, '');
       elements.push(
         <div key={key++} style={{ display: 'flex', gap: 6, marginBottom: 2 }}>
-          <span style={{ color: '#4F46E5', flexShrink: 0 }}>•</span>
+          <span style={{ color: '#0056d2', flexShrink: 0 }}>•</span>
           <span>{renderInline(content)}</span>
         </div>
       );
@@ -190,7 +190,7 @@ export default function AgentWidget() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #4F46E5, #7C3AED);
+          background: linear-gradient(135deg, #0056d2, #003b8f);
           box-shadow: 0 4px 20px rgba(79, 70, 229, 0.35);
           transition: all 200ms ease;
         }
@@ -218,11 +218,11 @@ export default function AgentWidget() {
           background: #FFFFFF;
           border-radius: 20px;
           box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
-          border: 1px solid #E2E8F0;
+          border: 1px solid #dae1ed;
           display: flex;
           flex-direction: column;
           animation: agentSlideIn 220ms ease-out;
-          font-family: Inter, sans-serif;
+          font-family: Source Sans Pro, sans-serif;
         }
         @media (max-width: 480px) {
           .agent-panel {
@@ -239,14 +239,14 @@ export default function AgentWidget() {
           flex: 1;
           overflow-y: auto;
           padding: 16px;
-          background: #F8FAFC;
+          background: #f7f9fc;
           min-height: 200px;
           max-height: 380px;
           scroll-behavior: smooth;
         }
         .agent-user-bubble {
           align-self: flex-end;
-          background: #4F46E5;
+          background: #0056d2;
           color: white;
           border-radius: 16px 16px 4px 16px;
           padding: 10px 14px;
@@ -261,8 +261,8 @@ export default function AgentWidget() {
         .agent-assist-bubble {
           align-self: flex-start;
           background: white;
-          color: #0F172A;
-          border: 1px solid #E2E8F0;
+          color: #0f1114;
+          border: 1px solid #dae1ed;
           border-radius: 16px 16px 16px 4px;
           padding: 10px 14px;
           font-size: 14px;
@@ -278,7 +278,7 @@ export default function AgentWidget() {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #94A3B8;
+          background: #8495b0;
           animation: agentDotPulse 1.2s ease-in-out infinite;
         }
         .agent-wa-card {
@@ -298,19 +298,19 @@ export default function AgentWidget() {
           background: #D1FAE5;
         }
         .agent-textarea:focus {
-          border-color: #4F46E5 !important;
+          border-color: #0056d2 !important;
           background: white !important;
           box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.10) !important;
         }
         .agent-send-btn:hover:not(:disabled) {
-          background: #4338CA !important;
+          background: #0048b0 !important;
         }
       `}</style>
 
       {isOpen && (
         <div className="agent-panel" role="dialog" aria-label="EPIC Advisor chat">
           <div style={{
-            background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+            background: 'linear-gradient(135deg, #0056d2, #003b8f)',
             padding: '16px 20px',
             borderRadius: '20px 20px 0 0',
             display: 'flex',
@@ -334,7 +334,7 @@ export default function AgentWidget() {
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#FFFFFF' }}>
                   EPIC Advisor
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>
+                <div style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.75)' }}>
                   ● Online
                 </div>
               </div>
@@ -390,7 +390,7 @@ export default function AgentWidget() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>
                       Chat with us on WhatsApp
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 400, color: '#64748B' }}>
+                    <div style={{ fontSize: 11, fontWeight: 400, color: '#5b6780' }}>
                       Fastest response
                     </div>
                   </div>
@@ -402,7 +402,7 @@ export default function AgentWidget() {
           </div>
 
           <div style={{
-            borderTop: '1px solid #E2E8F0',
+            borderTop: '1px solid #dae1ed',
             padding: '12px 16px',
             background: '#FFFFFF',
             borderRadius: '0 0 20px 20px',
@@ -423,15 +423,15 @@ export default function AgentWidget() {
                 minHeight: 40,
                 maxHeight: 120,
                 padding: '10px 14px',
-                border: '1px solid #E2E8F0',
+                border: '1px solid #dae1ed',
                 borderRadius: 12,
                 fontSize: 14,
                 fontWeight: 400,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'Source Sans Pro, sans-serif',
                 resize: 'none',
                 outline: 'none',
-                background: '#F8FAFC',
-                color: '#0F172A',
+                background: '#f7f9fc',
+                color: '#0f1114',
                 lineHeight: 1.5,
                 transition: 'border-color 180ms, box-shadow 180ms, background 180ms',
               }}
@@ -447,7 +447,7 @@ export default function AgentWidget() {
                 height: 40,
                 borderRadius: '50%',
                 border: 'none',
-                background: canSend ? '#4F46E5' : '#E2E8F0',
+                background: canSend ? '#0056d2' : '#dae1ed',
                 color: '#FFFFFF',
                 cursor: canSend ? 'pointer' : 'not-allowed',
                 display: 'flex',

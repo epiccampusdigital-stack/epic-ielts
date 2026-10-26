@@ -27,6 +27,7 @@ import LearnPage from './pages/LearnPage';
 import LearnModule from './pages/LearnModule';
 import LearnLesson from './pages/LearnLesson';
 import AdminProgram from './pages/AdminProgram';
+import ChooseCourse from './pages/ChooseCourse';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
 
@@ -86,6 +87,9 @@ function App() {
       <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Student routes */}
+      <Route path="/choose-course" element={
+        <RequireStudentAccess><ChooseCourse /></RequireStudentAccess>
+      } />
       <Route path="/student/dashboard" element={
         <RequireStudentAccess><StudentDashboard /></RequireStudentAccess>
       } />

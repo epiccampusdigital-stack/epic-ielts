@@ -98,7 +98,7 @@ router.post('/papers/reorder', auth, adminOnly, async (req, res) => {
 router.get('/students', auth, adminOnly, async (req, res) => {
   try {
     const students = await prisma.student.findMany({
-      select: { id: true, name: true, email: true, batch: true, role: true, isPaid: true, paidAt: true, stripeSessionId: true },
+      select: { id: true, name: true, email: true, batch: true, role: true, isPaid: true, paidAt: true, stripeSessionId: true, course: true },
       orderBy: { id: 'desc' }
     });
     res.json(students);
@@ -853,7 +853,7 @@ router.get('/results', auth, adminOnly, async (req, res) => {
           select: { name: true, batch: true, email: true }
         },
         paper: {
-          select: { paperCode: true, testType: true, title: true }
+          select: { paperCode: true, testType: true, title: true, track: true, _count: { select: { questions: true } } }
         },
         result: true
       },

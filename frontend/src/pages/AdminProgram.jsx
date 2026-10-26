@@ -10,17 +10,17 @@ const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('t
 const P = `${API_URL}/api/program`;
 
 const C = {
-  navy: '#1a1a2e', indigo: '#4f46e5', gold: '#f59e0b', bg: '#f8fafc', card: '#ffffff',
-  line: '#e2e8f0', text: '#0f172a', muted: '#64748b', faint: '#94a3b8',
+  navy: '#002761', indigo: '#0056d2', gold: '#0056d2', bg: '#ffffff', card: '#ffffff',
+  line: '#dae1ed', text: '#0f1114', muted: '#5b6780', faint: '#8495b0',
 };
 const SUBJECT = {
-  ENGLISH: { label: 'English', bg: '#e0e7ff', fg: '#3730a3' },
+  ENGLISH: { label: 'English', bg: '#e0e7ff', fg: '#003b8f' },
   KOREAN: { label: 'Korean', bg: '#ffedd5', fg: '#9a3412' },
   IT_LAB: { label: 'IT lab', bg: '#dcfce7', fg: '#166534' },
   ACTIVITY: { label: 'Activity', bg: '#fef9c3', fg: '#854d0e' },
   ASSESSMENT: { label: 'Test', bg: '#f3e8ff', fg: '#6b21a8' },
-  BREAK: { label: 'Break', bg: '#f1f5f9', fg: '#64748b' },
-  ADMIN: { label: 'Admin', bg: '#f1f5f9', fg: '#334155' },
+  BREAK: { label: 'Break', bg: '#e8eef7', fg: '#5b6780' },
+  ADMIN: { label: 'Admin', bg: '#e8eef7', fg: '#1e2229' },
 };
 const KIND = {
   NIGHT_BEFORE: 'Night before', SESSION_SOON: 'Before class', DAILY_BRIEF: 'Morning brief',
@@ -30,7 +30,7 @@ const ATT = [
   { k: 'PRESENT', l: 'P', title: 'Present', bg: '#dcfce7', fg: '#166534' },
   { k: 'LATE', l: 'L', title: 'Late', bg: '#fef9c3', fg: '#854d0e' },
   { k: 'ABSENT', l: 'A', title: 'Absent', bg: '#fee2e2', fg: '#991b1b' },
-  { k: 'EXCUSED', l: 'E', title: 'Excused', bg: '#e0e7ff', fg: '#3730a3' },
+  { k: 'EXCUSED', l: 'E', title: 'Excused', bg: '#e0e7ff', fg: '#003b8f' },
 ];
 
 function readUser() {
@@ -55,13 +55,13 @@ function timeAgo(iso) {
 function errText(e) { return e?.response?.data?.error || e?.message || 'Something went wrong'; }
 
 const btn = (kind = 'outline') => ({
-  padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
-  border: kind === 'primary' ? `1px solid ${C.indigo}` : kind === 'gold' ? `1px solid ${C.gold}` : kind === 'danger' ? '1px solid #fecaca' : `1px solid ${C.line}`,
+  height: 36, padding: '0 14px', borderRadius: 8, fontSize: 14, fontWeight: 600, letterSpacing: '0.14px', cursor: 'pointer', fontFamily: 'inherit',
+  border: kind === 'primary' ? `1px solid ${C.indigo}` : kind === 'gold' ? `1px solid ${C.gold}` : kind === 'danger' ? '1px solid #f3b6bf' : '1px solid #0f1114',
   background: kind === 'primary' ? C.indigo : kind === 'gold' ? C.gold : kind === 'danger' ? '#fff' : '#fff',
-  color: kind === 'primary' ? '#fff' : kind === 'gold' ? C.navy : kind === 'danger' ? '#b91c1c' : '#334155',
+  color: kind === 'primary' || kind === 'gold' ? '#fff' : kind === 'danger' ? '#d30a28' : '#0f1114',
 });
-const input = { padding: '8px 10px', border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', background: '#fff', color: C.text, boxSizing: 'border-box' };
-const card = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 14 };
+const input = { padding: '8px 10px', border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 13, fontFamily: 'Source Sans Pro, sans-serif', background: '#fff', color: C.text, boxSizing: 'border-box' };
+const card = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 16 };
 
 function Pill({ subject }) {
   const s = SUBJECT[subject] || SUBJECT.ADMIN;
@@ -130,6 +130,23 @@ export default function AdminProgram() {
     } catch (e) { flash(errText(e)); }
   };
 
+  const paused = data?.program?.status === 'PAUSED';
+  const togglePause = async () => {
+    try {
+      await axios.put(`${P}/${programId}`, { status: paused ? 'ACTIVE' : 'PAUSED' }, api());
+      flash(paused ? 'Tracker is back on. Reminders start again.' : 'Tracker paused. No reminders will be sent.');
+      loadProgram();
+    } catch (e) { flash(errText(e)); }
+  };
+  const rebuild = async () => {
+    if (!window.confirm('Rebuild all 30 days from the new plan? Session notes and changes you made to the schedule will be replaced. Teachers and students stay.')) return;
+    try {
+      await axios.post(`${P}/${programId}/rebuild`, {}, api());
+      flash('Schedule rebuilt with the new 4-hour and 3-hour blocks.');
+      loadProgram();
+    } catch (e) { flash(errText(e)); }
+  };
+
   const tabs = [
     ...(isAdmin ? [] : [{ id: 'mine', label: 'My sessions' }]),
     { id: 'today', label: 'Today' },
@@ -142,34 +159,37 @@ export default function AdminProgram() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'Inter, sans-serif', color: C.text }}>
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: "'Source Sans Pro', 'Source Sans 3', Arial, sans-serif", color: C.text }}>
       <style>{`
         .pg-wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 80px; }
         .pg-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
         .pg-tabs::-webkit-scrollbar { display: none; }
-        .pg-row:hover { background: #fafbff; }
+        .pg-row:hover { background: #f7f9fc; }
         .pg-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 760px) { .pg-grid2 { grid-template-columns: 1fr; } .pg-hide-sm { display: none !important; } }
       `}</style>
 
-      <header style={{ background: C.navy, color: '#fff' }}>
-        <div className="pg-wrap" style={{ paddingTop: 14, paddingBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <header style={{ background: '#fff', borderBottom: `1px solid ${C.line}`, position: 'sticky', top: 0, zIndex: 40 }}>
+        <div className="pg-wrap" style={{ paddingTop: 14, paddingBottom: 10, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           {user.role === 'PROGRAM_TEACHER' ? (
-            <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/'); }} style={{ ...btn(), background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}>Sign out</button>
+            <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/'); }} style={btn()}>Log out</button>
           ) : (
-            <button onClick={() => navigate('/admin/dashboard')} style={{ ...btn(), background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}>← Dashboard</button>
+            <button onClick={() => navigate('/admin/dashboard')} style={btn()}>← Admin</button>
           )}
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.gold, fontWeight: 600 }}>Program tracker</div>
-            <div style={{ fontSize: 17, fontWeight: 700 }}>{data?.program?.name || 'Residential programme'}</div>
+            <div style={{ fontSize: 14, color: C.indigo, fontWeight: 600 }}>Program tracker</div>
+            <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.1px' }}>{data?.program?.name || 'Residential programme'}</div>
           </div>
           {data?.todayDay ? (
-            <div style={{ fontSize: 13, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#fde68a', padding: '6px 12px', borderRadius: 999 }}>
+            <div style={{ fontSize: 14, background: C.navy, color: '#fff', padding: '4px 12px', borderRadius: 50, fontWeight: 600 }}>
               Today: Day {data.todayDay.dayNumber} · {data.todayDay.theme}
             </div>
           ) : data?.program ? (
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>No class day today</div>
+            <div style={{ fontSize: 14, color: C.muted }}>No class day today</div>
           ) : null}
+          {isAdmin && data?.program && (
+            <button style={btn(paused ? 'primary' : 'outline')} onClick={togglePause}>{paused ? 'Turn tracker back on' : 'Pause tracker'}</button>
+          )}
           {boot.programs?.length > 1 && (
             <select value={programId || ''} onChange={e => setProgramId(Number(e.target.value))} style={{ ...input, maxWidth: 220 }}>
               {boot.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -181,12 +201,12 @@ export default function AdminProgram() {
             <nav className="pg-tabs">
               {tabs.map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)} style={{
-                  padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, whiteSpace: 'nowrap',
-                  color: tab === t.id ? '#fff' : 'rgba(255,255,255,0.6)', fontWeight: tab === t.id ? 600 : 500,
-                  borderBottom: tab === t.id ? `2px solid ${C.gold}` : '2px solid transparent',
+                  height: 44, padding: '0 12px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, whiteSpace: 'nowrap',
+                  color: tab === t.id ? C.indigo : '#0f1114', fontWeight: 600,
+                  borderBottom: tab === t.id ? `3px solid ${C.indigo}` : '3px solid transparent',
                 }}>
                   {t.label}
-                  {t.badge ? <span style={{ marginLeft: 6, background: C.gold, color: C.navy, borderRadius: 999, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{t.badge}</span> : null}
+                  {t.badge ? <span style={{ marginLeft: 6, background: C.indigo, color: '#fff', borderRadius: 50, padding: '1px 7px', fontSize: 12, fontWeight: 700 }}>{t.badge}</span> : null}
                 </button>
               ))}
             </nav>
@@ -196,12 +216,24 @@ export default function AdminProgram() {
 
       <main className="pg-wrap">
         {toast && (
-          <div role="status" style={{ ...card, padding: '10px 14px', marginBottom: 16, borderColor: '#c7d2fe', background: '#eef2ff', color: '#3730a3', fontSize: 14, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <div role="status" style={{ ...card, padding: '10px 14px', marginBottom: 16, borderColor: '#b9d2f7', background: '#e3eeff', color: '#003b8f', fontSize: 14, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <span>{toast}</span>
             <button onClick={() => setToast('')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', fontSize: 16 }}>×</button>
           </div>
         )}
 
+        {paused && (
+          <div style={{ ...card, padding: '14px 16px', marginBottom: 16, background: '#fff4e8', borderColor: '#f5c99b', color: '#a32e00', fontSize: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span><b>The tracker is paused.</b> No reminders or morning briefs are created or sent until you turn it back on. Everything else still works.</span>
+            {isAdmin && <button style={btn('primary')} onClick={togglePause}>Turn back on</button>}
+          </div>
+        )}
+        {isAdmin && data?.program && !data.todayDay && data.program.dayEndTime !== '19:30' && (
+          <div style={{ ...card, padding: '14px 16px', marginBottom: 16, background: '#f0f6ff', borderColor: '#b9d2f7', fontSize: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span><b>New day plan available:</b> a 4-hour and a 3-hour block each day, English and Korean swapping daily. Rebuild the schedule to use it. Teachers and students stay.</span>
+            <button style={btn('primary')} onClick={rebuild}>Rebuild schedule</button>
+          </div>
+        )}
         {boot.loading && <p style={{ color: C.muted }}>Loading…</p>}
         {boot.error && <p style={{ color: '#b91c1c' }}>{boot.error}</p>}
 
@@ -209,7 +241,7 @@ export default function AdminProgram() {
           <div style={{ ...card, padding: 32, maxWidth: 620 }}>
             <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>No programme yet</h2>
             <p style={{ margin: '0 0 20px', color: C.muted, lineHeight: 1.6 }}>
-              Load the Korea scholarship batch: 30 days from Fri 30 Oct, about 140 hours of English and 140 of Korean, with placeholder teachers you can rename.
+              Load the Korea scholarship batch: 30 days from Fri 30 Oct, a 4-hour and a 3-hour block every day, about 98 hours each of English and Korean, with placeholder teachers you can rename.
             </p>
             {isAdmin ? <button style={btn('primary')} onClick={seed}>Load the 30-day plan</button> : <p style={{ color: C.muted }}>Ask the admin to set it up.</p>}
           </div>
@@ -269,8 +301,8 @@ function DayView({ programId, data, dayNumber, flash, isAdmin, onChanged, goRemi
       <div style={{ ...card, padding: 20, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ fontSize: 13, color: C.muted }}>Day {day.dayNumber} · {prettyDate(day.date)}</div>
-          <h2 style={{ margin: '2px 0 10px', fontSize: 22, fontFamily: 'Inter, sans-serif' }}>{day.theme}</h2>
-          <div style={{ fontSize: 13, color: '#334155', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>
+          <h2 style={{ margin: '2px 0 10px', fontSize: 22, fontFamily: 'Source Sans Pro, sans-serif' }}>{day.theme}</h2>
+          <div style={{ fontSize: 13, color: '#1e2229', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>
         </div>
         <div style={{ minWidth: 220, flex: '0 1 320px', fontSize: 13, lineHeight: 1.6 }}>
           <div><b>Korean:</b> {day.koreanFocus}</div>
@@ -460,7 +492,7 @@ function Schedule({ programId, data, flash, isAdmin, onChanged }) {
           return (
             <button key={d.id} ref={on ? el => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined} onClick={() => setDayNumber(d.dayNumber)} title={d.theme} style={{
               flex: '0 0 auto', minWidth: 66, padding: '6px 8px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
-              border: on ? `1.5px solid ${C.indigo}` : today ? `1.5px solid ${C.gold}` : `1px solid ${C.line}`, background: on ? '#eef2ff' : '#fff',
+              border: on ? `1.5px solid ${C.indigo}` : today ? `1.5px solid ${C.gold}` : `1px solid ${C.line}`, background: on ? '#e3eeff' : '#fff',
             }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: on ? C.indigo : C.text }}>Day {d.dayNumber}</div>
               <div style={{ fontSize: 11, color: C.muted }}>{prettyDate(d.date)}</div>
@@ -487,7 +519,7 @@ function Schedule({ programId, data, flash, isAdmin, onChanged }) {
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ fontSize: 13, color: C.muted }}>Day {day.dayNumber} · {prettyDate(day.date)}</div>
                 <div style={{ fontSize: 19, fontWeight: 700, margin: '2px 0 6px' }}>{day.theme}</div>
-                <div style={{ fontSize: 13, color: '#334155', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>
+                <div style={{ fontSize: 13, color: '#1e2229', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>
                 <div style={{ fontSize: 13, marginTop: 6 }}><b>Korean:</b> {day.koreanFocus}</div>
               </div>
               {isAdmin && (
@@ -505,7 +537,7 @@ function Schedule({ programId, data, flash, isAdmin, onChanged }) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 760 }}>
             <thead>
-              <tr style={{ background: '#f8fafc', textAlign: 'left', color: C.muted }}>
+              <tr style={{ background: '#f7f9fc', textAlign: 'left', color: C.muted }}>
                 {['Start', 'End', 'Type', 'Session', 'Teacher', 'Status'].map(h => <th key={h} style={{ padding: '10px 12px', fontWeight: 600, borderBottom: `1px solid ${C.line}` }}>{h}</th>)}
               </tr>
             </thead>
@@ -546,7 +578,7 @@ function Schedule({ programId, data, flash, isAdmin, onChanged }) {
           </div>
         )}
         {adding && (
-          <div style={{ padding: 12, borderTop: `1px solid ${C.line}`, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', background: '#f8fafc' }}>
+          <div style={{ padding: 12, borderTop: `1px solid ${C.line}`, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', background: '#f7f9fc' }}>
             <input type="time" style={input} value={adding.startTime} onChange={e => setAdding({ ...adding, startTime: e.target.value })} />
             <input type="time" style={input} value={adding.endTime} onChange={e => setAdding({ ...adding, endTime: e.target.value })} />
             <select style={input} value={adding.subject} onChange={e => setAdding({ ...adding, subject: e.target.value })}>
@@ -620,7 +652,7 @@ function Teachers({ programId, data, flash, isAdmin, onChanged }) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
             <thead>
-              <tr style={{ background: '#f8fafc', textAlign: 'left', color: C.muted }}>
+              <tr style={{ background: '#f7f9fc', textAlign: 'left', color: C.muted }}>
                 {['Name', 'WhatsApp', 'Subject', 'Focus', 'Confirmed', 'Hours', 'Login', ''].map(h => <th key={h} style={{ padding: '10px 12px', fontWeight: 600 }}>{h}</th>)}
               </tr>
             </thead>
@@ -775,10 +807,10 @@ function PlacementResults({ programId, data }) {
         </span>
       </div>
       {groups.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '12px 16px', borderBottom: `1px solid ${C.line}`, background: '#FAFBFF' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '12px 16px', borderBottom: `1px solid ${C.line}`, background: '#f7f9fc' }}>
           {groups.map(g => (
             <div key={g.level} style={{ fontSize: 13 }}>
-              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: '#EEF2FF', color: '#4F46E5', fontWeight: 700, marginRight: 6 }}>{g.level}</span>
+              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: '#e3eeff', color: '#0056d2', fontWeight: 700, marginRight: 6 }}>{g.level}</span>
               {g.names.join(', ')}
             </div>
           ))}
@@ -802,7 +834,7 @@ function PlacementResults({ programId, data }) {
                 </td>
                 {parts.map(p => <td key={p} style={td}>{cell(r.parts?.[p])}</td>)}
                 <td style={td}>{r.overall == null ? '–' : <b>{r.overall}</b>}</td>
-                <td style={td}>{r.level ? <b style={{ color: '#4F46E5' }}>{r.level}</b> : <span style={{ color: C.faint, fontSize: 12 }}>{r.done ? `${r.done}/4 done` : '–'}</span>}</td>
+                <td style={td}>{r.level ? <b style={{ color: '#0056d2' }}>{r.level}</b> : <span style={{ color: C.faint, fontSize: 12 }}>{r.done ? `${r.done}/4 done` : '–'}</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -866,7 +898,7 @@ function Reminders({ programId, data, flash, isAdmin, whatsappApi, onChanged }) 
         <div style={{ fontSize: 12, color: C.muted }}>{KIND[r.kind] || r.kind}</div>
         <div style={{ fontSize: 12, color: new Date(r.dueAt).getTime() < now && r.status === 'PENDING' ? '#b45309' : C.faint }}>{timeAgo(r.dueAt)}</div>
       </div>
-      <div style={{ flex: 1, minWidth: 220, fontSize: 13, whiteSpace: 'pre-line', color: '#334155', lineHeight: 1.5 }}>
+      <div style={{ flex: 1, minWidth: 220, fontSize: 13, whiteSpace: 'pre-line', color: '#1e2229', lineHeight: 1.5 }}>
         {r.message}
         {r.error && <div style={{ marginTop: 6, fontSize: 12, color: '#b91c1c' }}>{r.error}</div>}
       </div>
@@ -912,7 +944,7 @@ function Reminders({ programId, data, flash, isAdmin, whatsappApi, onChanged }) 
             <div style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, background: '#fffbeb' }}>Due now ({due.length})</div>
             {due.length === 0 && <p style={{ padding: '0 16px 12px', margin: 0, fontSize: 13, color: C.muted }}>All caught up.</p>}
             {due.map(r => <Item key={r.id} r={r} />)}
-            <div style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, background: '#f8fafc', borderTop: `1px solid ${C.line}` }}>Coming up ({later.length})</div>
+            <div style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, background: '#f7f9fc', borderTop: `1px solid ${C.line}` }}>Coming up ({later.length})</div>
             {later.map(r => <Item key={r.id} r={r} />)}
           </>
         ) : list.map(r => <Item key={r.id} r={r} />)}
@@ -931,7 +963,7 @@ function Reminders({ programId, data, flash, isAdmin, whatsappApi, onChanged }) 
           {data.program.changeLogs.map(c => (
             <div key={c.id} style={{ fontSize: 13, padding: '8px 0', borderTop: `1px solid ${C.line}`, display: 'flex', gap: 12 }}>
               <span style={{ color: C.faint, width: 110, flexShrink: 0 }}>{new Date(c.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-              <span style={{ color: '#334155' }}>{c.summary}</span>
+              <span style={{ color: '#1e2229' }}>{c.summary}</span>
             </div>
           ))}
         </div>
@@ -989,17 +1021,17 @@ function Assistant({ programId, flash, aiEnabled, onChanged }) {
           <div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>Tell Claude what changed. It proposes the edit, you confirm, teachers get told.</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-              {examples.map(x => <button key={x} style={{ ...btn(), fontWeight: 500 }} onClick={() => setText(x)}>{x}</button>)}
+              {examples.map(x => <button key={x} style={{ ...btn(), fontWeight: 400 }} onClick={() => setText(x)}>{x}</button>)}
             </div>
           </div>
         )}
         {msgs.map((m, i) => (
           <div key={i} style={{ justifySelf: m.role === 'user' ? 'end' : 'start', maxWidth: '85%' }}>
-            <div style={{ padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-line', background: m.role === 'user' ? C.indigo : '#f1f5f9', color: m.role === 'user' ? '#fff' : C.text }}>{m.content}</div>
+            <div style={{ padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-line', background: m.role === 'user' ? C.indigo : '#e8eef7', color: m.role === 'user' ? '#fff' : C.text }}>{m.content}</div>
             {m.proposal && (
               <div style={{ marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, background: '#fff' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Proposed change</div>
-                <div style={{ fontSize: 13, color: '#334155' }}>{m.proposal.summary}</div>
+                <div style={{ fontSize: 13, color: '#1e2229' }}>{m.proposal.summary}</div>
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{m.proposal.operations.length} edit{m.proposal.operations.length > 1 ? 's' : ''}</div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   {m.applied ? <span style={{ fontSize: 13, color: '#166534', fontWeight: 600 }}>Applied</span> : (
@@ -1035,7 +1067,7 @@ function Progress({ programId }) {
     <div style={{ display: 'grid', gap: 16 }}>
       <div style={{ ...card, padding: 16 }}>
         <b>Teaching time (scheduled, excluding cancelled)</b>
-        <div style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden', marginTop: 12, background: '#f1f5f9' }}>
+        <div style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden', marginTop: 12, background: '#e8eef7' }}>
           <div style={{ width: `${(s.hours.english / total) * 100}%`, background: C.indigo }} />
           <div style={{ width: `${(s.hours.korean / total) * 100}%`, background: '#f97316' }} />
         </div>
@@ -1050,7 +1082,7 @@ function Progress({ programId }) {
           {s.byTeacher.map(t => (
             <div key={t.id} style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>{t.name}</span><span style={{ color: C.muted }}>{t.done}/{t.total}</span></div>
-              <div style={{ height: 6, background: '#f1f5f9', borderRadius: 999, marginTop: 4 }}><div style={{ width: `${t.total ? (t.done / t.total) * 100 : 0}%`, height: '100%', background: '#16a34a', borderRadius: 999 }} /></div>
+              <div style={{ height: 6, background: '#e8eef7', borderRadius: 999, marginTop: 4 }}><div style={{ width: `${t.total ? (t.done / t.total) * 100 : 0}%`, height: '100%', background: '#16a34a', borderRadius: 999 }} /></div>
             </div>
           ))}
         </div>

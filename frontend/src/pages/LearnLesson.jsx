@@ -27,7 +27,7 @@ function renderMarkdown(text) {
     if (line.startsWith('## ')) {
       elements.push(
         <h2 key={key++} style={{
-          fontSize: 18, fontWeight: 700, color: '#0F172A',
+          fontSize: 18, fontWeight: 700, color: '#0f1114',
           margin: '24px 0 12px', letterSpacing: '-0.01em',
         }}>
           {line.slice(3)}
@@ -40,7 +40,7 @@ function renderMarkdown(text) {
     if (line.startsWith('### ')) {
       elements.push(
         <h3 key={key++} style={{
-          fontSize: 15, fontWeight: 700, color: '#0F172A',
+          fontSize: 15, fontWeight: 700, color: '#0f1114',
           margin: '20px 0 8px',
         }}>
           {line.slice(4)}
@@ -58,10 +58,10 @@ function renderMarkdown(text) {
           marginBottom: 6, alignItems: 'flex-start',
         }}>
           <span style={{
-            color: '#4F46E5', flexShrink: 0,
+            color: '#0056d2', flexShrink: 0,
             marginTop: 2, fontSize: 14,
           }}>•</span>
-          <span style={{ fontSize: 15, color: '#374151',
+          <span style={{ fontSize: 15, color: '#1e2229',
             lineHeight: 1.6 }}>
             {renderInline(content)}
           </span>
@@ -82,17 +82,17 @@ function renderMarkdown(text) {
         <div key={key++} style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
-          borderBottom: '1px solid #E2E8F0',
-          background: isHeader ? '#F8FAFC' : 'transparent',
+          borderBottom: '1px solid #dae1ed',
+          background: isHeader ? '#f7f9fc' : 'transparent',
         }}>
           {cells.map((cell, ci) => (
             <div key={ci} style={{
               padding: '8px 12px',
               fontSize: 13,
               fontWeight: isHeader ? 600 : 400,
-              color: '#0F172A',
+              color: '#0f1114',
               borderRight: ci < cells.length - 1
-                ? '1px solid #E2E8F0' : 'none',
+                ? '1px solid #dae1ed' : 'none',
             }}>
               {renderInline(cell)}
             </div>
@@ -106,7 +106,7 @@ function renderMarkdown(text) {
     elements.push(
       <p key={key++} style={{
         margin: '0 0 8px', fontSize: 15,
-        color: '#374151', lineHeight: 1.7,
+        color: '#1e2229', lineHeight: 1.7,
       }}>
         {renderInline(line)}
       </p>
@@ -122,7 +122,7 @@ function renderInline(text) {
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <strong key={i} style={{ fontWeight: 600, color: '#0F172A' }}>
+        <strong key={i} style={{ fontWeight: 600, color: '#0f1114' }}>
           {part.slice(2, -2)}
         </strong>
       );
@@ -185,26 +185,26 @@ export default function LearnLesson() {
   };
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
       <div style={{ display: 'flex', alignItems: 'center',
         justifyContent: 'center', minHeight: '60vh',
-        color: '#94A3B8' }}>
+        color: '#8495b0' }}>
         Loading lesson...
       </div>
     </div>
   );
 
   if (!lesson) return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f9fc',
+      fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
       <div style={{ textAlign: 'center', padding: '80px 24px',
-        color: '#94A3B8' }}>
+        color: '#8495b0' }}>
         Lesson not found.{' '}
         <button onClick={() => navigate('/learn')}
-          style={{ color: '#4F46E5', background: 'none',
+          style={{ color: '#0056d2', background: 'none',
             border: 'none', cursor: 'pointer', fontSize: 15 }}>
           Back to Learn
         </button>
@@ -214,7 +214,7 @@ export default function LearnLesson() {
 
   return (
     <div ref={topRef} style={{ minHeight: '100vh',
-      background: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
+      background: '#f7f9fc', fontFamily: 'Source Sans Pro, sans-serif' }}>
       <StudentNav active="learn" />
 
       <div style={{ maxWidth: 760, margin: '0 auto',
@@ -223,23 +223,23 @@ export default function LearnLesson() {
         {/* Breadcrumb */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          marginBottom: 24, fontSize: 13, color: '#94A3B8',
+          marginBottom: 24, fontSize: 13, color: '#8495b0',
         }}>
           <button onClick={() => navigate('/learn')}
             style={{ background: 'none', border: 'none',
-              color: '#4F46E5', cursor: 'pointer',
-              fontSize: 13, padding: 0, fontFamily: 'Inter' }}>
+              color: '#0056d2', cursor: 'pointer',
+              fontSize: 13, padding: 0, fontFamily: 'Source Sans Pro' }}>
             Learn
           </button>
           <span>›</span>
           <button onClick={() => navigate(`/learn/${moduleId}`)}
             style={{ background: 'none', border: 'none',
-              color: '#4F46E5', cursor: 'pointer',
-              fontSize: 13, padding: 0, fontFamily: 'Inter' }}>
+              color: '#0056d2', cursor: 'pointer',
+              fontSize: 13, padding: 0, fontFamily: 'Source Sans Pro' }}>
             {lesson.module.icon} {lesson.module.title}
           </button>
           <span>›</span>
-          <span style={{ color: '#0F172A' }}>{lesson.title}</span>
+          <span style={{ color: '#0f1114' }}>{lesson.title}</span>
         </div>
 
         {/* Lesson header */}
@@ -247,7 +247,7 @@ export default function LearnLesson() {
           background: 'white',
           borderRadius: 16,
           padding: '28px 32px',
-          border: '1px solid #E2E8F0',
+          border: '1px solid #dae1ed',
           borderTop: `4px solid ${lesson.module.color}`,
           marginBottom: 24,
           boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
@@ -267,13 +267,13 @@ export default function LearnLesson() {
               </div>
               <h1 style={{
                 margin: 0, fontSize: 24, fontWeight: 700,
-                color: '#0F172A', letterSpacing: '-0.01em',
+                color: '#0f1114', letterSpacing: '-0.01em',
               }}>
                 {lesson.title}
               </h1>
             </div>
             <div style={{
-              flexShrink: 0, fontSize: 12, color: '#94A3B8',
+              flexShrink: 0, fontSize: 12, color: '#8495b0',
               textAlign: 'right',
             }}>
               ⏱ {lesson.estimatedMin} min
@@ -294,7 +294,7 @@ export default function LearnLesson() {
           background: 'white',
           borderRadius: 16,
           padding: '32px',
-          border: '1px solid #E2E8F0',
+          border: '1px solid #dae1ed',
           marginBottom: 24,
           boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
           lineHeight: 1.7,
@@ -313,13 +313,13 @@ export default function LearnLesson() {
             disabled={!lesson.prev}
             style={{
               padding: '12px 20px',
-              background: lesson.prev ? 'white' : '#F8FAFC',
-              color: lesson.prev ? '#0F172A' : '#94A3B8',
-              border: '1px solid #E2E8F0',
+              background: lesson.prev ? 'white' : '#f7f9fc',
+              color: lesson.prev ? '#0f1114' : '#8495b0',
+              border: '1px solid #dae1ed',
               borderRadius: 12,
               cursor: lesson.prev ? 'pointer' : 'not-allowed',
-              fontSize: 14, fontWeight: 500,
-              fontFamily: 'Inter',
+              fontSize: 14, fontWeight: 400,
+              fontFamily: 'Source Sans Pro',
             }}
           >
             ← {lesson.prev ? lesson.prev.title : 'Previous'}
@@ -331,13 +331,13 @@ export default function LearnLesson() {
             disabled={marking || marked}
             style={{
               padding: '12px 24px',
-              background: marked ? '#ECFDF5' : '#4F46E5',
+              background: marked ? '#ECFDF5' : '#0056d2',
               color: marked ? '#059669' : 'white',
               border: marked ? '1px solid #BBF7D0' : 'none',
               borderRadius: 12,
               cursor: marking || marked ? 'default' : 'pointer',
               fontSize: 14, fontWeight: 600,
-              fontFamily: 'Inter',
+              fontFamily: 'Source Sans Pro',
               transition: 'all 180ms ease',
             }}
           >
@@ -349,13 +349,13 @@ export default function LearnLesson() {
             onClick={goNext}
             style={{
               padding: '12px 20px',
-              background: '#4F46E5',
+              background: '#0056d2',
               color: 'white',
               border: 'none',
               borderRadius: 12,
               cursor: 'pointer',
               fontSize: 14, fontWeight: 600,
-              fontFamily: 'Inter',
+              fontFamily: 'Source Sans Pro',
             }}
           >
             {lesson.next ? `${lesson.next.title} →` : 'Back to module →'}

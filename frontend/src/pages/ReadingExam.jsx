@@ -410,10 +410,10 @@ export default function ReadingExam() {
    };
 
    const getTimerStyle = () => {
-      if (timeLeft === null) return { bg: '#1e293b', color: '#ffffff' };
+      if (timeLeft === null) return { bg: '#0f1114', color: '#ffffff' };
       if (timeLeft < 300) return { bg: '#dc2626', color: '#ffffff' };
       if (timeLeft < 600) return { bg: '#d97706', color: '#ffffff' };
-      return { bg: '#1e293b', color: '#ffffff' };
+      return { bg: '#0f1114', color: '#ffffff' };
    };
 
    if (!paper) {
@@ -423,21 +423,21 @@ export default function ReadingExam() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#f8fafc',
-            fontFamily: "'Inter', sans-serif"
+            background: '#f7f9fc',
+            fontFamily: "Source Sans Pro, sans-serif"
          }}>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <div style={{ textAlign: 'center' }}>
                <div style={{
                   width: '44px',
                   height: '44px',
-                  border: '3px solid #e2e8f0',
-                  borderTop: '3px solid #4f46e5',
+                  border: '3px solid #dae1ed',
+                  borderTop: '3px solid #0056d2',
                   borderRadius: '50%',
                   animation: 'spin 0.8s linear infinite',
                   margin: '0 auto 16px'
                }} />
-               <p style={{ color: '#64748b', fontSize: '14px' }}>Loading exam...</p>
+               <p style={{ color: '#5b6780', fontSize: '14px' }}>Loading exam...</p>
             </div>
          </div>
       );
@@ -447,30 +447,30 @@ export default function ReadingExam() {
       <div style={{
          display: 'flex', flexDirection: 'column',
          alignItems: 'center', justifyContent: 'center',
-         minHeight: '100vh', background: '#f8fafc',
-         fontFamily: 'Inter, sans-serif'
+         minHeight: '100vh', background: '#f7f9fc',
+         fontFamily: 'Source Sans Pro, sans-serif'
       }}>
          <div style={{
             background: '#fff', borderRadius: 20,
             padding: '48px 56px', textAlign: 'center',
             boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
-            border: '1px solid #e2e8f0', maxWidth: 400
+            border: '1px solid #dae1ed', maxWidth: 400
          }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
-            <h2 style={{ color: '#1a1a2e', fontWeight: 800,
+            <h2 style={{ color: '#0f1114', fontWeight: 700,
                fontSize: 22, marginBottom: 8,
-               fontFamily: 'Inter, sans-serif' }}>
+               fontFamily: 'Source Sans Pro, sans-serif' }}>
                Submitting your reading test...
             </h2>
-            <p style={{ color: '#64748b', fontSize: 14,
+            <p style={{ color: '#5b6780', fontSize: 14,
                marginBottom: 24, lineHeight: 1.6 }}>
                Your answers are being saved and marked.
                Please do not close this window.
             </p>
             <div style={{
                width: 40, height: 40,
-               border: '4px solid #e2e8f0',
-               borderTop: '4px solid #4f46e5',
+               border: '4px solid #dae1ed',
+               borderTop: '4px solid #0056d2',
                borderRadius: '50%',
                animation: 'spin 1s linear infinite',
                margin: '0 auto'
@@ -569,7 +569,7 @@ export default function ReadingExam() {
             style={{
                marginBottom: '28px',
                paddingBottom: '24px',
-               borderBottom: idx < total - 1 ? '1px solid #f1f5f9' : 'none'
+               borderBottom: idx < total - 1 ? '1px solid #e8eef7' : 'none'
             }}
          >
             <div
@@ -585,13 +585,13 @@ export default function ReadingExam() {
                      width: '28px',
                      height: '28px',
                      borderRadius: '50%',
-                     background: answers[q.id] ? '#4f46e5' : '#f1f5f9',
+                     background: answers[q.id] ? '#0056d2' : '#e8eef7',
                      display: 'flex',
                      alignItems: 'center',
                      justifyContent: 'center',
                      fontSize: '13px',
-                     fontWeight: '800',
-                     color: answers[q.id] ? '#ffffff' : '#64748b',
+                     fontWeight: 700,
+                     color: answers[q.id] ? '#ffffff' : '#5b6780',
                      flexShrink: 0
                   }}
                >
@@ -601,12 +601,12 @@ export default function ReadingExam() {
                <p
                   style={{
                      fontSize: '15px',
-                     color: '#1e293b',
+                     color: '#0f1114',
                      lineHeight: '1.6',
                      fontWeight: '700',
                      margin: 0,
                      paddingTop: '4px',
-                     fontFamily: "'Inter', sans-serif"
+                     fontFamily: "Source Sans Pro, sans-serif"
                   }}
                >
                   {q.content}
@@ -624,7 +624,7 @@ export default function ReadingExam() {
                            borderRadius: '8px',
                            fontSize: '13px',
                            color: '#92400e',
-                           fontWeight: 500
+                           fontWeight: 400
                         }}
                      >
                         ⚠️ Answer options for this question are not yet available. Please contact your teacher.
@@ -643,14 +643,14 @@ export default function ReadingExam() {
                                  alignItems: 'center',
                                  gap: '12px',
                                  padding: '12px 16px',
-                                 background: selected ? '#eff6ff' : '#ffffff',
-                                 border: `1.5px solid ${selected ? '#4f46e5' : '#e2e8f0'}`,
+                                 background: selected ? '#f0f6ff' : '#ffffff',
+                                 border: `1.5px solid ${selected ? '#0056d2' : '#dae1ed'}`,
                                  borderRadius: '12px',
                                  cursor: 'pointer',
                                  transition: 'all 0.2s',
                                  fontSize: '14px',
                                  fontWeight: selected ? '700' : '500',
-                                 color: selected ? '#1e40af' : '#475569'
+                                 color: selected ? '#003b8f' : '#5b6780'
                               }}
                            >
                               <input
@@ -658,11 +658,11 @@ export default function ReadingExam() {
                                  name={`q${q.id}`}
                                  checked={selected}
                                  onChange={() => selectAnswer(q.id, opt.value)}
-                                 style={{ accentColor: '#4f46e5', width: '18px', height: '18px' }}
+                                 style={{ accentColor: '#0056d2', width: '18px', height: '18px' }}
                               />
                               <span style={{ display: 'flex', gap: '8px' }}>
                                  {opt.letter && (
-                                    <span style={{ fontWeight: '800', color: '#4f46e5' }}>{opt.letter}.</span>
+                                    <span style={{ fontWeight: 700, color: '#0056d2' }}>{opt.letter}.</span>
                                  )}
                                  <span>{opt.text || ''}</span>
                               </span>
@@ -740,8 +740,8 @@ export default function ReadingExam() {
          height: '100vh',
          display: 'flex',
          flexDirection: 'column',
-         fontFamily: "'Inter', sans-serif",
-         background: '#f8fafc',
+         fontFamily: "Source Sans Pro, sans-serif",
+         background: '#f7f9fc',
          overflow: 'hidden'
       }}>
          <style>{`
@@ -752,26 +752,26 @@ export default function ReadingExam() {
           flex: 1;
           min-width: 145px;
           padding: 12px 14px;
-          border: 1.5px solid #e2e8f0;
+          border: 1.5px solid #dae1ed;
           border-radius: 10px;
           background: #ffffff;
           font-size: 13px;
           font-weight: 600;
-          color: #475569;
+          color: #5b6780;
           cursor: pointer;
           transition: all 0.15s ease;
-          font-family: 'Inter', sans-serif;
+          font-family: Source Sans Pro, sans-serif;
           text-align: left;
         }
 
         .pill-btn:hover {
-          border-color: #4f46e5;
-          background: #f5f3ff;
+          border-color: #0056d2;
+          background: #f0f6ff;
         }
 
         .pill-btn.selected {
-          background: #4f46e5;
-          border-color: #4f46e5;
+          background: #0056d2;
+          border-color: #0056d2;
           color: #ffffff;
           font-weight: 700;
         }
@@ -790,9 +790,9 @@ export default function ReadingExam() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          background: #eef2ff;
-          color: #4f46e5;
-          font-weight: 800;
+          background: #e3eeff;
+          color: #0056d2;
+          font-weight: 700;
           font-size: 12px;
           flex-shrink: 0;
         }
@@ -805,17 +805,17 @@ export default function ReadingExam() {
         .short-input {
           width: 100%;
           border: none;
-          border-bottom: 2px solid #e2e8f0;
+          border-bottom: 2px solid #dae1ed;
           padding: 8px 4px;
           font-size: 14px;
-          font-family: 'Inter', sans-serif;
-          color: #1e293b;
+          font-family: Source Sans Pro, sans-serif;
+          color: #0f1114;
           background: transparent;
           outline: none;
         }
 
         .short-input:focus {
-          border-bottom-color: #4f46e5;
+          border-bottom-color: #0056d2;
         }
 
         .nav-btn {
@@ -824,16 +824,16 @@ export default function ReadingExam() {
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
-          font-family: 'Inter', sans-serif;
+          font-family: Source Sans Pro, sans-serif;
           transition: all 0.2s;
-          border: 1.5px solid #e2e8f0;
+          border: 1.5px solid #dae1ed;
           background: #ffffff;
-          color: #475569;
+          color: #5b6780;
         }
 
         .nav-btn.primary {
-          background: #4f46e5;
-          border-color: #4f46e5;
+          background: #0056d2;
+          border-color: #0056d2;
           color: #ffffff;
         }
 
@@ -853,9 +853,9 @@ export default function ReadingExam() {
           font-size: 11px;
           font-weight: 600;
           cursor: pointer;
-          border: 1px solid #e2e8f0;
-          background: #f8fafc;
-          color: #94a3b8;
+          border: 1px solid #dae1ed;
+          background: #f7f9fc;
+          color: #8495b0;
         }
 
         .q-dot.answered {
@@ -865,14 +865,14 @@ export default function ReadingExam() {
         }
 
         .q-dot.current {
-          background: #4f46e5;
-          border-color: #4f46e5;
+          background: #0056d2;
+          border-color: #0056d2;
           color: #ffffff;
         }
 
         .group-box {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: #f7f9fc;
+          border: 1px solid #dae1ed;
           border-radius: 14px;
           padding: 16px;
           margin-bottom: 18px;
@@ -880,14 +880,14 @@ export default function ReadingExam() {
 
         .group-title {
           font-size: 14px;
-          font-weight: 800;
-          color: #1e293b;
+          font-weight: 700;
+          color: #0f1114;
           margin-bottom: 6px;
         }
 
         .group-instruction {
           font-size: 13px;
-          color: #334155;
+          color: #1e2229;
           font-weight: 600;
           line-height: 1.5;
           margin-bottom: 4px;
@@ -895,8 +895,8 @@ export default function ReadingExam() {
 
         .group-note {
           font-size: 12px;
-          color: #4f46e5;
-          font-weight: 800;
+          color: #0056d2;
+          font-weight: 700;
           letter-spacing: 0.02em;
         }
 
@@ -909,8 +909,8 @@ export default function ReadingExam() {
 
         .matching-pill {
           background: #ffffff;
-          border: 1px solid #dbeafe;
-          color: #1e40af;
+          border: 1px solid #e3eeff;
+          color: #003b8f;
           border-radius: 999px;
           padding: 6px 10px;
           font-size: 12px;
@@ -932,7 +932,7 @@ export default function ReadingExam() {
 
         .passage-section {
           background: #fafaf7;
-          border-right: 1px solid #e2e8f0;
+          border-right: 1px solid #dae1ed;
           overflow-y: auto;
           padding: 20px;
           min-height: 40vh;
@@ -960,7 +960,7 @@ export default function ReadingExam() {
         }
 
         .exam-header {
-          background: #1a1a2e;
+          background: #002761;
           padding: 0 16px;
           height: auto;
           min-height: 60px;
@@ -1035,7 +1035,7 @@ export default function ReadingExam() {
                         width: '32px',
                         height: '8px',
                         borderRadius: '4px',
-                        background: p === currentPassage ? '#4f46e5' : 'rgba(255,255,255,0.2)'
+                        background: p === currentPassage ? '#0056d2' : 'rgba(255,255,255,0.2)'
                      }}
                   />
                ))}
@@ -1052,7 +1052,7 @@ export default function ReadingExam() {
                      background: teachingMode
                         ? 'linear-gradient(135deg, #f59e0b, #d97706)'
                         : 'rgba(255,255,255,0.1)',
-                     color: teachingMode ? '#1a1a2e' : 'rgba(255,255,255,0.8)',
+                     color: teachingMode ? '#0f1114' : 'rgba(255,255,255,0.8)',
                      border: teachingMode
                         ? '1.5px solid #f59e0b'
                         : '1.5px solid rgba(255,255,255,0.2)',
@@ -1060,7 +1060,7 @@ export default function ReadingExam() {
                      fontSize: 12,
                      fontWeight: 700,
                      cursor: 'pointer',
-                     fontFamily: 'Inter, sans-serif',
+                     fontFamily: 'Source Sans Pro, sans-serif',
                      transition: 'all 0.2s',
                      letterSpacing: '0.02em'
                   }}
@@ -1101,14 +1101,14 @@ export default function ReadingExam() {
          <div className="exam-layout">
             <div className="passage-section">
                <div style={{
-                  borderLeft: '4px solid #4f46e5',
+                  borderLeft: '4px solid #0056d2',
                   paddingLeft: '20px',
                   marginBottom: '24px'
                }}>
                   <span style={{
                      display: 'inline-block',
                      background: '#eff0fe',
-                     color: '#4f46e5',
+                     color: '#0056d2',
                      fontSize: '11px',
                      fontWeight: '700',
                      padding: '4px 12px',
@@ -1119,10 +1119,10 @@ export default function ReadingExam() {
                   </span>
 
                   <h2 style={{
-                     fontFamily: "'Playfair Display', serif",
+                     fontFamily: "Source Sans Pro, Arial, sans-serif",
                      fontSize: '20px',
                      fontWeight: '700',
-                     color: '#1a1a2e',
+                     color: '#0f1114',
                      lineHeight: '1.3'
                   }}>
                      {passageTitle}
@@ -1182,7 +1182,7 @@ export default function ReadingExam() {
 
                <div style={{
                   padding: '20px 24px 0',
-                  borderBottom: '1px solid #f1f5f9',
+                  borderBottom: '1px solid #e8eef7',
                   flexShrink: 0
                }}>
                   {!useDbGroupHints && (
@@ -1209,11 +1209,11 @@ export default function ReadingExam() {
                      justifyContent: 'space-between',
                      marginBottom: '16px'
                   }}>
-                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f1114' }}>
                         Question Navigator
                      </span>
 
-                     <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                     <span style={{ fontSize: '12px', color: '#8495b0' }}>
                         {answeredCount}/{questions.length} answered
                      </span>
                   </div>
@@ -1242,8 +1242,8 @@ export default function ReadingExam() {
                              {group.instruction && (
                                 <div
                                    style={{
-                                      background: '#f8fafc',
-                                      borderLeft: '4px solid #4f46e5',
+                                      background: '#f7f9fc',
+                                      borderLeft: '4px solid #0056d2',
                                       padding: '12px 16px',
                                       borderRadius: '0 8px 8px 0',
                                       marginBottom: 16
@@ -1251,15 +1251,15 @@ export default function ReadingExam() {
                                 >
                                    <div
                                       style={{
-                                         fontWeight: 800,
+                                         fontWeight: 700,
                                          fontSize: 15,
-                                         color: '#1e293b'
+                                         color: '#0f1114'
                                       }}
                                    >
                                       {group.instruction}
                                    </div>
                                    {group.wordLimit && (
-                                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                                      <div style={{ fontSize: 12, color: '#5b6780', marginTop: 4 }}>
                                          Write: {group.wordLimit}
                                       </div>
                                    )}
@@ -1292,14 +1292,14 @@ export default function ReadingExam() {
 
          <div style={{
             background: '#ffffff',
-            borderTop: '1px solid #e2e8f0',
+            borderTop: '1px solid #dae1ed',
             padding: '12px 24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexShrink: 0
          }}>
-            <span style={{ fontSize: '12px', color: '#64748b' }}>
+            <span style={{ fontSize: '12px', color: '#5b6780' }}>
                {answeredCount} of {questions.length} answered
             </span>
 
@@ -1326,7 +1326,7 @@ export default function ReadingExam() {
                   ← Prev
                </button>
 
-               <span style={{ fontSize: '12px', color: '#94a3b8', padding: '0 4px' }}>
+               <span style={{ fontSize: '12px', color: '#8495b0', padding: '0 4px' }}>
                   {questionPage + 1}/{totalPages}
                </span>
 
@@ -1376,49 +1376,49 @@ export default function ReadingExam() {
                   boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
                   padding: '20px',
                   width: '300px',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid #dae1ed',
                   animation: 'fadeIn 0.15s ease'
                }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                      <div>
-                        <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', textTransform: 'capitalize' }}>
+                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f1114', textTransform: 'capitalize' }}>
                            {wordPopup.word}
                         </div>
                         {wordPopup.phonetic && (
-                           <div style={{ fontSize: '13px', color: '#94a3b8', fontFamily: 'monospace' }}>
+                           <div style={{ fontSize: '13px', color: '#8495b0', fontFamily: 'monospace' }}>
                               {wordPopup.phonetic}
                            </div>
                         )}
                      </div>
                      <button
                         onClick={() => setWordPopup(null)}
-                        style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '16px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ background: '#e8eef7', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '16px', color: '#5b6780', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                      >×</button>
                   </div>
 
                   {wordLoading ? (
                      <div style={{ textAlign: 'center', padding: '12px' }}>
-                        <div style={{ width: '24px', height: '24px', border: '2px solid #e2e8f0', borderTop: '2px solid #4f46e5', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+                        <div style={{ width: '24px', height: '24px', border: '2px solid #dae1ed', borderTop: '2px solid #0056d2', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
                      </div>
                   ) : (
                      <div>
                         {wordPopup.partOfSpeech && (
-                           <span style={{ display: 'inline-block', background: '#eff0fe', color: '#4f46e5', fontSize: '10px', fontWeight: '800', padding: '2px 10px', borderRadius: '20px', marginBottom: '10px', textTransform: 'uppercase' }}>
+                           <span style={{ display: 'inline-block', background: '#eff0fe', color: '#0056d2', fontSize: '10px', fontWeight: 700, padding: '2px 10px', borderRadius: '20px', marginBottom: '10px', textTransform: 'uppercase' }}>
                               {wordPopup.partOfSpeech}
                            </span>
                         )}
-                        <p style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6', margin: '0 0 10px' }}>
+                        <p style={{ fontSize: '14px', color: '#1e2229', lineHeight: '1.6', margin: '0 0 10px' }}>
                            {wordPopup.definition}
                         </p>
                         {wordPopup.example && (
-                           <div style={{ background: '#f8fafc', borderLeft: '3px solid #4f46e5', padding: '8px 12px', borderRadius: '0 8px 8px 0', fontSize: '13px', color: '#64748b', fontStyle: 'italic' }}>
+                           <div style={{ background: '#f7f9fc', borderLeft: '3px solid #0056d2', padding: '8px 12px', borderRadius: '0 8px 8px 0', fontSize: '13px', color: '#5b6780', fontStyle: 'italic' }}>
                               "{wordPopup.example}"
                            </div>
                         )}
                      </div>
                   )}
 
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', fontSize: '10px', color: '#cbd5e1', textAlign: 'right' }}>
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e8eef7', fontSize: '10px', color: '#c3cddd', textAlign: 'right' }}>
                      powered by Free Dictionary API
                   </div>
                </div>
@@ -1434,7 +1434,7 @@ export default function ReadingExam() {
                alignItems: 'center',
                justifyContent: 'center',
                zIndex: 9999,
-               fontFamily: 'Inter, sans-serif'
+               fontFamily: 'Source Sans Pro, sans-serif'
             }}>
                <div style={{
                   background: 'white',
@@ -1445,8 +1445,8 @@ export default function ReadingExam() {
                   textAlign: 'center',
                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
                }}>
-                  <h2 style={{ margin: '0 0 16px', color: '#0f172a' }}>Submit Test?</h2>
-                  <p style={{ color: '#64748b', marginBottom: 24, lineHeight: 1.6 }}>
+                  <h2 style={{ margin: '0 0 16px', color: '#0f1114' }}>Submit Test?</h2>
+                  <p style={{ color: '#5b6780', marginBottom: 24, lineHeight: 1.6 }}>
                      You have answered <strong>{Object.keys(answers).length}</strong> of <strong>{questions.length}</strong> questions.
                      This action cannot be undone.
                   </p>
@@ -1455,8 +1455,8 @@ export default function ReadingExam() {
                         onClick={() => setShowConfirm(false)}
                         style={{
                            padding: '10px 20px',
-                           background: '#f1f5f9',
-                           color: '#475569',
+                           background: '#e8eef7',
+                           color: '#5b6780',
                            border: 'none',
                            borderRadius: 8,
                            fontWeight: 600,

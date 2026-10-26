@@ -25,6 +25,7 @@ model Student {
   hasFullAccess     Boolean        @default(false)
   placementDone     Boolean        @default(false)
   placementBand     Float?
+  course            String?        // IELTS | GENERAL, chosen at sign up
   attempts          Attempt[]
   feedbacks         Feedback[]
   studentLevels     StudentLevel[]

@@ -93,7 +93,7 @@ router.post('/login', async (req, res) => {
         id: user.id, name: user.name, email: user.email,
         role: user.role, batch: user.batch,
         city: user.city, expectedBand: user.expectedBand,
-        isPaid: user.isPaid
+        isPaid: user.isPaid, course: user.course || null
       }
     });
   } catch (err) {
@@ -110,7 +110,7 @@ router.post('/signup', async (req, res) => {
     if (checkRateLimit(ip, emailForLimit)) {
       return res.status(429).json({ error: 'Too many signup attempts. Please wait 5 minutes.' });
     }
-    const { name, email, password, address, age, city, phone, expectedBand } = req.body;
+    const { name, email, password, address, age, city, phone, expectedBand, course } = req.body;
 
     if (!name || !email || !password)
       return res.status(400).json({ error: 'Name, email and password are required' });
@@ -144,6 +144,7 @@ router.post('/signup', async (req, res) => {
         expectedBand: expectedBand ? parseFloat(expectedBand) : null,
         role: 'STUDENT',
         batch: 'GENERAL',
+        course: course === 'GENERAL' || course === 'IELTS' ? course : null,
         emailVerified: true,
         verificationToken
       }
@@ -156,6 +157,20 @@ router.post('/signup', async (req, res) => {
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'Signup failed. Please try again.' });
+  }
+});
+
+// Save the course a student is studying (IELTS or General English). They can switch any time.
+router.post('/course', require('../middleware/auth'), async (req, res) => {
+  try {
+    const course = req.body?.course === 'GENERAL' ? 'GENERAL' : req.body?.course === 'IELTS' ? 'IELTS' : null;
+    if (!course) return res.status(400).json({ error: 'course must be IELTS or GENERAL' });
+    if (req.user?.role !== 'STUDENT' || !req.user?.id) return res.json({ course });
+    await prisma.student.update({ where: { id: req.user.id }, data: { course } });
+    res.json({ course });
+  } catch (err) {
+    console.error('Course update error:', err);
+    res.status(500).json({ error: 'Could not save the course' });
   }
 });
 
@@ -195,7 +210,7 @@ router.post('/google', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email,
         role: user.role, batch: user.batch,
-        isPaid: user.isPaid
+        isPaid: user.isPaid, course: user.course || null
       }
     });
   } catch (err) {

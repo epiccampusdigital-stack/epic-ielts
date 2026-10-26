@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import API_URL from '../api';
 import { getTrack, setTrack } from '../utils/track';
+import { T } from '../theme';
 
 export function readUser() {
   try {
@@ -14,9 +17,19 @@ const NAV = [
   { key: 'dashboard', label: 'Dashboard', href: '/student/dashboard', active: 'dashboard' },
   { key: 'practice', label: 'Practice', href: '/practice', active: 'practice' },
   { key: 'learn', label: 'Learn', href: '/learn', active: 'learn' },
-  { key: 'levels', label: 'Programme', href: '/levels', active: 'levels' },
-  { key: 'placement', label: 'Placement', href: '/placement-test', active: 'placement' },
+  { key: 'levels', label: 'Levels', href: '/levels', active: 'levels', ieltsOnly: true },
+  { key: 'placement', label: 'Placement test', href: '/placement-test', active: 'placement' },
 ];
+
+// Saves the course on the account too, so it is remembered on other devices
+export function saveCourse(course) {
+  setTrack(course);
+  try {
+    const u = readUser();
+    localStorage.setItem('user', JSON.stringify({ ...u, course }));
+  } catch { /* storage blocked */ }
+  axios.post(`${API_URL}/api/auth/course`, { course }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).catch(() => {});
+}
 
 /** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | null }} props */
 export default function StudentNav({ active = null }) {
@@ -35,36 +48,27 @@ export default function StudentNav({ active = null }) {
   useEffect(() => {
     function onDocMouseDown(ev) {
       const t = /** @type {Node} */ (ev.target);
-      if (avatarRef.current && !avatarRef.current.contains(t)) {
-        setAvatarOpen(false);
-      }
-      const inMobile =
-        (mobileBtnRef.current && mobileBtnRef.current.contains(t)) ||
-        (mobilePanelRef.current && mobilePanelRef.current.contains(t));
-      if (!inMobile) {
-        setMobileOpen(false);
-      }
+      if (avatarRef.current && !avatarRef.current.contains(t)) setAvatarOpen(false);
+      const inMobile = (mobileBtnRef.current && mobileBtnRef.current.contains(t)) || (mobilePanelRef.current && mobilePanelRef.current.contains(t));
+      if (!inMobile) setMobileOpen(false);
+    }
+    function onKey(ev) {
+      if (ev.key === 'Escape') { setAvatarOpen(false); setMobileOpen(false); }
     }
     document.addEventListener('mousedown', onDocMouseDown);
-    return () => document.removeEventListener('mousedown', onDocMouseDown);
-  }, []);
-
-  useEffect(() => {
-    function onKey(ev) {
-      if (ev.key === 'Escape') {
-        setAvatarOpen(false);
-        setMobileOpen(false);
-      }
-    }
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const track = getTrack();
+  const links = NAV.filter(n => !(n.ieltsOnly && track === 'GENERAL'));
   const switchTrack = next => {
     if (next === track) return;
-    setTrack(next);
-    // Every page refetches for the chosen track
+    saveCourse(next);
+    // Every page refetches for the chosen course
     window.location.reload();
   };
 
@@ -82,348 +86,83 @@ export default function StudentNav({ active = null }) {
   };
 
   return (
-    <div
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        fontFamily: 'Inter, system-ui, sans-serif',
-        background: 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: '1px solid #E2E8F0',
-      }}
-    >
+    <div style={{ position: 'sticky', top: 0, zIndex: 100, fontFamily: T.font, background: '#fff', borderBottom: `1px solid ${T.hairline}` }}>
       <style>{`
-        .sn-top-row {
-          padding: 0 24px;
-          height: 64px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 12px;
+        .sn-row { max-width: 1280px; margin: 0 auto; padding: 0 32px; height: 68px; display: flex; align-items: center; gap: 20px; }
+        .sn-links { display: flex; align-items: stretch; gap: 4px; height: 100%; }
+        .sn-link { position: relative; display: inline-flex; align-items: center; padding: 0 10px; border: 0; background: none; cursor: pointer; font: inherit; font-size: 16px; font-weight: 600; color: ${T.ink}; }
+        .sn-link:hover { color: ${T.primary}; }
+        .sn-link[aria-current="page"] { color: ${T.primary}; }
+        .sn-link[aria-current="page"]::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: ${T.primary}; }
+        .sn-burger { display: none; }
+        .sn-mobile { display: none; }
+        .sn-item { display: block; width: 100%; padding: 10px 16px; font: inherit; font-size: 14px; color: ${T.ink}; background: none; border: 0; cursor: pointer; text-align: left; }
+        .sn-item:hover { background: ${T.primaryXSoft}; }
+        @media (max-width: 900px) {
+          .sn-row { padding: 0 16px; height: 60px; gap: 12px; }
+          .sn-links, .sn-track-desktop { display: none; }
+          .sn-burger { display: inline-flex; }
+          .sn-mobile.open { display: block; border-top: 1px solid ${T.hairline}; padding: 8px 0 12px; }
+          .sn-name { display: none; }
         }
-        .sn-desktop-links {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .sn-hamburger-btn { display: none !important; }
-        .sn-mobile-slide {
-          display: none !important;
-          overflow: hidden;
-          max-height: 0;
-          transition: max-height 200ms ease-out;
-          background: white;
-          border-bottom: 1px solid #E2E8F0;
-        }
-        .sn-mobile-slide.sn-mobile-open {
-          max-height: 280px;
-        }
-        @media (max-width: 767px) {
-          .sn-center-slot .sn-desktop-links { display: none !important; }
-          .sn-hamburger-btn { display: inline-flex !important; }
-          .sn-mobile-slide { display: block !important; }
-        }
-        @media (max-width: 639px) {
-          .sn-avatar-name { display: none !important; }
-        }
-        .sn-track-mobile { display: none; }
-        @media (max-width: 767px) {
-          .sn-track-top { display: none; }
-          .sn-track-mobile { display: block; padding: 12px 24px; border-bottom: 1px solid #F1F5F9; }
-        }
-        .sn-mobile-slide.sn-mobile-open { max-height: 360px; }
       `}</style>
 
-      {/* Top row: logo · centre · avatar */}
-      <div className="sn-top-row">
-        <button
-          type="button"
-          onClick={() => go('/student/dashboard')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            padding: 0,
-            flexShrink: 0,
-            fontFamily: 'inherit',
-          }}
-        >
-          <img src="/logo.png" alt="" style={{ height: 28 }} onError={e => { e.target.style.display = 'none'; }} />
-          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '0.02em', color: '#0F172A' }}>EPIC IELTS</span>
+      <div className="sn-row">
+        <button type="button" onClick={() => go('/student/dashboard')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: 0, background: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, fontFamily: 'inherit' }}>
+          <img src="/logo.png" alt="" style={{ height: 26 }} onError={e => { e.target.style.display = 'none'; }} />
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.2px', color: T.primary }}>EPIC Campus</span>
         </button>
 
-        <div className="sn-track-top">
-          <TrackToggle track={track} onChange={switchTrack} />
-        </div>
+        <div className="sn-track-desktop"><TrackToggle track={track} onChange={switchTrack} /></div>
 
-        <div
-          className="sn-center-slot"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <nav className="sn-desktop-links" aria-label="Main">
-            {NAV.map(item => {
-              const isAct = active === item.active;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  aria-current={isAct ? 'page' : undefined}
-                  onClick={() => go(item.href)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 10,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    border: 'none',
-                    fontFamily: 'inherit',
-                    transition: 'all 180ms cubic-bezier(0.4, 0, 0.2, 1)',
-                    color: isAct ? '#4F46E5' : '#475569',
-                    background: isAct ? 'rgba(79,70,229,0.08)' : 'transparent',
-                  }}
-                  onMouseEnter={ev => {
-                    if (!isAct) {
-                      ev.currentTarget.style.background = '#F1F5F9';
-                      ev.currentTarget.style.color = '#0F172A';
-                    }
-                  }}
-                  onMouseLeave={ev => {
-                    if (!isAct) {
-                      ev.currentTarget.style.background = 'transparent';
-                      ev.currentTarget.style.color = '#475569';
-                    }
-                  }}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
+        <nav className="sn-links" aria-label="Main">
+          {links.map(item => (
+            <button key={item.key} type="button" className="sn-link" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}>
+              {item.label}
+            </button>
+          ))}
+        </nav>
 
-          <button
-            ref={mobileBtnRef}
-            type="button"
-            className="sn-hamburger-btn"
-            aria-label="Open menu"
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen(o => !o)}
-            style={{
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              padding: 8,
-              fontSize: 24,
-              lineHeight: 1,
-              color: '#475569',
-              fontFamily: 'inherit',
-            }}
-          >
-            ☰
-          </button>
-        </div>
-
-        <div ref={avatarRef} style={{ position: 'relative', flexShrink: 0, marginLeft: 'auto' }}>
-          <button
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={avatarOpen}
-            onClick={() => setAvatarOpen(o => !o)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 12px 6px 6px',
-              border: '1px solid #E2E8F0',
-              borderRadius: 9999,
-              background: 'white',
-              cursor: 'pointer',
-              transition: 'border-color 120ms, background 120ms',
-              fontFamily: 'inherit',
-            }}
-            onMouseEnter={ev => {
-              ev.currentTarget.style.borderColor = '#CBD5E1';
-              ev.currentTarget.style.background = '#F8FAFC';
-            }}
-            onMouseLeave={ev => {
-              ev.currentTarget.style.borderColor = '#E2E8F0';
-              ev.currentTarget.style.background = 'white';
-            }}
-          >
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 9999,
-                background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
-                color: 'white',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              {initial}
-            </span>
-            <span
-              className="sn-avatar-name"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#0F172A',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: 120,
-              }}
-            >
-              {nameStr}
-            </span>
-            <span style={{ fontSize: 10, color: '#94A3B8', lineHeight: 1 }} aria-hidden="true">
-              ⌄
-            </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button ref={mobileBtnRef} type="button" className="sn-burger" aria-label="Open menu" aria-expanded={mobileOpen} onClick={() => setMobileOpen(o => !o)}
+            style={{ border: `1px solid ${T.hairline}`, background: '#fff', borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true"><path d="M0 1h18M0 7h18M0 13h18" stroke={T.ink} strokeWidth="2" /></svg>
           </button>
 
-          {avatarOpen && (
-            <div
-              role="menu"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: 0,
-                minWidth: 220,
-                background: 'white',
-                border: '1px solid #E2E8F0',
-                borderRadius: 12,
-                boxShadow: '0 10px 30px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.04)',
-                overflow: 'hidden',
-                zIndex: 200,
-              }}
-            >
-              <div style={{ borderBottom: '1px solid #F1F5F9', padding: 16 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0F172A' }}>{nameStr}</div>
-                {emailStr ? (
-                  <div
-                    title={emailStr}
-                    style={{
-                      marginTop: 4,
-                      fontSize: 12,
-                      fontWeight: 400,
-                      color: '#64748B',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {emailStr}
-                  </div>
-                ) : null}
+          <div ref={avatarRef} style={{ position: 'relative' }}>
+            <button type="button" aria-haspopup="menu" aria-expanded={avatarOpen} onClick={() => setAvatarOpen(o => !o)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: 4, border: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <span style={{ width: 32, height: 32, borderRadius: '50%', background: T.navy, color: '#fff', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{initial}</span>
+              <span className="sn-name" style={{ fontSize: 14, fontWeight: 600, color: T.ink, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameStr}</span>
+              <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke={T.muted} strokeWidth="1.6" fill="none" /></svg>
+            </button>
+
+            {avatarOpen && (
+              <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, minWidth: 240, background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 8, boxShadow: '0 0 4px rgba(15,17,20,0.1), 0 2px 12px 2px rgba(15,17,20,0.1)', overflow: 'hidden', zIndex: 200, padding: '4px 0' }}>
+                <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.hairline}`, marginBottom: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{nameStr}</div>
+                  {emailStr && <div title={emailStr} style={{ marginTop: 2, fontSize: 12, color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emailStr}</div>}
+                </div>
+                <button type="button" role="menuitem" className="sn-item" onClick={() => go('/choose-course')}>Change course</button>
+                <button type="button" role="menuitem" className="sn-item" onClick={() => go('/practice')}>My results</button>
+                <div style={{ height: 1, background: T.hairline, margin: '4px 0' }} />
+                <button type="button" role="menuitem" className="sn-item" style={{ color: T.error }} onClick={signOut}>Log out</button>
               </div>
-              <button
-                type="button"
-                role="menuitem"
-                style={dropdownItemNeutral()}
-                onMouseEnter={ev => {
-                  ev.currentTarget.style.background = '#F8FAFC';
-                  ev.currentTarget.style.color = '#0F172A';
-                }}
-                onMouseLeave={ev => {
-                  ev.currentTarget.style.background = 'none';
-                  ev.currentTarget.style.color = '#475569';
-                }}
-                onClick={() => go('/practice')}
-              >
-                📊&nbsp;&nbsp;My results
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                style={dropdownItemNeutral()}
-                onMouseEnter={ev => {
-                  ev.currentTarget.style.background = '#F8FAFC';
-                  ev.currentTarget.style.color = '#0F172A';
-                }}
-                onMouseLeave={ev => {
-                  ev.currentTarget.style.background = 'none';
-                  ev.currentTarget.style.color = '#475569';
-                }}
-                onClick={() => {
-                  setAvatarOpen(false);
-                  // COMING_SOON: dedicated Settings
-                  alert('Coming soon');
-                }}
-              >
-                ⚙️&nbsp;&nbsp;Settings
-              </button>
-              <div style={{ height: 1, background: '#F1F5F9', margin: '4px 0' }} />
-              <button
-                type="button"
-                role="menuitem"
-                style={{
-                  ...dropdownItemNeutral(),
-                  color: '#DC2626',
-                }}
-                onMouseEnter={ev => {
-                  ev.currentTarget.style.background = '#FEF2F2';
-                }}
-                onMouseLeave={ev => {
-                  ev.currentTarget.style.background = 'none';
-                }}
-                onClick={signOut}
-              >
-                Sign out
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Full-width slide-down (mobile); kept in DOM hidden on desktop */}
-      <div ref={mobilePanelRef} className={`sn-mobile-slide ${mobileOpen ? 'sn-mobile-open' : ''}`}>
-        <div className="sn-track-mobile">
-          <TrackToggle track={track} onChange={switchTrack} />
-        </div>
+      <div ref={mobilePanelRef} className={`sn-mobile ${mobileOpen ? 'open' : ''}`}>
+        <div style={{ padding: '4px 16px 12px' }}><TrackToggle track={track} onChange={switchTrack} /></div>
         <nav aria-label="Mobile main">
-          {NAV.map((item, idx) => {
-            const isAct = active === item.active;
-            const isLast = idx === NAV.length - 1;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                aria-current={isAct ? 'page' : undefined}
-                onClick={() => go(item.href)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '14px 24px',
-                  fontSize: 15,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  border: 'none',
-                  background: 'none',
-                  fontFamily: 'inherit',
-                  textAlign: 'left',
-                  color: isAct ? '#4F46E5' : '#475569',
-                  borderBottom: isLast ? 'none' : '1px solid #F1F5F9',
-                }}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+          {links.map(item => (
+            <button key={item.key} type="button" className="sn-item" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}
+              style={{ fontSize: 16, fontWeight: 600, color: active === item.active ? T.primary : T.ink }}>
+              {item.label}
+            </button>
+          ))}
         </nav>
       </div>
     </div>
@@ -436,63 +175,19 @@ function TrackToggle({ track, onChange }) {
     { key: 'GENERAL', label: 'General English' },
   ];
   return (
-    <div
-      role="tablist"
-      aria-label="Course"
-      style={{
-        display: 'inline-flex',
-        padding: 3,
-        borderRadius: 10,
-        background: '#F1F5F9',
-        border: '1px solid #E2E8F0',
-        gap: 2,
-      }}
-    >
+    <div role="tablist" aria-label="Course" style={{ display: 'inline-flex', padding: 3, borderRadius: 50, background: T.tint, gap: 2 }}>
       {opts.map(o => {
         const on = o.key === track;
         return (
-          <button
-            key={o.key}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => onChange(o.key)}
+          <button key={o.key} type="button" role="tab" aria-selected={on} onClick={() => onChange(o.key)}
             style={{
-              padding: '6px 12px',
-              borderRadius: 8,
-              border: 'none',
-              cursor: on ? 'default' : 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 13,
-              fontWeight: on ? 600 : 500,
-              whiteSpace: 'nowrap',
-              color: on ? '#0F172A' : '#64748B',
-              background: on ? 'white' : 'transparent',
-              boxShadow: on ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
-              transition: 'background 150ms, color 150ms',
-            }}
-          >
+              height: 30, padding: '0 14px', borderRadius: 50, border: 0, cursor: on ? 'default' : 'pointer', fontFamily: 'inherit',
+              fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', color: on ? '#fff' : T.ink, background: on ? T.navy : 'transparent',
+            }}>
             {o.label}
           </button>
         );
       })}
     </div>
   );
-}
-
-function dropdownItemNeutral() {
-  return {
-    display: 'block',
-    width: '100%',
-    padding: '10px 16px',
-    fontSize: 13,
-    fontWeight: 500,
-    color: '#475569',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left',
-    transition: 'background 120ms, color 120ms',
-    fontFamily: 'Inter, system-ui, sans-serif',
-  };
 }

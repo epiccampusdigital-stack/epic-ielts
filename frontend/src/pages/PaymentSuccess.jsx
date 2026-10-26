@@ -50,7 +50,7 @@ export default function PaymentSuccess() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: Source Sans Pro, sans-serif; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pop { 0% { transform: scale(0.7); opacity: 0; } 80% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
@@ -58,7 +58,7 @@ export default function PaymentSuccess() {
 
       <div style={{
         minHeight: '100vh',
-        background: status === 'success' ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)' : status === 'error' ? '#fef2f2' : '#f8fafc',
+        background: status === 'success' ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)' : status === 'error' ? '#fef2f2' : '#f7f9fc',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -79,29 +79,29 @@ export default function PaymentSuccess() {
             <>
               <div style={{
                 width: 56, height: 56,
-                border: '3px solid #e2e8f0',
-                borderTop: '3px solid #2563eb',
+                border: '3px solid #dae1ed',
+                borderTop: '3px solid #0056d2',
                 borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite',
                 margin: '0 auto 24px'
               }} />
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: '#1e293b', marginBottom: 10 }}>
+              <h2 style={{ fontFamily: "Source Sans Pro, Arial, sans-serif", fontSize: 24, color: '#0f1114', marginBottom: 10 }}>
                 Verifying your payment…
               </h2>
-              <p style={{ color: '#64748b', fontSize: 14 }}>Please wait while we confirm your purchase.</p>
+              <p style={{ color: '#5b6780', fontSize: 14 }}>Please wait while we confirm your purchase.</p>
             </>
           )}
 
           {status === 'success' && (
             <>
               <div style={{ fontSize: 64, animation: 'pop 0.5s ease', marginBottom: 16 }}>🎉</div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, color: '#15803d', marginBottom: 12 }}>
+              <h2 style={{ fontFamily: "Source Sans Pro, Arial, sans-serif", fontSize: 28, color: '#15803d', marginBottom: 12 }}>
                 Payment Successful!
               </h2>
-              <p style={{ color: '#374151', fontSize: 15, marginBottom: 8, lineHeight: 1.6 }}>
+              <p style={{ color: '#1e2229', fontSize: 15, marginBottom: 8, lineHeight: 1.6 }}>
                 You now have <strong>full lifetime access</strong> to all EPIC IELTS practice tests and AI feedback.
               </p>
-              <p style={{ color: '#64748b', fontSize: 13 }}>Redirecting to your dashboard in 3 seconds…</p>
+              <p style={{ color: '#5b6780', fontSize: 13 }}>Redirecting to your dashboard in 3 seconds…</p>
               <div style={{ marginTop: 24, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px' }}>
                 {[
                   '📖 All Reading Practice Tests',
@@ -122,7 +122,7 @@ export default function PaymentSuccess() {
                   marginTop: 24, width: '100%', padding: '13px',
                   background: '#15803d', color: 'white', border: 'none',
                   borderRadius: 10, fontSize: 14, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'Inter, sans-serif'
+                  cursor: 'pointer', fontFamily: 'Source Sans Pro, sans-serif'
                 }}
               >
                 Go to Dashboard →
@@ -133,22 +133,22 @@ export default function PaymentSuccess() {
           {status === 'error' && (
             <>
               <div style={{ fontSize: 56, marginBottom: 16 }}>❌</div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: '#dc2626', marginBottom: 12 }}>
+              <h2 style={{ fontFamily: "Source Sans Pro, Arial, sans-serif", fontSize: 24, color: '#dc2626', marginBottom: 12 }}>
                 Verification Failed
               </h2>
-              <p style={{ color: '#374151', fontSize: 14, marginBottom: 8, lineHeight: 1.6 }}>
+              <p style={{ color: '#1e2229', fontSize: 14, marginBottom: 8, lineHeight: 1.6 }}>
                 We couldn't confirm your payment. If you were charged, please contact us and we'll sort it out immediately.
               </p>
-              <p style={{ color: '#64748b', fontSize: 13, marginBottom: 24 }}>
+              <p style={{ color: '#5b6780', fontSize: 13, marginBottom: 24 }}>
                 Your free access is still available.
               </p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   onClick={() => navigate('/upgrade')}
                   style={{
-                    flex: 1, padding: '12px', background: '#1e3a5f', color: 'white',
+                    flex: 1, padding: '12px', background: '#002761', color: 'white',
                     border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'Inter, sans-serif'
+                    cursor: 'pointer', fontFamily: 'Source Sans Pro, sans-serif'
                   }}
                 >
                   Try Again
@@ -156,9 +156,9 @@ export default function PaymentSuccess() {
                 <button
                   onClick={() => navigate('/student/dashboard')}
                   style={{
-                    flex: 1, padding: '12px', background: '#f1f5f9', color: '#374151',
-                    border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'Inter, sans-serif'
+                    flex: 1, padding: '12px', background: '#e8eef7', color: '#1e2229',
+                    border: '1px solid #dae1ed', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'Source Sans Pro, sans-serif'
                   }}
                 >
                   Dashboard

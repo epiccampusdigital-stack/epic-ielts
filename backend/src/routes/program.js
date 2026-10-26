@@ -99,6 +99,39 @@ router.get('/:id', wrap(async (req, res) => {
   res.json({ program, teachers, counts, pendingReminders: pending, today, todayDay });
 }));
 
+// Rebuild the days and sessions from the latest 30-day plan. Keeps teachers, students and settings.
+// Refused once attendance exists, so a running programme is never wiped by accident.
+router.post('/:id/rebuild', adminRoleOnly, wrap(async (req, res) => {
+  const programId = int(req.params.id);
+  const plan = require('../data/program/koreaBatch1');
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return res.status(404).json({ error: 'Programme not found' });
+  const marked = await prisma.programAttendance.count({ where: { session: { programId } } });
+  if (marked > 0) throw new Error('Attendance has already been taken, so the schedule cannot be rebuilt. Change sessions one by one instead.');
+  const teacherIds = {};
+  for (const t of plan.TEACHERS) {
+    const found = await prisma.programTeacher.findFirst({ where: { name: t.name } });
+    const row = found
+      ? await prisma.programTeacher.update({ where: { id: found.id }, data: { focus: t.focus } })
+      : await prisma.programTeacher.create({ data: { name: t.name, subject: t.subject, focus: t.focus, confirmed: t.confirmed } });
+    teacherIds[t.key] = row.id;
+  }
+  await prisma.$transaction(async tx => {
+    await tx.programReminder.deleteMany({ where: { programId, status: 'PENDING' } });
+    await tx.programSession.deleteMany({ where: { programId } });
+    await tx.programDay.deleteMany({ where: { programId } });
+    const days = plan.buildDays().map((d, i) => ({ ...d, programId, date: T.addDays(program.startDate, i) }));
+    await tx.programDay.createMany({ data: days });
+    const sessions = plan.buildSessions().map(({ teacher, ...x }) => ({
+      ...x, programId, teacherId: teacher ? teacherIds[teacher] : null, language: x.language || null, link: x.link || null,
+    }));
+    await tx.programSession.createMany({ data: sessions });
+    await tx.program.update({ where: { id: programId }, data: { dayEndTime: plan.PROGRAM.dayEndTime } });
+    await tx.programChangeLog.create({ data: { programId, summary: 'Schedule rebuilt from the latest plan (4-hour and 3-hour blocks)', actor: actorOf(req) } });
+  }, { timeout: 30000 });
+  res.json({ ok: true });
+}));
+
 router.put('/:id', adminRoleOnly, wrap(async (req, res) => {
   const b = req.body || {};
   const data = {};
@@ -108,7 +141,7 @@ router.put('/:id', adminRoleOnly, wrap(async (req, res) => {
   if (b.remindMinutes !== undefined) data.remindMinutes = Math.min(180, Math.max(5, int(b.remindMinutes) || 30));
   if (b.dayStartTime && T.isValidTime(b.dayStartTime)) data.dayStartTime = b.dayStartTime;
   if (b.dayEndTime && T.isValidTime(b.dayEndTime)) data.dayEndTime = b.dayEndTime;
-  if (b.status && ['ACTIVE', 'ARCHIVED'].includes(b.status)) data.status = b.status;
+  if (b.status && ['ACTIVE', 'PAUSED', 'ARCHIVED'].includes(b.status)) data.status = b.status;
   res.json(await prisma.program.update({ where: { id: int(req.params.id) }, data }));
 }));
 

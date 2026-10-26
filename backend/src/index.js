@@ -98,6 +98,19 @@ require('./ensureSchema').ensureSchema(prisma)
   .finally(() => app.listen(PORT, '0.0.0.0', () => {
   console.log(`EPIC IELTS Backend running on port ${PORT}`);
   console.log('AI Key loaded:', !!process.env.ANTHROPIC_API_KEY);
+  // Load the General English lessons, quizzes and placement tests once, if they are not there yet
+  (async () => {
+    try {
+      const modules = await prisma.learnModule.count({ where: { track: 'GENERAL' } });
+      const placement = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-PT' } } });
+      if (modules === 0 || placement < 4) {
+        const { seedGeneralEnglish } = require('../scripts/generalEnglish');
+        console.log('[general-english] content loaded:', JSON.stringify(await seedGeneralEnglish(prisma)));
+      }
+    } catch (e) {
+      console.error('[general-english] auto load skipped:', e.message);
+    }
+  })();
   try {
     require('./services/programService').startScheduler();
   } catch (e) {

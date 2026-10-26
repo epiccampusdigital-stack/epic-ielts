@@ -50,9 +50,9 @@ export default function SpeakingResults() {
   }, [attemptId]);
 
   if (loading) return (
-    <div style={{ minHeight:'100vh', background:'#000814', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Inter,sans-serif' }}>
+    <div style={{ minHeight:'100vh', background:'#001a43', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Source Sans Pro,sans-serif' }}>
       <div style={{ textAlign:'center', color:'white' }}>
-        <div style={{ width:48, height:48, border:'3px solid rgba(37,99,235,0.3)', borderTop:'3px solid #2563eb', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 16px' }} />
+        <div style={{ width:48, height:48, border:'3px solid rgba(37,99,235,0.3)', borderTop:'3px solid #0056d2', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 16px' }} />
         <p style={{ color:'rgba(255,255,255,0.5)' }}>Loading results...</p>
       </div>
     </div>
@@ -80,20 +80,20 @@ export default function SpeakingResults() {
   const overall = sub?.overallBand;
 
   const getBandColor = (b) => {
-    if (!b) return '#94a3b8';
+    if (!b) return '#8495b0';
     if (b >= 7) return '#10b981';
     if (b >= 5.5) return '#f59e0b';
     return '#ef4444';
   };
 
   return (
-    <div style={{ minHeight:'100vh', background:'#000814', fontFamily:'Inter,sans-serif', color:'white' }}>
+    <div style={{ minHeight:'100vh', background:'#001a43', fontFamily:'Source Sans Pro,sans-serif', color:'white' }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
       {/* Header */}
-      <div style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', padding:'48px 40px', textAlign:'center', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ background:'linear-gradient(135deg,#0f1114,#002761)', padding:'48px 40px', textAlign:'center', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
         <p style={{ fontSize:11, color:'rgba(255,255,255,0.4)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:12 }}>EPIC IELTS Speaking Test</p>
-        <h1 style={{ fontFamily:'Playfair Display,serif', fontSize:32, color:'white', marginBottom:8 }}>Speaking Test Complete 🎤</h1>
+        <h1 style={{ fontFamily:'Source Sans Pro,Arial, sans-serif', fontSize:32, color:'white', marginBottom:8 }}>Speaking Test Complete 🎤</h1>
         <p style={{ color:'rgba(255,255,255,0.5)', fontSize:14, marginBottom:32 }}>{data?.paper?.title}</p>
         <div style={{ display:'flex', gap:24, justifyContent:'center', flexWrap:'wrap' }}>
           {[
@@ -102,7 +102,7 @@ export default function SpeakingResults() {
             { label:'Part 3', value: sub?.part3Band, icon:'🌐' }
           ].map(({ label, value, icon, large }) => (
             <div key={label} style={{ width: large ? 140 : 110, height: large ? 140 : 110, borderRadius:'50%', background:'rgba(255,255,255,0.05)', border:`${large?5:3}px solid ${getBandColor(value)}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', boxShadow:`0 0 ${large?40:20}px ${getBandColor(value)}40` }}>
-              <span style={{ fontFamily:'Playfair Display,serif', fontSize: large ? 40 : 28, fontWeight:700, color: getBandColor(value), lineHeight:1 }}>{value ? Number(value).toFixed(1) : '—'}</span>
+              <span style={{ fontFamily:'Source Sans Pro,Arial, sans-serif', fontSize: large ? 40 : 28, fontWeight:700, color: getBandColor(value), lineHeight:1 }}>{value ? Number(value).toFixed(1) : '—'}</span>
               <span style={{ fontSize:10, color:'rgba(255,255,255,0.4)', marginTop:4, textAlign:'center', padding:'0 8px' }}>{label}</span>
             </div>
           ))}
@@ -113,7 +113,7 @@ export default function SpeakingResults() {
 
         {feedbackLoading ? (
           <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:40, textAlign:'center', marginBottom:24 }}>
-            <div style={{ width:48, height:48, border:'3px solid rgba(37,99,235,0.3)', borderTop:'3px solid #2563eb', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 20px' }} />
+            <div style={{ width:48, height:48, border:'3px solid rgba(37,99,235,0.3)', borderTop:'3px solid #0056d2', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 20px' }} />
             <p style={{ color:'#60a5fa', fontWeight:600, marginBottom:8 }}>
               {markingStatus === 'TRANSCRIBING' ? '🎤 Converting your speech to text...'
                 : markingStatus === 'MARKING' ? '🤖 AI Examiner is analysing your responses...'
@@ -127,7 +127,7 @@ export default function SpeakingResults() {
         ) : feedback ? (
           Object.entries(feedback).map(([partKey, partData]) => {
             const partNum = parseInt(partKey.replace('part', ''));
-            const partInfo = { 1: { icon:'💬', color:'#2563eb' }, 2: { icon:'🎯', color:'#7c3aed' }, 3: { icon:'🌐', color:'#0891b2' } }[partNum] || {};
+            const partInfo = { 1: { icon:'💬', color:'#0056d2' }, 2: { icon:'🎯', color:'#003b8f' }, 3: { icon:'🌐', color:'#0891b2' } }[partNum] || {};
             const fb = partData.feedback;
             if (!fb) return null;
             return (
@@ -140,7 +140,7 @@ export default function SpeakingResults() {
                       <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)' }}>{partData.transcript?.substring(0, 80)}...</div>
                     </div>
                   </div>
-                  <div style={{ fontSize:36, fontWeight:900, color: getBandColor(fb.band), fontFamily:'Playfair Display,serif' }}>
+                  <div style={{ fontSize:36, fontWeight: 700, color: getBandColor(fb.band), fontFamily:'Source Sans Pro,Arial, sans-serif' }}>
                     {fb.band ? Number(fb.band).toFixed(1) : '—'}
                   </div>
                 </div>
@@ -153,7 +153,7 @@ export default function SpeakingResults() {
                     { label:'Pronunciation', value: fb.pronunciation }
                   ].map(({ label, value }) => (
                     <div key={label} style={{ background:'rgba(255,255,255,0.04)', borderRadius:12, padding:'14px 10px', textAlign:'center' }}>
-                      <div style={{ fontSize:22, fontWeight:800, color: getBandColor(value), marginBottom:4 }}>{value || '—'}</div>
+                      <div style={{ fontSize:22, fontWeight: 700, color: getBandColor(value), marginBottom:4 }}>{value || '—'}</div>
                       <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{label}</div>
                       <div style={{ height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, marginTop:8, overflow:'hidden' }}>
                         <div style={{ width:`${((value||0)/9)*100}%`, height:'100%', background: getBandColor(value), borderRadius:2 }} />
@@ -192,7 +192,7 @@ export default function SpeakingResults() {
           <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:40, textAlign:'center', marginBottom:24 }}>
             <p style={{ color:'rgba(255,255,255,0.4)', marginBottom:16 }}>AI feedback not available yet.</p>
             <button onClick={() => { setFeedbackLoading(true); }}
-              style={{ padding:'10px 24px', background:'#2563eb', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
+              style={{ padding:'10px 24px', background:'#0056d2', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
               Refresh
             </button>
           </div>
@@ -200,7 +200,7 @@ export default function SpeakingResults() {
 
         <div style={{ textAlign:'center', paddingBottom:40 }}>
           <button onClick={() => navigate('/student/dashboard')}
-            style={{ padding:'14px 36px', background:'linear-gradient(135deg,#2563eb,#1d4ed8)', color:'white', border:'none', borderRadius:12, fontSize:15, fontWeight:700, cursor:'pointer' }}>
+            style={{ padding:'14px 36px', background:'linear-gradient(135deg,#0056d2,#0048b0)', color:'white', border:'none', borderRadius:12, fontSize:15, fontWeight:700, cursor:'pointer' }}>
             ← Back to Dashboard
           </button>
         </div>

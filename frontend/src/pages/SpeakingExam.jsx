@@ -14,7 +14,7 @@ const FALLBACK_PARTS = [
     duration: 60,
     prepTime: 0,
     icon: '💬',
-    color: '#2563eb',
+    color: '#0056d2',
     description: 'Answer questions about familiar topics. Speak naturally and give detailed answers.',
     questions: [
       'Tell me about your hometown. What do you like most about living there?',
@@ -29,7 +29,7 @@ const FALLBACK_PARTS = [
     duration: 120,
     prepTime: 60,
     icon: '🎯',
-    color: '#7c3aed',
+    color: '#003b8f',
     description: 'You have 1 minute to prepare, then speak for up to 2 minutes on the topic.',
     questions: [
       'Describe a person who has had a significant influence on your life.\n\nYou should say:\n• Who this person is and how you know them\n• What qualities or characteristics they have\n• How they have influenced you\n• And explain why this person is important to you'
@@ -53,8 +53,8 @@ const FALLBACK_PARTS = [
 ];
 
 const PART_META = {
-  1: { title: 'Part 1', subtitle: 'Introduction & Interview', duration: 60, prepTime: 0, icon: '💬', color: '#2563eb', description: 'Answer questions about familiar topics. Speak naturally and give detailed answers.' },
-  2: { title: 'Part 2', subtitle: 'Individual Long Turn', duration: 120, prepTime: 60, icon: '🎯', color: '#7c3aed', description: 'You have 1 minute to prepare, then speak for up to 2 minutes on the topic.' },
+  1: { title: 'Part 1', subtitle: 'Introduction & Interview', duration: 60, prepTime: 0, icon: '💬', color: '#0056d2', description: 'Answer questions about familiar topics. Speak naturally and give detailed answers.' },
+  2: { title: 'Part 2', subtitle: 'Individual Long Turn', duration: 120, prepTime: 60, icon: '🎯', color: '#003b8f', description: 'You have 1 minute to prepare, then speak for up to 2 minutes on the topic.' },
   3: { title: 'Part 3', subtitle: 'Two-Way Discussion', duration: 90, prepTime: 0, icon: '🌐', color: '#0891b2', description: 'Discuss more abstract ideas related to the Part 2 topic.' }
 };
 
@@ -344,22 +344,22 @@ export default function SpeakingExam() {
 
   // Loading state
   if (paperLoading || hasPermission === null) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000814', fontFamily: 'Inter,sans-serif' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#001a43', fontFamily: 'Source Sans Pro,sans-serif' }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign: 'center', color: 'white' }}>
-        <div style={{ width: 48, height: 48, border: '3px solid rgba(37,99,235,0.3)', borderTop: '3px solid #2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+        <div style={{ width: 48, height: 48, border: '3px solid rgba(37,99,235,0.3)', borderTop: '3px solid #0056d2', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
         <p style={{ color: 'rgba(255,255,255,0.5)' }}>{hasPermission === null ? 'Requesting microphone access...' : 'Loading exam...'}</p>
       </div>
     </div>
   );
 
   if (hasPermission === false) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000814', fontFamily: 'Inter,sans-serif' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#001a43', fontFamily: 'Source Sans Pro,sans-serif' }}>
       <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, padding: 48, maxWidth: 440, textAlign: 'center' }}>
         <div style={{ fontSize: 56, marginBottom: 20 }}>🎤</div>
-        <h2 style={{ color: '#ffffff', marginBottom: 12, fontFamily: 'Playfair Display,serif' }}>Microphone Access Required</h2>
+        <h2 style={{ color: '#ffffff', marginBottom: 12, fontFamily: 'Source Sans Pro,Arial, sans-serif' }}>Microphone Access Required</h2>
         <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 28, lineHeight: 1.6 }}>Please allow microphone access in your browser settings, then try again.</p>
-        <button onClick={requestMicPermission} style={{ padding: '14px 32px', background: 'linear-gradient(135deg,#2563eb,#7c3aed)', color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Try Again</button>
+        <button onClick={requestMicPermission} style={{ padding: '14px 32px', background: 'linear-gradient(135deg,#0056d2,#003b8f)', color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Try Again</button>
       </div>
     </div>
   );
@@ -375,14 +375,14 @@ export default function SpeakingExam() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000814', fontFamily: 'Inter,sans-serif', color: 'white' }}>
+    <div style={{ minHeight: '100vh', background: '#001a43', fontFamily: 'Source Sans Pro,sans-serif', color: 'white' }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.08);opacity:0.8} }
         @keyframes ripple { 0%{transform:scale(1);opacity:0.6} 100%{transform:scale(2.5);opacity:0} }
         @keyframes glow { 0%,100%{box-shadow:0 0 20px rgba(37,99,235,0.4)} 50%{box-shadow:0 0 60px rgba(37,99,235,0.8)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        .neon-btn { border: none; cursor: pointer; font-family: Inter,sans-serif; font-weight: 700; transition: all 0.3s; }
+        .neon-btn { border: none; cursor: pointer; font-family: Source Sans Pro,sans-serif; font-weight: 700; transition: all 0.3s; }
         .neon-btn:hover { transform: translateY(-2px); }
         .neon-btn:active { transform: translateY(0); }
         .neon-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
@@ -440,7 +440,7 @@ export default function SpeakingExam() {
                 <span style={{ fontSize: 20 }}>{part.icon}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: part.color, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{part.title} — {part.subtitle}</span>
               </div>
-              <h1 style={{ fontFamily: 'Playfair Display,serif', fontSize: 36, color: 'white', marginBottom: 12, lineHeight: 1.2 }}>Ready for {part.title}?</h1>
+              <h1 style={{ fontFamily: 'Source Sans Pro,Arial, sans-serif', fontSize: 36, color: 'white', marginBottom: 12, lineHeight: 1.2 }}>Ready for {part.title}?</h1>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, maxWidth: 500, margin: '0 auto' }}>{part.description}</p>
             </div>
 
@@ -453,7 +453,7 @@ export default function SpeakingExam() {
               ].map(item => (
                 <div key={item.label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, textAlign: 'center' }}>
                   <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 4 }}>{item.value}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 4 }}>{item.value}</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.label}</div>
                 </div>
               ))}
@@ -515,7 +515,7 @@ export default function SpeakingExam() {
                   {prepTimeLeft !== null ? 'Preparation Time Remaining' : '1 minute preparation before recording'}
                 </p>
                 {prepTimeLeft !== null && (
-                  <div style={{ fontSize: 56, fontWeight: 900, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 56, fontWeight: 700, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
                     {formatTime(prepTimeLeft)}
                   </div>
                 )}
@@ -572,7 +572,7 @@ export default function SpeakingExam() {
                   <p style={{ color: '#60a5fa', fontSize: 14, fontWeight: 600 }}>⏳ Saving recording...</p>
                 ) : recording ? (
                   <>
-                    <div style={{ fontSize: 32, fontWeight: 900, color: '#ef4444', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>
+                    <div style={{ fontSize: 32, fontWeight: 700, color: '#ef4444', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>
                       {recordTimeLeft !== null ? formatTime(recordTimeLeft) : ''}
                     </div>
                     <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>🔴 Recording — answer all questions, then click ⏹ when done</p>
@@ -615,7 +615,7 @@ export default function SpeakingExam() {
           <div style={{ animation: 'fadeUp 0.5s ease', textAlign: 'center' }}>
             <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 24, padding: 56, marginBottom: 32 }}>
               <div style={{ fontSize: 72, marginBottom: 20 }}>🎉</div>
-              <h1 style={{ fontFamily: 'Playfair Display,serif', fontSize: 36, color: 'white', marginBottom: 12 }}>Speaking Test Complete!</h1>
+              <h1 style={{ fontFamily: 'Source Sans Pro,Arial, sans-serif', fontSize: 36, color: 'white', marginBottom: 12 }}>Speaking Test Complete!</h1>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, marginBottom: 32, maxWidth: 480, margin: '0 auto 32px' }}>
                 All {parts.length} parts recorded. Your responses will be transcribed and marked by EPIC AI.
               </p>

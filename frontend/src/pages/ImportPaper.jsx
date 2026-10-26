@@ -102,7 +102,8 @@ export default function ImportPaper() {
                return;
             }
 
-            const res = await axios.post(`${API_URL}/api/admin/papers/import-json`, jsonData, api());
+            const panelTrack = (() => { try { return localStorage.getItem('epicAdminPanel') === 'GENERAL' ? 'GENERAL' : 'IELTS'; } catch { return 'IELTS'; } })();
+            const res = await axios.post(`${API_URL}/api/admin/papers/import-json`, { track: panelTrack, ...jsonData }, api());
             setResult({ ...res.data, isJson: true });
             setNeedsUpload(res.data.needsUpload || []);
             if (res.data.success && (!res.data.needsUpload || res.data.needsUpload.length === 0) && res.data.testType !== 'WRITING') {
@@ -110,7 +111,8 @@ export default function ImportPaper() {
             }
          } else {
             const res = await axios.post(`${API_URL}/api/admin/papers/import-ai`, {
-               rawText, testType, paperCode, title
+               rawText, testType, paperCode, title,
+               track: (() => { try { return localStorage.getItem('epicAdminPanel') === 'GENERAL' ? 'GENERAL' : 'IELTS'; } catch { return 'IELTS'; } })(),
             }, api());
             setResult(res.data);
             if (res.data.success) {
@@ -125,18 +127,18 @@ export default function ImportPaper() {
    };
 
    return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ minHeight: '100vh', background: '#f7f9fc', padding: '40px', fontFamily: 'Source Sans Pro, sans-serif' }}>
          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
             <button 
                onClick={() => navigate('/admin/dashboard')}
-               style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: '600', cursor: 'pointer', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+               style={{ background: 'none', border: 'none', color: '#0056d2', fontWeight: '600', cursor: 'pointer', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
                ← Back to Dashboard
             </button>
 
-            <div style={{ background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-               <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#1a1a2e', marginBottom: '8px' }}>✨ Paper Import</h1>
-               <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '32px' }}>Paste raw text for AI processing, or structured JSON for direct import.</p>
+            <div style={{ background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid #dae1ed', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+               <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f1114', marginBottom: '8px' }}>✨ Paper Import</h1>
+               <p style={{ color: '#5b6780', fontSize: '14px', marginBottom: '32px' }}>Paste raw text for AI processing, or structured JSON for direct import.</p>
 
                {error && (
                   <div style={{ background: '#fef2f2', color: '#dc2626', padding: '12px', borderRadius: '8px', border: '1px solid #fecaca', marginBottom: '24px', fontSize: '14px' }}>
@@ -165,16 +167,16 @@ export default function ImportPaper() {
                )}
 
                {result?.isJson && needsUpload.length > 0 && (
-                  <div style={{ background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', marginBottom: '24px' }}>
-                     <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '12px', textTransform: 'uppercase' }}>📋 Required Assets</h3>
+                  <div style={{ background: '#f7f9fc', borderRadius: '12px', border: '1px solid #dae1ed', padding: '20px', marginBottom: '24px' }}>
+                     <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0f1114', marginBottom: '12px', textTransform: 'uppercase' }}>📋 Required Assets</h3>
                      <div style={{ display: 'grid', gap: '10px' }}>
                         {needsUpload.map((item, i) => (
-                           <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                           <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'white', borderRadius: '10px', border: '1px solid #dae1ed' }}>
                               <span style={{ fontSize: '13px', fontWeight: '600' }}>{item.label}</span>
                               {item.done ? (
-                                 <span style={{ color: '#16a34a', fontWeight: '800', fontSize: '11px' }}>✅ UPLOADED</span>
+                                 <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '11px' }}>✅ UPLOADED</span>
                               ) : (
-                                 <label style={{ padding: '6px 12px', background: '#4f46e5', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+                                 <label style={{ padding: '6px 12px', background: '#0056d2', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
                                     Upload
                                     <input type="file" style={{ display: 'none' }} onChange={e => handleUpload(item, e.target.files[0])} />
                                  </label>
@@ -187,22 +189,22 @@ export default function ImportPaper() {
 
                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                   <div>
-                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Paper Code (AI path only)</label>
+                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#5b6780', marginBottom: '8px', textTransform: 'uppercase' }}>Paper Code (AI path only)</label>
                      <input 
                         className="form-input" 
                         placeholder="e.g. 005" 
                         value={paperCode} 
                         onChange={e => setPaperCode(e.target.value)}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #dae1ed' }}
                      />
                   </div>
                   <div>
-                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Test Type (AI path only)</label>
+                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#5b6780', marginBottom: '8px', textTransform: 'uppercase' }}>Test Type (AI path only)</label>
                      <select 
                         className="form-input" 
                         value={testType} 
                         onChange={e => setTestType(e.target.value)}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #dae1ed' }}
                      >
                         <option value="READING">📖 Reading</option>
                         <option value="LISTENING">🎧 Listening</option>
@@ -213,7 +215,7 @@ export default function ImportPaper() {
                </div>
 
                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Paste Paper Text or JSON Here</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#5b6780', marginBottom: '8px', textTransform: 'uppercase' }}>Paste Paper Text or JSON Here</label>
                   <textarea 
                      value={rawText}
                      onChange={e => setRawText(e.target.value)}
@@ -223,7 +225,7 @@ export default function ImportPaper() {
                         height: '300px', 
                         padding: '16px', 
                         borderRadius: '12px', 
-                        border: '1.5px solid #e2e8f0', 
+                        border: '1.5px solid #dae1ed', 
                         fontFamily: 'monospace', 
                         fontSize: '13px',
                         outline: 'none',
@@ -239,7 +241,7 @@ export default function ImportPaper() {
                      style={{ 
                         flex: 1,
                         padding: '14px', 
-                        background: '#4f46e5', 
+                        background: '#0056d2', 
                         color: 'white', 
                         border: 'none', 
                         borderRadius: '12px', 
@@ -258,8 +260,8 @@ export default function ImportPaper() {
                         style={{ 
                            padding: '14px 24px', 
                            background: 'white', 
-                           color: '#4f46e5', 
-                           border: '2px solid #4f46e5', 
+                           color: '#0056d2', 
+                           border: '2px solid #0056d2', 
                            borderRadius: '12px', 
                            fontWeight: '700', 
                            fontSize: '16px',

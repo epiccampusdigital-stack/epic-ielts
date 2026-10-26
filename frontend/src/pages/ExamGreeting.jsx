@@ -72,21 +72,21 @@ export default function ExamGreeting() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#f8fafc',
-            fontFamily: "'Inter', sans-serif"
+            background: '#f7f9fc',
+            fontFamily: "Source Sans Pro, sans-serif"
          }}>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <div style={{ textAlign: 'center' }}>
                <div style={{
                   width: '42px',
                   height: '42px',
-                  border: '3px solid #e2e8f0',
-                  borderTop: '3px solid #4f46e5',
+                  border: '3px solid #dae1ed',
+                  borderTop: '3px solid #0056d2',
                   borderRadius: '50%',
                   animation: 'spin 0.8s linear infinite',
                   margin: '0 auto 16px'
                }} />
-               <p style={{ color: '#64748b' }}>Loading exam...</p>
+               <p style={{ color: '#5b6780' }}>Loading exam...</p>
             </div>
          </div>
       );
@@ -99,26 +99,26 @@ export default function ExamGreeting() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#f8fafc',
-            fontFamily: "'Inter', sans-serif"
+            background: '#f7f9fc',
+            fontFamily: "Source Sans Pro, sans-serif"
          }}>
             <div style={{
                background: '#ffffff',
-               border: '1px solid #e2e8f0',
+               border: '1px solid #dae1ed',
                borderRadius: '16px',
                padding: '32px',
                textAlign: 'center',
                maxWidth: '420px'
             }}>
-               <h2 style={{ color: '#1e293b', marginBottom: '8px' }}>Exam could not load</h2>
-               <p style={{ color: '#64748b', marginBottom: '20px' }}>
+               <h2 style={{ color: '#0f1114', marginBottom: '8px' }}>Exam could not load</h2>
+               <p style={{ color: '#5b6780', marginBottom: '20px' }}>
                   {error || 'Paper data was not found for this attempt.'}
                </p>
                <button
                   onClick={() => navigate('/student/dashboard')}
                   style={{
                      padding: '10px 18px',
-                     background: '#4f46e5',
+                     background: '#0056d2',
                      color: '#ffffff',
                      border: 'none',
                      borderRadius: '8px',
@@ -136,8 +136,8 @@ export default function ExamGreeting() {
    return (
       <div style={{
          minHeight: '100vh',
-         background: '#f8fafc',
-         fontFamily: "'Inter', sans-serif"
+         background: '#f7f9fc',
+         fontFamily: "Source Sans Pro, sans-serif"
       }}>
          <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -149,14 +149,14 @@ export default function ExamGreeting() {
         .start-btn {
           width: 100%;
           padding: 18px;
-          background: #1a1a2e;
+          background: #002761;
           color: #ffffff;
           border: none;
           border-radius: 12px;
           font-size: 16px;
           font-weight: 600;
           cursor: pointer;
-          font-family: 'Inter', sans-serif;
+          font-family: Source Sans Pro, sans-serif;
           letter-spacing: 0.03em;
           transition: all 0.2s;
           display: flex;
@@ -178,10 +178,10 @@ export default function ExamGreeting() {
         .info-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
         @media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; } }
         
-        .exam-nav { background: #1a1a2e; padding: 0 16px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+        .exam-nav { background: #002761; padding: 0 16px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
         @media (min-width: 768px) { .exam-nav { padding: 0 40px; } }
         
-        .greeting-card { background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+        .greeting-card { background: #ffffff; border-radius: 20px; border: 1px solid #dae1ed; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
         .greeting-content { padding: 24px; }
         @media (min-width: 768px) { .greeting-content { padding: 44px; } }
       `}</style>
@@ -214,7 +214,7 @@ export default function ExamGreeting() {
                      <p style={{
                         fontSize: '11px',
                         fontWeight: '600',
-                        color: '#94a3b8',
+                        color: '#8495b0',
                         letterSpacing: '0.12em',
                         textTransform: 'uppercase',
                         marginBottom: '12px'
@@ -223,17 +223,17 @@ export default function ExamGreeting() {
                      </p>
 
                      <h1 style={{
-                        fontFamily: "'Playfair Display', serif",
+                        fontFamily: "Source Sans Pro, Arial, sans-serif",
                         fontSize: '26px',
                         fontWeight: '700',
-                        color: '#1a1a2e',
+                        color: '#0f1114',
                         marginBottom: '8px',
                         lineHeight: '1.3'
                      }}>
                         EPIC IELTS — {paper.testType} {paper.paperCode}
                      </h1>
 
-                     <p style={{ fontSize: '15px', color: '#64748b' }}>{paper.title}</p>
+                     <p style={{ fontSize: '15px', color: '#5b6780' }}>{paper.title}</p>
                   </div>
 
                   <div className="info-grid">
@@ -244,20 +244,20 @@ export default function ExamGreeting() {
                         { icon: '🎯', label: 'Attempt ID', value: attempt?.id || attemptId }
                      ].map((item, i) => (
                         <div key={i} style={{
-                           background: '#f8fafc',
+                           background: '#f7f9fc',
                            borderRadius: '12px',
                            padding: '16px',
                            display: 'flex',
                            alignItems: 'center',
                            gap: '12px',
-                           border: '1px solid #f1f5f9'
+                           border: '1px solid #e8eef7'
                         }}>
                            <span style={{ fontSize: '22px' }}>{item.icon}</span>
                            <div>
-                              <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>
+                              <div style={{ fontSize: '11px', color: '#8495b0', marginBottom: '2px' }}>
                                  {item.label}
                               </div>
-                              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                              <div style={{ fontSize: '14px', fontWeight: '600', color: '#0f1114' }}>
                                  {item.value}
                               </div>
                            </div>
@@ -266,16 +266,16 @@ export default function ExamGreeting() {
                   </div>
 
                   <div style={{
-                     background: '#f8fafc',
+                     background: '#f7f9fc',
                      borderRadius: '12px',
                      padding: '20px 24px',
                      marginBottom: '24px',
-                     border: '1px solid #e2e8f0'
+                     border: '1px solid #dae1ed'
                   }}>
                      <p style={{
                         fontSize: '11px',
                         fontWeight: '600',
-                        color: '#64748b',
+                        color: '#5b6780',
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
                         marginBottom: '14px'
@@ -299,11 +299,11 @@ export default function ExamGreeting() {
                               width: '6px',
                               height: '6px',
                               borderRadius: '50%',
-                              background: '#4f46e5',
+                              background: '#0056d2',
                               marginTop: '7px',
                               flexShrink: 0
                            }} />
-                           <span style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>
+                           <span style={{ fontSize: '13px', color: '#5b6780', lineHeight: '1.6' }}>
                               {item}
                            </span>
                         </div>

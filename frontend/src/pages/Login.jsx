@@ -395,7 +395,7 @@ export default function Login() {
         </section>
 
         {/* 4. The four skills: what each paper is and how it is marked */}
-        <section className="lp-section lp-white" id="skills">
+        <section className="lp-section lp-dark" id="skills">
           <div className="lp-wrap">
             <div className="lp-head">
               <h2>All four skills, marked</h2>
@@ -456,20 +456,44 @@ export default function Login() {
         </section>
 
         {/* 6. Prices */}
-        <section className="lp-section lp-white" id="prices">
-          <div className="lp-wrap lp-prices-grid">
+        <section className="lp-section lp-white lp-glow" id="prices">
+          <div className="lp-wrap">
             <div className="lp-head">
               <h2>Prices</h2>
-              <p>Start free. Pay only when you want more papers. You pay by card inside your account.</p>
+              <p>Start free. Pay only when you want more papers, by card inside your account. General English is included for everyone.</p>
             </div>
-            <table className="lp-prices">
-              <tbody>
-                <tr><th scope="row">Placement test, and your first paper in each skill</th><td>Free</td></tr>
-                <tr><th scope="row">One level: a set of papers in all four skills</th><td>LKR 2,000</td></tr>
-                <tr><th scope="row">Full access to every paper</th><td>LKR 10,000</td></tr>
-                <tr><th scope="row">General English lessons and quizzes</th><td>Included</td></tr>
-              </tbody>
-            </table>
+            <div className="lp-plans">
+              <article className="lp-plan">
+                <h3>Start</h3>
+                <p className="lp-price">Free</p>
+                <ul>
+                  <li>Placement test in all four skills</li>
+                  <li>Your first paper in each skill</li>
+                  <li>General English lessons and quizzes</li>
+                </ul>
+                <button type="button" className="lp-btn lp-btn-ghost" onClick={() => openAuth('signup')}>Create a free account</button>
+              </article>
+              <article className="lp-plan">
+                <h3>One level</h3>
+                <p className="lp-price">LKR 2,000</p>
+                <ul>
+                  <li>A set of papers in all four skills</li>
+                  <li>Writing and Speaking bands with comments</li>
+                  <li>Buy the next level when you are ready</li>
+                </ul>
+                <button type="button" className="lp-btn lp-btn-ghost" onClick={() => openAuth('signup')}>Start free, buy later</button>
+              </article>
+              <article className="lp-plan lp-plan-full">
+                <h3>Full access</h3>
+                <p className="lp-price">LKR 10,000</p>
+                <ul>
+                  <li>Every paper in every level</li>
+                  <li>All four skills, with retakes</li>
+                  <li>Everything in General English</li>
+                </ul>
+                <button type="button" className="lp-btn lp-btn-gold" onClick={() => openAuth('signup')}>Start free, unlock later</button>
+              </article>
+            </div>
           </div>
         </section>
 
@@ -576,6 +600,38 @@ const css = `
 .lp-head { max-width: 640px; margin-bottom: 48px; display: grid; gap: 14px; }
 .lp-head h2 { font-size: 40px; line-height: 1.15; letter-spacing: -0.01em; }
 .lp-head p { font-size: 18px; color: ${K.sub}; }
+.lp-head::before { content: ''; display: block; width: 44px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, ${K.gold}, #FCD34D); margin-bottom: 6px; }
+.lp-closing .lp-closing-row > div::before { content: ''; display: block; width: 44px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, ${K.gold}, #FCD34D); margin-bottom: 20px; }
+
+/* Dark band (four skills) */
+.lp-dark { color: #FFFFFF; background:
+    radial-gradient(700px 380px at 100% 0%, rgba(245, 158, 11, 0.16), transparent 70%),
+    radial-gradient(800px 460px at 0% 100%, rgba(79, 70, 229, 0.42), transparent 70%),
+    linear-gradient(180deg, ${K.navy}, ${K.navyDeep}); }
+.lp-dark .lp-head h2 { color: #FFFFFF; }
+.lp-dark .lp-head p { color: ${K.navyText}; }
+.lp-dark .lp-skills th, .lp-dark .lp-skills td { border-bottom-color: rgba(255, 255, 255, 0.12); }
+.lp-dark .lp-skills thead th { color: #94A3B8; border-bottom: 2px solid ${K.gold}; }
+.lp-dark .lp-skills tbody th { color: #FFFFFF; }
+.lp-dark .lp-skills td { color: ${K.navyText}; }
+.lp-dark .lp-skills tbody tr { transition: background 150ms; }
+.lp-dark .lp-skills tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+
+/* Price cards */
+.lp-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: stretch; }
+.lp-plan { background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 14px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 12px 30px rgba(26, 26, 46, 0.06); }
+.lp-plan h3 { font-size: 22px; }
+.lp-price { font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: lining-nums; }
+.lp-plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: ${K.sub}; flex: 1; }
+.lp-plan li { padding-left: 24px; position: relative; }
+.lp-plan li::before { content: ''; position: absolute; left: 2px; top: 0.45em; width: 11px; height: 6px; border-left: 2px solid ${K.indigo}; border-bottom: 2px solid ${K.indigo}; transform: rotate(-45deg); }
+.lp-plan .lp-btn { width: 100%; margin-top: 8px; }
+.lp-plan-full { color: #FFFFFF; border-color: transparent; background:
+    radial-gradient(420px 260px at 100% 0%, rgba(245, 158, 11, 0.25), transparent 70%),
+    linear-gradient(160deg, #2A2970 0%, ${K.navy} 70%); box-shadow: 0 24px 60px rgba(26, 26, 46, 0.28); }
+.lp-plan-full h3, .lp-plan-full .lp-price { color: #FFFFFF; }
+.lp-plan-full ul { color: ${K.navyText}; }
+.lp-plan-full li::before { border-color: ${K.gold}; }
 
 /* Hero */
 .lp-hero { padding-block: 96px 112px; color: #FFFFFF; position: relative; overflow: hidden;
@@ -660,7 +716,8 @@ const css = `
 /* How it works */
 .lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; counter-reset: step; }
 .lp-steps li { counter-increment: step; display: grid; gap: 12px; align-content: start; padding: 28px; background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 12px; }
-.lp-steps li::before { content: counter(step); font-family: 'Playfair Display', Georgia, serif; font-size: 44px; font-weight: 700; line-height: 1; color: ${K.indigo}; }
+.lp-steps li::before { content: counter(step); display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; font-family: 'Playfair Display', Georgia, serif; font-size: 24px; font-weight: 700; color: ${K.navy}; background: linear-gradient(145deg, #FCD34D, ${K.gold}); box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35); }
+.lp-steps li { box-shadow: 0 12px 30px rgba(26, 26, 46, 0.05); }
 .lp-steps h3 { font-size: 22px; }
 .lp-steps p { color: ${K.sub}; }
 
@@ -674,7 +731,8 @@ const css = `
 
 /* Courses */
 .lp-courses { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.lp-course { background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 14px; padding: 36px; display: grid; gap: 14px; align-content: start; box-shadow: 0 12px 30px rgba(79, 70, 229, 0.07); }
+.lp-course { position: relative; overflow: hidden; background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 14px; padding: 40px 36px 36px; display: grid; gap: 14px; align-content: start; box-shadow: 0 12px 30px rgba(79, 70, 229, 0.07); }
+.lp-course::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, ${K.indigo}, #8B5CF6 55%, ${K.gold}); }
 .lp-course h3 { font-size: 26px; }
 .lp-course p { color: ${K.sub}; }
 .lp-course ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
@@ -686,12 +744,8 @@ const css = `
 .lp-korea p { color: ${K.sub}; }
 
 /* Prices */
-.lp-prices-grid, .lp-faq-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 80px; align-items: start; }
-.lp-prices-grid .lp-head, .lp-faq-grid .lp-head { margin-bottom: 0; }
-.lp-prices { width: 100%; border-collapse: collapse; border-top: 2px solid ${K.ink}; }
-.lp-prices th, .lp-prices td { padding: 20px 0; border-bottom: 1px solid ${K.rule}; text-align: left; }
-.lp-prices th { font-weight: 400; padding-right: 24px; }
-.lp-prices td { text-align: right; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 18px; }
+.lp-faq-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 80px; align-items: start; }
+.lp-faq-grid .lp-head { margin-bottom: 0; }
 
 /* FAQ */
 .lp-faq { border-top: 2px solid ${K.ink}; }
@@ -728,7 +782,8 @@ const css = `
   .lp-hero-grid { grid-template-columns: 1fr; gap: 56px; }
   .lp-hero h1 { max-width: 16ch; }
   .lp-auth { max-width: 520px; }
-  .lp-prices-grid, .lp-faq-grid { grid-template-columns: 1fr; gap: 32px; }
+  .lp-faq-grid { grid-template-columns: 1fr; gap: 32px; }
+  .lp-plans { grid-template-columns: 1fr; max-width: 520px; }
 }
 @media (max-width: 760px) {
   .lp { font-size: 16px; }
@@ -753,7 +808,9 @@ const css = `
   .lp-skills thead { display: none; }
   .lp-skills, .lp-skills tbody, .lp-skills tr, .lp-skills th, .lp-skills td { display: block; width: auto !important; }
   .lp-skills tr { padding: 20px 0; border-bottom: 1px solid ${K.rule}; }
-  .lp-skills tr:first-child { border-top: 2px solid ${K.ink}; }
+  .lp-skills tr:first-child { border-top: 2px solid ${K.gold}; }
+  .lp-dark .lp-skills tr { border-bottom-color: rgba(255, 255, 255, 0.12); }
+  .lp-dark .lp-skills td::before { color: #94A3B8; }
   .lp-skills th, .lp-skills td { padding: 0; border: none; }
   .lp-skills td { margin-top: 10px; }
   .lp-skills td::before { content: attr(data-label); display: block; font-size: 13px; font-weight: 600; color: ${K.faint}; }
@@ -765,6 +822,6 @@ const css = `
   .lp-cta-row .lp-btn { width: 100%; }
   .lp-auth-body { padding: 22px 18px 24px; }
   .lp-row, .lp-row3 { grid-template-columns: 1fr; gap: 0; }
-  .lp-prices td { font-size: 16px; }
+  .lp-plan { padding: 26px 22px; }
 }
 `;

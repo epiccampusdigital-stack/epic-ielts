@@ -14,7 +14,7 @@ const PROGRAM = {
 
 // Teacher slots. Names/phones are filled in by the admin in the tracker.
 const TEACHERS = [
-  // Teacher 1 is available before 1 PM only: every one of her sessions ends by 12:15
+  // Teacher 1 is available before 1 PM only: every one of her sessions ends by 10:30
   { key: 'EN_MORNING', name: 'English Teacher 1', subject: 'ENGLISH', focus: 'Grammar, writing, reading & vocabulary (mornings only)', confirmed: true },
   { key: 'EN_SPEAKING', name: 'English Teacher 2', subject: 'ENGLISH', focus: 'Speaking & interviews', confirmed: true },
   { key: 'EN_LISTENING', name: 'English Teacher 3', subject: 'ENGLISH', focus: 'Listening & IT lab', confirmed: true },

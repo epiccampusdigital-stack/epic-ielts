@@ -125,14 +125,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS "ProgramAttendance_sessionId_programStudentId_
 CREATE UNIQUE INDEX IF NOT EXISTS "ProgramReminder_dedupeKey_key" ON "ProgramReminder"("dedupeKey");
 CREATE INDEX IF NOT EXISTS "ProgramReminder_programId_status_dueAt_idx" ON "ProgramReminder"("programId", "status", "dueAt");
 
--- Foreign keys
-ALTER TABLE "ProgramDay" ADD CONSTRAINT "ProgramDay_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramSession" ADD CONSTRAINT "ProgramSession_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramSession" ADD CONSTRAINT "ProgramSession_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "ProgramTeacher"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "ProgramStudent" ADD CONSTRAINT "ProgramStudent_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramAttendance" ADD CONSTRAINT "ProgramAttendance_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ProgramSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramAttendance" ADD CONSTRAINT "ProgramAttendance_programStudentId_fkey" FOREIGN KEY ("programStudentId") REFERENCES "ProgramStudent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramReminder" ADD CONSTRAINT "ProgramReminder_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramReminder" ADD CONSTRAINT "ProgramReminder_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "ProgramTeacher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramReminder" ADD CONSTRAINT "ProgramReminder_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ProgramSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProgramChangeLog" ADD CONSTRAINT "ProgramChangeLog_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Foreign keys (each only added if missing, so the file can be run again safely)
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramDay_programId_fkey') THEN ALTER TABLE "ProgramDay" ADD CONSTRAINT "ProgramDay_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramSession_programId_fkey') THEN ALTER TABLE "ProgramSession" ADD CONSTRAINT "ProgramSession_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramSession_teacherId_fkey') THEN ALTER TABLE "ProgramSession" ADD CONSTRAINT "ProgramSession_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "ProgramTeacher"("id") ON DELETE SET NULL ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramStudent_programId_fkey') THEN ALTER TABLE "ProgramStudent" ADD CONSTRAINT "ProgramStudent_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramAttendance_sessionId_fkey') THEN ALTER TABLE "ProgramAttendance" ADD CONSTRAINT "ProgramAttendance_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ProgramSession"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramAttendance_programStudentId_fkey') THEN ALTER TABLE "ProgramAttendance" ADD CONSTRAINT "ProgramAttendance_programStudentId_fkey" FOREIGN KEY ("programStudentId") REFERENCES "ProgramStudent"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramReminder_programId_fkey') THEN ALTER TABLE "ProgramReminder" ADD CONSTRAINT "ProgramReminder_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramReminder_teacherId_fkey') THEN ALTER TABLE "ProgramReminder" ADD CONSTRAINT "ProgramReminder_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "ProgramTeacher"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramReminder_sessionId_fkey') THEN ALTER TABLE "ProgramReminder" ADD CONSTRAINT "ProgramReminder_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ProgramSession"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProgramChangeLog_programId_fkey') THEN ALTER TABLE "ProgramChangeLog" ADD CONSTRAINT "ProgramChangeLog_programId_fkey" FOREIGN KEY ("programId") REFERENCES "Program"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$;

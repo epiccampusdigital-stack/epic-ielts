@@ -92,7 +92,10 @@ if (!process.env.JWT_SECRET) {
 }
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
+// Make sure the new tables and columns exist before taking requests (safe to run every boot)
+require('./ensureSchema').ensureSchema(prisma)
+  .catch(e => console.error('[schema] update failed:', e.message))
+  .finally(() => app.listen(PORT, '0.0.0.0', () => {
   console.log(`EPIC IELTS Backend running on port ${PORT}`);
   console.log('AI Key loaded:', !!process.env.ANTHROPIC_API_KEY);
   try {
@@ -100,4 +103,4 @@ app.listen(PORT, '0.0.0.0', () => {
   } catch (e) {
     console.error('Programme scheduler failed to start:', e.message);
   }
-});
+}));

@@ -14,10 +14,11 @@ const PROGRAM = {
 
 // Teacher slots. Names/phones are filled in by the admin in the tracker.
 const TEACHERS = [
-  { key: 'EN_SPEAKING', name: 'English Teacher 1', subject: 'ENGLISH', focus: 'Speaking & Pronunciation', confirmed: true },
-  { key: 'EN_GRAMMAR', name: 'English Teacher 2', subject: 'ENGLISH', focus: 'Grammar & Writing', confirmed: true },
-  { key: 'EN_READING', name: 'English Teacher 3', subject: 'ENGLISH', focus: 'Reading & Vocabulary', confirmed: true },
-  { key: 'EN_LISTENING', name: 'English Teacher 4 (TBC)', subject: 'ENGLISH', focus: 'Listening & IT Lab', confirmed: false },
+  // Teacher 1 is available before 1 PM only: every one of her sessions ends by 12:15
+  { key: 'EN_MORNING', name: 'English Teacher 1', subject: 'ENGLISH', focus: 'Grammar, writing, reading & vocabulary (mornings only)', confirmed: true },
+  { key: 'EN_SPEAKING', name: 'English Teacher 2', subject: 'ENGLISH', focus: 'Speaking & interviews', confirmed: true },
+  { key: 'EN_LISTENING', name: 'English Teacher 3', subject: 'ENGLISH', focus: 'Listening & IT lab', confirmed: true },
+  { key: 'EN_SUPPORT', name: 'English Teacher 4 (TBC)', subject: 'ENGLISH', focus: 'IT lab & evening clubs', confirmed: false },
   { key: 'KR_1', name: 'Korean Teacher 1', subject: 'KOREAN', focus: 'Korean (morning blocks)', confirmed: true },
   { key: 'KR_2', name: 'Korean Teacher 2 (optional)', subject: 'KOREAN', focus: 'Korean (afternoon blocks)', confirmed: false },
 ];
@@ -122,7 +123,7 @@ function buildSessions() {
     const day = i + 1;
     const odd = day % 2 === 1;
     const kr = KOREAN[i];
-    const enA = odd ? { teacher: 'EN_GRAMMAR', skill: 'Grammar & writing', topic: en.g } : { teacher: 'EN_READING', skill: 'Reading & vocabulary', topic: en.r };
+    const enA = odd ? { teacher: 'EN_MORNING', skill: 'Grammar & writing', topic: en.g } : { teacher: 'EN_MORNING', skill: 'Reading & vocabulary', topic: en.r };
     const enB = odd ? { teacher: 'EN_SPEAKING', skill: 'Speaking', topic: en.s } : { teacher: 'EN_LISTENING', skill: 'Listening', topic: en.l };
     const add = s => sessions.push({ dayNumber: day, ...s });
 
@@ -137,11 +138,11 @@ function buildSessions() {
 
     // 09:00 English block A
     if (day === 1) {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: 'English placement test (IT lab)', description: 'Students take the placement test on epicielts.live.', teacher: 'EN_LISTENING' });
+      add({ startTime: '09:00', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: 'English placement test (IT lab)', description: 'Students take the placement test on epicielts.live.', teacher: 'EN_MORNING' });
     } else if (en.test) {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: `${en.test === 'MID' ? 'Mid-programme' : 'Final'} English test: reading & writing`, teacher: 'EN_GRAMMAR' });
+      add({ startTime: '09:00', endTime: '10:30', subject: 'ASSESSMENT', language: 'EN', title: `${en.test === 'MID' ? 'Mid-programme' : 'Final'} English test: reading & writing`, teacher: 'EN_MORNING' });
     } else if (en.graduation) {
-      add({ startTime: '09:00', endTime: '10:30', subject: 'ACTIVITY', language: 'EN', title: 'Final English presentations', teacher: 'EN_SPEAKING' });
+      add({ startTime: '09:00', endTime: '10:30', subject: 'ACTIVITY', language: 'EN', title: 'Final English presentations', teacher: 'EN_MORNING' });
     } else {
       add({ startTime: '09:00', endTime: '10:30', subject: 'ENGLISH', language: 'EN', title: `English: ${enA.skill}`, description: `${en.theme}. ${enA.topic}`, teacher: enA.teacher });
     }
@@ -174,7 +175,7 @@ function buildSessions() {
     add({ startTime: '16:30', endTime: '16:45', subject: 'BREAK', language: null, title: 'Tea break' });
 
     // IT lab: practice what was taught today
-    add({ startTime: '16:45', endTime: '17:45', subject: 'IT_LAB', language: 'EN', title: 'IT lab: English practice', description: itLabTaskFor(day, en).split(' Korean:')[0], teacher: odd ? 'EN_LISTENING' : 'EN_GRAMMAR', link: '/learn' });
+    add({ startTime: '16:45', endTime: '17:45', subject: 'IT_LAB', language: 'EN', title: 'IT lab: English practice', description: itLabTaskFor(day, en).split(' Korean:')[0], teacher: odd ? 'EN_LISTENING' : 'EN_SUPPORT', link: '/learn' });
     add({ startTime: '17:45', endTime: '18:45', subject: 'IT_LAB', language: 'KR', title: 'IT lab: Korean practice', description: `Practise "${kr}" on the Korean site.`, teacher: odd ? 'KR_2' : 'KR_1', link: 'KOREAN_SITE' });
     add({ startTime: '18:45', endTime: '19:30', subject: 'BREAK', language: null, title: 'Dinner' });
 
@@ -183,7 +184,7 @@ function buildSessions() {
     if (ev) {
       add({ startTime: '19:30', endTime: '20:30', ...ev });
     } else if (odd) {
-      add({ startTime: '19:30', endTime: '20:30', subject: 'ACTIVITY', language: 'EN', title: 'English evening: games & conversation club', teacher: day % 4 === 1 ? 'EN_SPEAKING' : 'EN_READING' });
+      add({ startTime: '19:30', endTime: '20:30', subject: 'ACTIVITY', language: 'EN', title: 'English evening: games & conversation club', teacher: 'EN_SUPPORT' });
     } else {
       add({ startTime: '19:30', endTime: '20:30', subject: 'ACTIVITY', language: 'KR', title: 'Korean evening: culture, songs & vocab games', teacher: 'KR_1' });
     }

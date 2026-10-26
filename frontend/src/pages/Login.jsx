@@ -10,23 +10,26 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
 const WHATSAPP = '94777644946';
 const WHATSAPP_SHOWN = '+94 77 764 4946';
 
-// Layout: one idea per section, alternating paper and white bands, a 1120px column.
-// Colours: ink for text, cool paper for the page, the app's indigo for actions,
-// a highlighter yellow only where the page "marks" an answer.
+// Layout: a dark navy hero and closing band framing light sections, one idea per section, a 1120px column.
+// Shared EPIC theme (site, tracker, print pack and deck): navy, indigo for English and actions,
+// gold for highlights and Korean, Playfair Display headings, Inter text, Lora for reading passages.
 const K = {
-  ink: '#16213B',
-  sub: '#4A5568',
-  faint: '#7C8799',
-  paper: '#F5F6F8',
+  ink: '#1A1A2E',
+  sub: '#475569',
+  faint: '#64748B',
+  paper: '#F8FAFC',
   card: '#FFFFFF',
-  rule: '#DFE3EA',
+  rule: '#E2E8F0',
   indigo: '#4F46E5',
-  indigoDark: '#3E36C9',
-  indigoSoft: '#EEF0FF',
-  navy: '#16213B',
-  navyText: '#D5DBE7',
-  marker: '#FFE066',
-  right: '#1F7A4D',
+  indigoDark: '#4338CA',
+  indigoSoft: '#EEF2FF',
+  navy: '#1A1A2E',
+  navyDeep: '#12122A',
+  navyText: '#CBD5E1',
+  gold: '#F59E0B',
+  goldSoft: '#FFFBEB',
+  marker: '#FDE68A',
+  right: '#15803D',
   wrong: '#B42318',
 };
 
@@ -259,7 +262,7 @@ export default function Login() {
             <button type="button" onClick={() => scrollToId('faq')}>Questions</button>
           </nav>
           <div className="lp-header-actions">
-            <button type="button" className="lp-btn lp-btn-ghost" onClick={() => openAuth('login')}>Sign in</button>
+            <button type="button" className="lp-btn lp-btn-on-dark" onClick={() => openAuth('login')}>Sign in</button>
             <button type="button" className="lp-btn lp-btn-primary lp-hide-sm" onClick={() => openAuth('signup')}>Start free</button>
           </div>
         </div>
@@ -276,7 +279,7 @@ export default function Login() {
               </p>
               <div className="lp-cta-row">
                 <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => openAuth('signup')}>Create a free account</button>
-                <button type="button" className="lp-btn lp-btn-ghost lp-btn-lg" onClick={() => scrollToId('try')}>Try a question first</button>
+                <button type="button" className="lp-btn lp-btn-on-dark lp-btn-lg" onClick={() => scrollToId('try')}>Try a question first</button>
               </div>
               <ul className="lp-ticks">
                 <li>Free placement test in all four skills</li>
@@ -357,7 +360,7 @@ export default function Login() {
         </section>
 
         {/* 2. Try it: the product, shown as the real exam screen */}
-        <section className="lp-section lp-white" id="try">
+        <section className="lp-section lp-white lp-glow" id="try">
           <div className="lp-wrap">
             <div className="lp-head">
               <h2>Try a real question</h2>
@@ -415,7 +418,7 @@ export default function Login() {
         </section>
 
         {/* 5. Courses */}
-        <section className="lp-section" id="courses">
+        <section className="lp-section lp-tint" id="courses">
           <div className="lp-wrap">
             <div className="lp-head">
               <h2>Courses</h2>
@@ -509,7 +512,7 @@ export default function Login() {
               <h2>Start with the free placement test.</h2>
               <p>It takes one sitting and tells you where you stand in every skill.</p>
             </div>
-            <button type="button" className="lp-btn lp-btn-light lp-btn-lg" onClick={() => openAuth('signup')}>Create a free account</button>
+            <button type="button" className="lp-btn lp-btn-gold lp-btn-lg" onClick={() => openAuth('signup')}>Create a free account</button>
           </div>
         </section>
       </main>
@@ -546,40 +549,56 @@ const css = `
 .lp-btn-primary:hover { background: ${K.indigoDark}; }
 .lp-btn-ghost { background: ${K.card}; color: ${K.ink} !important; border-color: ${K.rule}; }
 .lp-btn-ghost:hover { border-color: ${K.ink}; }
-.lp-btn-light { background: #FFFFFF; color: ${K.navy} !important; }
-.lp-btn-light:hover { background: ${K.indigoSoft}; }
+.lp-btn-on-dark { background: rgba(255, 255, 255, 0.04); color: #FFFFFF !important; border-color: rgba(255, 255, 255, 0.28); }
+.lp-btn-on-dark:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.5); }
+.lp-btn-gold { background: ${K.gold}; color: ${K.navy} !important; }
+.lp-btn-gold:hover { background: #FBBF24; }
+.lp-btn-primary { box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35); }
 .lp-btn:disabled { opacity: 0.7; cursor: progress; }
 .lp :focus-visible { outline: 2px solid ${K.indigo}; outline-offset: 2px; }
+.lp-header :focus-visible, .lp-hero-copy :focus-visible, .lp-closing :focus-visible { outline-color: ${K.gold}; }
 
 /* Header */
-.lp-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; background: rgba(245, 246, 248, 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid ${K.rule}; }
+.lp::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: ${K.navy}; }
+.lp-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; background: rgba(26, 26, 46, 0.97); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .lp-header-row { display: flex; align-items: center; gap: 24px; height: 68px; }
-.lp-brand { display: inline-flex; align-items: center; gap: 10px; background: none; border: none; padding: 0; cursor: pointer; color: ${K.ink}; font-weight: 700; font-size: 16px; letter-spacing: 0.02em; }
+.lp-brand { display: inline-flex; align-items: center; gap: 10px; background: none; border: none; padding: 0; cursor: pointer; color: #FFFFFF; font-weight: 700; font-size: 16px; letter-spacing: 0.04em; }
 .lp-nav { display: flex; gap: 4px; margin-left: auto; }
-.lp-nav button { background: none; border: none; padding: 8px 12px; border-radius: 6px; color: ${K.sub}; font-size: 15px; cursor: pointer; }
-.lp-nav button:hover { color: ${K.ink}; background: rgba(22, 33, 59, 0.05); }
+.lp-nav button { background: none; border: none; padding: 8px 12px; border-radius: 6px; color: ${K.navyText}; font-size: 15px; cursor: pointer; }
+.lp-nav button:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.07); }
 .lp-header-actions { display: flex; gap: 10px; }
 
 /* Sections */
 .lp-section { padding-block: 104px; scroll-margin-top: 68px; }
 .lp-white { background: ${K.card}; border-top: 1px solid ${K.rule}; border-bottom: 1px solid ${K.rule}; }
+.lp-glow { background: radial-gradient(900px 360px at 50% 0%, rgba(79, 70, 229, 0.09), transparent 70%), ${K.card}; }
+.lp-tint { background: linear-gradient(180deg, ${K.paper} 0%, ${K.indigoSoft} 100%); }
 .lp-head { max-width: 640px; margin-bottom: 48px; display: grid; gap: 14px; }
 .lp-head h2 { font-size: 40px; line-height: 1.15; letter-spacing: -0.01em; }
 .lp-head p { font-size: 18px; color: ${K.sub}; }
 
 /* Hero */
-.lp-hero { padding-block: 88px 104px; }
+.lp-hero { padding-block: 96px 112px; color: #FFFFFF; position: relative; overflow: hidden;
+  background:
+    radial-gradient(720px 520px at 8% 0%, rgba(79, 70, 229, 0.55), transparent 65%),
+    radial-gradient(560px 420px at 95% 35%, rgba(245, 158, 11, 0.20), transparent 70%),
+    radial-gradient(800px 500px at 60% 120%, rgba(99, 102, 241, 0.30), transparent 70%),
+    linear-gradient(180deg, ${K.navy} 0%, ${K.navyDeep} 100%); }
+.lp-hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.35;
+  background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 56px 56px; mask-image: radial-gradient(ellipse at 30% 30%, #000 20%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse at 30% 30%, #000 20%, transparent 70%); }
+.lp-hero .lp-wrap { position: relative; z-index: 1; }
 .lp-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 80px; align-items: center; }
 .lp-hero-copy { display: grid; gap: 28px; }
-.lp-hero h1 { font-size: 60px; line-height: 1.06; letter-spacing: -0.02em; max-width: 13ch; }
-.lp-lede { font-size: 20px; line-height: 1.6; color: ${K.sub}; max-width: 32em; }
+.lp-hero h1 { font-size: 62px; line-height: 1.05; letter-spacing: -0.02em; max-width: 13ch; color: #FFFFFF; }
+.lp-lede { font-size: 20px; line-height: 1.6; color: ${K.navyText}; max-width: 32em; }
 .lp-cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.lp-ticks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; color: ${K.sub}; font-size: 16px; }
+.lp-ticks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; color: #E2E8F0; font-size: 16px; }
 .lp-ticks li { display: flex; gap: 10px; align-items: baseline; }
-.lp-ticks li::before { content: ''; flex: none; width: 14px; height: 8px; border-left: 2px solid ${K.right}; border-bottom: 2px solid ${K.right}; transform: translateY(-3px) rotate(-45deg); }
+.lp-ticks li::before { content: ''; flex: none; width: 14px; height: 8px; border-left: 2px solid ${K.gold}; border-bottom: 2px solid ${K.gold}; transform: translateY(-3px) rotate(-45deg); }
 
 /* Auth card */
-.lp-auth { background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 10px; box-shadow: 0 1px 2px rgba(22, 33, 59, 0.04), 0 12px 32px rgba(22, 33, 59, 0.06); scroll-margin-top: 92px; }
+.lp-auth { background: ${K.card}; color: ${K.ink}; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 14px; box-shadow: 0 30px 80px rgba(8, 8, 30, 0.45), 0 2px 6px rgba(8, 8, 30, 0.2); scroll-margin-top: 92px; overflow: hidden; }
 .lp-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid ${K.rule}; }
 .lp-tabs button { padding: 18px 0 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: ${K.faint}; font-size: 15px; cursor: pointer; }
 .lp-tabs button.on { color: ${K.ink}; font-weight: 600; border-bottom-color: ${K.ink}; }
@@ -607,12 +626,12 @@ const css = `
 .lp-notice { border-left: 3px solid ${K.right}; background: #ECFDF3; color: ${K.right}; }
 
 /* Sample exam window */
-.xw { background: ${K.card}; border: 1px solid #C9CFDA; border-radius: 10px; overflow: hidden; box-shadow: 0 18px 48px rgba(22, 33, 59, 0.10); }
-.xw-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: ${K.navy}; color: ${K.navyText}; font-size: 14px; }
+.xw { background: ${K.card}; border: 1px solid #CBD5E1; border-radius: 12px; overflow: hidden; box-shadow: 0 30px 70px rgba(26, 26, 46, 0.14), 0 2px 6px rgba(26, 26, 46, 0.06); }
+.xw-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: linear-gradient(90deg, ${K.navy}, #24245A); color: ${K.navyText}; font-size: 14px; }
 .xw-brand { color: #FFFFFF; font-weight: 700; letter-spacing: 0.04em; }
-.xw-part { padding-left: 16px; border-left: 1px solid #3A4766; }
+.xw-part { padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, 0.18); }
 .xw-clock { margin-left: auto; display: inline-flex; gap: 8px; align-items: baseline; }
-.xw-time { font-variant-numeric: tabular-nums; font-weight: 700; color: #FFFFFF; font-size: 16px; }
+.xw-time { font-variant-numeric: tabular-nums; font-weight: 700; color: ${K.gold}; font-size: 16px; }
 .xw-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .xw-passage { padding: 32px 36px; border-right: 1px solid ${K.rule}; display: grid; gap: 16px; align-content: start; background: #FCFCFD; }
 .xw-passage h3 { font-size: 22px; }
@@ -626,7 +645,7 @@ const css = `
 .xw-opts { display: flex; gap: 8px; flex-wrap: wrap; padding-left: 36px; }
 .xw-opt { font-size: 14px; padding: 7px 14px; border-radius: 4px; border: 1px solid ${K.rule}; background: #fff; color: ${K.ink}; cursor: pointer; }
 .xw-opt:hover { border-color: ${K.ink}; }
-.xw-opt.is-right { background: ${K.marker}; border-color: #D9B100; font-weight: 600; }
+.xw-opt.is-right { background: ${K.marker}; border-color: ${K.gold}; font-weight: 600; }
 .xw-opt.is-wrong { border-color: ${K.wrong}; color: ${K.wrong}; text-decoration: line-through; }
 .xw-opt.is-off { color: ${K.faint}; }
 .xw-why { font-size: 14px; line-height: 1.55; color: ${K.sub}; padding-left: 36px; }
@@ -640,7 +659,7 @@ const css = `
 
 /* How it works */
 .lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; counter-reset: step; }
-.lp-steps li { counter-increment: step; display: grid; gap: 12px; align-content: start; padding-top: 24px; border-top: 2px solid ${K.ink}; }
+.lp-steps li { counter-increment: step; display: grid; gap: 12px; align-content: start; padding: 28px; background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 12px; }
 .lp-steps li::before { content: counter(step); font-family: 'Playfair Display', Georgia, serif; font-size: 44px; font-weight: 700; line-height: 1; color: ${K.indigo}; }
 .lp-steps h3 { font-size: 22px; }
 .lp-steps p { color: ${K.sub}; }
@@ -655,13 +674,13 @@ const css = `
 
 /* Courses */
 .lp-courses { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.lp-course { background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 10px; padding: 36px; display: grid; gap: 14px; align-content: start; }
+.lp-course { background: ${K.card}; border: 1px solid ${K.rule}; border-radius: 14px; padding: 36px; display: grid; gap: 14px; align-content: start; box-shadow: 0 12px 30px rgba(79, 70, 229, 0.07); }
 .lp-course h3 { font-size: 26px; }
 .lp-course p { color: ${K.sub}; }
 .lp-course ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .lp-course li { padding-left: 20px; position: relative; }
 .lp-course li::before { content: ''; position: absolute; left: 0; top: 0.65em; width: 8px; height: 8px; background: ${K.indigo}; border-radius: 2px; }
-.lp-korea { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 28px 36px; border: 1px dashed #B9C0CD; border-radius: 10px; }
+.lp-korea { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 28px 36px; background: ${K.goldSoft}; border: 1px solid #FCD34D; border-radius: 14px; }
 .lp-korea > div { display: grid; gap: 8px; max-width: 640px; }
 .lp-korea h3 { font-size: 22px; }
 .lp-korea p { color: ${K.sub}; }
@@ -684,15 +703,19 @@ const css = `
 .lp-faq details p { padding: 0 40px 22px 0; color: ${K.sub}; }
 
 /* Closing */
-.lp-closing { background: ${K.navy}; padding-block: 88px; }
+.lp-closing { padding-block: 96px; background:
+    radial-gradient(600px 300px at 90% 0%, rgba(245, 158, 11, 0.22), transparent 70%),
+    radial-gradient(700px 400px at 0% 100%, rgba(79, 70, 229, 0.45), transparent 70%),
+    linear-gradient(180deg, ${K.navy}, ${K.navyDeep}); }
 .lp-closing-row { display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
 .lp-closing h2 { color: #FFFFFF; font-size: 40px; line-height: 1.15; }
 .lp-closing p { color: ${K.navyText}; font-size: 18px; margin-top: 10px; }
 
 /* Footer */
-.lp-foot { padding-block: 32px 104px; font-size: 14px; color: ${K.sub}; }
+.lp-foot { padding-block: 36px 104px; font-size: 14px; color: #94A3B8; background: ${K.navyDeep}; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.lp-foot a { color: ${K.gold}; }
 .lp-foot-row { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-.lp-foot-name { color: ${K.ink}; font-weight: 600; }
+.lp-foot-name { color: #FFFFFF; font-weight: 600; }
 .lp-foot-note { margin-top: 4px !important; max-width: 46em; }
 
 @media (prefers-reduced-motion: reduce) {

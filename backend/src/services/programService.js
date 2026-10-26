@@ -144,6 +144,20 @@ function whatsappApiConfigured() {
   return !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
 }
 
+// With WHATSAPP_TEMPLATE set (the name of an approved utility template with one body variable {{1}}),
+// every reminder goes as that template, so it is delivered even when the teacher has not messaged
+// the business number in the last 24 hours. Without it, plain text is sent (only delivered inside that window).
+function waBody(to, text) {
+  const template = process.env.WHATSAPP_TEMPLATE;
+  if (!template) return { messaging_product: 'whatsapp', to, type: 'text', text: { body: text.slice(0, 4000) } };
+  // Template variables cannot contain new lines, tabs or more than four spaces in a row
+  const param = text.replace(/\s*\n+\s*/g, ' · ').replace(/\t/g, ' ').replace(/ {4,}/g, '   ').trim().slice(0, 1000);
+  return {
+    messaging_product: 'whatsapp', to, type: 'template',
+    template: { name: template, language: { code: process.env.WHATSAPP_TEMPLATE_LANG || 'en' }, components: [{ type: 'body', parameters: [{ type: 'text', text: param }] }] },
+  };
+}
+
 // Sends through the WhatsApp Cloud API. Note: Meta only delivers free-form text inside a
 // 24-hour window after the teacher last messaged the business number; outside it a template is required.
 async function sendWhatsApp(phone, text) {
@@ -152,7 +166,7 @@ async function sendWhatsApp(phone, text) {
   const res = await fetch(`https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text.slice(0, 4000) } }),
+    body: JSON.stringify(waBody(to, text)),
   });
   if (!res.ok) {
     const body = await res.text();

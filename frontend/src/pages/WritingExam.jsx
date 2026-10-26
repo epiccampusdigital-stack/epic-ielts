@@ -471,6 +471,8 @@ export default function WritingExam() {
     ? (v) => { setTask1(v); task1Ref.current = v; }
     : (v) => { setTask2(v); task2Ref.current = v; };
   const minWords = currentTask?.minWords || (task === 1 ? 150 : 250);
+  const min1 = writingTask1?.minWords || 150;
+  const min2 = writingTask2?.minWords || 250;
   const wc = wordCount(currentText);
   const wcColor = wc >= minWords ? '#16a34a' : wc >= minWords * 0.8 ? '#d97706' : '#dc2626';
 
@@ -786,7 +788,7 @@ export default function WritingExam() {
           </div>
 
           <p style={{ fontSize: 11, color: '#64748b', marginBottom: 16 }}>
-            You should spend about {task === 1 ? '20' : '40'} minutes on this task. Write at least {minWords} words.
+            You should spend about {currentTask?.timeMinutes || (task === 1 ? 20 : 40)} minutes on this task. Write at least {minWords} words.
           </p>
 
           {/* Task prompt */}
@@ -1007,10 +1009,10 @@ export default function WritingExam() {
       <div style={{ background: '#ffffff', borderTop: '1px solid #dbeafe', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div className="mobile-hide" style={{ display: 'flex', gap: 12 }}>
           <span style={{ fontSize: 11, color: '#64748b' }}>
-            T1: <strong style={{ color: wordCount(task1) >= 150 ? '#16a34a' : '#dc2626' }}>{wordCount(task1)}</strong>
+            T1: <strong style={{ color: wordCount(task1) >= min1 ? '#16a34a' : '#dc2626' }}>{wordCount(task1)}</strong>
           </span>
           <span style={{ fontSize: 11, color: '#64748b' }}>
-            T2: <strong style={{ color: wordCount(task2) >= 250 ? '#16a34a' : '#dc2626' }}>{wordCount(task2)}</strong>
+            T2: <strong style={{ color: wordCount(task2) >= min2 ? '#16a34a' : '#dc2626' }}>{wordCount(task2)}</strong>
           </span>
         </div>
 
@@ -1053,14 +1055,14 @@ export default function WritingExam() {
             <div style={{ background: '#f0f7ff', borderRadius: 10, padding: 16, marginBottom: 24, border: '1px solid #dbeafe' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontSize: 13, color: '#64748b' }}>Task 1</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: wordCount(task1) >= 150 ? '#16a34a' : '#dc2626' }}>
-                  {wordCount(task1)} words {wordCount(task1) < 150 ? '⚠️ Under minimum' : '✅'}
+                <span style={{ fontSize: 13, fontWeight: 600, color: wordCount(task1) >= min1 ? '#16a34a' : '#dc2626' }}>
+                  {wordCount(task1)} words {wordCount(task1) < min1 ? '⚠️ Under minimum' : '✅'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 13, color: '#64748b' }}>Task 2</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: wordCount(task2) >= 250 ? '#16a34a' : '#dc2626' }}>
-                  {wordCount(task2)} words {wordCount(task2) < 250 ? '⚠️ Under minimum' : '✅'}
+                <span style={{ fontSize: 13, fontWeight: 600, color: wordCount(task2) >= min2 ? '#16a34a' : '#dc2626' }}>
+                  {wordCount(task2)} words {wordCount(task2) < min2 ? '⚠️ Under minimum' : '✅'}
                 </span>
               </div>
             </div>

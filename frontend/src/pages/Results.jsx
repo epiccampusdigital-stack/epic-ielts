@@ -387,7 +387,7 @@ const fetchExplanation = async (answer) => {
                   { icon: '📊', label: 'Raw Score', value: `${rawScore}/${totalQ}`, color: '#2563eb' },
                   { icon: '✅', label: 'Correct', value: correct, color: '#16a34a' },
                   { icon: '❌', label: 'Wrong', value: wrong, color: '#dc2626' },
-                  isGE ? { icon: '⭐', label: 'Score', value: `${pct}%`, color: bandColor } : { icon: '⭐', label: 'Band', value: Number(band).toFixed(1), color: bandColor }
+                  isGE ? { icon: '⭐', label: 'Level', value: pct >= 90 ? 'B2' : pct >= 75 ? 'B1' : pct >= 50 ? 'A2' : pct >= 25 ? 'A1' : 'Pre-A1', color: bandColor } : { icon: '⭐', label: 'Band', value: Number(band).toFixed(1), color: bandColor }
                ].map(({ icon, label, value, color }) => (
                   <div key={label} className="metric-card">
                      <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>

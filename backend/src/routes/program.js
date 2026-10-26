@@ -257,6 +257,7 @@ router.put('/students/:psid', adminRoleOnly, wrap(async (req, res) => {
   const data = {};
   for (const f of ['name', 'phone', 'scholarship', 'notes']) if (b[f] !== undefined) data[f] = b[f] || null;
   if (b.active !== undefined) data.active = !!b.active;
+  if (b.studentId !== undefined) data.studentId = b.studentId ? int(b.studentId) : null;
   if (data.name === null) delete data.name;
   res.json(await prisma.programStudent.update({ where: { id: int(req.params.psid) }, data }));
 }));
@@ -289,6 +290,72 @@ router.get('/:id/stats', wrap(async (req, res) => {
   const lang = { EN: 0, KR: 0 };
   sessions.filter(s => s.status !== 'CANCELLED' && s.language).forEach(s => { lang[s.language] += T.minutes(s.endTime) - T.minutes(s.startTime); });
   res.json({ byStudent, byTeacher, hours: { english: Math.round(lang.EN / 6) / 10, korean: Math.round(lang.KR / 6) / 10 } });
+}));
+
+// ─── Day 1 placement (General English) ──────────────────────────────────────
+// One row per programme student with their latest General English placement scores (out of 100) and level.
+// Students are matched to site accounts by the linked account, or else by the same name.
+const GE_PARTS = ['READING', 'LISTENING', 'WRITING', 'SPEAKING'];
+const geLevel = n => (n == null ? null : n >= 90 ? 'B2' : n >= 75 ? 'B1' : n >= 50 ? 'A2' : n >= 25 ? 'A1' : 'Pre-A1');
+
+router.get('/:id/placement', wrap(async (req, res) => {
+  const programId = int(req.params.id);
+  const students = await prisma.programStudent.findMany({ where: { programId, active: true }, orderBy: { name: 'asc' } });
+  const attempts = await prisma.attempt.findMany({
+    where: { isPlacement: true, status: 'COMPLETED', paper: { track: 'GENERAL', paperCode: { startsWith: 'GE-PT' } } },
+    orderBy: { endedAt: 'desc' },
+    select: {
+      id: true, studentId: true, endedAt: true,
+      student: { select: { id: true, name: true, email: true } },
+      paper: { select: { testType: true, _count: { select: { questions: true } } } },
+      result: { select: { rawScore: true } },
+      writingSubmission: { select: { markingStatus: true } },
+      speakingSubmission: { select: { markingStatus: true } },
+    },
+  });
+
+  // Latest score per account and part
+  const byAccount = new Map();
+  for (const a of attempts) {
+    const acc = byAccount.get(a.studentId) || { account: a.student, parts: {} };
+    const part = a.paper.testType;
+    if (!acc.parts[part]) {
+      let score = null;
+      let state = 'marking';
+      const raw = a.result?.rawScore;
+      if (part === 'WRITING' || part === 'SPEAKING') {
+        const st = (part === 'WRITING' ? a.writingSubmission : a.speakingSubmission)?.markingStatus;
+        if (st === 'FAILED') state = 'failed';
+        else if (raw != null) { score = Math.round(raw); state = 'done'; }
+      } else if (raw != null && a.paper._count.questions) {
+        score = Math.round((raw / a.paper._count.questions) * 100);
+        state = 'done';
+      }
+      acc.parts[part] = { score, state, attemptId: a.id };
+    }
+    byAccount.set(a.studentId, acc);
+  }
+
+  const norm = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const used = new Set();
+  const summarise = acc => {
+    const scores = GE_PARTS.map(p => acc?.parts?.[p]?.score).filter(v => v != null);
+    const overall = scores.length ? Math.round(scores.reduce((x, y) => x + y, 0) / scores.length) : null;
+    return { parts: acc?.parts || {}, done: scores.length, overall, level: scores.length === GE_PARTS.length ? geLevel(overall) : null };
+  };
+  const rows = students.map(s => {
+    let accId = s.studentId && byAccount.has(s.studentId) ? s.studentId : null;
+    if (!accId) {
+      for (const [id, acc] of byAccount) if (!used.has(id) && norm(acc.account?.name) === norm(s.name)) { accId = id; break; }
+    }
+    if (accId) used.add(accId);
+    const acc = accId ? byAccount.get(accId) : null;
+    return { programStudentId: s.id, name: s.name, account: acc?.account || null, ...summarise(acc) };
+  });
+  // Accounts that took the placement but are not on the programme list (or have a different name)
+  const others = [...byAccount.entries()].filter(([id]) => !used.has(id))
+    .map(([, acc]) => ({ programStudentId: null, name: acc.account?.name || 'Unknown', account: acc.account, ...summarise(acc) }));
+  res.json({ parts: GE_PARTS, rows, others });
 }));
 
 // ─── Reminders ───────────────────────────────────────────────────────────────

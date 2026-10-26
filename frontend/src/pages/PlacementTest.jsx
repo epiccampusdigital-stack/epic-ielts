@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getTrack, setTrack } from '../utils/track';
+import GeneralPlacement from './GeneralPlacement';
+import PlacementWelcome from './PlacementWelcome';
 import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
@@ -52,7 +55,32 @@ function placementAttemptBand(attempt) {
   );
 }
 
+// One placement page per course. New students land here with ?welcome=1 and choose their course first.
 export default function PlacementTest() {
+  const [params, setParams] = useSearchParams();
+  const [track, setTrackState] = useState(getTrack());
+
+  useEffect(() => {
+    const onChange = e => setTrackState(e.detail || getTrack());
+    window.addEventListener('epic-track-change', onChange);
+    return () => window.removeEventListener('epic-track-change', onChange);
+  }, []);
+
+  if (params.get('welcome') === '1') {
+    return (
+      <PlacementWelcome
+        onChoose={t => {
+          setTrack(t);
+          setTrackState(t);
+          setParams({}, { replace: true });
+        }}
+      />
+    );
+  }
+  return track === 'GENERAL' ? <GeneralPlacement /> : <IeltsPlacement />;
+}
+
+function IeltsPlacement() {
   const [papers, setPapers] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +99,7 @@ export default function PlacementTest() {
 
         const allPapers = Array.isArray(papersRes.data) ? papersRes.data : [];
         const placement = allPapers.filter(p => p.paperCode === '001');
-        const hist = Array.isArray(historyRes.data) ? historyRes.data : [];
+        const hist = (Array.isArray(historyRes.data) ? historyRes.data : []).filter(a => a.paper?.track !== 'GENERAL');
 
         setPapers(placement);
         setHistory(hist);

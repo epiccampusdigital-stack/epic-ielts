@@ -326,7 +326,25 @@ function getCoachMessage({
 }
 
 // General English has no IELTS band: it gets its own dashboard with scores out of 100
+// New students (no placement test taken yet) are sent to the placement test once per login session.
+const WELCOME_KEY = 'epicPlacementPrompted';
+
 export default function StudentDashboard() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let seen = false;
+    try { seen = sessionStorage.getItem(WELCOME_KEY) === '1'; } catch { /* storage blocked */ }
+    if (seen) return;
+    let cancelled = false;
+    axios.get(`${API_URL}/api/attempts/placement/mine`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(res => {
+        try { sessionStorage.setItem(WELCOME_KEY, '1'); } catch { /* storage blocked */ }
+        const none = Array.isArray(res.data) && res.data.length === 0;
+        if (none && !cancelled) navigate('/placement-test?welcome=1', { replace: true });
+      })
+      .catch(() => { /* dashboard still works without it */ });
+    return () => { cancelled = true; };
+  }, [navigate]);
   return getTrack() === 'GENERAL' ? <GeneralDashboard /> : <IeltsDashboard />;
 }
 

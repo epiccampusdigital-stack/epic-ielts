@@ -706,6 +706,8 @@ function Students({ programId, data, flash, isAdmin, onChanged }) {
   const rate = id => stats.find(x => x.id === id);
 
   return (
+    <>
+    <PlacementResults programId={programId} data={data} />
     <div className="pg-grid2" style={{ alignItems: 'start' }}>
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.line}` }}><b>Students ({students.length})</b></div>
@@ -734,6 +736,82 @@ function Students({ programId, data, flash, isAdmin, onChanged }) {
           <button style={{ ...btn('primary'), marginTop: 10 }} onClick={addBulk} disabled={!bulk.trim()}>Add</button>
         </div>
       )}
+    </div>
+    </>
+  );
+}
+
+// Day 1 General English placement results, so teachers can group students by level
+const PART_LABEL = { READING: 'Grammar & reading', LISTENING: 'Listening', WRITING: 'Writing', SPEAKING: 'Speaking' };
+const LEVEL_ORDER = ['B2', 'B1', 'A2', 'A1', 'Pre-A1'];
+
+function PlacementResults({ programId, data }) {
+  const [res, setRes] = useState(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    axios.get(`${P}/${programId}/placement`, api()).then(r => setRes(r.data)).catch(() => setFailed(true));
+  }, [programId, data]);
+
+  if (failed) return null;
+  const parts = res?.parts || ['READING', 'LISTENING', 'WRITING', 'SPEAKING'];
+  const rows = [...(res?.rows || []), ...(res?.others || [])];
+  const finished = rows.filter(r => r.level);
+  const groups = LEVEL_ORDER.map(l => ({ level: l, names: finished.filter(r => r.level === l).map(r => r.name) })).filter(g => g.names.length);
+  const cell = p => {
+    if (!p) return <span style={{ color: C.faint }}>–</span>;
+    if (p.state === 'marking') return <span style={{ color: '#92400e', fontSize: 12 }}>marking</span>;
+    if (p.state === 'failed') return <span style={{ color: '#b91c1c', fontSize: 12 }}>failed</span>;
+    return <b>{p.score}</b>;
+  };
+  const th = { textAlign: 'left', padding: '8px 12px', fontSize: 12, color: C.muted, fontWeight: 600, whiteSpace: 'nowrap' };
+  const td = { padding: '9px 12px', fontSize: 14, borderTop: `1px solid ${C.line}`, whiteSpace: 'nowrap' };
+
+  return (
+    <div style={{ ...card, overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.line}`, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+        <b>Day 1 placement test</b>
+        <span style={{ fontSize: 13, color: C.muted }}>
+          {res ? `${finished.length} of ${res.rows.length} finished all four parts` : 'Loading...'} · scores out of 100
+        </span>
+      </div>
+      {groups.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '12px 16px', borderBottom: `1px solid ${C.line}`, background: '#FAFBFF' }}>
+          {groups.map(g => (
+            <div key={g.level} style={{ fontSize: 13 }}>
+              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: '#EEF2FF', color: '#4F46E5', fontWeight: 700, marginRight: 6 }}>{g.level}</span>
+              {g.names.join(', ')}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <th style={th}>Student</th>
+            {parts.map(p => <th key={p} style={th}>{PART_LABEL[p] || p}</th>)}
+            <th style={th}>Overall</th><th style={th}>Level</th>
+          </tr></thead>
+          <tbody>
+            {rows.length === 0 && <tr><td style={{ ...td, color: C.muted }} colSpan={parts.length + 3}>No students yet.</td></tr>}
+            {rows.map((r, i) => (
+              <tr key={r.programStudentId || `acc-${r.account?.id || i}`}>
+                <td style={td}>
+                  <div style={{ fontWeight: 600 }}>{r.name}</div>
+                  {!r.programStudentId && <div style={{ fontSize: 11, color: '#92400e' }}>Not on the programme list</div>}
+                  {r.programStudentId && !r.account && <div style={{ fontSize: 11, color: C.faint }}>Not started</div>}
+                </td>
+                {parts.map(p => <td key={p} style={td}>{cell(r.parts?.[p])}</td>)}
+                <td style={td}>{r.overall == null ? '–' : <b>{r.overall}</b>}</td>
+                <td style={td}>{r.level ? <b style={{ color: '#4F46E5' }}>{r.level}</b> : <span style={{ color: C.faint, fontSize: 12 }}>{r.done ? `${r.done}/4 done` : '–'}</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ margin: 0, padding: '10px 16px', fontSize: 12, color: C.muted, borderTop: `1px solid ${C.line}` }}>
+        Students take this on their own account on Day 1 (it opens on their first login). Names are matched to the programme list, so use the same name on the account.
+        Levels: 90+ B2, 75 to 89 B1, 50 to 74 A2, 25 to 49 A1, below 25 Pre-A1.
+      </p>
     </div>
   );
 }

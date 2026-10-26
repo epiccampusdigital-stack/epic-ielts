@@ -391,4 +391,69 @@ The example values (5.0) are placeholders only — do NOT copy them.`;
   }
 }
 
-module.exports = { gradeAttempt, gradeWritingAttempt, explainWrongAnswer, gradeSpeakingAttempt };
+// ─── General English (no IELTS bands): score out of 100 and a CEFR level ───
+// skill: 'WRITING' | 'SPEAKING'; items: [{ prompt, response, minWords? }]
+const GE_LEVELS = [[90, 'B2'], [75, 'B1'], [50, 'A2'], [25, 'A1'], [0, 'Pre-A1']];
+function geLevel(score) {
+  if (score == null || Number.isNaN(score)) return null;
+  for (const [min, name] of GE_LEVELS) if (score >= min) return name;
+  return 'Pre-A1';
+}
+
+async function gradeGeneralEnglish(skill, items, studentName) {
+  const words = t => (t || '').trim().split(/\s+/).filter(Boolean).length;
+  const total = items.reduce((n, it) => n + words(it.response), 0);
+  if (total < 5) {
+    return {
+      track: 'GENERAL', skill, score: 0, level: 'Pre-A1',
+      criteria: { task: 0, grammar: 0, vocabulary: 0, [skill === 'SPEAKING' ? 'fluency' : 'organisation']: 0 },
+      items: items.map(it => ({ prompt: it.prompt, score: 0, feedback: 'No answer was given.' })),
+      summary: 'There was no answer to mark.',
+      strengths: [], improvements: ['Try every question, even with a few words.'],
+    };
+  }
+  const fourth = skill === 'SPEAKING' ? 'fluency' : 'organisation';
+  const prompt = `You are an experienced English teacher placing a student into a class. Mark this ${skill === 'SPEAKING' ? 'spoken (transcribed)' : 'written'} work for a General English placement test. This is NOT IELTS: do not mention bands.
+
+Score four areas, each out of 25:
+- task: did they answer every part of the question, with enough detail${skill === 'WRITING' ? ' and enough words' : ''}?
+- grammar: accuracy and range (A1 simple present only, A2 past and future forms, B1 a range with few errors)
+- vocabulary: range and accuracy of words
+- ${fourth}: ${skill === 'SPEAKING' ? 'how easily they keep going and link ideas (pauses and repetition show in the transcript)' : 'paragraphs, linking words and a clear order'}
+
+Use this scale for the total out of 100: 0-24 Pre-A1, 25-49 A1, 50-74 A2, 75-89 B1, 90-100 B2. Be honest and consistent; most students on this programme are A1 to A2.
+${skill === 'SPEAKING' ? 'Transcripts come from speech recognition, so ignore small spelling oddities in the transcript.' : ''}
+
+STUDENT: ${studentName || 'Student'}
+${items.map((it, i) => `--- ${skill === 'SPEAKING' ? 'PART' : 'TASK'} ${i + 1} ---
+QUESTION: ${(it.prompt || '').slice(0, 600)}
+${it.minWords ? `MINIMUM WORDS: ${it.minWords} (student wrote ${words(it.response)})` : ''}
+ANSWER: ${(it.response || '[no answer]').slice(0, 2500)}`).join('\n')}
+
+Return ONLY JSON, no markdown:
+{"criteria":{"task":0,"grammar":0,"vocabulary":0,"${fourth}":0},
+ "items":[{"score":0,"feedback":"two short sentences for this ${skill === 'SPEAKING' ? 'part' : 'task'}, in simple English"}],
+ "summary":"two short sentences for the student, in simple English",
+ "strengths":["..."],"improvements":["...","..."]}
+Give one entry in "items" for each ${skill === 'SPEAKING' ? 'part' : 'task'}, each item score out of 100.`;
+
+  try {
+    const response = await callClaudeWithRetry(prompt, 1200);
+    const parsed = safeExtractJson(response.content?.[0]?.text || '');
+    if (!parsed || !parsed.criteria) throw new Error('No criteria in reply');
+    const c = parsed.criteria;
+    const clamp = v => Math.max(0, Math.min(25, Math.round(Number(v) || 0)));
+    const criteria = { task: clamp(c.task), grammar: clamp(c.grammar), vocabulary: clamp(c.vocabulary), [fourth]: clamp(c[fourth]) };
+    const score = Object.values(criteria).reduce((a, b) => a + b, 0);
+    return {
+      track: 'GENERAL', skill, score, level: geLevel(score), criteria,
+      items: items.map((it, i) => ({ prompt: it.prompt, score: Math.max(0, Math.min(100, Math.round(Number(parsed.items?.[i]?.score) || 0))), feedback: parsed.items?.[i]?.feedback || '' })),
+      summary: parsed.summary || '', strengths: parsed.strengths || [], improvements: parsed.improvements || [],
+    };
+  } catch (e) {
+    console.error('General English grading error:', e.message);
+    return null;
+  }
+}
+
+module.exports = { gradeAttempt, gradeWritingAttempt, explainWrongAnswer, gradeSpeakingAttempt, gradeGeneralEnglish, geLevel };

@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
 const { requirePaidOrFirstExam } = require('../middleware/accessControl');
 const { normalizeTrack } = require('../utils_track');
+const { gradeGeneralEnglish, geLevel } = require('../services/claudeMarking');
 
 // Never send password hashes or tokens to the browser
 const STUDENT_PUBLIC = { id: true, name: true, email: true, batch: true, role: true };
@@ -108,7 +109,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     const wrong = savedAnswers.filter(a => !a.isCorrect).map(a => a.question?.questionNumber).filter(Boolean).sort((x, y) => x - y);
     const feedback = {
       studentName, testType, paperCode: attempt.paper?.paperCode,
-      score: `${raw}/${total}`, percentage: pct, bandEstimate: null, track: 'GENERAL',
+      score: `${raw}/${total}`, percentage: pct, level: geLevel(pct), bandEstimate: null, track: 'GENERAL',
       criterionScores: {}, correctAnswers: [], studentAnswers: [],
       mistakeAnalysis: wrong.length ? [`Look again at question${wrong.length > 1 ? 's' : ''} ${wrong.join(', ')}. Read the explanation under each one.`] : ['No mistakes. Excellent work.'],
       strengths: [pct >= 80 ? 'Strong understanding of this week\'s English.' : pct >= 50 ? 'Good basic understanding.' : 'You finished the quiz.'],
@@ -141,6 +142,25 @@ async function createAiFeedback(attempt, result, savedAnswers) {
   }));
 
   let aiFeedback = null;
+
+  if (testType === 'WRITING' && attempt.paper?.track === 'GENERAL') {
+    const sub = await prisma.writingSubmission.findUnique({ where: { attemptId } });
+    if (!sub) return null;
+    if (sub.aiFeedback && sub.markingStatus === 'COMPLETE') {
+      try { return JSON.parse(sub.aiFeedback); } catch { /* re-mark below */ }
+    }
+    const tasks = (attempt.paper?.writingTasks || []).slice().sort((a, b) => a.taskNumber - b.taskNumber);
+    const items = tasks.map(t => ({ prompt: t.prompt, minWords: t.minWords, response: t.taskNumber === 1 ? sub.task1Response : sub.task2Response }));
+    const ge = await gradeGeneralEnglish('WRITING', items, studentName);
+    if (!ge) {
+      await prisma.writingSubmission.update({ where: { attemptId }, data: { markingStatus: 'FAILED' } });
+      return null;
+    }
+    await prisma.writingSubmission.update({ where: { attemptId }, data: { aiFeedback: JSON.stringify(ge), markingStatus: 'COMPLETE', overallBand: null } });
+    await prisma.result.update({ where: { attemptId }, data: { rawScore: ge.score, bandEstimate: null, aiFeedbackJson: JSON.stringify(ge) } });
+    aiCache.set(`writing_${attemptId}`, ge);
+    return ge;
+  }
 
   if (testType === 'WRITING') {
     const sub = await prisma.writingSubmission.findUnique({ where: { attemptId } });
@@ -348,7 +368,7 @@ router.get('/placement/mine', auth, async (req, res) => {
         status: 'COMPLETED'
       },
       include: {
-        paper: true,
+        paper: { include: { _count: { select: { questions: true } } } },
         result: true,
         writingSubmission: {
           select: {
@@ -386,7 +406,7 @@ router.post('/placement/reset', auth, async (req, res) => {
         where: {
           studentId: req.user.id,
           isPlacement: true,
-          paper: { testType: skill }
+          paper: { testType: skill, track: req.body?.track === 'GENERAL' ? 'GENERAL' : 'IELTS' }
         },
         data: { isPlacement: false }
       }),
@@ -413,7 +433,7 @@ router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
 
     const paper = await prisma.paper.findUnique({
       where: { id: pid },
-      select: { id: true, testType: true }
+      select: { id: true, testType: true, track: true }
     });
     if (!paper) return res.status(404).json({ message: 'Paper not found' });
 
@@ -426,7 +446,7 @@ router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
           where: {
             studentId,
             isPlacement: true,
-            paper: { testType: paper.testType }
+            paper: { testType: paper.testType, track: paper.track }
           },
           data: { isPlacement: false }
         }),
@@ -739,17 +759,19 @@ router.post('/:id/end', auth, async (req, res) => {
     const endedAttempt = await prisma.attempt.update({
       where: { id: attemptId },
       data: { status: 'COMPLETED', endedAt: new Date() },
-      select: { isPlacement: true, studentId: true, paper: { select: { testType: true } } }
+      select: { isPlacement: true, studentId: true, paper: { select: { testType: true, track: true } } }
     });
 
     // If this was a placement attempt, check if all 4 skills now done
-    if (endedAttempt.isPlacement) {
+    // IELTS placement only: General English placement never changes the IELTS placement band
+    if (endedAttempt.isPlacement && endedAttempt.paper?.track !== 'GENERAL') {
       const placementSkills = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
       const completedPlacements = await prisma.attempt.findMany({
         where: {
           studentId: endedAttempt.studentId,
           isPlacement: true,
           status: 'COMPLETED',
+          paper: { track: 'IELTS' },
         },
         include: { paper: { select: { testType: true } }, result: true }
       });
@@ -1007,6 +1029,30 @@ router.post('/:id/speaking/submit', auth, async (req, res) => {
           data: { markingStatus: 'MARKING' }
         });
 
+        if (attempt.paper?.track === 'GENERAL') {
+          const partPrompt = n => {
+            const sec = (attempt.paper.sections || []).find(x => x.number === n);
+            return sec ? sec.groups.flatMap(g => g.questions.map(q => q.content)).join(' / ') : `Part ${n}`;
+          };
+          const items = [1, 2, 3].filter(n => (attempt.paper.sections || []).some(x => x.number === n))
+            .map(n => ({ prompt: partPrompt(n), response: transcripts[`part${n}`] || '' }));
+          const ge = await gradeGeneralEnglish('SPEAKING', items, attempt.student?.name);
+          await prisma.speakingSubmission.update({
+            where: { attemptId },
+            data: ge
+              ? { aiFeedback: JSON.stringify(ge), overallBand: null, markingStatus: 'COMPLETE' }
+              : { markingStatus: 'FAILED' },
+          });
+          if (ge) {
+            await prisma.result.upsert({
+              where: { attemptId },
+              update: { rawScore: ge.score, bandEstimate: null, aiFeedbackJson: JSON.stringify(ge) },
+              create: { attemptId, rawScore: ge.score, bandEstimate: null, aiFeedbackJson: JSON.stringify(ge) },
+            });
+          }
+          return;
+        }
+
         const results = await markSpeaking(
           transcripts,
           attempt.student?.name,
@@ -1075,7 +1121,7 @@ router.get('/:id/speaking/result', auth, async (req, res) => {
     const attemptId = parseInt(req.params.id);
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      include: { paper: true, speakingSubmission: true, result: true, student: { select: STUDENT_PUBLIC } }
+      include: { paper: { include: { sections: { orderBy: { number: 'asc' }, include: { groups: { include: { questions: { orderBy: { questionNumber: 'asc' }, select: { id: true, questionNumber: true, content: true } } } } } } } }, speakingSubmission: true, result: true, student: { select: STUDENT_PUBLIC } }
     });
     if (!attempt) return res.status(404).json({ error: 'Not found' });
     res.json(attempt);
@@ -1162,17 +1208,19 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
       const writingEndedAttempt = await prisma.attempt.update({
         where: { id: attemptId },
         data: { status: 'COMPLETED', endedAt: new Date() },
-        select: { isPlacement: true, studentId: true, paper: { select: { testType: true } } }
+        select: { isPlacement: true, studentId: true, paper: { select: { testType: true, track: true } } }
       });
       console.log(`Step 4: Attempt marked COMPLETED`);
 
-      if (writingEndedAttempt.isPlacement) {
+      // IELTS placement only: General English placement never changes the IELTS placement band
+    if (writingEndedAttempt.isPlacement && writingEndedAttempt.paper?.track !== 'GENERAL') {
         const placementSkills = ['READING', 'WRITING', 'LISTENING', 'SPEAKING'];
         const completedPlacements = await prisma.attempt.findMany({
           where: {
             studentId: writingEndedAttempt.studentId,
             isPlacement: true,
             status: 'COMPLETED',
+            paper: { track: 'IELTS' },
           },
           include: { paper: { select: { testType: true } }, result: true, writingSubmission: true }
         });

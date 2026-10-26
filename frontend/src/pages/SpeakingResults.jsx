@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import GeSkillResult from '../components/GeSkillResult';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -56,6 +57,24 @@ export default function SpeakingResults() {
       </div>
     </div>
   );
+
+  if (data?.paper?.track === 'GENERAL') {
+    const ss = data.speakingSubmission || {};
+    const parts = (data.paper.sections || []).filter(x => [1, 2, 3].includes(x.number));
+    return (
+      <GeSkillResult
+        skill="SPEAKING"
+        title={data.paper.title}
+        feedback={feedback}
+        loading={feedbackLoading && !feedback && markingStatus !== 'FAILED'}
+        failed={!feedback && (markingStatus === 'FAILED' || !feedbackLoading)}
+        responses={parts.map(x => ({
+          prompt: (x.groups || []).flatMap(g => (g.questions || []).map(q => q.content)).join('\n'),
+          response: ss[`part${x.number}Transcript`] || '',
+        }))}
+      />
+    );
+  }
 
   const sub = data?.speakingSubmission;
   const overall = sub?.overallBand;

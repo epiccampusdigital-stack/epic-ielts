@@ -15,6 +15,13 @@ export default function ListeningExam() {
   const [showInstructions, setShowInstructions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(null);
+  useEffect(() => {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    if (!synth) return undefined;
+    synth.getVoices(); // Chrome loads voices lazily
+    return () => synth.cancel();
+  }, []);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const autosaveRef = useRef(null);
@@ -139,6 +146,55 @@ export default function ListeningExam() {
       audioRef.current.play();
       setPlayedSections(prev => ({ ...prev, [section.id]: true }));
     }
+  };
+
+  // No audio file but a written script (General English placement): read it aloud with the browser's voices.
+  // The recording plays twice, like the real test. Each speaker gets a different voice where the device has them.
+  const scriptFor = section => {
+    if (!paper?.audioScript || !section) return null;
+    try {
+      const map = JSON.parse(paper.audioScript);
+      return map[section.number] || map[String(section.number)] || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const speakScript = section => {
+    const script = scriptFor(section);
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    if (!script || !synth) return;
+    if (playedSections[section.id] && !paper.practiceMode) return;
+    synth.cancel();
+    const voices = synth.getVoices().filter(v => /^en/i.test(v.lang));
+    const voiceFor = {};
+    const lines = script.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const m = l.match(/^([A-Za-z ]{2,20}):\s*(.+)$/);
+      return m ? { who: m[1].trim(), text: m[2] } : { who: 'Narrator', text: l };
+    });
+    const pickVoice = who => {
+      if (!(who in voiceFor)) voiceFor[who] = Object.keys(voiceFor).length;
+      return voices.length ? voices[voiceFor[who] % voices.length] : null;
+    };
+    const say = (text, who) => {
+      const u = new SpeechSynthesisUtterance(text);
+      const v = pickVoice(who);
+      if (v) u.voice = v;
+      u.lang = v?.lang || 'en-GB';
+      u.rate = 0.9;
+      u.pitch = /woman/i.test(who) ? 1.15 : /man/i.test(who) ? 0.85 : 1;
+      return u;
+    };
+    const queue = [
+      ...lines.map(l => say(l.text, l.who)),
+      say('Now listen again.', 'Narrator'),
+      ...lines.map(l => say(l.text, l.who)),
+    ];
+    const last = queue[queue.length - 1];
+    last.onend = () => setTtsPlaying(null);
+    setTtsPlaying(section.id);
+    setPlayedSections(prev => ({ ...prev, [section.id]: true }));
+    queue.forEach(u => synth.speak(u));
   };
 
   const formatTime = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
@@ -301,6 +357,15 @@ export default function ListeningExam() {
               <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', marginBottom: 12 }}>AUDIO CONTROL</div>
               {(() => {
                 const audioUrl = currentSection.audioUrl || paper.audioUrl || null;
+                if (!audioUrl && scriptFor(currentSection)) {
+                  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
+                  if (!canSpeak) return <div style={{ fontSize: 12, color: '#b42318' }}>This browser cannot play the recording. Please use Chrome or Edge.</div>;
+                  if (ttsPlaying === currentSection.id) return <div style={{ fontSize: 13, color: '#4f46e5', fontWeight: 800 }}>Playing... the recording plays twice</div>;
+                  if (playedSections[currentSection.id] && !paper.practiceMode) return <div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>✅ Played</div>;
+                  return (
+                    <button onClick={() => speakScript(currentSection)} style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, cursor: 'pointer' }}>▶ Play recording (plays twice)</button>
+                  );
+                }
                 if (!audioUrl) return <div style={{ fontSize: 12, color: '#94a3b8' }}>No audio file attached</div>;
                 return (
                   <>

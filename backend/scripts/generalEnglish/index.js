@@ -2,9 +2,10 @@
 // seedGeneralEnglish(prisma) is safe to run more than once: it updates in place and keeps student progress.
 const modules = [require('./week1'), require('./week2'), require('./week3'), require('./week4'), require('./week5')];
 const quizzes = require('./quizzes');
+const { seedPlacement } = require('./placement');
 
 async function seedGeneralEnglish(prisma) {
-  const report = { modules: 0, lessons: 0, quizzes: 0 };
+  const report = { modules: 0, lessons: 0, quizzes: 0, placement: 0 };
 
   for (const [mi, mod] of modules.entries()) {
     const order = 100 + mi; // after any IELTS modules
@@ -53,6 +54,7 @@ async function seedGeneralEnglish(prisma) {
     });
     report.quizzes++;
   }
+  report.placement = await seedPlacement(prisma);
   return report;
 }
 

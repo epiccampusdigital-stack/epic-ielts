@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import GeSkillResult from '../components/GeSkillResult';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -97,6 +98,21 @@ export default function WritingResults() {
       </div>
     </div>
   );
+
+  if (data?.paper?.track === 'GENERAL') {
+    const tasks = (data.paper.writingTasks || []).slice().sort((x, y) => x.taskNumber - y.taskNumber);
+    const ws = data.writingSubmission || {};
+    return (
+      <GeSkillResult
+        skill="WRITING"
+        title={data.paper.title}
+        feedback={feedback}
+        loading={feedbackLoading && !feedback}
+        failed={!feedbackLoading && !feedback}
+        responses={tasks.map(t => ({ prompt: t.prompt, response: t.taskNumber === 1 ? ws.task1Response : ws.task2Response }))}
+      />
+    );
+  }
 
   const sub = data?.writingSubmission;
   const writingTasks = data?.paper?.writingTasks || [];

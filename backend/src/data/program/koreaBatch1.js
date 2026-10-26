@@ -142,13 +142,13 @@ function buildSessions() {
         add({ startTime: '10:30', endTime: '10:45', subject: 'BREAK', language: null, title: 'Tea break' });
         add({ startTime: '10:45', endTime: '12:30', subject: 'ASSESSMENT', language: 'EN', title: `${mid} English test: listening & speaking`, teacher: 'EN_MORNING' });
       } else {
-        add({ startTime: '08:30', endTime: '10:30', subject: 'ENGLISH', language: 'EN', title: 'English: Grammar & writing', description: `${en.theme}. ${en.g}`, teacher: 'EN_MORNING' });
-        add({ startTime: '10:30', endTime: '10:45', subject: 'BREAK', language: null, title: 'Tea break' });
+        add({ startTime: '08:30', endTime: '10:00', subject: 'ENGLISH', language: 'EN', title: 'English: Grammar & writing', description: `${en.theme}. ${en.g}`, teacher: 'EN_MORNING' });
+        add({ startTime: '10:00', endTime: '10:15', subject: 'BREAK', language: null, title: 'Tea break' });
         if (MOCK_INTERVIEW_DAYS[day]) {
-          add({ startTime: '10:45', endTime: '12:30', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
+          add({ startTime: '10:15', endTime: '12:30', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
         } else {
-          add({ startTime: '10:45', endTime: '11:45', subject: 'ENGLISH', language: 'EN', title: 'English: Speaking', description: `${en.theme}. ${en.s}`, teacher: 'EN_MORNING' });
-          add({ startTime: '11:45', endTime: '12:30', ...enLab, teacher: 'EN_MORNING' });
+          add({ startTime: '10:15', endTime: '11:30', subject: 'ENGLISH', language: 'EN', title: 'English: Speaking', description: `${en.theme}. ${en.s}`, teacher: 'EN_MORNING' });
+          add({ startTime: '11:30', endTime: '12:30', ...enLab, teacher: 'EN_MORNING' });
         }
       }
       add({ startTime: '12:30', endTime: '13:30', subject: 'BREAK', language: null, title: 'Lunch' });
@@ -169,12 +169,12 @@ function buildSessions() {
         add({ startTime: '13:30', endTime: '15:00', subject: 'ACTIVITY', language: 'EN', title: 'Final English presentations', teacher: 'EN_LISTENING' });
         add({ startTime: '15:00', endTime: '16:30', subject: 'ASSESSMENT', language: 'EN', title: 'Final mock interviews', teacher: 'EN_SPEAKING' });
       } else {
-        add({ startTime: '13:30', endTime: '14:45', subject: 'ENGLISH', language: 'EN', title: 'English: Reading & vocabulary', description: `${en.theme}. ${en.r}`, teacher: 'EN_LISTENING' });
-        add({ startTime: '14:45', endTime: '15:00', subject: 'BREAK', language: null, title: 'Short break' });
+        add({ startTime: '13:30', endTime: '14:30', subject: 'ENGLISH', language: 'EN', title: 'English: Reading & vocabulary', description: `${en.theme}. ${en.r}`, teacher: 'EN_LISTENING' });
+        add({ startTime: '14:30', endTime: '14:45', subject: 'BREAK', language: null, title: 'Short break' });
         if (MOCK_INTERVIEW_DAYS[day]) {
-          add({ startTime: '15:00', endTime: '16:30', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
+          add({ startTime: '14:45', endTime: '16:30', subject: 'ASSESSMENT', language: 'EN', title: `Mock scholarship interview round ${MOCK_INTERVIEW_DAYS[day]}`, description: 'One-to-one, 7 minutes each, written feedback in session notes.', teacher: 'EN_SPEAKING' });
         } else {
-          add({ startTime: '15:00', endTime: '15:45', subject: 'ENGLISH', language: 'EN', title: 'English: Listening', description: `${en.theme}. ${en.l}`, teacher: 'EN_LISTENING' });
+          add({ startTime: '14:45', endTime: '15:45', subject: 'ENGLISH', language: 'EN', title: 'English: Listening', description: `${en.theme}. ${en.l}`, teacher: 'EN_LISTENING' });
           add({ startTime: '15:45', endTime: '16:30', ...enLab, teacher: 'EN_LISTENING' });
         }
       }

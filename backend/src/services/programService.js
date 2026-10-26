@@ -141,9 +141,10 @@ async function expireOld(programId, now = new Date()) {
 // ─── WhatsApp ────────────────────────────────────────────────────────────────
 
 // Two ways to send: Meta's Cloud API directly (WHATSAPP_TOKEN + WHATSAPP_PHONE_ID), or through
-// 360dialog for a number shared with the WhatsApp Business app (coexistence): WHATSAPP_360_KEY.
+// 360dialog for a number shared with the WhatsApp Business app (coexistence): WHATSAPP_360_KEY,
+// or YCloud (also coexistence): YCLOUD_API_KEY + WHATSAPP_FROM (the business number, e.g. +94771234567).
 function whatsappApiConfigured() {
-  return !!(process.env.WHATSAPP_360_KEY || (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID));
+  return !!((process.env.YCLOUD_API_KEY && process.env.WHATSAPP_FROM) || process.env.WHATSAPP_360_KEY || (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID));
 }
 
 // With WHATSAPP_TEMPLATE set (the name of an approved utility template with one body variable {{1}}),
@@ -165,15 +166,26 @@ function waBody(to, text) {
 async function sendWhatsApp(phone, text) {
   const to = T.normalizePhone(phone);
   if (!to) throw new Error('No valid phone number');
-  const via360 = !!process.env.WHATSAPP_360_KEY;
-  const url = via360 ? 'https://waba-v2.360dialog.io/messages' : `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
-  const headers = via360
-    ? { 'D360-API-KEY': process.env.WHATSAPP_360_KEY, 'Content-Type': 'application/json' }
-    : { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' };
+  const viaYCloud = !!(process.env.YCLOUD_API_KEY && process.env.WHATSAPP_FROM);
+  const via360 = !viaYCloud && !!process.env.WHATSAPP_360_KEY;
+  let url, headers, body = waBody(to, text);
+  if (viaYCloud) {
+    url = 'https://api.ycloud.com/v2/whatsapp/messages/sendDirectly';
+    headers = { 'X-API-Key': process.env.YCLOUD_API_KEY, 'Content-Type': 'application/json' };
+    const plus = n => (String(n).startsWith('+') ? String(n) : `+${n}`);
+    const { messaging_product, ...rest } = body; // YCloud uses from/to in E.164 with a +
+    body = { ...rest, from: plus(String(process.env.WHATSAPP_FROM).replace(/[^\d+]/g, '')), to: plus(to) };
+  } else if (via360) {
+    url = 'https://waba-v2.360dialog.io/messages';
+    headers = { 'D360-API-KEY': process.env.WHATSAPP_360_KEY, 'Content-Type': 'application/json' };
+  } else {
+    url = `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
+    headers = { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' };
+  }
   const res = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify(waBody(to, text)),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const body = await res.text();

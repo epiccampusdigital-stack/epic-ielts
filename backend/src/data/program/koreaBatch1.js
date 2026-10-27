@@ -9,7 +9,7 @@
 // prepositions, tenses and conjunctions, mainly with English Teacher 2.
 // Everything here is a starting point: the tracker lets admins change any day, session or teacher.
 
-const PLAN_ID = 'plan-v3-whole-day';
+const PLAN_ID = 'plan-v4-korean-site-lessons';
 
 const PROGRAM = {
   name: 'Korea Scholarship Batch 1 (30-day residential)',
@@ -57,15 +57,38 @@ const ENGLISH = {
 };
 
 // Korean: two topics a day (morning, afternoon). The Korean teachers own this and can change it in the tracker.
+// Korean follows the EStudykorea site lessons and the 4 Korean workbooks (one per week).
 const KOREAN_TOPICS = [
-  'Hangul: basic vowels', 'Hangul: basic consonants', 'Hangul: combined vowels', 'Hangul: aspirated & tense consonants',
-  'Hangul: batchim (final consonants)', 'Reading practice + greetings', 'Self-introduction: 저는 ~입니다',
-  '이에요/예요, family words', 'Sino-Korean numbers', 'Native numbers & age', 'Time & dates', 'Week 2 review + quiz',
-  '있어요/없어요, places', 'Location words (앞, 뒤, 옆)', 'Mid-programme Korean check', 'Present tense 아요/어요',
-  'Food & ordering', 'Shopping & money', 'Past tense', 'Daily routine in Korean', 'Transport & directions',
-  'Weather & seasons', 'TOPIK I: test format', 'TOPIK I: core vocabulary', 'TOPIK I: listening practice',
-  'TOPIK I: reading practice', 'Korean self-introduction for interviews', 'University life in Korean',
-  'Final Korean test', 'Graduation speech in Korean',
+  "Hangul 1: alphabet warm-up + How Hangul works",
+  "Hangul 2: Six starting vowels",
+  "Hangul 3: The y-vowels",
+  "Hangul 4: Nine starting consonants",
+  "Hangul 5: Air and consonants",
+  "Hangul 6: Tense consonants",
+  "Review: Hangul 1 to 6",
+  "Hangul writing practice",
+  "Hangul 7: Eleven more vowels",
+  "Hangul 8: Build and write blocks",
+  "Hangul 9: Final consonants: batchim",
+  "Hangul 10: Link sounds between blocks",
+  "Hangul 11: Double finals and sound changes",
+  "Hangul 12: Read words and sentences",
+  "Mid-programme Korean check (Hangul)",
+  "Beginner 1 lesson 1: Greetings & introductions",
+  "Beginner 1 lesson 2: What is this?",
+  "Beginner 1 lesson 3: Where is it?",
+  "Beginner 1 lesson 4: My everyday actions",
+  "Beginner 1 lesson 5: Places & going out",
+  "Beginner 1 lesson 6: Numbers & prices",
+  "Review: Beginner 1 lessons 1 to 6",
+  "Beginner 1 lesson 7: Shopping & quantities",
+  "Beginner 1 lesson 8: Time & routines",
+  "Beginner 1 lesson 9: What I do & do not do",
+  "Beginner 1 lesson 10: What I did yesterday",
+  "Beginner 1 lesson 11: What I want to do",
+  "Beginner 1 lesson 12: Put it all together",
+  "Final Korean test",
+  "Korean self-introduction (graduation speech practice)",
 ];
 const KOREAN_DAYS = Array.from({ length: 30 }, (_, i) => i + 1).filter(d => langOf(d) === KR);
 const koreanFor = day => {
@@ -141,6 +164,9 @@ function buildDays() {
 
 const MOCK_DESC = 'English Teacher 2 takes students one by one to a side room, 7 minutes each plus written feedback. The rest of the class carries on with the afternoon lesson.';
 
+// Which printed workbook goes with a Korean day
+const wb = day => `Korean workbook ${day <= 7 ? 1 : day <= 13 ? 2 : day <= 21 ? 3 : 4}. Same lesson on the Korean site for the IT lab.`;
+
 function buildSessions() {
   const sessions = [];
   for (let day = 1; day <= 30; day++) {
@@ -150,11 +176,11 @@ function buildSessions() {
     if (langOf(day) === KR) {
       const k = koreanFor(day);
       const test = k.am.includes('Final Korean test') || k.am.includes('Mid-programme');
-      add({ startTime: '08:30', endTime: '10:00', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: `Korean: ${k.am}`, teacher: 'KR_1' });
+      add({ startTime: '08:30', endTime: '10:00', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: `Korean: ${k.am}`, description: wb(day), teacher: 'KR_1' });
       add({ startTime: '10:00', endTime: '10:15', subject: 'BREAK', language: null, title: 'Tea break' });
-      add({ startTime: '10:15', endTime: '11:30', subject: 'KOREAN', language: KR, title: `Korean practice: ${k.am}`, teacher: 'KR_1' });
+      add({ startTime: '10:15', endTime: '11:30', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: test ? `${k.am} (continued)` : `Korean practice: ${k.am}`, description: wb(day), teacher: 'KR_1' });
       lunch();
-      add({ startTime: '13:00', endTime: '14:30', subject: 'KOREAN', language: KR, title: `Korean: ${k.pm}`, teacher: 'KR_2' });
+      add({ startTime: '13:00', endTime: '14:30', subject: 'KOREAN', language: KR, title: `Korean: ${k.pm}`, description: wb(day), teacher: 'KR_2' });
       add({ startTime: '14:30', endTime: '14:45', subject: 'BREAK', language: null, title: 'Short break' });
       add({ startTime: '14:45', endTime: '15:30', subject: 'KOREAN', language: KR, title: `Korean practice: ${k.pm}`, teacher: 'KR_2' });
       add({ startTime: '15:30', endTime: '16:30', subject: 'IT_LAB', language: KR, title: 'IT lab: Korean practice', description: itLabTaskFor(day), link: 'KOREAN_SITE', teacher: 'KR_2' });

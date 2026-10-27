@@ -142,7 +142,7 @@ export default function AdminProgram() {
     if (!window.confirm('Rebuild all 30 days from the new plan? Session notes and changes you made to the schedule will be replaced. Teachers and students stay.')) return;
     try {
       await axios.post(`${P}/${programId}/rebuild`, {}, api());
-      flash('Schedule rebuilt with the new 4-hour and 3-hour blocks.');
+      flash('Schedule rebuilt: whole English and Korean days, 8:30 to 11:30 and 1:00 to 4:30.');
       loadProgram();
     } catch (e) { flash(errText(e)); }
   };
@@ -228,9 +228,9 @@ export default function AdminProgram() {
             {isAdmin && <button style={btn('primary')} onClick={togglePause}>Turn back on</button>}
           </div>
         )}
-        {isAdmin && data?.program && !data.todayDay && data.program.dayEndTime !== '19:30' && (
+        {isAdmin && data?.program && data.planCurrent === false && (
           <div style={{ ...card, padding: '14px 16px', marginBottom: 16, background: '#f0f6ff', borderColor: '#b9d2f7', fontSize: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span><b>New day plan available:</b> a 4-hour and a 3-hour block each day, English and Korean swapping daily. Rebuild the schedule to use it. Teachers and students stay.</span>
+            <span><b>New day plan available:</b> whole English days and whole Korean days, 8:30 to 11:30 and 1:00 to 4:30, with the week 1 grammar foundation. Rebuild the schedule to use it. Teachers and students stay. (Not possible once attendance has been taken.)</span>
             <button style={btn('primary')} onClick={rebuild}>Rebuild schedule</button>
           </div>
         )}
@@ -241,7 +241,7 @@ export default function AdminProgram() {
           <div style={{ ...card, padding: 32, maxWidth: 620 }}>
             <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>No programme yet</h2>
             <p style={{ margin: '0 0 20px', color: C.muted, lineHeight: 1.6 }}>
-              Load the Korea scholarship batch: 30 days from Fri 30 Oct, a 4-hour and a 3-hour block every day, about 98 hours each of English and Korean, with placeholder teachers you can rename.
+              Load the Korea scholarship batch: 30 days from Fri 30 Oct, a whole English day then a whole Korean day (8:30 to 11:30 and 1:00 to 4:30), about 90 hours of each language, with placeholder teachers you can rename.
             </p>
             {isAdmin ? <button style={btn('primary')} onClick={seed}>Load the 30-day plan</button> : <p style={{ color: C.muted }}>Ask the admin to set it up.</p>}
           </div>

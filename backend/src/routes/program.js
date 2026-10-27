@@ -74,7 +74,7 @@ router.post('/seed/korea-batch-1', adminRoleOnly, wrap(async (req, res) => {
       ...s, programId: p.id, teacherId: teacher ? teacherIds[teacher] : null, language: s.language || null, link: s.link || null,
     }));
     await tx.programSession.createMany({ data: sessions });
-    await tx.programChangeLog.create({ data: { programId: p.id, summary: 'Programme created from the 30-day plan', actor: actorOf(req) } });
+    await tx.programChangeLog.create({ data: { programId: p.id, summary: `Programme created from the 30-day plan (${plan.PLAN_ID})`, actor: actorOf(req) } });
     return p;
   }, { timeout: 30000 });
   res.json({ program, created: true });
@@ -96,7 +96,9 @@ router.get('/:id', wrap(async (req, res) => {
   const pending = await prisma.programReminder.count({ where: { programId: id, status: 'PENDING', dueAt: { lte: new Date(Date.now() + 15 * 60000) } } });
   const today = T.todayColombo();
   const todayDay = program.days.find(d => d.date === today) || null;
-  res.json({ program, teachers, counts, pendingReminders: pending, today, todayDay });
+  const planId = require('../data/program/koreaBatch1').PLAN_ID;
+  const planCurrent = (await prisma.programChangeLog.count({ where: { programId: id, summary: { contains: planId } } })) > 0;
+  res.json({ program, teachers, counts, pendingReminders: pending, today, todayDay, planCurrent });
 }));
 
 // Rebuild the days and sessions from the latest 30-day plan. Keeps teachers, students and settings.
@@ -127,7 +129,7 @@ router.post('/:id/rebuild', adminRoleOnly, wrap(async (req, res) => {
     }));
     await tx.programSession.createMany({ data: sessions });
     await tx.program.update({ where: { id: programId }, data: { dayEndTime: plan.PROGRAM.dayEndTime } });
-    await tx.programChangeLog.create({ data: { programId, summary: 'Schedule rebuilt from the latest plan (4-hour and 3-hour blocks)', actor: actorOf(req) } });
+    await tx.programChangeLog.create({ data: { programId, summary: `Schedule rebuilt from the latest plan (${plan.PLAN_ID}: whole-day English/Korean swap)`, actor: actorOf(req) } });
   }, { timeout: 30000 });
   res.json({ ok: true });
 }));

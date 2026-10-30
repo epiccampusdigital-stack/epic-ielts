@@ -103,7 +103,8 @@ require('./ensureSchema').ensureSchema(prisma)
     try {
       const modules = await prisma.learnModule.count({ where: { track: 'GENERAL' } });
       const placement = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-PT' } } });
-      if (modules === 0 || placement < 4) {
+      const course = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-C' } } });
+      if (modules === 0 || placement < 4 || course < 6) {
         const { seedGeneralEnglish } = require('../scripts/generalEnglish');
         console.log('[general-english] content loaded:', JSON.stringify(await seedGeneralEnglish(prisma)));
       }

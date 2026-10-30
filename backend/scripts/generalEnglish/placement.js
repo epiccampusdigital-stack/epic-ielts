@@ -168,9 +168,10 @@ function levelFor(score) {
   return 'Pre-A1';
 }
 
-async function seedPlacement(prisma) {
+// Writes a list of General English papers (reading, listening, writing, speaking). Skips papers students have taken.
+async function seedPaperList(prisma, list, orderBase) {
   let created = 0;
-  for (const [pi, p] of PAPERS.entries()) {
+  for (const [pi, p] of list.entries()) {
     const existing = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType } });
     if (existing) {
       // Never rebuild a paper that students have already taken
@@ -181,7 +182,7 @@ async function seedPlacement(prisma) {
       const paper = await tx.paper.create({
         data: {
           paperCode: p.code, testType: p.testType, track: 'GENERAL', title: p.title, timeLimitMin: p.timeLimitMin,
-          instructions: p.instructions, status: 'ACTIVE', assignedBatches: 'ALL', order: 900 + pi,
+          instructions: p.instructions, status: 'ACTIVE', assignedBatches: 'ALL', order: orderBase + pi,
           audioScript: p.audioScript || null,
         },
       });
@@ -198,7 +199,7 @@ async function seedPlacement(prisma) {
         for (const [i, ps] of p.passages.entries()) {
           const passage = await tx.passage.create({ data: { paperId: paper.id, passageNumber: i + 1, title: ps.title, text: ps.text } });
           for (const [gi, g] of ps.groups.entries()) {
-            const group = await tx.questionGroup.create({ data: { passageId: passage.id, groupType: g.type, instruction: g.instruction, order: gi } });
+            const group = await tx.questionGroup.create({ data: { passageId: passage.id, groupType: g.type, instruction: g.instruction, wordLimit: g.wordLimit || null, order: gi } });
             for (const q of g.questions) await addQ({ groupId: group.id, passageNumber: i + 1 }, q);
           }
         }
@@ -229,4 +230,6 @@ async function seedPlacement(prisma) {
   return created;
 }
 
-module.exports = { PAPERS, seedPlacement, levelFor };
+const seedPlacement = prisma => seedPaperList(prisma, PAPERS, 900);
+
+module.exports = { PAPERS, seedPlacement, seedPaperList, levelFor };

@@ -1,0 +1,679 @@
+[
+ {
+  "code": "GE-PT1",
+  "testType": "READING",
+  "title": "Placement 1: Grammar, vocabulary and reading",
+  "timeLimitMin": 45,
+  "instructions": "Three parts: grammar (questions 1 to 20), vocabulary (21 to 30) and reading (31 to 40). The questions get harder as you go. Answer every question; there is no penalty for a wrong answer.",
+  "passages": [
+   {
+    "title": "Part 1: Grammar",
+    "text": "Choose the word or words that best complete each sentence.\n\nThe first questions are easy and they get harder. Do your best on every question, and guess if you are not sure.",
+    "groups": [
+     {
+      "type": "MULTIPLE_CHOICE",
+      "instruction": "Questions 1 to 20. Choose the correct letter, A, B, C or D.",
+      "questions": [
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "She ___ a student.",
+        "options": [
+         "am",
+         "is",
+         "are",
+         "be"
+        ],
+        "answer": "B",
+        "explanation": "He / she / it takes \"is\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "They ___ from Kandy.",
+        "options": [
+         "is",
+         "am",
+         "are",
+         "be"
+        ],
+        "answer": "C",
+        "explanation": "We / you / they take \"are\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "___ you like tea?",
+        "options": [
+         "Do",
+         "Does",
+         "Are",
+         "Is"
+        ],
+        "answer": "A",
+        "explanation": "Present simple questions with \"you\" use \"do\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "He ___ to work every day.",
+        "options": [
+         "go",
+         "goes",
+         "going",
+         "is go"
+        ],
+        "answer": "B",
+        "explanation": "He / she / it: add -es to \"go\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "There ___ two banks in my town.",
+        "options": [
+         "is",
+         "are",
+         "be",
+         "has"
+        ],
+        "answer": "B",
+        "explanation": "Plural: \"there are\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "Be quiet, please. I ___ TV right now.",
+        "options": [
+         "watch",
+         "am watching",
+         "watches",
+         "watched"
+        ],
+        "answer": "B",
+        "explanation": "\"Right now\" needs the present continuous."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "My sister is ___ than me.",
+        "options": [
+         "tall",
+         "taller",
+         "tallest",
+         "more tall"
+        ],
+        "answer": "B",
+        "explanation": "Short adjective comparative: tall → taller."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "We ___ in Galle last year.",
+        "options": [
+         "live",
+         "lives",
+         "lived",
+         "are living"
+        ],
+        "answer": "C",
+        "explanation": "\"Last year\" needs the past simple."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "\"___ did you go yesterday?\" \"To the market.\"",
+        "options": [
+         "What",
+         "Where",
+         "Who",
+         "Which"
+        ],
+        "answer": "B",
+        "explanation": "The answer is a place, so \"Where\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "I have ___ apple and a banana.",
+        "options": [
+         "a",
+         "an",
+         "the",
+         "some"
+        ],
+        "answer": "B",
+        "explanation": "\"An\" before a vowel sound."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "She can ___ English very well.",
+        "options": [
+         "speak",
+         "speaks",
+         "speaking",
+         "to speak"
+        ],
+        "answer": "A",
+        "explanation": "After \"can\" use the base verb."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "How ___ water do you drink every day?",
+        "options": [
+         "many",
+         "much",
+         "long",
+         "often"
+        ],
+        "answer": "B",
+        "explanation": "Water is uncountable: \"how much\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "I'm going ___ visit my grandmother tomorrow.",
+        "options": [
+         "to",
+         "for",
+         "at",
+         "on"
+        ],
+        "answer": "A",
+        "explanation": "\"Be going to\" + verb."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "He didn't ___ to the party.",
+        "options": [
+         "come",
+         "came",
+         "comes",
+         "coming"
+        ],
+        "answer": "A",
+        "explanation": "After \"didn't\" use the base verb."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "This is the ___ book I have ever read.",
+        "options": [
+         "good",
+         "better",
+         "best",
+         "most good"
+        ],
+        "answer": "C",
+        "explanation": "Superlative of \"good\" is \"the best\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "Have you ever ___ to Korea?",
+        "options": [
+         "go",
+         "went",
+         "been",
+         "going"
+        ],
+        "answer": "C",
+        "explanation": "\"Have you ever been…\" for experiences."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "If it rains tomorrow, we ___ at home.",
+        "options": [
+         "stay",
+         "will stay",
+         "stayed",
+         "would stay"
+        ],
+        "answer": "B",
+        "explanation": "First conditional: if + present, will + verb."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "You ___ smoke here. It's not allowed.",
+        "options": [
+         "mustn't",
+         "don't have to",
+         "needn't",
+         "can"
+        ],
+        "answer": "A",
+        "explanation": "\"Not allowed\" means \"mustn't\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "The letter ___ yesterday.",
+        "options": [
+         "sent",
+         "was sent",
+         "is sending",
+         "has send"
+        ],
+        "answer": "B",
+        "explanation": "Past passive: was + past participle."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "I've lived here ___ 2019.",
+        "options": [
+         "for",
+         "since",
+         "from",
+         "ago"
+        ],
+        "answer": "B",
+        "explanation": "\"Since\" with a point in time."
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "title": "Part 2: Vocabulary",
+    "text": "Choose the best word for each sentence.\n\nRead the whole sentence before you choose.",
+    "groups": [
+     {
+      "type": "MULTIPLE_CHOICE",
+      "instruction": "Questions 21 to 30. Choose the correct letter, A, B, C or D.",
+      "questions": [
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "My mother's brother is my ___.",
+        "options": [
+         "cousin",
+         "uncle",
+         "nephew",
+         "grandfather"
+        ],
+        "answer": "B",
+        "explanation": "Your parent's brother is your uncle."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "You buy medicine at a ___.",
+        "options": [
+         "bakery",
+         "pharmacy",
+         "library",
+         "post office"
+        ],
+        "answer": "B",
+        "explanation": "Medicine is sold at a pharmacy."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "The opposite of \"cheap\" is ___.",
+        "options": [
+         "expensive",
+         "easy",
+         "small",
+         "early"
+        ],
+        "answer": "A",
+        "explanation": "Cheap ↔ expensive."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "I usually ___ a shower in the morning.",
+        "options": [
+         "do",
+         "make",
+         "have",
+         "go"
+        ],
+        "answer": "C",
+        "explanation": "We say \"have a shower\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "A person who flies a plane is a ___.",
+        "options": [
+         "driver",
+         "pilot",
+         "sailor",
+         "engineer"
+        ],
+        "answer": "B",
+        "explanation": "A pilot flies planes."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "Please ___ your name at the top of the page.",
+        "options": [
+         "write",
+         "say",
+         "tell",
+         "speak"
+        ],
+        "answer": "A",
+        "explanation": "You write your name on paper."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "It's very cold. Put on your ___.",
+        "options": [
+         "sunglasses",
+         "jacket",
+         "sandals",
+         "shorts"
+        ],
+        "answer": "B",
+        "explanation": "A jacket keeps you warm."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "I was ___ because I didn't sleep last night.",
+        "options": [
+         "tired",
+         "tiring",
+         "boring",
+         "excited"
+        ],
+        "answer": "A",
+        "explanation": "-ed adjectives describe how you feel."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "The train was late, so we ___ the meeting.",
+        "options": [
+         "lost",
+         "missed",
+         "forgot",
+         "left"
+        ],
+        "answer": "B",
+        "explanation": "You \"miss\" an event when you are late."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "She is very ___. She always helps other people.",
+        "options": [
+         "lazy",
+         "kind",
+         "rude",
+         "shy"
+        ],
+        "answer": "B",
+        "explanation": "Helping others is kind."
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "title": "Part 3: A student in Korea",
+    "text": "Kasun is twenty years old and comes from Matara, a city on the south coast of Sri Lanka. Last year he won a partial scholarship to study engineering at a university in Daejeon, South Korea. Before he left, he studied Korean for six months, but when he arrived he found that people spoke much faster than his teachers in Sri Lanka.\n\nFor the first semester, Kasun took a Korean language course every morning and had engineering classes in the afternoon. The scholarship paid half of his tuition fees, so he found a part-time job in a café near the university. He worked there three evenings a week. At first he was very nervous when customers spoke to him, but after two months he could take orders without any problems.\n\nKasun lives in a university dormitory with a student from Mongolia. They speak Korean to each other because it is the only language they share. \"It was difficult at the beginning,\" Kasun says, \"but now my Korean is much better because I have to use it every day.\"\n\nIn winter the temperature in Daejeon sometimes falls below zero. Kasun had never seen snow before, and he says the first snowfall was one of the best days of his life. Next year he hopes to apply for a full scholarship.",
+    "groups": [
+     {
+      "type": "TRUE_FALSE_NOT_GIVEN",
+      "instruction": "Questions 31 to 35. Do the statements agree with the text? Choose TRUE, FALSE or NOT GIVEN.",
+      "questions": [
+       {
+        "type": "TRUE_FALSE_NOT_GIVEN",
+        "content": "Kasun's home town is on the coast.",
+        "answer": "TRUE",
+        "explanation": "Matara is \"a city on the south coast\"."
+       },
+       {
+        "type": "TRUE_FALSE_NOT_GIVEN",
+        "content": "Kasun studied Korean for a year before he went to Korea.",
+        "answer": "FALSE",
+        "explanation": "He studied Korean for six months."
+       },
+       {
+        "type": "TRUE_FALSE_NOT_GIVEN",
+        "content": "Kasun's scholarship pays all of his tuition fees.",
+        "answer": "FALSE",
+        "explanation": "It pays half of his fees."
+       },
+       {
+        "type": "TRUE_FALSE_NOT_GIVEN",
+        "content": "The café is the most popular café near the university.",
+        "answer": "NOT GIVEN",
+        "explanation": "The text does not say how popular the café is."
+       },
+       {
+        "type": "TRUE_FALSE_NOT_GIVEN",
+        "content": "Kasun saw snow for the first time in Korea.",
+        "answer": "TRUE",
+        "explanation": "He \"had never seen snow before\"."
+       }
+      ]
+     },
+     {
+      "type": "MULTIPLE_CHOICE",
+      "instruction": "Questions 36 to 40. Choose the correct letter, A, B, C or D.",
+      "questions": [
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "What does Kasun study at university?",
+        "options": [
+         "Korean",
+         "Business",
+         "Engineering",
+         "Medicine"
+        ],
+        "answer": "C",
+        "explanation": "He won a scholarship \"to study engineering\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "How often does Kasun work at the café?",
+        "options": [
+         "Every evening",
+         "Three evenings a week",
+         "At weekends",
+         "Every morning"
+        ],
+        "answer": "B",
+        "explanation": "\"He worked there three evenings a week.\""
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "Why was Korean difficult for Kasun when he arrived?",
+        "options": [
+         "People spoke quickly",
+         "His teachers were bad",
+         "He forgot his words",
+         "Nobody spoke to him"
+        ],
+        "answer": "A",
+        "explanation": "People \"spoke much faster than his teachers\"."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "Why do Kasun and his roommate speak Korean?",
+        "options": [
+         "Their teacher told them to",
+         "It is the only language they both know",
+         "They want to pass a test",
+         "They don't like English"
+        ],
+        "answer": "B",
+        "explanation": "\"It is the only language they share.\""
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "What does Kasun want to do next year?",
+        "options": [
+         "Go home",
+         "Change university",
+         "Apply for a full scholarship",
+         "Work full-time"
+        ],
+        "answer": "C",
+        "explanation": "He \"hopes to apply for a full scholarship\"."
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "code": "GE-PT2",
+  "testType": "LISTENING",
+  "title": "Placement 2: Listening",
+  "timeLimitMin": 20,
+  "instructions": "Two sections, ten questions. Press Play to hear each section. You can listen twice. If the sound does not work, put your hand up and your teacher will read it to you.",
+  "audioScript": "{\"1\":\"Narrator: Section one. You will hear five short conversations. For each one, choose the correct answer. Conversation one.\\nMan: Excuse me, what time does the next bus to Colombo leave?\\nWoman: The seven fifteen bus has just gone. The next one is at seven fifty.\\nMan: Seven fifty? Thank you.\\nNarrator: Conversation two.\\nMan: Hello, what can I get you?\\nWoman: A cup of tea, please.\\nMan: Anything to eat? We have sandwiches and chocolate cake.\\nWoman: Just a piece of cake, thanks.\\nNarrator: Conversation three.\\nWoman: Excuse me, is the library near here?\\nMan: Yes, it is. Go straight on. It's opposite the post office, next to a small café.\\nNarrator: Conversation four.\\nWoman: How much is this bag?\\nMan: It's three thousand rupees, but for students it's five hundred rupees cheaper.\\nWoman: Great. I'm a student.\\nNarrator: Conversation five.\\nMan: Shall we go to the beach tomorrow?\\nWoman: I don't think so. The forecast says it's going to rain all day. Maybe on Sunday, when it's sunny again.\",\"2\":\"Narrator: Section two. You will hear a teacher talking to new students. Write one word or a number for each answer.\\nWoman: Good morning, everyone, and welcome to the Hanbit Language Centre. My name is Ms Park. That's P, A, R, K. I'll be your teacher this term. Classes start every morning at nine o'clock and finish at one o'clock, so please don't be late. On your first day, you need to bring your passport and two photos for your student card. The library is on the third floor, and it's open until eight in the evening. Our first trip is on Saturday. We're going to visit a palace in Seoul. See you tomorrow!\"}",
+  "sections": [
+   {
+    "number": 1,
+    "description": "Five short conversations",
+    "groups": [
+     {
+      "type": "MULTIPLE_CHOICE",
+      "instruction": "Questions 1 to 5. Choose the correct letter, A, B or C.",
+      "questions": [
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "What time does the next bus leave?",
+        "options": [
+         "7:15",
+         "7:30",
+         "7:50"
+        ],
+        "answer": "C",
+        "explanation": "The 7:15 bus has gone; the next is at 7:50."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "What does the woman order?",
+        "options": [
+         "Tea and a sandwich",
+         "Coffee and cake",
+         "Tea and cake"
+        ],
+        "answer": "C",
+        "explanation": "A cup of tea and a piece of cake."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "Where is the library?",
+        "options": [
+         "Next to the bank",
+         "Opposite the post office",
+         "Behind the school"
+        ],
+        "answer": "B",
+        "explanation": "\"It's opposite the post office.\""
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "How much does the student pay for the bag?",
+        "options": [
+         "1,500 rupees",
+         "2,500 rupees",
+         "3,000 rupees"
+        ],
+        "answer": "B",
+        "explanation": "3,000 minus 500 for students."
+       },
+       {
+        "type": "MULTIPLE_CHOICE",
+        "content": "What will the weather be like tomorrow?",
+        "options": [
+         "Sunny",
+         "Rainy",
+         "Windy"
+        ],
+        "answer": "B",
+        "explanation": "\"It's going to rain all day.\""
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "number": 2,
+    "description": "A teacher welcomes new students",
+    "groups": [
+     {
+      "type": "SENTENCE_COMPLETION",
+      "instruction": "Questions 6 to 10. Write ONE WORD OR A NUMBER for each answer.",
+      "wordLimit": "ONE WORD OR A NUMBER",
+      "questions": [
+       {
+        "type": "SENTENCE_COMPLETION",
+        "content": "The teacher's name is Ms ________.",
+        "answer": "PARK",
+        "explanation": "She spells it: P, A, R, K."
+       },
+       {
+        "type": "SENTENCE_COMPLETION",
+        "content": "Classes finish at ________ o'clock.",
+        "answer": "1|ONE|1:00",
+        "explanation": "They \"finish at one o'clock\"."
+       },
+       {
+        "type": "SENTENCE_COMPLETION",
+        "content": "On the first day, bring your passport and two ________.",
+        "answer": "PHOTOS|PHOTOGRAPHS|PICTURES",
+        "explanation": "\"Two photos for your student card.\""
+       },
+       {
+        "type": "SENTENCE_COMPLETION",
+        "content": "The library is on the ________ floor.",
+        "answer": "THIRD|3RD|3",
+        "explanation": "\"The library is on the third floor.\""
+       },
+       {
+        "type": "SENTENCE_COMPLETION",
+        "content": "On Saturday the class will visit a ________ in Seoul.",
+        "answer": "PALACE",
+        "explanation": "\"We're going to visit a palace.\""
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "code": "GE-PT3",
+  "testType": "WRITING",
+  "title": "Placement 3: Writing",
+  "timeLimitMin": 40,
+  "instructions": "Two short tasks. Write in full sentences. Spelling and grammar are part of your score, but it is more important to say what you want to say.",
+  "tasks": [
+   {
+    "taskNumber": 1,
+    "minWords": 40,
+    "timeMinutes": 15,
+    "prompt": "Write about yourself.\n\nInclude:\n- your name, age and home town\n- your family\n- what you do on a normal day\n- what you like doing in your free time\n\nWrite at least 40 words."
+   },
+   {
+    "taskNumber": 2,
+    "minWords": 80,
+    "timeMinutes": 25,
+    "prompt": "You are going to study in South Korea. Write an email to your English teacher.\n\nTell her:\n- when you are going and where you will study\n- what you want to study and why\n- one thing you are worried about, and how you will deal with it\n\nStart with \"Dear Ms Silva,\" and write at least 80 words."
+   }
+  ]
+ },
+ {
+  "code": "GE-PT4",
+  "testType": "SPEAKING",
+  "title": "Placement 4: Speaking",
+  "timeLimitMin": 12,
+  "instructions": "Three short parts. Speak clearly and say as much as you can. Your answers are recorded and marked out of 100.",
+  "sections": [
+   {
+    "number": 1,
+    "description": "About you",
+    "questions": [
+     "What is your name, and where are you from?",
+     "Tell me about your family.",
+     "What do you do in your free time?",
+     "What did you do last weekend?"
+    ]
+   },
+   {
+    "number": 2,
+    "description": "Talk for one minute",
+    "questions": [
+     "Talk about a place you like to visit.\n\nYou should say:\n- where it is\n- how often you go there\n- what you do there\n- and why you like it."
+    ]
+   },
+   {
+    "number": 3,
+    "description": "Your plans",
+    "questions": [
+     "Why do you want to study in Korea?",
+     "What will be difficult about living in another country?",
+     "What is the best way to learn a new language quickly?"
+    ]
+   }
+  ]
+ }
+]

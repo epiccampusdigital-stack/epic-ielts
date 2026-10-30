@@ -100,3 +100,16 @@ Then, from `/tmp/epicwork`:
 - WhatsApp: template approval, YCloud wallet top-up, test reminder from the tracker.
 - After deploying, click "Rebuild schedule" in the tracker before attendance starts.
 - Set CRON_SECRET + a cron-job.org job hitting the tracker tick so reminders send on time.
+
+## General English course papers on the site (added 30 Oct)
+Six General English practice papers, loaded automatically on server start. Source: `backend/scripts/generalEnglish/coursePapers.js`.
+- **Reading** (auto-marked out of 100 + level):
+  - GE-C1R: home, town and food (workbook 2)
+  - GE-C2R: a trip to the hills (workbook 3)
+  - GE-C3R: starting university in Korea (workbook 4)
+- **Writing** (Claude-marked out of 100):
+  - GE-C1W: my home and my town
+  - GE-C2W: a story and a plan
+  - GE-C3W: email + personal statement
+
+Papers that students have already taken are never rebuilt.

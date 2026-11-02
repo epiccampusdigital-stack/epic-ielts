@@ -112,6 +112,19 @@ require('./ensureSchema').ensureSchema(prisma)
       console.error('[general-english] auto load skipped:', e.message);
     }
   })();
+  // Copy the IELTS listening papers into General English once (GE-L1...). The IELTS originals are not changed.
+  (async () => {
+    try {
+      const have = await prisma.paper.count({ where: { track: 'GENERAL', testType: 'LISTENING', paperCode: { startsWith: 'GE-L' } } });
+      if (have === 0) {
+        const { copyListeningToGeneral } = require('../scripts/copyListeningToGeneral');
+        const n = await copyListeningToGeneral(prisma, { apply: true, limit: 4 });
+        console.log('[general-english] listening papers copied:', n);
+      }
+    } catch (e) {
+      console.error('[general-english] listening copy skipped:', e.message);
+    }
+  })();
   try {
     require('./services/programService').startScheduler();
   } catch (e) {

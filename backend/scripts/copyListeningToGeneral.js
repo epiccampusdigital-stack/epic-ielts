@@ -5,14 +5,8 @@
 //   node scripts/copyListeningToGeneral.js --apply    -> makes the copies
 //   node scripts/copyListeningToGeneral.js --apply --limit 4   -> copy at most 4 papers (default 4)
 require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 
-const apply = process.argv.includes('--apply');
-const li = process.argv.indexOf('--limit');
-const limit = li > -1 ? Math.max(1, parseInt(process.argv[li + 1], 10) || 4) : 4;
-
-async function main() {
+async function copyListeningToGeneral(prisma, { apply = false, limit = 4 } = {}) {
   const sources = await prisma.paper.findMany({
     where: { testType: 'LISTENING', track: 'IELTS', status: { in: ['ACTIVE', 'PUBLISHED'] }, practiceMode: false },
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
@@ -55,5 +49,16 @@ async function main() {
     console.log(`  copied as ${code}`);
   }
   console.log(apply ? `Done. ${made} paper(s) copied.` : 'Dry run only. Add --apply to make the copies.');
+  return made;
 }
-main().catch(e => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());
+
+module.exports = { copyListeningToGeneral };
+
+if (require.main === module) {
+  const { PrismaClient } = require('@prisma/client');
+  const prisma = new PrismaClient();
+  const apply = process.argv.includes('--apply');
+  const li = process.argv.indexOf('--limit');
+  const limit = li > -1 ? Math.max(1, parseInt(process.argv[li + 1], 10) || 4) : 4;
+  copyListeningToGeneral(prisma, { apply, limit }).catch(e => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());
+}

@@ -1,6 +1,6 @@
 # Builds the 4 English workbooks from the lesson papers (student pages + answers at the back).
 import sys, glob, importlib.util, os, re
-sys.path.insert(0, '/tmp/epicwork/papers')
+sys.path.insert(0, '/tmp/claude-0/-home-claude/0a8bee2c-181d-5490-895e-7d68bcfbbf12/scratchpad/papers')
 import render
 from common import *
 import icons
@@ -17,16 +17,18 @@ def load():
             out.append(L2)
     return out
 
-SKILL_ORDER = {'Grammar foundation': 0, 'Writing': 1, 'Speaking': 2, 'Reading': 3, 'Listening': 4}
+SKILL_ORDER = {'Grammar foundation': 0, 'Activity morning': 0, 'Writing': 1, 'Speaking': 2, 'Reading': 3, 'Listening': 4}
 KEEP = set(SKILL_ORDER) | {'Extra practice'}
-TAG = {'Grammar foundation': 'Grammar', 'Writing': 'Grammar & writing', 'Speaking': 'Speaking', 'Reading': 'Reading & vocabulary', 'Listening': 'Listening', 'Extra practice': 'Extra practice'}
+TAG = {'Grammar foundation': 'Grammar', 'Activity morning': 'Activity morning', 'Writing': 'Grammar & writing', 'Speaking': 'Speaking', 'Reading': 'Reading & vocabulary', 'Listening': 'Listening', 'Extra practice': 'Extra practice'}
 
 def tmin(t):
     h, m = map(int, re.search(r'(\d+):(\d\d)', t).groups())
     return (h + 12 if h < 8 else h) * 60 + m
 
-def book_of(day):
-    return 1 if day <= 5 else 2 if day <= 13 else 3 if day <= 22 else 4
+def book_of(day, folder=None):
+    if folder in ('Grammar foundation', 'Activity morning'):
+        return 1
+    return 2 if day <= 13 else 3 if day <= 22 else 4
 
 def book_of_extra(orig):
     return 1 if orig <= 7 else 2 if orig <= 14 else 3 if orig <= 21 else 4
@@ -48,7 +50,7 @@ def block(b, n):
 
 def lesson(L):
     d = L.get('day')
-    when = (f"Day {d} · {ddate(d)} · {L['time'].split(' (')[0]}" if d else 'Extra practice · any time')
+    when = (f"Day {d} · {L['time'].split(' (')[0]}" if d else 'Extra practice · any time')
     t = L['theme'].split(' - ', 1)[-1] if L['folder'] == 'Grammar foundation' else L['theme']
     out = (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag en'>{TAG[L['folder']] if L['folder'] != 'Extra practice' else L['kind']}</span>"
            f"<span class='tag grey'>{e(when)}</span></div><h1>{render.rich(L['title'])}</h1><div class='alt'>{e(t)}</div>"
@@ -104,17 +106,17 @@ h2 .n { background: #0056d2 !important; color: #fff !important; }
 
 def build_book(num, lessons):
     title, sub, art = BOOKS[num]
-    main = sorted([L for L in lessons if L.get('day') and book_of(L['day']) == num and L['folder'] in SKILL_ORDER],
+    main = sorted([L for L in lessons if L.get('day') and book_of(L['day'], L['folder']) == num and L['folder'] in SKILL_ORDER],
                   key=lambda L: (L['day'], tmin(L['time']), SKILL_ORDER[L['folder']]))
     extra = sorted([L for L in lessons if L['folder'] == 'Extra practice' and book_of_extra(L['orig_day']) == num], key=lambda L: L['orig_day'])
-    rows = ''.join(f"<tr><td>Day {L['day']}</td><td>{ddate(L['day'])}</td><td>{e(L['time'].split(' (')[0])}</td><td>{TAG[L['folder']]}</td><td>{render.rich(L['title'])}</td></tr>" for L in main)
+    rows = ''.join(f"<tr><td>Day {L['day']}</td><td>{e(L['time'].split(' (')[0])}</td><td>{TAG[L['folder']]}</td><td>{render.rich(L['title'])}</td></tr>" for L in main)
     rows += ''.join(f"<tr><td colspan='3' style='color:#5b6780'>Extra practice</td><td>{e(L['kind'].split('(')[-1].rstrip(')').capitalize())}</td><td>{render.rich(L['title'])}</td></tr>" for L in extra)
-    tests = {1: 'Day 1 is the placement test (on the computer). Days 2 and 3 are Korean days.',
+    tests = {1: 'Day 4 starts with the placement test on the computer. Anna\'s activity mornings are Days 6, 7 and 9. Lessons after Day 10 are planned and can move: your teacher will tell you the day.',
              2: 'Day 12 has mock interview round 1, in a side room during the afternoon lesson. Day 14 is the mid-programme English test: your teacher gives you that paper separately.',
              3: 'Day 18 afternoon is a review with the extra practice pages. Day 19 has mock interview round 2.',
              4: 'Day 26 has mock interview round 3. Day 28 is the final English test and the final mock interviews, and Day 30 is graduation.'}.get(num, '')
     body = (f"<h1 style='color:#002761;font-size:22pt;margin:0 0 2mm'>What's in this book</h1><p style='color:#5b6780'>Every lesson in this book is a lesson in class. Bring the book every English day.</p>"
-            f"<table class='toc'><thead><tr><th>Day</th><th>Date</th><th>Time</th><th>Skill</th><th>Lesson</th></tr></thead><tbody>{rows}</tbody></table>"
+            f"<table class='toc'><thead><tr><th>Day</th><th>Time</th><th>Skill</th><th>Lesson</th></tr></thead><tbody>{rows}</tbody></table>"
             + (f"<p style='margin-top:3mm;color:#5b6780'>{tests}</p>" if tests else '') +
             "<div class='howto'><div><b>1 · In class</b>Work through the lesson with your teacher. Write straight into the book.</div>"
             "<div><b>2 · IT lab</b>Do the same day's lesson on epicielts.live to practise again.</div>"
@@ -128,7 +130,7 @@ def build_book(num, lessons):
     body += ''.join(answer_key(L) for L in main + extra)
     days = sorted({L['day'] for L in main})
     cover = cover_html('#002761', f"ENGLISH WORKBOOK {num} · WEEK {num}", title, sub, cover_art(art),
-                       [(f"English days {', '.join(map(str, days))}", f"{ddate(days[0])} to {ddate(days[-1])} 2026"), (f"{len(main)} lessons", f"+ {len(extra)} extra practice" if extra else 'with answers'), ('Level', 'Pre-A1 to A2')])
+                       [(f"English days {', '.join(map(str, days))}", f"{len(days)} lesson days"), (f"{len(main)} lessons", f"+ {len(extra)} extra practice" if extra else 'with answers'), ('Level', 'Pre-A1 to A2')])
     return build(cover, page(body, 'en-book', ECSS), f'English workbook {num} · {title}', f"English Workbook {num} - Week {num} - {title}.pdf")
 
 if __name__ == '__main__':

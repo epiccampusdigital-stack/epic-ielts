@@ -3,7 +3,7 @@
 import os, sys, html, glob, importlib.util, json, asyncio
 from playwright.async_api import async_playwright
 
-S = os.environ.get('EPIC_WORK', '/tmp/epicwork/')
+S = '/tmp/claude-0/-home-claude/0a8bee2c-181d-5490-895e-7d68bcfbbf12/scratchpad/'
 HERE = S + 'papers/'
 OUT = HERE + 'out3/EPIC Korea Programme - English papers/By skill/'
 
@@ -274,7 +274,7 @@ def remap_text(x):
 
 def fit_block_v3(L):
     f, old = L.get('folder'), L.get('day')
-    if f in ('Grammar foundation', 'Evenings'):
+    if f in ('Grammar foundation', 'Evenings', 'Activity morning'):
         return L
     if f == 'Tests' and old in (15, 29):
         L = dict(L); part_a = 'part A' in L['kind']; d = 16 if old == 15 else 28
@@ -331,7 +331,7 @@ def v5_text(x, f):
 
 def fit_block(L):
     f = L.get('folder')
-    if f in ('Grammar foundation', 'Evenings') or (f == 'Tests' and L.get('day') == 1):
+    if f in ('Grammar foundation', 'Evenings', 'Activity morning') or (f == 'Tests' and L.get('day') == 1):
         return L
     L = fit_block_v3(L)
     d = L.get('day')

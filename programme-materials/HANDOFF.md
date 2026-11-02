@@ -25,7 +25,14 @@ You are picking up an ongoing project for me. Read all of this before doing anyt
 | English Teacher 4 | TBC | Cover only | per session if used |
 | Korean Teachers 1 and 2 | Campus staff | Korean mornings / afternoons | no extra cost |
 
-## Current timetable (plan v5, made 29 Oct)
+## Update 2 Nov: plan v6 (week 1 only) and new content
+- Day 1 is still Fri 30 Oct; today 2 Nov is Day 4. Weekly pattern from the teachers: Mon morning English with Sir, Tue Korean all day, Wed/Thu/Sat morning English with Anna (Sir sits in, no extra cost), Fri and Sun morning English with Sir (Fridays: week 1 only). Afternoons and evenings are Korean. Placement test Day 4 morning. Korean tute exam Day 6 afternoon.
+- Days 4-10 are plan v6 in `koreaBatch1.js` (PLAN_ID `plan-v6-week1-sir-anna`); Days 11-30 are still v5 and will be replaced when the next weeks are agreed. Teacher 3 is not used in week 1.
+- "Rebuild schedule" now only replaces today and later days once the programme is running (`fromDay`), so past days and attendance are kept.
+- English Workbook 1 is rebuilt with no dates: foundation 1-3, six tense lessons (one per tense), four joining-word lessons (and/but/or/so/because; when/while/as/before/after/until; although/though/even though/however; if/unless) and Anna's three activity mornings (Days 6, 7, 9). Lesson files: `papers/content/f0_foundation.py`, `f1_tenses_conjunctions.py`, `a1_anna_week1_activity.py`. Workbooks carry no dates. Build Anna's week 1 pack with `books/anna_w1.py`.
+- Sequence of Sir's grammar mornings: D4 F1, D8 F2, D10 F3, D11 present simple + continuous, D17 past simple regular + irregular, D18 future + present perfect, D24 conjunctions 1 + 2, D25 conjunctions 3 + 4. Days after 10 are tentative.
+
+## Current timetable (plan v5, made 29 Oct; week 1 changed in v6, see above)
 - **Wed, Thu, Sat:** English 9:00–12:00 with Anna. Students self-study 8:30–9:00. Lunch 12:00–1:00. **Korean** 1:00–4:30.
 - **Anna's morning:** 9:00–10:30 grammar and writing, 10:30–10:45 tea, 10:45–12:00 speaking.
 - **Other days:** **Korean** 8:30–11:30 (tea 10:00–10:15), lunch 11:30–1:00. **English** 1:00–4:30 with Teacher 3: reading 1:00–2:00, listening 2:15–3:15, IT lab 3:30–4:30.

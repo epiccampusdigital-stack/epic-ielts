@@ -7,12 +7,20 @@ D = json.load(open(HERE + 'korean.json'))
 HG, B1 = {x['number']: x for x in D['hg']}, {x['number']: x for x in D['b1']}
 
 # The Korean timetable: 15 Korean days, morning (8:30-11:30) and afternoon (1:00-4:30).
-KR_PLAN = [
-    (2, 'am', 'abc+h1'), (2, 'pm', 'h2'), (3, 'am', 'h3'), (3, 'pm', 'h4'), (6, 'pm', 'h5'), (7, 'pm', 'h6'), (8, 'am', 'review1+write1'),
-    (9, 'pm', 'h7'), (10, 'am', 'h8'), (11, 'am', 'h9'), (12, 'am', 'h10'), (13, 'pm', 'h11'), (15, 'am', 'h12'), (15, 'pm', 'midtest'),
-    (16, 'pm', 'b1'), (17, 'am', 'b2'), (18, 'am', 'b3'), (19, 'am', 'b4'), (20, 'pm', 'b5'), (21, 'pm', 'b6'), (22, 'am', 'review3'),
-    (23, 'pm', 'b7'), (24, 'am', 'b8'), (25, 'am', 'b9'), (26, 'am', 'b10'), (27, 'pm', 'b11'), (29, 'am', 'b12'), (29, 'pm', 'finaltest'), (30, 'pm', 'speech'),
-]
+# Lesson keys in the order of KOREAN_TOPICS (backend/src/data/program/koreaBatch1.js). The days and half-days come from plan.json.
+KR_KEYS = ['abc+h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'review1+write1', 'h7', 'h8', 'h9', 'h10', 'h11', 'h12', 'midtest',
+           'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'review3', 'b7', 'b8', 'b9', 'b10', 'b11', 'b12', 'finaltest', 'speech']
+def _slots():
+    out = []
+    for dd in json.load(open(S + 'plan.json'))['days']:
+        for line in dd['koreanFocus'].split('\n'):
+            if line.startswith('Morning: ') or line.startswith('Afternoon: '):
+                if 'Tute ' in line: continue   # tute revision and tute exam are not lessons from the site
+                out.append((dd['dayNumber'], 'am' if line.startswith('Morning') else 'pm'))
+    return out
+_SL = _slots()
+assert len(_SL) == len(KR_KEYS), (len(_SL), len(KR_KEYS))
+KR_PLAN = [(d, h, k) for (d, h), k in zip(_SL, KR_KEYS)]
 SLOT = {'am': 'Morning 8:30 to 11:30', 'pm': 'Afternoon 1:00 to 4:30'}
 when = {}
 for d, h, k in KR_PLAN:
@@ -29,7 +37,7 @@ def opener(key, c, kind):
     d, h = when[key]
     t = c['title']
     return (f"<div class='opener'><div><div class='tags'><span class='tag kr'>{kind} lesson {c['number']:02d}</span>"
-            f"<span class='tag grey'>Day {d} · {ddate(d)} · {SLOT[h]}</span></div>"
+            f"<span class='tag grey'>Day {d} · {SLOT[h]}</span></div>"
             f"<h1>{e(t[0])}</h1><div class='alt'><span class='ko'>{e(t[2])}</span> · <span class='si' style='font-size:11pt'>{e(t[1])}</span></div>"
             f"<div class='focus'>{e(c['goal'][0])}</div>{sin(c['goal'][1])}</div><div class='glyph'>{e(c['glyph'])}</div></div>")
 
@@ -112,7 +120,7 @@ def alphabet_start():
     d, h = when['abc']
     cards = ''.join(f"<div class='vowel'><div class='big ko'>{b}</div><div class='rom'>{v} · {r}</div>{strokes(p)}</div>" for v, b, r, p in ABC)
     grid = "<table class='trace'>" + ''.join("<tr><td class='h'><span class='ko'>" + b + "</span></td>" + ''.join(f"<td class='g'><span class='ko'>{b}</span></td>" for _ in range(3)) + "<td></td>" * 8 + "</tr>" for _, b, _, _ in ABC) + "</table>"
-    return (f"<div class='opener'><div><div class='tags'><span class='tag kr'>Start here · 00</span><span class='tag grey'>Day {d} · {ddate(d)} · {SLOT[h]}</span></div>"
+    return (f"<div class='opener'><div><div class='tags'><span class='tag kr'>Start here · 00</span><span class='tag grey'>Day {d} · {SLOT[h]}</span></div>"
             f"<h1>Your first six letters</h1><div class='alt'><span class='ko'>처음 배우는 모음 6개</span> · <span class='si' style='font-size:11pt'>ඔබේ පළමු අකුරු හය</span></div>"
             f"<div class='focus'>Take one letter at a time. Look, say it, follow the strokes, then write.</div>{sin('එකවර එක අකුරක් පුහුණු වෙන්න. බලන්න, කියන්න, ලියන පිළිවෙළ බලා ලියන්න.')}</div><div class='glyph'>아</div></div>"
             f"<div class='block'><h2><span class='n'>1</span>Look, follow the strokes, say it</h2><div class='instr'>Follow stroke 1, then 2. The arrow shows the direction. The silent ㅇ in front makes a full syllable.</div><div class='grid6'>{cards}</div></div>"
@@ -138,7 +146,7 @@ def review(title, key, lessons, book_label):
     key_ans = ', '.join(f"{i+1} {letters[shuffled.index(x)]}" for i, x in enumerate(pool))
     pics = [(x['word'], x['meaning'][0]) for x in ex if icons.KO_PIC.get(x['word'])][:4]
     seen = set(); pics = [p for p in pics if not (p[0] in seen or seen.add(p[0]))]
-    body = (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag kr'>Review</span><span class='tag grey'>Day {d} · {ddate(d)} · {SLOT[h]}</span></div>"
+    body = (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag kr'>Review</span><span class='tag grey'>Day {d} · {SLOT[h]}</span></div>"
             f"<h1>{e(title)}</h1><div class='focus'>Check what you know from this book before you move on.</div>{sin('ඊළඟ කොටසට යාමට පෙර මෙම පොතේ ඉගෙනගත් දේ පරීක්ෂා කරන්න.')}</div><div class='glyph'>복습</div></div>"
             f"<div class='block'><h2><span class='n'>1</span>Read and match</h2><div class='instr'>Read the Korean word aloud, then write the letter of its meaning.</div><div class='match'><div>{left}</div><div>{right}</div></div></div>")
     ans = f"<div class='akey'><h3>{e(title)}<small>Read and match</small></h3><div>{key_ans}</div>"
@@ -154,7 +162,7 @@ def writing_practice():
     d, h = when['write1']
     rows = ['가 나 다 라 마', '바 사 아 자 차', '카 타 파 하 까', '아 어 오 우 이', '야 여 요 유 으']
     grid = "<table class='trace'>" + ''.join("<tr>" + ''.join(f"<td class='g'><span class='ko'>{ch}</span></td><td></td>" for ch in r.split()) + "<td></td><td></td></tr>" for r in rows) + "</table>"
-    return (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag kr'>Writing practice</span><span class='tag grey'>Day {d} · {ddate(d)} · {SLOT[h]}</span></div>"
+    return (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag kr'>Writing practice</span><span class='tag grey'>Day {d} · {SLOT[h]}</span></div>"
             f"<h1>Hangul writing practice</h1><div class='focus'>Neat, correct strokes now make reading easier later.</div>{sin('දැන් නිවැරදිව ලිවීම පසුව කියවීම පහසු කරයි.')}</div><div class='glyph'>가</div></div>"
             f"<div class='block'><h2><span class='n'>1</span>Trace each block, then copy it in the next box</h2>{grid}</div>"
             f"<div class='block'><h2><span class='n'>2</span>My name in Hangul</h2><div class='instr'>Ask your teacher how to write your name. Write it three times.</div><table class='trace'><tr>{'<td></td>' * 12}</tr><tr>{'<td></td>' * 12}</tr><tr>{'<td></td>' * 12}</tr></table></div>"
@@ -167,7 +175,7 @@ def self_intro():
              ('저는 한국어를 공부해요.', 'I study Korean.', 'මම කොරියානු ඉගෙනගන්නවා.'), ('한국에 가고 싶어요.', 'I want to go to Korea.', 'මට කොරියාවට යන්න ඕනේ.'),
              ('만나서 반갑습니다.', 'Nice to meet you.', 'හමුවීම සතුටක්.'), ('감사합니다.', 'Thank you.', 'ස්තූතියි.')]
     rows = ''.join(f"<tr><td class='ko' style='font-size:13pt'>{e(k)}</td><td>{e(en)}<div class='si'>{e(si)}</div></td></tr>" for k, en, si in lines)
-    return (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag kr'>Speaking</span><span class='tag grey'>Day {d} · {ddate(d)} · {SLOT[h]}</span></div>"
+    return (f"<div class='pb'></div><div class='opener'><div><div class='tags'><span class='tag kr'>Speaking</span><span class='tag grey'>Day {d} · {SLOT[h]}</span></div>"
             f"<h1>My Korean self-introduction</h1><div class='alt'><span class='ko'>자기소개</span></div><div class='focus'>Put the whole course together in one short talk for your interview and graduation.</div>"
             f"{sin('සම්මුඛ පරීක්ෂණයට සහ උපාධි දිනයට කෙටි කතාවක් සූදානම් කරන්න.')}</div><div class='glyph'>소개</div></div>"
             f"<div class='block'><h2><span class='n'>1</span>The model</h2><table class='dlg'>{rows}</table></div>"
@@ -229,10 +237,10 @@ def contents(items, num):
             name = {'abc': 'Start here: your first six letters', 'review1': 'Review: Hangul 1 to 6', 'write1': 'Hangul writing practice', 'review2': 'Review: Hangul 7 to 12 (homework)',
                     'review3': 'Review: Beginner 1 lessons 1 to 6', 'review4': 'Review: Beginner 1 lessons 7 to 12 (homework)', 'speech': 'My Korean self-introduction'}[it]
         d, h = when[key]
-        rows += f"<tr><td>Day {d}</td><td>{ddate(d)}</td><td>{'Morning' if h == 'am' else 'Afternoon'}</td><td>{name}</td></tr>"
+        rows += f"<tr><td>Day {d}</td><td>{'Morning' if h == 'am' else 'Afternoon'}</td><td>{name}</td></tr>"
     tests = {2: "Day 15 afternoon: mid-programme Korean check on the Hangul from Books 1 and 2, given by your teacher.", 4: "Day 29 afternoon: final Korean test, given by your teacher."}.get(num, '')
     return (f"<h1 style='color:#002761;font-size:22pt;margin:0 0 2mm'>What's in this book</h1><p style='color:#5b6780'>Each lesson matches the same lesson on the EStudykorea site, so you can practise it again in the IT lab.</p>"
-            f"<table class='toc'><thead><tr><th>Day</th><th>Date</th><th>Session</th><th>Lesson</th></tr></thead><tbody>{rows}</tbody></table>"
+            f"<table class='toc'><thead><tr><th>Day</th><th>Session</th><th>Lesson</th></tr></thead><tbody>{rows}</tbody></table>"
             + (f"<p style='margin-top:3mm;color:#5b6780'>{tests}</p>" if tests else '') +
             "<div class='howto'><div><b>1 · Learn</b>Read the explanation in English and Sinhala, then say the words with your teacher.</div>"
             "<div><b>2 · Write</b>Trace the grey letters, then write on your own. Neat strokes now make reading easier later.</div>"
@@ -269,7 +277,7 @@ def build_book(num, title, sub_line, sub, items, letters):
     days = sorted({when[('h' if isinstance(i, tuple) and i[0] == 'hg' else 'b') + str(i[1])][0] if isinstance(i, tuple) else when[i][0] for i in items})
     cover = cover_html('linear-gradient(160deg,#002761 55%,#3a0a2a)', f"KOREAN WORKBOOK {num} · WEEK {num} · <span class='ko'>{sub_line}</span>" if False else f"KOREAN WORKBOOK {num} · WEEK {num} · {sub_line.upper()}",
                        title, sub, cover_art(letters),
-                       [(f"Korean days {', '.join(map(str, days))}", f"{ddate(days[0])} to {ddate(days[-1])} 2026"), (f"{sum(isinstance(i, tuple) for i in items)} lessons", 'English and Sinhala explanations'), ('Matches', 'EStudykorea lessons')])
+                       [(f"Korean days {', '.join(map(str, days))}", f"{len(days)} lesson days"), (f"{sum(isinstance(i, tuple) for i in items)} lessons", 'English and Sinhala explanations'), ('Matches', 'EStudykorea lessons')])
     name = f"Korean Workbook {num} - Week {num} - {title}.pdf"
     return build(cover, page(body, 'kr-book', KCSS), f'Korean workbook {num} · {title}', name)
 

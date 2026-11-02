@@ -1,9 +1,10 @@
-# Week 1 grammar foundation: five long lessons (Days 1, 4 and 6), each one fills a whole session.
+# Grammar foundation, part 1: parts of speech (Day 4), sentence patterns (Day 8), pronouns and prepositions (Day 10).
+# Tenses and conjunctions are in f1_tenses_conjunctions.py, one lesson per tense / group of joining words.
 F = dict(folder='Grammar foundation', kind='Grammar foundation')
 
 LESSONS = [
 # ---------------------------------------------------------------- F1
-dict(F, day=1, theme='Foundation 1 - Parts of speech', time='2:15 to 4:30 (after the placement speaking test)', who='English Teacher 2',
+dict(F, day=4, theme='Foundation 1 - Parts of speech', time='10:30 to 11:30 (after the placement test)', who='English Teacher 2 (Sir)',
  title='Foundation 1: the parts of speech',
  focus='Every English word has a job. Learn the 8 jobs (parts of speech) so you can understand and build any sentence.',
  student=[
@@ -55,13 +56,10 @@ dict(F, day=1, theme='Foundation 1 - Parts of speech', time='2:15 to 4:30 (after
   need='Student worksheet, board, 8 sheets of paper with one part of speech written on each (for the warm-up)',
   aims=['Name the 8 parts of speech and say what each one does', 'Recognise the part of speech of a word in a sentence', 'Use plural nouns and choose between adjectives and adverbs'],
   steps=[
-   (10, 'Warm-up', 'Write "My happy students study English in Galle." on the board. Ask: which words are people or places? Which word is an action? Which word describes? Lead in to "every word has a job".'),
-   (25, 'The 8 parts', 'Go through the table. For each part, students give two more examples from their own life. Then read the "one sentence, many parts" note together.'),
+   (5, 'Warm-up', 'Write "My happy students study English in Galle." on the board. Ask: which words are people or places? Which word is an action? Which word describes? Lead in to "every word has a job".'),
+   (15, 'The 8 parts', 'Go through the table. For each part, students give one more example from their own life. Read the "one sentence, many parts" note together.'),
    (20, 'Sort the words', 'Pairs sort the 24 words. Check on the board. Stick the 8 papers on the walls; call out a word and students point to the right paper.'),
-   (20, 'What job?', 'Students do the 12 sentences alone, then compare. Check and ask "why?" for each one.'),
-   (20, 'Plurals', 'Teach the four rules with board examples. Students write the plural table. Drill the irregular ones aloud (men, women, children, people, teeth, feet).'),
-   (20, 'Adjective or adverb', 'Teach the note: "a careful driver / drives carefully". Students do the 8 choices. Check, then each student makes one adjective and one adverb sentence aloud.'),
-   (20, 'Your turn + quick check', 'Students write 5 sentences and label them. Read 3 or 4 aloud. Finish with the quick check questions in pairs.'),
+   (20, 'What job?', 'Students do the 12 sentences alone, then compare. Check and ask "why?" for each one. Only 60 minutes today after the placement test: plurals and adjective or adverb are done as homework and checked at the start of Day 8.'),
   ],
   answers=[
    '**Sort the words:** Noun: Colombo, teacher, water. Pronoun: she, they, him. Verb: run, eat, write. Adjective: happy, beautiful, tall. Adverb: quickly, slowly, always. Preposition: under, on, between. Conjunction: and, but, because. Interjection: wow, oh, hey.',
@@ -70,11 +68,11 @@ dict(F, day=1, theme='Foundation 1 - Parts of speech', time='2:15 to 4:30 (after
    '**Choose:** 1 beautifully, 2 good, 3 quietly, 4 difficult, 5 well, 6 red car, 7 hard, 8 late.',
    '**Quick check:** 1 noun, pronoun, verb, adjective, adverb, preposition, conjunction, interjection. 2 adverb, because it tells us how someone does an action. 3 Students\' own answers.'],
   tips=['Sinhala puts the verb at the end and has postpositions, not prepositions, so students may not "see" prepositions. Point them out every time.', 'Expect "goodly" and "very good English he speaks". Keep pointing back to the adjective/adverb note.', 'Do not teach every exception today. The goal is to name the jobs; we use them all week.'],
-  homework='IT lab (finish in the evening if needed): General English > Learn, grammar basics. Homework: find 10 words on a sign, poster or packet and write their part of speech.',
+  homework='Homework: do "Nouns: one and many", "Adjective or adverb?" and "Your turn" in the workbook. Check them together at the start of Day 8. Also find 10 words on a sign, poster or packet and write their part of speech.',
  )),
 
 # ---------------------------------------------------------------- F2
-dict(F, day=4, theme='Foundation 2 - Sentence patterns', time='8:30 to 11:30 (tea break 10:00 to 10:15)', who='English Teacher 2',
+dict(F, day=8, theme='Foundation 2 - Sentence patterns', time='8:30 to 11:30 (tea break 10:00 to 10:15)', who='English Teacher 2 (Sir)',
  title='Foundation 2: how to build an English sentence',
  focus='The basic sentence patterns, English word order, and how to make negatives and questions with be and do.',
  student=[
@@ -143,7 +141,7 @@ dict(F, day=4, theme='Foundation 2 - Sentence patterns', time='8:30 to 11:30 (te
  )),
 
 # ---------------------------------------------------------------- F3
-dict(F, day=4, theme='Foundation 3 - Pronouns and prepositions', time='1:00 to 3:30 (short break 2:30 to 2:45), then IT lab', who='English Teacher 3',
+dict(F, day=10, theme='Foundation 3 - Pronouns and prepositions', time='8:30 to 11:30 (tea break 10:00 to 10:15)', who='English Teacher 2 (Sir)',
  title='Foundation 3: pronouns and prepositions',
  focus='I / me / my / mine, this / that / these / those, and the small words for time and place: at, on, in, under, next to, between.',
  student=[
@@ -203,156 +201,5 @@ dict(F, day=4, theme='Foundation 3 - Pronouns and prepositions', time='1:00 to 3
    '**Shelf:** 1 between, 2 under, 3 next to, 4 under, 5 on (above is also fine), 6 between.'],
   tips=['he / she mix-ups are very common; correct gently and every time.', '"it\'s" = it is; "its" = belongs to it. Many students will write "it\'s food".', 'In / on / at for time is learned by use, not rules alone. Use these questions every morning this week.'],
   homework='IT lab 3:30 to 4:30: finish "My room and my week", then General English > Learn. Homework: write 5 sentences about where things are in the dormitory.',
- )),
-
-# ---------------------------------------------------------------- F4
-dict(F, day=5, theme='Foundation 4 - Tenses', time='8:30 to 11:30 (tea break 10:00 to 10:15)', who='English Teacher 2',
- title='Foundation 4: the tenses you need',
- focus='Present simple and continuous, past simple, future (will / going to) and a first look at present perfect. When to use each one.',
- student=[
-  dict(t='table', title='The tense map', head=['Tense', 'Form', 'Use it for', 'Example'], rows=[
-   ['Present simple', 'I work / she works', 'habits, facts, routines', 'I **drink** tea every morning.'],
-   ['Present continuous', 'am / is / are + -ing', 'now, at the moment', 'She **is studying** now.'],
-   ['Past simple', 'worked / went', 'finished actions in the past', 'We **went** to Kandy last week.'],
-   ['Future: will', 'will + verb', 'decisions now, promises, predictions', 'I **will help** you.'],
-   ['Future: going to', 'am / is / are going to + verb', 'plans', 'They **are going to study** in Korea.'],
-   ['Present perfect', 'have / has + past participle', 'experiences, from past until now', 'I **have been** to Colombo.']]),
-  dict(t='note', title='Negatives and questions', items=[
-   'Present simple: I **don\'t** work. **Does** she work?',
-   'Present continuous: He **isn\'t** working. **Are** you working?',
-   'Past simple: I **didn\'t** go. **Did** you go? (after did, use the base verb: did go, not did went)',
-   'will: I **won\'t** be late. **Will** you come? · going to: I\'m **not** going to stop. **Are** you going to call?',
-   'Present perfect: I **haven\'t** seen it. **Have** you ever eaten kimchi?']),
-  dict(t='table', title='Verb forms', ins='Complete the table. The first one is done.', head=['Verb', 'Past simple', 'Past participle', '-ing'], rows=[
-   ['go', 'went', 'gone', 'going'], ['eat', '', '', ''], ['see', '', '', ''], ['have', '', '', ''], ['make', '', '', ''],
-   ['study', '', '', ''], ['write', '', '', ''], ['buy', '', '', ''], ['come', '', '', ''], ['swim', '', '', '']]),
-  dict(t='match', title='Time words', ins='Match each time word to a tense.', left=['every day', 'right now', 'yesterday', 'next year', 'ever / never', 'at the moment', 'last week', 'usually'],
-   right=['present simple', 'present continuous', 'past simple', 'future', 'present perfect']),
-  dict(t='mcq', title='Choose the correct form', items=[
-   ('I ___ rice every day.', ['eat', 'am eating', 'ate']),
-   ('Look! The bus ___.', ['comes', 'is coming', 'came']),
-   ('We ___ to Galle last Sunday.', ['go', 'went', 'have gone']),
-   ('She ___ to Korea next year.', ['goes', 'went', 'is going to go']),
-   ('___ you ever ___ snow?', ['Did / see', 'Have / seen', 'Do / see']),
-   ('He ___ his homework yesterday.', ['didn\'t do', 'didn\'t did', 'doesn\'t do']),
-   ('I\'m hungry. I think I ___ a sandwich.', ['will make', 'made', 'make']),
-   ('My father ___ in a garment factory.', ['work', 'works', 'is work']),
-   ('They ___ TV now. They are in class.', ['don\'t watch', 'aren\'t watching', 'didn\'t watch']),
-   ('I ___ Kandy two times.', ['have visited', 'visit', 'am visiting'])]),
-  dict(t='pagebreak'),
-  dict(t='passage', title='Read: Ruwan\'s story', head='From Matara to Seoul',
-   text="""My name is Ruwan and I live in Matara. I usually get up at six and I help my father in his shop before class.
-
-Last year I finished school. I wanted to study engineering, but the university places were full. Then my teacher told me about a scholarship in Korea. I applied in June and I passed the first interview in August.
-
-At the moment I am studying Korean and English at Epic Campus. I am living in the campus hostel with nine other students. We are working very hard!
-
-I have never been on a plane before, so I am a little nervous. Next March I am going to fly to Seoul. I think I will miss my mother's food, but I will call her every week."""),
-  dict(t='lines', title='Questions about the story', items=[
-   'What does Ruwan usually do before class?', 'When did he finish school?', 'What is he doing at the moment?',
-   'Has he been on a plane before?', 'What is he going to do next March?', 'Find one verb for each tense in the story and write it here.']),
-  dict(t='table', title='Speaking: find someone who', ins='Walk around and ask. Write a name and one more detail.', head=['Find someone who...', 'Name', 'Detail'], rows=[
-   ['usually gets up before 6 (Do you usually...?)', '', ''], ['is wearing something blue (Are you wearing...?)', '', ''],
-   ['went to the beach last month (Did you go...?)', '', ''], ['is going to study engineering (Are you going to...?)', '', ''],
-   ['has eaten Korean food (Have you ever eaten...?)', '', ''], ['will call home tonight (Will you call...?)', '', '']]),
-  dict(t='write', title='Yesterday, today and tomorrow', ins='Write 8 sentences about you: 2 in present simple (every day), 2 in present continuous (now), 2 in past simple (yesterday), 2 about the future (going to / will).', n=10),
- ],
- teacher=dict(
-  need='Student worksheet, board, a long timeline drawn on the board (past - now - future)',
-  aims=['Choose the right tense for habits, now, the past, plans and experiences', 'Make negatives and questions in each tense', 'Know the past forms of the most common irregular verbs'],
-  steps=[
-   (10, 'Warm-up', 'Draw the timeline. Ask: What do you do every morning? What are you doing now? What did you do yesterday? What are you going to do in Korea? Write the answers on the timeline.'),
-   (30, 'Present tenses', 'Teach present simple vs continuous with the tense map. Drill: "Every day I... / Now I am..."'),
-   (25, 'Past + verb forms', 'Teach past simple, regular -ed and the irregular verbs. Students complete the verb forms table; check and drill aloud.'),
-   (25, 'Time words + choose', 'Time words match, then the 10 choices. Check together and ask "which time word helped you?"'),
-   (15, 'Tea break', ''),
-   (15, 'Future + present perfect', 'will vs going to (decision now vs plan). Present perfect for experiences only today: "Have you ever...?"'),
-   (25, 'Ruwan\'s story', 'Students read, answer the questions, and underline one verb in each tense. Check together.'),
-   (20, 'Find someone who', 'Students stand up and ask. Insist on full questions. Feed back: "Who has eaten Korean food?"'),
-   (15, 'Writing', 'Yesterday, today and tomorrow (8 sentences). Collect and mark tense choice only.'),
-  ],
-  answers=[
-   '**Verb forms:** eat ate eaten eating · see saw seen seeing · have had had having · make made made making · study studied studied studying · write wrote written writing · buy bought bought buying · come came come coming · swim swam swum swimming.',
-   '**Time words:** every day, usually: present simple · right now, at the moment: present continuous · yesterday, last week: past simple · next year: future · ever / never: present perfect.',
-   '**Choose:** 1 eat, 2 is coming, 3 went, 4 is going to go, 5 Have / seen, 6 didn\'t do, 7 will make, 8 works, 9 aren\'t watching, 10 have visited.',
-   '**Story:** 1 He helps his father in his shop. 2 Last year. 3 He is studying Korean and English at Epic Campus. 4 No, he has never been on a plane. 5 He is going to fly to Seoul. 6 For example: get up / help (present simple), finished / applied / passed (past simple), am studying / are working (present continuous), have never been (present perfect), am going to fly (going to), will miss / will call (will).'],
-  tips=['Students often use present simple for now ("I study now"). Point at the clock: now = -ing.', '"Did went" and "didn\'t did" will come up a lot. After did, always the base verb.', 'Do not go deep into present perfect today; experiences with ever / never is enough. It comes back in the scholarship interview lessons.'],
-  homework='IT lab this afternoon. Homework: learn the 10 verbs in the verb forms table. Quick test tomorrow.',
- )),
-
-# ---------------------------------------------------------------- F5
-dict(F, day=5, theme='Foundation 5 - Conjunctions and week 1 review', time='1:00 to 3:30 (short break 2:30 to 2:45), then IT lab', who='English Teacher 2',
- title='Foundation 5: joining sentences + week 1 review',
- focus='and, but, or, so, because, when, before, after, if: join short sentences into longer ones. Then the week 1 review quiz.',
- student=[
-  dict(t='table', title='Joining words', head=['Word', 'Job', 'Example'], rows=[
-   ['**and**', 'adds', 'I like tea **and** my sister likes coffee.'],
-   ['**but**', 'shows a difference', 'Korea is cold, **but** I am excited.'],
-   ['**or**', 'gives a choice', 'Do you want rice **or** noodles?'],
-   ['**so**', 'gives a result', 'I was tired, **so** I went to bed early.'],
-   ['**because**', 'gives a reason', 'I am learning Korean **because** I want to study in Seoul.'],
-   ['**when**', 'at that time', '**When** I finish class, I call my mother.'],
-   ['**before / after**', 'order of time', 'I eat breakfast **before** I go to class. **After** lunch, we study Korean.'],
-   ['**if**', 'a condition', '**If** it rains, we will stay inside.']]),
-  dict(t='note', title='Commas', items=[
-   'Use a comma before **but** and **so** when they join two full sentences: It was late, **so** we took a tuk-tuk.',
-   'If the sentence **starts** with when / before / after / if, put a comma after the first part: **When** I get home, I eat dinner.',
-   'No comma before **because**: I stayed home **because** I was sick.']),
-  dict(t='gap', title='Choose the joining word', items=[
-   'I like cricket (and / but) I don\'t like football.', 'Do you want tea (or / so) coffee?', 'It was raining, (so / because) we stayed home.',
-   'She is happy (because / but) she passed the test.', 'I always wash my hands (before / after) I eat.', '(If / But) you study every day, you will pass.',
-   'He was hungry, (so / or) he made some noodles.', '(When / Because) I was a child, I lived in Kandy.', 'My brother plays the guitar (and / or) sings.',
-   'I wanted to go, (but / so) I was too busy.']),
-  dict(t='gap', title='Join the sentences', ins='Join each pair with the word in brackets. Write the full sentence.', items=[
-   'I was late. The bus didn\'t come. (because) ___', 'I want to go to Korea. I am learning Korean. (so) ___', 'She is clever. She is lazy. (but) ___',
-   'I finish class. I go to the IT lab. (after) ___', 'It is sunny tomorrow. We will go to the beach. (if) ___', 'My father is a farmer. My mother is a teacher. (and) ___']),
-  dict(t='lines', title='Finish the sentences', items=['I am learning English because...', 'I miss my family, but...', 'When I arrive in Korea,...', 'If I get the scholarship,...']),
-  dict(t='passage', title='Make it better', head='My Saturday',
-   text="""I got up at six. I was tired. I had breakfast. I went to the market. It was very busy. I bought vegetables. I bought fish. I wanted to buy fruit. It was too expensive. I went home. I cooked lunch for my family. They were happy."""),
-  dict(t='write', ins='Rewrite the paragraph. Join the short sentences with and, but, so, because, before, after or when. Use at least 6 joining words.', n=6),
-  dict(t='mcq', title='Week 1 review quiz (20 questions)', ins='Choose the best answer. 20 minutes.', items=[
-   ('"Quickly" is ___.', ['an adjective', 'an adverb', 'a noun']),
-   ('Which word is a preposition?', ['between', 'happy', 'they']),
-   ('The plural of "child" is ___.', ['childs', 'children', 'childes']),
-   ('She is a ___ cook.', ['good', 'well', 'goodly']),
-   ('Which sentence is correct?', ['I rice eat every day.', 'I eat rice every day.', 'Eat rice I every day.']),
-   ('Which sentence is correct?', ['Is very hot today.', 'It very hot today.', 'It is very hot today.']),
-   ('___ she work in a bank?', ['Do', 'Does', 'Is']),
-   ('Where ___ you live?', ['do', 'are', 'does']),
-   ('Please call ___ tonight.', ['I', 'my', 'me']),
-   ('This bag is ___.', ['my', 'mine', 'me']),
-   ('The class starts ___ 8:30.', ['in', 'on', 'at']),
-   ('My birthday is ___ June.', ['in', 'on', 'at']),
-   ('Look! It ___.', ['rains', 'is raining', 'rained']),
-   ('I ___ to Colombo yesterday.', ['go', 'went', 'have gone']),
-   ('We ___ study in Korea next year.', ['are going to', 'went to', 'have']),
-   ('___ you ever eaten kimchi?', ['Did', 'Do', 'Have']),
-   ('I was tired, ___ I went to bed.', ['but', 'so', 'or']),
-   ('I like Korea ___ the food is good.', ['because', 'so', 'or']),
-   ('Do you want tea ___ coffee?', ['and', 'or', 'but']),
-   ('___ I finish class, I call my mother.', ['When', 'But', 'So'])]),
-  dict(t='table', title='My score', head=['Part', 'Questions', 'My score'], rows=[['Parts of speech', '1 to 4', '   / 4'], ['Sentences, be and do', '5 to 8', '   / 4'], ['Pronouns and prepositions', '9 to 12', '   / 4'], ['Tenses', '13 to 16', '   / 4'], ['Joining words', '17 to 20', '   / 4'], ['**Total**', '', '   / 20']]),
- ],
- teacher=dict(
-  need='Student worksheet, board, a timer for the quiz',
-  aims=['Join sentences with and, but, or, so, because, when, before, after and if', 'Use commas correctly with joining words', 'Check what the class has learned in week 1'],
-  steps=[
-   (10, 'Warm-up', 'Say two short sentences: "I was hungry. I ate rice." Ask students to join them in as many ways as they can (so, and, because...).'),
-   (20, 'Joining words', 'Go through the table and the comma note. Students make one sentence with each word about their own life.'),
-   (25, 'Choose + join', 'The 10 choices, then join the 6 pairs. Check on the board.'),
-   (20, 'Finish + speak', 'Students finish the 4 sentences, then read them to a partner. Share the best ones.'),
-   (15, 'Make it better', 'Students rewrite "My Saturday". Two students read theirs aloud.'),
-   (15, 'Short break', ''),
-   (20, 'Week 1 quiz', 'Students do the 20 questions alone, in silence.'),
-   (25, 'Mark and review', 'Mark together. Students fill in "My score". Go back over the part where most students lost marks. Record scores in the tracker notes.'),
-  ],
-  answers=[
-   '**Choose:** 1 but, 2 or, 3 so, 4 because, 5 before, 6 If, 7 so, 8 When, 9 and, 10 but.',
-   '**Join:** 1 I was late because the bus didn\'t come. 2 I want to go to Korea, so I am learning Korean. 3 She is clever, but she is lazy. 4 After I finish class, I go to the IT lab. 5 If it is sunny tomorrow, we will go to the beach. 6 My father is a farmer and my mother is a teacher.',
-   '**Make it better (model):** I got up at six, but I was tired. After I had breakfast, I went to the market. It was very busy. I bought vegetables and fish. I wanted to buy fruit, but it was too expensive, so I went home. When I got home, I cooked lunch for my family and they were happy.',
-   '**Quiz:** 1 an adverb, 2 between, 3 children, 4 good, 5 I eat rice every day., 6 It is very hot today., 7 Does, 8 do, 9 me, 10 mine, 11 at, 12 in, 13 is raining, 14 went, 15 are going to, 16 Have, 17 so, 18 because, 19 or, 20 When.',
-   '**Scoring:** 17 to 20 strong, 12 to 16 good, under 12: give extra IT lab grammar practice next week and tell the morning teacher.'],
-  tips=['Students often start sentences with "Because..." alone ("Because I was tired."). Show that it needs the other half.', 'Do not mark the "Make it better" paragraph for everything; only joining words and commas.', 'Pass the quiz scores to English Teacher 1 so she knows who needs help from Day 6.'],
-  homework='IT lab 3:30 to 4:30: General English weekly quiz under Practice. Homework: write 6 sentences about why you want to study in Korea, using because, so and but.',
  )),
 ]

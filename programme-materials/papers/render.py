@@ -106,7 +106,9 @@ def block_html(b, n):
     h = f"<h2><span class='n'>{n}</span>{rich(title)}</h2>" if title else ''
     ins = f"<div class='instr'>{rich(b['ins'])}</div>" if b.get('ins') else ''
     body = ''
-    if t == 'words':
+    if t == 'html':
+        body = b['html']
+    elif t == 'words':
         body = "<div class='box chips'>" + ''.join(f"<span>{rich(w)}</span>" for w in b['items']) + "</div>"
     elif t == 'note':
         body = "<div class='note'><ul>" + ''.join(f"<li>{rich(x)}</li>" for x in b['items']) + "</ul></div>"

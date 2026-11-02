@@ -30,8 +30,7 @@ dict(F, day=7, theme='Activity morning 2 - Home and town', title='Activity morni
  focus='Students learn to say where things are and to ask for directions. They draw, walk around and talk.',
  student=[
   dict(t='note', title='Say these sentences', items=['There is a ___. There are two ___.', 'It\'s next to / opposite / behind / between ___.', 'Excuse me, where\'s the ___? Go straight. Turn left / right.']),
-  dict(t='table', title='Task 1: Town map (Student A)', ins='Your partner has the other half. Ask: "Where\'s the hospital?" Write the answer. Do not look at your partner\'s paper.', head=['Place', 'Where is it?'], rows=[['bank', 'next to the post office'], ['hospital', ''], ['bus stop', 'opposite the bank'], ['cafe', '']]),
-  dict(t='table', title='Task 1: Town map (Student B)', ins='Your partner has the other half. Ask: "Where\'s the bus stop?" Write the answer. Do not look at your partner\'s paper.', head=['Place', 'Where is it?'], rows=[['post office', 'between the bank and the cafe'], ['hospital', 'in front of the school'], ['bus stop', ''], ['cafe', 'next to the post office']]),
+  dict(t='html', title='Task 1: Town map', ins='__MAPINS__', html='__MAP__'),
   dict(t='list', title='Task 2: Campus walk', items=['Find the nearest shop. Write: It is ___.', 'Find something red. Write: There is a ___ on / in / behind ___.']),
   dict(t='note', title='Computer hour (12:00 to 1:00)', items=['Log in. Click **Practice**. Open **Course paper 1: Writing, my home and my town** (40 minutes). Submit one time only. Then Learn, Week 1, Day 4.']),
  ],
@@ -41,11 +40,11 @@ dict(F, day=7, theme='Activity morning 2 - Home and town', title='Activity morni
    (15, '2. Teach the sentences', '**Do:** Point to real things in the room.\n**Say:** "There is a clock. The clock is next to the door. There are two windows. The board is opposite the door." Students repeat, then say 5 sentences about the room.'),
    (35, '3. Describe and draw', '**Do:** Pairs. Student A looks at their own room in their head and tells B. B draws.\n**Say:** "A: Describe your room. Say: There is a bed. It\'s next to the window. B: Draw what you hear. Do not look at A\'s face. Then swap." Compare the drawings.'),
    (15, 'Tea break', ''),
-   (40, '4. Town map', '**Do:** A and B sit back to back. Give each their own page.\n**Say:** "Ask your partner: Where\'s the hospital? Write the answer. Take turns. When you finish, draw the whole town and compare."'),
+   (40, '4. Town map', '**Do:** Make pairs. In each pair, one student gets map A and one gets map B (page 2 of the student copy has both). They sit back to back.\n**Say:** "Your map has some empty boxes with a question mark. Your partner knows the names. Ask: Where\'s the hospital? Your partner answers: It\'s opposite the cafe. Write the name in the correct box. Take turns. Do not look at your partner\'s map. When you finish, compare maps."\n**Check:** Show the answer map (teacher page).'),
    (35, '5. Campus walk', '**Do:** Teams of 3 walk round the campus with Task 2.\n**Say:** "Find the nearest shop and something red. Write the answers. Then come back and tell us about one place."'),
    (25, '6. Quick quiz', '**Do:** Say a sentence with a mistake. Teams fix it.\n**Say:** "There is two chairs." (There are two chairs.) "The bank is on the post office." (next to). Students say 3 sentences about their room to a partner. Sir sits in and helps.'),
    (60, '7. Computer hour: writing paper', '**Do:** Take everyone to the IT lab.\n**Say:** "Log in. Click Practice. Find Course paper 1, Writing: my home and my town. Click it and read the instructions. You have 40 minutes. Write about your home and your town. When you finish, click Submit one time only."\n**Then (last 20 min):** "Now click Learn, open Week 1, and do Day 4 Daily routine."\n**While they work:** Walk round. Do not help with the words. Do not let anyone submit twice.')],
-  answers=['**Town map:** the hospital is in front of the school; the bus stop is opposite the bank; the cafe is next to the post office.'],
+  answers=['**Town map (see answer map):** North side of Main Road, left to right: Bank, Post office, Cafe. South side: Bus stop (opposite the bank), Park (opposite the post office), Hospital (opposite the cafe). The school is behind the hospital.'],
   tips=['Sir teaches prepositions on Day 10. Today only practise with the sentences in the box.', 'Fast pairs: draw a map of their own village and describe it.'], homework='Draw your house or village and write 5 sentences about it.')),
 
 # ============================================================ DAY 9

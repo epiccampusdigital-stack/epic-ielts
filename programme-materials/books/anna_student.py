@@ -2,6 +2,8 @@
 import sys, asyncio, os, importlib.util
 sys.path.insert(0, '/tmp/claude-0/-home-claude/0a8bee2c-181d-5490-895e-7d68bcfbbf12/scratchpad/papers')
 import render
+sys.path.insert(0, '/tmp/claude-0/-home-claude/0a8bee2c-181d-5490-895e-7d68bcfbbf12/scratchpad/books')
+import anna_extra as AX
 from playwright.async_api import async_playwright
 from pypdf import PdfWriter, PdfReader
 SC = '/tmp/claude-0/-home-claude/0a8bee2c-181d-5490-895e-7d68bcfbbf12/scratchpad/'
@@ -33,8 +35,16 @@ async def go():
         pg = await b.new_page()
         parts = []
         docs = []
+        sh = lambda y: render.student_html(y).replace("<div class='namebar'><div>Name</div><div>Date</div></div>", "<div class='namebar'><div>Name</div></div>")
         for x in L:
-            docs.append((f'd{x["day"]}s', render.student_html(x).replace("<div class='namebar'><div>Name</div><div>Date</div></div>", "<div class='namebar'><div>Name</div></div>"), f'Day {x["day"]} · Student sheet'))
+            d = x["day"]
+            if d == 7:
+                docs.append(('d7sA', sh(AX.variant(x, 'A')), 'Day 7 · Student sheet A'))
+                docs.append(('d7sB', sh(AX.variant(x, 'B')), 'Day 7 · Student sheet B'))
+            else:
+                docs.append((f'd{d}s', sh(x), f'Day {d} · Student sheet'))
+            if d == 9:
+                docs.append(('d9cards', AX.market_cards_page(), 'Day 9 · Market cards'))
         for name, doc, lab in docs:
             tmp = SC + 'books/tmp_anna.html'; open(tmp, 'w').write(doc)
             await pg.goto('file://' + tmp); await pg.wait_for_timeout(200)

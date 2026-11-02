@@ -98,7 +98,7 @@ def rich(s):
     parts = s.split('**')
     for i, p in enumerate(parts):
         out += (('<b>' if i % 2 else '') + p + ('</b>' if i % 2 else ''))
-    return out.replace('___', '<span class="ans"></span>')
+    return out.replace('___', '<span class="ans"></span>').replace('\n', '<br>')
 
 def block_html(b, n):
     t = b['t']

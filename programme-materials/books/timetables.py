@@ -5,31 +5,20 @@ from playwright.async_api import async_playwright
 OUT = '/home/claude/deliverables/Timetables/'; os.makedirs(OUT, exist_ok=True)
 EN, KR, EV = 'en', 'kr', 'ev'
 # (day label, date, morning, afternoon, evening); each cell is a list of (time, text, kind, teacher)
+S = ('12:00 to 1:00', 'Study time (self-study with campus staff)', 'ev', 'Campus staff')
+IT = ('4:30 to 5:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')
+def kr(topic, t='2:30 to 4:30'): return (t, topic, KR, 'Korean Teacher 2')
+def sir(topic): return ('9:00 to 12:00', topic, EN, 'Sir')
+def anna(topic): return ('9:00 to 12:00', topic, EN, 'Anna (Sir sits in)')
 D = [
- ('Mon', '2 Nov', 'Day 4',
-  [('8:30 to 10:15', 'English placement test (IT lab)', EN, 'Sir + campus staff'), ('10:30 to 11:30', 'English: parts of speech (and speaking check, one by one)', EN, 'Sir')],
-  [('1:00 to 2:30', 'Korean: Hangul 5', KR, 'Korean Teacher 2'), ('2:45 to 3:30', 'Korean practice', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')],
-  [('6:30 to 7:30', 'Korean evening practice', KR, 'Campus staff')]),
- ('Tue', '3 Nov', 'Day 5',
-  [('8:30 to 11:30', 'Korean: tute lessons and revision', KR, 'Korean Teacher 1')],
-  [('1:00 to 3:30', 'Korean: tute lessons and revision', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')],
-  [('6:30 to 7:30', 'Presentation night: "This is me" (2 minutes each)', EV, 'Campus staff')]),
- ('Wed', '4 Nov', 'Day 6',
-  [('9:00 to 12:00', 'English activity morning: meet and greet', EN, 'Anna (Sir sits in)')],
-  [('1:00 to 3:30', 'Korean tute exam', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')], []),
- ('Thu', '5 Nov', 'Day 7',
-  [('9:00 to 12:00', 'English activity morning: my home and my town', EN, 'Anna (Sir sits in)')],
-  [('1:00 to 3:30', 'Korean: Hangul 6', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')], []),
- ('Fri', '6 Nov', 'Day 8',
-  [('8:30 to 11:30', 'English: sentence patterns', EN, 'Sir')],
-  [('1:00 to 3:30', 'Korean: review Hangul 1 to 6 and writing', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')],
-  [('6:30 to 7:30', 'Korean evening practice', KR, 'Campus staff')]),
- ('Sat', '7 Nov', 'Day 9',
-  [('9:00 to 12:00', 'English activity morning: cafe, market and menu', EN, 'Anna (Sir sits in)')],
-  [('1:00 to 3:30', 'Korean: Hangul 7', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')], []),
- ('Sun', '8 Nov', 'Day 10',
-  [('8:30 to 11:30', 'English: pronouns and prepositions', EN, 'Sir')],
-  [('1:00 to 3:30', 'Korean: Hangul 8', KR, 'Korean Teacher 2'), ('3:30 to 4:30', 'IT lab: Korean practice', KR, 'Korean Teacher 2')], []),
+ ('Mon', '2 Nov', 'Day 4', [('8:30 to 10:15', 'English placement test (IT lab)', EN, 'Sir + campus staff'), ('10:30 to 11:30', 'English: parts of speech (and speaking check, one by one)', EN, 'Sir')],
+  [kr('Korean: Hangul 5'), IT], []),
+ ('Tue', '3 Nov', 'Day 5', [('9:00 to 1:00', 'Korean: tute lessons and revision', KR, 'Korean Teacher 1')], [kr('Korean: tute lessons and revision'), IT], []),
+ ('Wed', '4 Nov', 'Day 6', [anna('English activity morning: meet and greet'), S], [kr('Korean tute exam'), IT], []),
+ ('Thu', '5 Nov', 'Day 7', [anna('English activity morning: my home and my town'), S], [kr('Korean: Hangul 6'), IT], []),
+ ('Fri', '6 Nov', 'Day 8', [sir('English: sentence patterns'), S], [kr('Korean: review Hangul 1 to 6 and writing'), IT], []),
+ ('Sat', '7 Nov', 'Day 9', [anna('English activity morning: cafe, market and menu'), S], [kr('Korean: Hangul 7'), IT], []),
+ ('Sun', '8 Nov', 'Day 10', [sir('English: pronouns and prepositions'), S], [kr('Korean: Hangul 8'), IT], []),
 ]
 CSS = render.fonts_css() + """
 @page { size: A4 landscape; margin: 10mm; }
@@ -45,12 +34,12 @@ td { padding: 1.2mm 2mm; vertical-align: top; border-bottom: 1px solid #dfe6f2; 
 def cell(items, teacher):
     return ''.join(f"<div class='c {k}'><b>{t}</b>{x}{(' <i>· ' + w + '</i>') if teacher else ''}</div>" for t, x, k, w in items) or '<span style="color:#9aa7bd">No class</span>'
 def html(title, sub, teacher):
-    rows = ''.join(f"<tr><td class='day'>{d}<small>{dt} · {dn}</small></td><td>{cell(m, teacher)}</td><td>{cell(a, teacher)}</td><td>{cell(e, teacher)}</td></tr>" for d, dt, dn, m, a, e in D)
+    rows = ''.join(f"<tr><td class='day'>{d}<small>{dt} · {dn}</small></td><td>{cell(m, teacher)}</td><td>{cell(a, teacher)}</td></tr>" for d, dt, dn, m, a, e in D)
     return f"""<html><head><meta charset='utf-8'><style>{CSS}</style></head><body>
 <div class='head'><div class='top'>EPIC Campus · Korea Scholarship Programme</div><h1>{title}</h1><div class='sub'>{sub}</div></div>
-<table><thead><tr><th>Day</th><th style='width:32%'>Morning</th><th style='width:32%'>Afternoon</th><th>Evening</th></tr></thead><tbody>{rows}</tbody></table>
-<div class='note'><div class='legend'><span><b style='background:#0056d2'>English</b></span><span><b style='background:#1e9e5a'>Korean</b></span><span><b style='background:#b8860b'>Evening event</b></span></div>
-Lunch 12:00 to 1:00 (11:30 to 1:00 on Sir's days). Tea breaks are inside each class. On Wed, Thu and Sat, 8:30 to 9:00 is self-study with campus staff.
+<table><thead><tr><th>Day</th><th style='width:44%'>Morning (9:00 to 1:00)</th><th>Afternoon (2:30 to 5:30)</th></tr></thead><tbody>{rows}</tbody></table>
+<div class='note'><div class='legend'><span><b style='background:#0056d2'>English</b></span><span><b style='background:#1e9e5a'>Korean</b></span><span><b style='background:#b8860b'>Study time</b></span></div>
+Lunch 1:00 to 2:30. Tea breaks are inside each class. No evening classes.
 {'Sir sits in on all of Anna\'s mornings and helps. He does not teach during her class.' if teacher else 'This is Week 1 only. Week 2 will be sent when it is confirmed.'}
 </div></body></html>"""
 async def go():

@@ -10,13 +10,12 @@ sp = importlib.util.spec_from_file_location('a1', SC + 'papers/pending/a1_anna_w
 L = m.LESSONS
 front = render.page('Anna: week 1', f"""
 <div class='head'><div class='top'><span>EPIC Campus &middot; Korea Scholarship Programme</span><span class='gold'>Teacher 1 &middot; Week 1</span></div>
-<h1>Your first three mornings</h1><div class='sub'>Wednesday, Thursday and Saturday, 9:00 to 12:00. Activity mornings: about 20 minutes of explaining, the rest is doing.</div></div>
+<h1>Your first three mornings</h1><div class='sub'>Wednesday, Thursday and Saturday, 9:00 to 12:00. After your class, 12:00 to 1:00 is study time, lunch is 1:00 to 2:30, and Korean is in the afternoon. Activity mornings: about 20 minutes of explaining, the rest is doing.</div></div>
 <div class='block'><h2>The three mornings</h2><table class='steps'><tbody>
 <tr><td class='t'>Day 6 Wed</td><td class='s'>Meet and greet</td><td>Name games, find someone who, interview a partner, introduce them to the room, two truths and a lie.</td></tr>
 <tr><td class='t'>Day 7 Thu</td><td class='s'>My home and my town</td><td>Describe and draw, town map info gap, a campus walk with missions.</td></tr>
 <tr><td class='t'>Day 9 Sat</td><td class='s'>Cafe, market and menu</td><td>Food bingo, cafe and market role plays, team menu challenge.</td></tr></tbody></table></div>
 <div class='block'><h2>How every morning runs</h2><div class='note'><ul>
-<li><b>8:30 to 9:00</b> Students do self-study with campus staff. You start at 9:00.</li>
 <li><b>9:00 to 10:30</b> Warm-up game, a short mini-lesson with the sentence frames, then the main activity.</li>
 <li><b>10:30 to 10:45</b> Tea break.</li>
 <li><b>10:45 to 12:00</b> Speaking mission in pairs and teams, then a quick quiz and exit ticket.</li>

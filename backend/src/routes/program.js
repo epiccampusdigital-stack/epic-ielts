@@ -102,14 +102,18 @@ router.get('/:id', wrap(async (req, res) => {
 }));
 
 // Rebuild the days and sessions from the latest 30-day plan. Keeps teachers, students and settings.
-// Refused once attendance exists, so a running programme is never wiped by accident.
+// Send { fromDay: N } to rebuild only Day N onward (earlier days and their attendance stay as they are).
+// Refused if attendance has already been taken on any day that would be replaced.
 router.post('/:id/rebuild', adminRoleOnly, wrap(async (req, res) => {
   const programId = int(req.params.id);
   const plan = require('../data/program/koreaBatch1');
   const program = await prisma.program.findUnique({ where: { id: programId } });
   if (!program) return res.status(404).json({ error: 'Programme not found' });
-  const marked = await prisma.programAttendance.count({ where: { session: { programId } } });
-  if (marked > 0) throw new Error('Attendance has already been taken, so the schedule cannot be rebuilt. Change sessions one by one instead.');
+  const fromDay = Math.max(1, Math.min(30, int(req.body?.fromDay) || 1));
+  const marked = await prisma.programAttendance.count({ where: { session: { programId, dayNumber: { gte: fromDay } } } });
+  if (marked > 0) throw new Error(fromDay > 1
+    ? `Attendance has already been taken from Day ${fromDay} onward, so those days cannot be rebuilt. Change sessions one by one instead.`
+    : 'Attendance has already been taken, so the whole schedule cannot be rebuilt. Rebuild from today onward instead, or change sessions one by one.');
   const teacherIds = {};
   for (const t of plan.TEACHERS) {
     const found = await prisma.programTeacher.findFirst({ where: { name: t.name } });
@@ -120,18 +124,18 @@ router.post('/:id/rebuild', adminRoleOnly, wrap(async (req, res) => {
   }
   await prisma.$transaction(async tx => {
     await tx.programReminder.deleteMany({ where: { programId, status: 'PENDING' } });
-    await tx.programSession.deleteMany({ where: { programId } });
-    await tx.programDay.deleteMany({ where: { programId } });
-    const days = plan.buildDays().map((d, i) => ({ ...d, programId, date: T.addDays(program.startDate, i) }));
+    await tx.programSession.deleteMany({ where: { programId, dayNumber: { gte: fromDay } } });
+    await tx.programDay.deleteMany({ where: { programId, dayNumber: { gte: fromDay } } });
+    const days = plan.buildDays().map((d, i) => ({ ...d, programId, date: T.addDays(program.startDate, i) })).filter(d => d.dayNumber >= fromDay);
     await tx.programDay.createMany({ data: days });
-    const sessions = plan.buildSessions().map(({ teacher, ...x }) => ({
+    const sessions = plan.buildSessions().filter(x => x.dayNumber >= fromDay).map(({ teacher, ...x }) => ({
       ...x, programId, teacherId: teacher ? teacherIds[teacher] : null, language: x.language || null, link: x.link || null,
     }));
     await tx.programSession.createMany({ data: sessions });
-    await tx.program.update({ where: { id: programId }, data: { dayEndTime: plan.PROGRAM.dayEndTime } });
-    await tx.programChangeLog.create({ data: { programId, summary: `Schedule rebuilt from the latest plan (${plan.PLAN_ID}: whole-day English/Korean swap)`, actor: actorOf(req) } });
+    await tx.program.update({ where: { id: programId }, data: { dayEndTime: plan.PLAN_ID ? plan.PROGRAM.dayEndTime : program.dayEndTime } });
+    await tx.programChangeLog.create({ data: { programId, summary: `Schedule rebuilt from the latest plan (${plan.PLAN_ID})${fromDay > 1 ? `, from Day ${fromDay} onward` : ''}`, actor: actorOf(req) } });
   }, { timeout: 30000 });
-  res.json({ ok: true });
+  res.json({ ok: true, fromDay });
 }));
 
 router.put('/:id', adminRoleOnly, wrap(async (req, res) => {

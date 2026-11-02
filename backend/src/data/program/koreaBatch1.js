@@ -7,9 +7,14 @@
 //   - Week 1 (Days 1, 4, 5): grammar foundation with English Teacher 2 (Mon morning, Tue all day).
 //   - Days 2, 3, 15 and 29 are all-Korean days. About 30 sessions of each language.
 // English Teacher 2: Mon morning, Tue all day, Wed/Thu daytime, never Saturday, no evenings.
+// Plan v6 (2 Nov): Days 4 to 10 follow the new weekly pattern the teachers gave us:
+//   Mon morning English with Sir, Tue Korean all day (tute revision), Wed/Thu/Sat morning English with Anna
+//   (activity mornings, Sir sits in), Fri and Sun morning English with Sir. Afternoons and evenings are Korean.
+//   The Korean tute exam is Wed Day 6 afternoon. Teacher 3 is not used in this week.
+//   Days 11 to 30 are still plan v5 and will be replaced once the next weeks are agreed.
 // Everything here is a starting point: the tracker lets admins change any day, session or teacher.
 
-const PLAN_ID = 'plan-v5-anna-wed-thu-sat';
+const PLAN_ID = 'plan-v6-week1-sir-anna';
 
 const PROGRAM = {
   name: 'Korea Scholarship Batch 1 (30-day residential)',
@@ -31,6 +36,8 @@ const TEACHERS = [
 ];
 
 const EN = 'EN', KR = 'KR';
+// KR = a Korean lesson from the site list, KT = Korean tute lessons and revision, KX = the Korean tute exam
+const isKR = c => c === 'KR' || c === 'KT' || c === 'KX';
 const ANNA_DAYS = [6, 7, 9, 13, 14, 16, 20, 21, 23, 27, 28, 30];
 
 // English themes: Anna teaches grammar & writing + speaking, Teacher 3 teaches reading + listening.
@@ -50,9 +57,9 @@ const THEMES = {
 const PLAN = {
   1: { am: 'D1_AM', pm: 'D1_PM' },
   2: { am: 'KR', pm: 'KR' }, 3: { am: 'KR', pm: 'KR' },
-  4: { am: 'F2', pm: 'F3' }, 5: { am: 'F4', pm: 'F5' },
-  6: { am: 'A:T1', pm: 'KR' }, 7: { am: 'A:T2', pm: 'KR' }, 8: { am: 'KR', pm: 'P:T1' },
-  9: { am: 'A:T3', pm: 'KR' }, 10: { am: 'KR', pm: 'P:T2' }, 11: { am: 'KR', pm: 'P:T3' },
+  4: { am: 'W1_D4', pm: 'KR' }, 5: { am: 'KT', pm: 'KT' },
+  6: { am: 'A:W1_1', pm: 'KX' }, 7: { am: 'A:W1_2', pm: 'KR' }, 8: { am: 'F2', pm: 'KR' },
+  9: { am: 'A:W1_3', pm: 'KR' }, 10: { am: 'F3', pm: 'KR' }, 11: { am: 'KR', pm: 'P:T3' },
   12: { am: 'KR', pm: 'P:T4:mock1' }, 13: { am: 'A:T4', pm: 'KR' }, 14: { am: 'A:MID', pm: 'P:MID' },
   15: { am: 'KR', pm: 'KR' }, 16: { am: 'A:T5', pm: 'KR' }, 17: { am: 'KR', pm: 'P:T5' },
   18: { am: 'KR', pm: 'P:REVIEW3' }, 19: { am: 'KR', pm: 'P:T6:mock2' }, 20: { am: 'A:T6', pm: 'KR' },
@@ -75,13 +82,22 @@ const KOREAN_TOPICS = [
 const KR_SLOTS = [];
 for (let d = 1; d <= 30; d++) for (const h of ['am', 'pm']) if (PLAN[d][h] === 'KR') KR_SLOTS.push(`${d}${h}`);
 if (KR_SLOTS.length !== KOREAN_TOPICS.length) throw new Error(`Korean slots ${KR_SLOTS.length} vs topics ${KOREAN_TOPICS.length}`);
-const koreanAt = (d, h) => { const i = KR_SLOTS.indexOf(`${d}${h}`); return i < 0 ? null : KOREAN_TOPICS[i]; };
-const langOf = (d, h) => (PLAN[d][h] === 'KR' ? KR : EN);
+const koreanAt = (d, h) => {
+  const c = PLAN[d][h];
+  if (c === 'KT') return 'Tute lessons and revision';
+  if (c === 'KX') return 'Tute exam';
+  const i = KR_SLOTS.indexOf(`${d}${h}`); return i < 0 ? null : KOREAN_TOPICS[i];
+};
+const langOf = (d, h) => (isKR(PLAN[d][h]) ? KR : EN);
 const ENGLISH_DAYS = Object.keys(PLAN).map(Number).filter(d => langOf(d, 'am') === EN || langOf(d, 'pm') === EN);
 const koreanFor = day => ({ am: koreanAt(day, 'am'), pm: koreanAt(day, 'pm') });
 function englishLabel(code) {
   const [kind, t] = code.split(':');
   if (code === 'D1_AM') return 'Welcome + placement test';
+  if (code === 'W1_D4') return 'Placement test + Foundation 1 (parts of speech)';
+  if (code === 'A:W1_1') return 'Activity morning: meet and greet';
+  if (code === 'A:W1_2') return 'Activity morning: my home and my town';
+  if (code === 'A:W1_3') return 'Activity morning: cafe, market and menu';
   if (code === 'D1_PM') return 'Placement speaking + Foundation 1';
   if (/^F\d$/.test(code)) return FOUNDATION_TXT[code][0];
   if (t === 'MID') return kind === 'A' ? 'Mid-programme English test (part A)' : 'Mid-programme English test (part B)';
@@ -92,7 +108,10 @@ function englishLabel(code) {
   return `${THEMES[t].theme} (${kind === 'A' ? 'grammar, writing & speaking' : 'reading & listening'})`;
 }
 // One evening activity a week, run by campus staff (no teacher cost)
+const KR_EVE = { subject: 'KOREAN', language: 'KR', title: 'Korean evening practice', description: 'Revise the day\'s Korean with the Korean teacher.', teacher: 'KR_2' };
 const EVENINGS = {
+  4: KR_EVE,
+  8: KR_EVE,
   1: { subject: 'ACTIVITY', language: null, title: 'Welcome night & icebreakers', description: 'Run by campus staff.' },
   5: { subject: 'ACTIVITY', language: 'EN', title: 'Presentation night #1: "This is me" (2 min each)', description: 'Run by campus staff. Students use the sentences they built in the week 1 foundation lessons.' },
   11: { subject: 'ACTIVITY', language: 'EN', title: 'Debate night #1: City life or village life?', description: 'Run by campus staff.' },
@@ -117,13 +136,13 @@ const FOUNDATION_TXT = {
 
 const MOCK_DESC = 'English Teacher 2 takes students one by one to a side room, 7 minutes each plus written feedback. The rest of the class carries on with the afternoon lesson.';
 const wb = day => `Korean workbook ${day <= 8 ? 1 : day <= 15 ? 2 : day <= 22 ? 3 : 4}. Same lesson on the Korean site for the IT lab.`;
-const enBook = day => `English workbook ${day <= 5 ? 1 : day <= 13 ? 2 : day <= 22 ? 3 : 4}.`;
+const enBook = day => `English workbook ${day <= 10 ? 1 : day <= 13 ? 2 : day <= 22 ? 3 : 4}.`;
 
 function itLabTaskFor(day) {
   const p = PLAN[day];
   const kr = [koreanAt(day, 'am'), koreanAt(day, 'pm')].filter(Boolean);
   const out = [];
-  if (p.pm !== 'KR') {
+  if (!isKR(p.pm)) {
     const t = p.pm.split(':')[1];
     out.push(THEMES[t] ? `English: General English > Learn > "${THEMES[t].theme}", then its practice questions.` : 'English: General English > Learn, revise this week\'s lessons.');
   }
@@ -134,13 +153,13 @@ function itLabTaskFor(day) {
 function buildDays() {
   return Array.from({ length: 30 }, (_, i) => {
     const day = i + 1, p = PLAN[day];
-    const en = [p.am, p.pm].filter(x => x !== 'KR').map(englishLabel);
+    const en = [p.am, p.pm].filter(x => !isKR(x)).map(englishLabel);
     const kr = koreanFor(day);
     return {
       dayNumber: day,
       date: addDays(PROGRAM.startDate, i),
       theme: en.length ? en.join(' + ') : `Korean day: ${kr.am}`,
-      englishFocus: en.length ? en.map((x, j) => `${[p.am, p.pm].filter(y => y !== 'KR').length === 2 ? (j ? 'Afternoon' : 'Morning') : (p.am !== 'KR' ? 'Morning' : 'Afternoon')}: ${x}`).join('\n') : 'No English today',
+      englishFocus: en.length ? en.map((x, j) => `${[p.am, p.pm].filter(y => !isKR(y)).length === 2 ? (j ? 'Afternoon' : 'Morning') : (!isKR(p.am) ? 'Morning' : 'Afternoon')}: ${x}`).join('\n') : 'No English today',
       koreanFocus: [kr.am && `Morning: ${kr.am}`, kr.pm && `Afternoon: ${kr.pm}`].filter(Boolean).join('\n') || 'No Korean today',
       itLabTask: itLabTaskFor(day),
     };
@@ -156,11 +175,15 @@ function buildSessions() {
     const anna = p.am.startsWith('A:');
 
     // ---- morning
-    if (p.am === 'KR') {
-      const k = koreanAt(day, 'am'), test = /test|check/i.test(k);
+    if (isKR(p.am)) {
+      const k = koreanAt(day, 'am'), test = /test|check|exam/i.test(k);
       add({ startTime: '08:30', endTime: '10:00', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: `Korean: ${k}`, description: wb(day), teacher: 'KR_1' });
       brk('10:00', '10:15');
       add({ startTime: '10:15', endTime: '11:30', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: test ? `${k} (continued)` : `Korean practice: ${k}`, description: wb(day), teacher: 'KR_1' });
+    } else if (p.am === 'W1_D4') {
+      add({ startTime: '08:30', endTime: '10:15', subject: 'ASSESSMENT', language: EN, title: 'English placement test, parts 1 to 3 (IT lab)', description: 'Grammar, vocabulary and reading; listening; writing. On the site (it opens on first login). The paper version is the backup. Supervised by Sir and campus staff.', teacher: 'EN_SPEAKING' });
+      brk('10:15', '10:30');
+      add({ startTime: '10:30', endTime: '11:30', subject: 'ENGLISH', language: EN, title: 'Foundation 1: parts of speech (+ placement speaking, one by one)', description: `${FOUNDATION_TXT.F1[1]} Sir takes the placement speaking part (5 minutes each) while the others work in the book. ${enBook(day)}`, teacher: 'EN_SPEAKING' });
     } else if (p.am === 'D1_AM') {
       add({ startTime: '08:30', endTime: '09:00', subject: 'ADMIN', language: null, title: 'Welcome & orientation', description: 'Rules, timetable, rooms, site logins.' });
       add({ startTime: '09:00', endTime: '10:45', subject: 'ASSESSMENT', language: EN, title: 'English placement test, parts 1 to 3 (IT lab)', description: 'Grammar, vocabulary and reading; listening; writing. On epicielts.live (it opens on first login). Supervised by campus staff.' });
@@ -173,7 +196,12 @@ function buildSessions() {
       add({ startTime: '10:15', endTime: '11:30', subject: 'ENGLISH', language: EN, title: `${t} (part 2: practice)`, description: 'Build, speak and write sentences with today\'s patterns.', teacher: 'EN_SPEAKING' });
     } else if (anna) {
       const t = p.am.split(':')[1];
-      if (THEMES[t]) {
+      if (/^W1_/.test(t)) {
+        const A = { W1_1: ['Meet and greet: who are you?', 'Name games, find someone who, interview a partner and introduce them to the room, two truths and a lie.'], W1_2: ['My home and my town', 'Describe and draw, a town map info gap, a campus walk with missions.'], W1_3: ['Cafe, market and menu', 'Food bingo, cafe and market role plays, team menu challenge.'] }[t];
+        add({ startTime: '09:00', endTime: '10:30', subject: 'ENGLISH', language: EN, title: `Activity morning: ${A[0]} (part 1)`, description: `${A[1]} About 20 minutes of explaining, the rest is doing. Sir sits in and helps. ${enBook(day)}`, teacher: 'EN_MORNING' });
+        brk('10:30', '10:45');
+        add({ startTime: '10:45', endTime: '12:00', subject: 'ENGLISH', language: EN, title: `Activity morning: ${A[0]} (part 2: speaking mission)`, description: 'Speaking tasks in pairs and teams, then a quick quiz. Sir sits in and helps.', teacher: 'EN_MORNING' });
+      } else if (THEMES[t]) {
         add({ startTime: '09:00', endTime: '10:30', subject: 'ENGLISH', language: EN, title: 'English: Grammar & writing', description: `${THEMES[t].theme}. ${THEMES[t].g}. ${enBook(day)}`, teacher: 'EN_MORNING' });
         brk('10:30', '10:45');
         add({ startTime: '10:45', endTime: '12:00', subject: 'ENGLISH', language: EN, title: 'English: Speaking', description: `${THEMES[t].theme}. ${THEMES[t].s}`, teacher: 'EN_MORNING' });
@@ -192,8 +220,8 @@ function buildSessions() {
     add({ startTime: anna ? '12:00' : '11:30', endTime: '13:00', subject: 'BREAK', language: null, title: 'Lunch' });
 
     // ---- afternoon
-    if (p.pm === 'KR') {
-      const k = koreanAt(day, 'pm'), test = /test|check/i.test(k);
+    if (isKR(p.pm)) {
+      const k = koreanAt(day, 'pm'), test = /test|check|exam/i.test(k);
       add({ startTime: '13:00', endTime: '14:30', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: `Korean: ${k}`, description: wb(day), teacher: 'KR_2' });
       brk('14:30', '14:45', 'Short break');
       add({ startTime: '14:45', endTime: '15:30', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: test ? `${k} (continued)` : `Korean practice: ${k}`, teacher: 'KR_2' });
@@ -241,7 +269,7 @@ function buildSessions() {
 
 const ENGLISH = {};
 for (const [d, p] of Object.entries(PLAN)) {
-  const parts = [p.am, p.pm].filter(x => x !== 'KR');
+  const parts = [p.am, p.pm].filter(x => !isKR(x));
   if (parts.length) ENGLISH[d] = { theme: parts.map(x => englishLabel(x)).join(' + ') };
 }
 

@@ -139,10 +139,15 @@ export default function AdminProgram() {
     } catch (e) { flash(errText(e)); }
   };
   const rebuild = async () => {
-    if (!window.confirm('Rebuild all 30 days from the new plan? Session notes and changes you made to the schedule will be replaced. Teachers and students stay.')) return;
+    // Once the programme is running, only today and later days are rebuilt: past days and attendance stay.
+    const fromDay = data?.todayDay?.dayNumber || 1;
+    const msg = fromDay > 1
+      ? `Rebuild Day ${fromDay} (today) to Day 30 from the new plan? Earlier days and their attendance stay. Changes you made to the later days will be replaced. Teachers and students stay.`
+      : 'Rebuild all 30 days from the new plan? Session notes and changes you made to the schedule will be replaced. Teachers and students stay.';
+    if (!window.confirm(msg)) return;
     try {
-      await axios.post(`${P}/${programId}/rebuild`, {}, api());
-      flash('Schedule rebuilt: whole English and Korean days, 8:30 to 11:30 and 1:00 to 4:30.');
+      await axios.post(`${P}/${programId}/rebuild`, { fromDay }, api());
+      flash(fromDay > 1 ? `Schedule rebuilt from Day ${fromDay} onward.` : 'Schedule rebuilt from the new plan.');
       loadProgram();
     } catch (e) { flash(errText(e)); }
   };
@@ -230,7 +235,7 @@ export default function AdminProgram() {
         )}
         {isAdmin && data?.program && data.planCurrent === false && (
           <div style={{ ...card, padding: '14px 16px', marginBottom: 16, background: '#f0f6ff', borderColor: '#b9d2f7', fontSize: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span><b>New day plan available:</b> whole English days and whole Korean days, 8:30 to 11:30 and 1:00 to 4:30, with the week 1 grammar foundation. Rebuild the schedule to use it. Teachers and students stay. (Not possible once attendance has been taken.)</span>
+            <span><b>New plan available:</b> the weekly pattern from the teachers (English mornings with Sir and Anna, Korean afternoons and evenings). Rebuild to use it. Once the programme is running this only changes today and later days, and earlier days and attendance stay. Teachers and students stay.</span>
             <button style={btn('primary')} onClick={rebuild}>Rebuild schedule</button>
           </div>
         )}

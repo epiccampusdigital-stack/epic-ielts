@@ -93,7 +93,7 @@ def cover_art(words):
     return out + '</svg>'
 
 BOOKS = {
-    1: ('Grammar foundation', 'Parts of speech, sentence patterns, pronouns, prepositions, tenses and joining words: the base for everything after.', [('noun', 'book · Galle'), ('verb', 'study · go'), ('and · but', 'so · because')]),
+    1: ('Grammar foundation', 'Parts of speech, sentence patterns, pronouns and prepositions: the base for everything after.', [('noun', 'book · Galle'), ('verb', 'study · go'), ('and · but', 'so · because')]),
     2: ('Daily life', 'Home and town, food and shopping, what is happening now, last weekend, yesterday and school.', [('there is', 'a bank'), ('some', 'any · much'), ('was', 'went · saw')]),
     3: ('Past and future', 'Travel stories, health, plans and careers. Telling a story in order and talking about the future.', [('first', 'then · finally'), ('going to', 'will'), ('doctor', 'nurse · pilot')]),
     4: ('Scholarship ready', 'Studying in Korea, emails, goals and the scholarship interview: point, reason, example.', [('better', 'the best'), ('Dear Sir', 'Kind regards'), ('because', 'for example')]),
@@ -109,9 +109,10 @@ def build_book(num, lessons):
     main = sorted([L for L in lessons if L.get('day') and book_of(L['day'], L['folder']) == num and L['folder'] in SKILL_ORDER],
                   key=lambda L: (L['day'], tmin(L['time']), SKILL_ORDER[L['folder']]))
     extra = sorted([L for L in lessons if L['folder'] == 'Extra practice' and book_of_extra(L['orig_day']) == num], key=lambda L: L['orig_day'])
+    if num == 1: extra = []  # week 1 book is Sir's foundation book only
     rows = ''.join(f"<tr><td>Day {L['day']}</td><td>{e(L['time'].split(' (')[0])}</td><td>{TAG[L['folder']]}</td><td>{render.rich(L['title'])}</td></tr>" for L in main)
     rows += ''.join(f"<tr><td colspan='3' style='color:#5b6780'>Extra practice</td><td>{e(L['kind'].split('(')[-1].rstrip(')').capitalize())}</td><td>{render.rich(L['title'])}</td></tr>" for L in extra)
-    tests = {1: 'Day 4 starts with the placement test on the computer. Anna\'s activity mornings are Days 6, 7 and 9. Lessons after Day 10 are planned and can move: your teacher will tell you the day.',
+    tests = {1: 'Day 4 starts with the placement test on the computer. Tenses and joining words start in Week 2.',
              2: 'Day 12 has mock interview round 1, in a side room during the afternoon lesson. Day 14 is the mid-programme English test: your teacher gives you that paper separately.',
              3: 'Day 18 afternoon is a review with the extra practice pages. Day 19 has mock interview round 2.',
              4: 'Day 26 has mock interview round 3. Day 28 is the final English test and the final mock interviews, and Day 30 is graduation.'}.get(num, '')

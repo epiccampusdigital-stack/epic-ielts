@@ -337,7 +337,7 @@ export default function WritingExam() {
         setPaper(r.data.paper);
         const totalSeconds = ((r.data.paper?.timeLimitMin || 60) + (r.data.extraMinutes || 0)) * 60;
         const startedAt = r.data.startedAt ? new Date(r.data.startedAt).getTime() : null;
-        const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+        const elapsed = startedAt ? Math.floor(((r.data.serverNow || Date.now()) - startedAt) / 1000) : 0;
         setTimeLeft(Math.max(0, totalSeconds - elapsed));
       })
       .catch(e => console.error('Paper fetch error:', e));

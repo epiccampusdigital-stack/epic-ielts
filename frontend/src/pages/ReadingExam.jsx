@@ -83,7 +83,7 @@ export default function ReadingExam() {
             answersRef.current = existingAnswers;
             const totalSeconds = ((loadedPaper?.timeLimitMin || 60) + (res.data.extraMinutes || 0)) * 60;
             const startedAt = res.data.startedAt ? new Date(res.data.startedAt).getTime() : null;
-            const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+            const elapsed = startedAt ? Math.floor(((res.data.serverNow || Date.now()) - startedAt) / 1000) : 0;
             const remaining = Math.max(0, totalSeconds - elapsed);
             setTimeLeft(remaining);
             setTotalTime(totalSeconds);

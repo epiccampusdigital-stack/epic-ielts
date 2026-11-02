@@ -636,7 +636,7 @@ router.get('/:id', auth, async (req, res) => {
       (attempt.paper?.passages || []).forEach(p => (p.groups || []).forEach(g => (g.questions || []).forEach(hide)));
       (attempt.paper?.sections || []).forEach(sec => (sec.groups || []).forEach(g => (g.questions || []).forEach(hide)));
     }
-    res.json(attempt);
+    res.json({ ...attempt, serverNow: Date.now() });
   } catch (error) {
     console.error('Attempt fetch error:', error);
     res.status(500).json({ message: 'Error fetching attempt', details: error.message });

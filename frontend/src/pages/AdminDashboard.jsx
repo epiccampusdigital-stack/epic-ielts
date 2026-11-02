@@ -80,13 +80,18 @@ export default function AdminDashboard() {
    const fetchAll = async () => {
       setLoading(true);
       try {
-         const [s, p, r] = await Promise.all([
-            axios.get(`${API_URL}/api/admin/students`, api()),
-            axios.get(`${API_URL}/api/admin/papers`, api()),
-            axios.get(`${API_URL}/api/admin/results`, api())
-         ]);
-         setRaw({ students: s.data || [], papers: p.data || [], results: r.data || [] });
-      } catch (e) { console.error(e); }
+         // Load each list on its own so one failing request cannot blank the whole dashboard
+         const calls = [['students', 'Students'], ['papers', 'Papers'], ['results', 'Results']];
+         const out = await Promise.allSettled(calls.map(([k]) => axios.get(`${API_URL}/api/admin/${k}`, api())));
+         const next = { students: [], papers: [], results: [] };
+         const failed = [];
+         out.forEach((o, i) => {
+            if (o.status === 'fulfilled') next[calls[i][0]] = Array.isArray(o.value.data) ? o.value.data : [];
+            else failed.push(`${calls[i][1]}: ${o.reason?.response?.status || ''} ${o.reason?.response?.data?.error || o.reason?.message || 'failed'}`);
+         });
+         setRaw(next);
+         if (failed.length) setMessage('Could not load: ' + failed.join(' | '));
+      } catch (e) { console.error(e); setMessage('Could not load the admin data: ' + e.message); }
       finally { setLoading(false); }
    };
 

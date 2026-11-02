@@ -18,11 +18,11 @@ front = render.page('Anna: week 1', f"""
 <tr><td class='t'>Day 7 Thu</td><td class='s'>My home and my town</td><td>Describe and draw, town map info gap, a campus walk with missions.</td></tr>
 <tr><td class='t'>Day 9 Sat</td><td class='s'>Cafe, market and menu</td><td>Food bingo, cafe and market role plays, team menu challenge.</td></tr></tbody></table></div>
 <div class='block'><h2>How every morning runs</h2><div class='note'><ul>
-<li><b>9:00 to 10:30</b> Warm-up game, a short mini-lesson with the sentence frames, then the main activity.</li>
+<li><b>9:00 to 10:30</b> Say hello, read the sentences, then the main activity.</li>
 <li><b>10:30 to 10:45</b> Tea break.</li>
-<li><b>10:45 to 12:00</b> Speaking mission in pairs and teams, then a quick quiz.</li>
+<li><b>10:45 to 12:00</b> More speaking in pairs and groups, then a quick quiz.</li>
 <li><b>12:00 to 1:00</b> Computer hour in the IT lab. You stay with the students. Sir is not needed for this part.</li>
-<li>The students are about 20 years old. Keep it active: standing, moving, competing, working in pairs and teams.</li></ul></div></div>
+<li>The students are about 20 years old. Everything is done seated at the desks, in pairs and small groups. Keep it friendly and fun.</li></ul></div></div>
 <div class='block'><h2>Ground rules</h2><div class='note'><ul>
 <li>Aim for about 70 percent student talk. No long grammar lectures: the key sentences are on the page as frames.</li>
 <li>Do not correct mistakes while students are speaking. Note them and put 3 or 4 on the board at the end.</li>
@@ -54,14 +54,14 @@ guide = render.page('Computer hour guide', """
 """)
 games = render.page('Spare games', """
 <div class='head'><div class='top'><span>EPIC Campus &middot; Korea Scholarship Programme</span><span class='gold'>Teacher 1 &middot; Anna</span></div>
-<h1>Spare games</h1><div class='sub'>Use one when a task finishes early or students are tired. Each takes 5 to 10 minutes.</div></div>
+<h1>Spare games</h1><div class='sub'>All seated. Use one when a task finishes early. Each takes 5 to 10 minutes.</div></div>
 <div class='block'><table class='steps'><tbody>
-<tr><td class='s'>1. Hot seat</td><td><b>Do:</b> One student sits facing the class, back to the board. Write a word behind them. <b>Say:</b> "Describe the word without saying it." The student guesses. Words: teacher, cafe, bank, rice, bus.</td></tr>
-<tr><td class='s'>2. Mime</td><td><b>Do:</b> Give a student a card: cook, drive, swim, read. <b>Say:</b> "Act it. The class asks: Are you cooking?" First to guess acts next.</td></tr>
-<tr><td class='s'>3. Word chain</td><td><b>Do:</b> Say a word. <b>Say:</b> "Say a word that starts with the last letter. Cat, tea, apple..." No repeats. Out in 5 seconds.</td></tr>
-<tr><td class='s'>4. Alphabet game</td><td><b>Do:</b> Pick a topic: food, places, jobs. <b>Say:</b> "One student says A, the next says B. Apple, banana, curry..." Go round the class.</td></tr>
-<tr><td class='s'>5. Pass the sentence</td><td><b>Do:</b> Say a sentence. <b>Say:</b> "Whisper it to your neighbour. Pass it round. The last student says it out loud." Compare with the first.</td></tr>
-<tr><td class='s'>6. Race to the board</td><td><b>Do:</b> Two teams in lines. <b>Say:</b> "I say a thing: bank. The first student runs and writes where it is in a sentence. Next team member goes."</td></tr></tbody></table></div>
+<tr><td class='s'>1. Hot seat</td><td><b>Say:</b> "One student sits with their back to the board. I write a word. The class describes it without saying it. The student guesses." Words: teacher, cafe, bank, rice, bus.</td></tr>
+<tr><td class='s'>2. Word chain</td><td><b>Say:</b> "Say a word that starts with the last letter of the word before. Cat, tea, apple..." No repeats. Go round the table.</td></tr>
+<tr><td class='s'>3. Alphabet game</td><td><b>Say:</b> "Pick a topic: food. One student says A, the next says B. Apple, banana, curry..."</td></tr>
+<tr><td class='s'>4. Pass the sentence</td><td><b>Say:</b> "I whisper a sentence to the first student. Whisper it to your neighbour. The last student says it out loud." Compare with the first.</td></tr>
+<tr><td class='s'>5. Question chain</td><td><b>Say:</b> "Ask the student next to you a question: Where are you from? They answer, then ask the next student a different question."</td></tr>
+</tbody></table></div>
 """)
 async def go():
     async with async_playwright() as p:

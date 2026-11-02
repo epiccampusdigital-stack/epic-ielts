@@ -3,7 +3,7 @@ def svg(known, labels_on=True):
     # buildings: key -> (x, y, w, h, label)
     B = {'bank': (50, 50, 160, 90, 'Bank'), 'post': (260, 50, 160, 90, 'Post office'), 'cafe': (470, 50, 160, 90, 'Cafe'),
          'bus': (50, 250, 160, 60, 'Bus stop'), 'hospital': (470, 250, 160, 90, 'Hospital'), 'school': (470, 370, 160, 80, 'School')}
-    out = ['<svg viewBox="0 0 680 480" width="100%" style="max-width:112mm;display:block;margin:2mm auto" font-family="Source Sans Pro, Arial, sans-serif">',
+    out = ['<svg viewBox="0 0 680 480" width="100%" style="max-width:98mm;display:block;margin:2mm auto" font-family="Source Sans Pro, Arial, sans-serif">',
            '<rect width="680" height="480" rx="10" fill="#f7faf4" stroke="#c9d6c0"/>',
            '<rect x="0" y="160" width="680" height="70" fill="#d9dde3"/><line x1="0" y1="195" x2="680" y2="195" stroke="#fff" stroke-width="3" stroke-dasharray="18 14"/>',
            '<text x="340" y="205" text-anchor="middle" font-size="18" fill="#5b6780" font-weight="700" letter-spacing="3">MAIN ROAD</text>',

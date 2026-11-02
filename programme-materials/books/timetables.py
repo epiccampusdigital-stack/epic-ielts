@@ -15,10 +15,10 @@ D = [
  ('Mon', '2 Nov', 'Day 4', [('8:30 to 10:15', 'English placement test (IT lab)', EN, 'Sir + campus staff'), ('10:30 to 11:30', 'English: parts of speech (and speaking check, one by one)', EN, 'Sir')],
   [kr('Korean: Hangul 5'), IT], []),
  ('Tue', '3 Nov', 'Day 5', [('9:00 to 1:00', 'Korean: tute lessons and revision', KR, 'Korean Teacher 1')], [kr('Korean: tute lessons and revision'), IT], []),
- ('Wed', '4 Nov', 'Day 6', [anna('English activity morning: meet and greet'), cp('Computer hour: Learn lessons, Week 1 Days 1 to 3')], [kr('Korean tute exam'), IT], []),
- ('Thu', '5 Nov', 'Day 7', [anna('English activity morning: my home and my town'), cp('Computer hour: Course paper 1 Writing, then Learn Day 4')], [kr('Korean: Hangul 6'), IT], []),
+ ('Wed', '4 Nov', 'Day 6', [anna('Meet Anna. Computer papers: Course paper 1 Reading, Writing. Group activity: Fix the mistake'), cp('Learn lessons on the computer')], [kr('Korean tute exam'), IT], []),
+ ('Thu', '5 Nov', 'Day 7', [anna('Computer paper: Listening practice 1. Group activity: Fix the mistake'), cp('Learn lessons on the computer')], [kr('Korean: Hangul 6'), IT], []),
  ('Fri', '6 Nov', 'Day 8', [sir('English: sentence patterns'), S], [kr('Korean: review Hangul 1 to 6 and writing'), IT], []),
- ('Sat', '7 Nov', 'Day 9', [anna('English activity morning: cafe, market and menu'), cp('Computer hour: Course paper 1 Reading, then Week 1 Quiz')], [kr('Korean: Hangul 7'), IT], []),
+ ('Sat', '7 Nov', 'Day 9', [anna('Computer papers: Week 1 Quiz, Course paper 2 Reading. Group activity: Fix the mistake'), cp('Learn lessons on the computer')], [kr('Korean: Hangul 7'), IT], []),
  ('Sun', '8 Nov', 'Day 10', [sir('English: pronouns and prepositions'), S], [kr('Korean: Hangul 8'), IT], []),
 ]
 CSS = render.fonts_css() + """

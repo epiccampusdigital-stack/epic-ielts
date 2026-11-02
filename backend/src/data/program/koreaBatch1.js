@@ -166,6 +166,72 @@ function buildDays() {
   });
 }
 
+// ---- Week 1 (Days 4-10) runs on the new hours: 9:00-1:00, lunch 1:00-2:30, 2:30-5:30, no evenings.
+const W1_ANNA = {
+  W1_1: [
+    ['09:00','09:15','ACTIVITY','Hello and how today works','Short hello. Anna explains the day: two papers on the computer, a group activity, then Learn lessons.'],
+    ['09:15','10:00','ASSESSMENT','Computer paper: Course paper 1, Reading','On the site. Students work alone, Anna stays in the room.'],
+    ['10:00','10:15','BREAK','Tea break'],
+    ['10:15','11:05','ASSESSMENT','Computer paper: Course paper 1, Writing','On the site.'],
+    ['11:05','12:05','ENGLISH','Group activity: Fix the mistake (parts of speech)','Seated group activity. Wrong sentences on cards, groups find and fix the mistake.'],
+    ['12:05','12:35','ENGLISH','Make your own mistake sentences','Each group writes wrong sentences for another group to fix.'],
+    ['12:35','13:00','IT_LAB','Learn lessons on the computer: Day 1','General English > Learn.'],
+  ],
+  W1_2: [
+    ['09:00','09:10','ACTIVITY','Warm-up','Quick question round.'],
+    ['09:10','10:10','ASSESSMENT','Computer paper: Listening practice 1','On the site (General English listening).'],
+    ['10:10','10:25','BREAK','Tea break'],
+    ['10:25','11:25','ENGLISH','Group activity: Fix the mistake (nouns, pronouns, adverbs)','Seated group activity with wrong-sentence cards.'],
+    ['11:25','12:05','ENGLISH','Make your own mistake sentences','Groups write wrong sentences for another group to fix.'],
+    ['12:05','13:00','IT_LAB','Learn lessons on the computer: Days 4 and 5','General English > Learn.'],
+  ],
+  W1_3: [
+    ['09:00','09:35','ASSESSMENT','Computer paper: Week 1 Quiz','On the site (General English weekly quiz).'],
+    ['09:35','10:25','ASSESSMENT','Computer paper: Course paper 2, Reading','On the site.'],
+    ['10:25','10:40','BREAK','Tea break'],
+    ['10:40','11:40','ENGLISH','Group activity: Fix the mistake (sentence patterns)','Seated group activity with wrong-sentence cards.'],
+    ['11:40','12:20','ENGLISH','Make your own mistake sentences','Groups write wrong sentences for another group to fix.'],
+    ['12:20','13:00','IT_LAB','Learn lessons on the computer: Day 6','General English > Learn.'],
+  ],
+};
+
+function week1Day(day, add, brk) {
+  const p = PLAN[day];
+  // ---- morning 9:00-1:00
+  if (isKR(p.am)) {
+    const k = koreanAt(day, 'am'), test = /test|check|exam/i.test(k);
+    add({ startTime: '09:00', endTime: '10:45', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: `Korean: ${k}`, description: wb(day), teacher: 'KR_1' });
+    brk('10:45', '11:00');
+    add({ startTime: '11:00', endTime: '13:00', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: test ? `${k} (continued)` : `Korean practice: ${k}`, description: wb(day), teacher: 'KR_1' });
+  } else if (p.am === 'W1_D4') {
+    add({ startTime: '08:30', endTime: '10:15', subject: 'ASSESSMENT', language: EN, title: 'English placement test, parts 1 to 3 (IT lab)', description: 'Grammar, vocabulary and reading; listening; writing. On the site. Supervised by Sir and campus staff.', teacher: 'EN_SPEAKING' });
+    brk('10:15', '10:30');
+    add({ startTime: '10:30', endTime: '11:30', subject: 'ENGLISH', language: EN, title: 'Foundation 1: parts of speech (+ placement speaking, one by one)', description: `${FOUNDATION_TXT.F1[1]} ${enBook(day)}`, teacher: 'EN_SPEAKING' });
+    add({ startTime: '11:30', endTime: '13:00', subject: 'ACTIVITY', language: null, title: 'Study time (self-study, campus staff)', description: 'Revise the parts of speech pages.' });
+  } else if (/^F\d$/.test(p.am)) {
+    const [t, d] = FOUNDATION_TXT[p.am];
+    add({ startTime: '09:00', endTime: '10:45', subject: 'ENGLISH', language: EN, title: `${t} (part 1)`, description: `${d} ${enBook(day)}`, teacher: 'EN_SPEAKING' });
+    brk('10:45', '11:00');
+    add({ startTime: '11:00', endTime: '12:00', subject: 'ENGLISH', language: EN, title: `${t} (part 2: practice)`, description: 'Build, speak and write sentences with today\'s patterns.', teacher: 'EN_SPEAKING' });
+    add({ startTime: '12:00', endTime: '13:00', subject: 'ACTIVITY', language: null, title: 'Study time (self-study, campus staff)', description: 'Revise today\'s workbook pages.' });
+  } else if (p.am.startsWith('A:')) {
+    for (const [s, e, subject, title, description] of W1_ANNA[p.am.split(':')[1]]) {
+      if (subject === 'BREAK') { brk(s, e, title); continue; }
+      add({ startTime: s, endTime: e, subject, language: EN, title, description, teacher: 'EN_MORNING', ...(subject === 'IT_LAB' ? { link: '/learn' } : {}) });
+    }
+  }
+  add({ startTime: '13:00', endTime: '14:30', subject: 'BREAK', language: null, title: 'Lunch' });
+
+  // ---- afternoon 2:30-5:30
+  if (isKR(p.pm)) {
+    const k = koreanAt(day, 'pm'), test = /test|check|exam/i.test(k);
+    add({ startTime: '14:30', endTime: '16:00', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: `Korean: ${k}`, description: wb(day), teacher: 'KR_2' });
+    brk('16:00', '16:15', 'Short break');
+    add({ startTime: '16:15', endTime: '16:45', subject: test ? 'ASSESSMENT' : 'KOREAN', language: KR, title: test ? `${k} (continued)` : `Korean practice: ${k}`, teacher: 'KR_2' });
+    add({ startTime: '16:45', endTime: '17:30', subject: 'IT_LAB', language: KR, title: 'IT lab: Korean practice', description: itLabTaskFor(day), link: 'KOREAN_SITE', teacher: 'KR_2' });
+  }
+}
+
 function buildSessions() {
   const sessions = [];
   for (let day = 1; day <= 30; day++) {
@@ -173,6 +239,7 @@ function buildSessions() {
     const brk = (s, e, t = 'Tea break') => add({ startTime: s, endTime: e, subject: 'BREAK', language: null, title: t });
     const p = PLAN[day];
     const anna = p.am.startsWith('A:');
+    if (day >= 4 && day <= 10 && (isKR(p.pm))) { week1Day(day, add, brk); continue; }
 
     // ---- morning
     if (isKR(p.am)) {

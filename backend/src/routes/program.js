@@ -256,25 +256,35 @@ router.put('/teachers/:tid', adminRoleOnly, wrap(async (req, res) => {
   res.json(t);
 }));
 
-// Links a teacher to a TEACHER login by email, creating the login if needed
+// Gives a teacher a login (programme tracker only). Works for a new email, for an old TEACHER account,
+// and for resetting a forgotten password: the password is always set again and returned once.
 router.post('/teachers/:tid/login', adminRoleOnly, wrap(async (req, res) => {
   const bcrypt = require('bcryptjs');
+  const crypto = require('crypto');
   const t = await prisma.programTeacher.findUnique({ where: { id: int(req.params.tid) } });
   if (!t) return res.status(404).json({ error: 'Teacher not found' });
   const email = String(req.body?.email || t.email || '').trim().toLowerCase();
   if (!email || !email.includes('@')) throw new Error('A valid email is needed');
+  let password = String(req.body?.password || '').trim();
+  if (password && password.length < 6) throw new Error('The password needs at least 6 characters');
+  if (!password) {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // no look-alike letters
+    password = Array.from({ length: 8 }, () => chars[crypto.randomInt(chars.length)]).join('');
+  }
+  const hash = await bcrypt.hash(password, 10);
   let account = await prisma.student.findUnique({ where: { email } });
-  let tempPassword = null;
   if (!account) {
-    tempPassword = Math.random().toString(36).slice(2, 10);
     account = await prisma.student.create({
-      data: { email, name: t.name, password: await bcrypt.hash(tempPassword, 10), role: 'PROGRAM_TEACHER', emailVerified: true, phone: t.phone || null },
+      data: { email, name: t.name, password: hash, role: 'PROGRAM_TEACHER', emailVerified: true, phone: t.phone || null },
     });
-  } else if (account.role !== 'PROGRAM_TEACHER') {
-    throw new Error('That email already belongs to another account. Use a different email.');
+  } else if (['PROGRAM_TEACHER', 'TEACHER'].includes(account.role)) {
+    // An old TEACHER account cannot sign in on the login page, so it becomes a programme teacher login
+    account = await prisma.student.update({ where: { id: account.id }, data: { password: hash, role: 'PROGRAM_TEACHER', emailVerified: true } });
+  } else {
+    throw new Error('That email already belongs to a student account. Use a different email.');
   }
   await prisma.programTeacher.update({ where: { id: t.id }, data: { accountId: account.id, email } });
-  res.json({ email, tempPassword, accountId: account.id });
+  res.json({ email, tempPassword: password, accountId: account.id });
 }));
 
 // ─── Students ────────────────────────────────────────────────────────────────

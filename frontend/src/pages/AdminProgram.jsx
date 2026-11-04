@@ -631,11 +631,13 @@ function Teachers({ programId, data, flash, isAdmin, onChanged }) {
   const makeLogin = async t => {
     const email = window.prompt(`Login email for ${t.name}:`, t.email || '');
     if (!email) return;
+    const pw = window.prompt('Password for them (leave empty and I will make one):', '');
+    if (pw === null) return;
     try {
-      const r = await axios.post(`${P}/teachers/${t.id}/login`, { email }, api());
-      window.alert(r.data.tempPassword
-        ? `Login created for ${r.data.email}\nTemporary password: ${r.data.tempPassword}\n\nShare it privately. They can sign in at epicielts.live.`
-        : `${r.data.email} already had a teacher login. It is now linked.`);
+      const r = await axios.post(`${P}/teachers/${t.id}/login`, { email, password: pw || undefined }, api());
+      const text = `Teacher login\nEmail: ${r.data.email}\nPassword: ${r.data.tempPassword}\nSign in at epicielts.live`;
+      try { await navigator.clipboard.writeText(text); } catch { /* clipboard blocked */ }
+      window.alert(`${text}\n\n(Copied. Send it to them privately.)`);
       onChanged();
     } catch (e) { flash(errText(e)); }
   };
@@ -676,7 +678,7 @@ function Teachers({ programId, data, flash, isAdmin, onChanged }) {
                     <td style={{ padding: '6px 12px' }}><input disabled={!isAdmin} style={{ ...input, width: 170 }} value={t.focus || ''} onChange={e => set(t.id, 'focus', e.target.value)} /></td>
                     <td style={{ padding: '6px 12px', textAlign: 'center' }}><input disabled={!isAdmin} type="checkbox" checked={t.confirmed} onChange={e => set(t.id, 'confirmed', e.target.checked)} /></td>
                     <td style={{ padding: '6px 12px', color: C.muted, whiteSpace: 'nowrap' }}>{h ? `${h.hours} h · ${h.done}/${h.total} done` : '—'}</td>
-                    <td style={{ padding: '6px 12px' }}>{t.accountId ? <span style={{ fontSize: 12, color: '#166534' }}>Linked</span> : isAdmin ? <button style={{ ...btn(), padding: '4px 10px', fontSize: 12 }} onClick={() => makeLogin(t)}>Create login</button> : '—'}</td>
+                    <td style={{ padding: '6px 12px' }}>{t.accountId && <div style={{ fontSize: 12, color: '#166534' }}>Has login{t.email ? `: ${t.email}` : ''}</div>}{isAdmin ? <button style={{ ...btn(), padding: '4px 10px', fontSize: 12 }} onClick={() => makeLogin(t)}>{t.accountId ? 'Reset password' : 'Create login'}</button> : (t.accountId ? '' : '—')}</td>
                     <td style={{ padding: '6px 12px' }}>{isAdmin && dirty[t.id] && <button style={{ ...btn('primary'), padding: '6px 12px' }} onClick={() => save(t)}>Save</button>}</td>
                   </tr>
                 );

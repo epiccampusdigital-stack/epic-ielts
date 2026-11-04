@@ -173,30 +173,43 @@ const W1_ANNA = {
     ['09:15','10:00','ASSESSMENT','Computer paper: Course paper 1, Reading','On the site. Students work alone, Anna stays in the room.'],
     ['10:00','10:15','BREAK','Tea break'],
     ['10:15','11:05','ASSESSMENT','Computer paper: Course paper 1, Writing','On the site.'],
-    ['11:05','12:05','ENGLISH','Group activity: Fix the mistake (parts of speech)','Seated group activity. Wrong sentences on cards, groups find and fix the mistake.'],
-    ['12:05','12:35','ENGLISH','Make your own mistake sentences','Each group writes wrong sentences for another group to fix.'],
+    ['11:05','12:05','ENGLISH','Group activity (parts of speech)','Seated group activity with the teacher.'],
+    ['12:05','12:35','ENGLISH','Group activity: write your own sentences','Each group writes sentences for another group.'],
     ['12:35','13:00','IT_LAB','Learn lessons on the computer: Day 1','General English > Learn.'],
   ],
   W1_2: [
     ['09:00','09:10','ACTIVITY','Warm-up','Quick question round.'],
     ['09:10','10:10','ASSESSMENT','Computer paper: Listening practice 1','On the site (General English listening).'],
     ['10:10','10:25','BREAK','Tea break'],
-    ['10:25','11:25','ENGLISH','Group activity: Fix the mistake (nouns, pronouns, adverbs)','Seated group activity with wrong-sentence cards.'],
-    ['11:25','12:05','ENGLISH','Make your own mistake sentences','Groups write wrong sentences for another group to fix.'],
+    ['10:25','11:25','ENGLISH','Group activity (nouns, pronouns, adverbs)','Seated group activity with the teacher.'],
+    ['11:25','12:05','ENGLISH','Group activity: write your own sentences','Groups write sentences for another group.'],
     ['12:05','13:00','IT_LAB','Learn lessons on the computer: Days 4 and 5','General English > Learn.'],
   ],
   W1_3: [
     ['09:00','09:35','ASSESSMENT','Computer paper: Week 1 Quiz','On the site (General English weekly quiz).'],
     ['09:35','10:25','ASSESSMENT','Computer paper: Course paper 2, Reading','On the site.'],
     ['10:25','10:40','BREAK','Tea break'],
-    ['10:40','11:40','ENGLISH','Group activity: Fix the mistake (sentence patterns)','Seated group activity with wrong-sentence cards.'],
-    ['11:40','12:20','ENGLISH','Make your own mistake sentences','Groups write wrong sentences for another group to fix.'],
+    ['10:40','11:40','ENGLISH','Group activity (sentence patterns)','Seated group activity with the teacher.'],
+    ['11:40','12:20','ENGLISH','Group activity: write your own sentences','Groups write sentences for another group.'],
     ['12:20','13:00','IT_LAB','Learn lessons on the computer: Day 6','General English > Learn.'],
   ],
 };
 
 function week1Day(day, add, brk) {
   const p = PLAN[day];
+  if (day === 5) {
+    // Tuesday 3 Nov only: English 9-12, lunch 12-2, Korean 2-6
+    add({ startTime: '09:00', endTime: '10:45', subject: 'ENGLISH', language: EN, title: 'English: verb forms (present, past, past participle)', description: 'Tute with the teacher: fill in the table together, then the list and practice.', teacher: 'EN_SPEAKING' });
+    brk('10:45', '11:00');
+    add({ startTime: '11:00', endTime: '12:00', subject: 'ENGLISH', language: EN, title: 'English: present simple (tense tute 1)', description: 'Affirmative, negative, active and passive, then the activity with the teacher.', teacher: 'EN_SPEAKING' });
+    add({ startTime: '12:00', endTime: '14:00', subject: 'BREAK', language: null, title: 'Lunch' });
+    const k = koreanAt(day, 'pm');
+    add({ startTime: '14:00', endTime: '15:45', subject: 'KOREAN', language: KR, title: `Korean: ${k}`, description: wb(day), teacher: 'KR_2' });
+    brk('15:45', '16:00', 'Short break');
+    add({ startTime: '16:00', endTime: '17:00', subject: 'KOREAN', language: KR, title: `Korean practice: ${k}`, teacher: 'KR_2' });
+    add({ startTime: '17:00', endTime: '18:00', subject: 'IT_LAB', language: KR, title: 'IT lab: Korean practice', description: itLabTaskFor(day), link: 'KOREAN_SITE', teacher: 'KR_2' });
+    return;
+  }
   // ---- morning 9:00-1:00
   if (isKR(p.am)) {
     const k = koreanAt(day, 'am'), test = /test|check|exam/i.test(k);

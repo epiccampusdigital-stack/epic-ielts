@@ -419,9 +419,10 @@ function SessionCard({ s, students, flash, onSaved, live, isAdmin }) {
 
 function Materials({ flash }) {
   const [groups, setGroups] = useState(null);
+  const [scope, setScope] = useState(null);
   const [q, setQ] = useState('');
   useEffect(() => {
-    axios.get(`${P}/materials`, api()).then(r => setGroups(r.data)).catch(e => { flash(errText(e)); setGroups([]); });
+    axios.get(`${P}/materials`, api()).then(r => { setGroups(r.data.groups || []); setScope(r.data.scope); }).catch(e => { flash(errText(e)); setGroups([]); });
   }, [flash]);
   const open = async (folder, name) => {
     try {
@@ -437,10 +438,10 @@ function Materials({ flash }) {
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
         <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Materials</h2>
-        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Answer sheets, teacher copies and student sheets. Open them on the screen, so there is no need to print the teacher copies.</p>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>{scope && scope !== 'Everything' ? `Showing the materials for ${scope}, and the timetable. ` : ''}Open them on the screen, so there is no need to print the teacher copies.</p>
       </div>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search (for example: present simple, reading, hangul)" style={{ ...input, maxWidth: 420 }} />
-      {groups.length === 0 && <div style={{ ...card, padding: 16, color: C.muted }}>No files yet.</div>}
+      {groups.length === 0 && <div style={{ ...card, padding: 16, color: C.muted }}>Nothing here yet. If this looks wrong, ask the admin to link your login to your teacher name in the Teachers tab.</div>}
       {groups.map(g => {
         const files = g.files.filter(f => !term || f.title.toLowerCase().includes(term));
         if (!files.length) return null;

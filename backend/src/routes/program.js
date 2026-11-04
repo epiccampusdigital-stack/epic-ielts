@@ -212,24 +212,43 @@ router.put('/sessions/:sid/attendance', wrap(async (req, res) => {
   res.json(await prisma.programAttendance.findMany({ where: { sessionId } }));
 }));
 
-// ─── Materials: answer sheets, teacher copies and print sheets (staff only: this whole router needs a staff login) ───
+// ─── Materials: answer sheets, teacher copies and print sheets ───
 // Files live in backend/materials/<folder>/<file>.pdf. A leading number in a folder name only sets the order.
+// materials/access.json says who each file is for: ALL, ENGLISH, KOREAN, IT, or a teacher's first name in capitals (ANNA).
+// Admins see everything. A programme teacher sees the files for their own subject, their own name, and ALL.
 const MATERIALS_DIR = require('path').join(__dirname, '..', '..', 'materials');
-function listMaterials() {
+function listMaterials(viewer) {
   const fs = require('fs'), path = require('path');
   if (!fs.existsSync(MATERIALS_DIR)) return [];
+  let access = {};
+  try { access = JSON.parse(fs.readFileSync(path.join(MATERIALS_DIR, 'access.json'), 'utf8')); } catch (e) { /* no rules: only ALL is shown to teachers */ }
+  const tokens = new Set(['ALL']);
+  if (viewer?.teacher) {
+    tokens.add(String(viewer.teacher.subject || '').toUpperCase());
+    String(viewer.teacher.name || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean).forEach(w => tokens.add(w));
+  }
+  const allowed = (folder, f) => viewer?.admin || (access[`${folder}/${f}`] || []).some(t => tokens.has(t));
   return fs.readdirSync(MATERIALS_DIR, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()
     .map(folder => ({
       folder,
       title: folder.replace(/^\d+\s+/, ''),
-      files: fs.readdirSync(path.join(MATERIALS_DIR, folder)).filter(f => /\.pdf$/i.test(f)).sort()
+      files: fs.readdirSync(path.join(MATERIALS_DIR, folder)).filter(f => /\.pdf$/i.test(f) && allowed(folder, f)).sort()
         .map(f => ({ name: f, title: f.replace(/\.pdf$/i, ''), kb: Math.round(fs.statSync(path.join(MATERIALS_DIR, folder, f)).size / 1024) })),
-    }));
+    })).filter(g => g.files.length);
 }
-router.get('/materials', wrap(async (req, res) => { res.json(listMaterials()); }));
+async function materialsViewer(req) {
+  if (['ADMIN', 'TEACHER'].includes(req.user.role)) return { admin: true };
+  const teacher = await prisma.programTeacher.findFirst({ where: { accountId: req.user.id } });
+  return { admin: false, teacher };
+}
+router.get('/materials', wrap(async (req, res) => {
+  const viewer = await materialsViewer(req);
+  const scope = viewer.admin ? 'Everything' : viewer.teacher ? `${viewer.teacher.name} (${String(viewer.teacher.subject || '').toLowerCase()})` : null;
+  res.json({ scope, groups: listMaterials(viewer) });
+}));
 router.get('/materials/file', wrap(async (req, res) => {
   const folder = String(req.query.folder || ''), name = String(req.query.name || '');
-  const ok = listMaterials().find(g => g.folder === folder)?.files.find(f => f.name === name);
+  const ok = listMaterials(await materialsViewer(req)).find(g => g.folder === folder)?.files.find(f => f.name === name);
   if (!ok) return res.status(404).json({ error: 'File not found' });
   res.sendFile(require('path').join(MATERIALS_DIR, folder, name), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=300' } });
 }));

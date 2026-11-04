@@ -91,14 +91,15 @@ router.get('/:id', wrap(async (req, res) => {
     },
   });
   if (!program) return res.status(404).json({ error: 'Programme not found' });
-  const teachers = await prisma.programTeacher.findMany({ orderBy: [{ subject: 'asc' }, { name: 'asc' }] });
-  const counts = await prisma.programSession.groupBy({ by: ['status'], where: { programId: id, subject: { not: 'BREAK' } }, _count: true });
+  const hide = await hiddenLanguage(req);
+  const teachers = await prisma.programTeacher.findMany({ where: hide ? { subject: { not: subjectOfHidden(hide) } } : {}, orderBy: [{ subject: 'asc' }, { name: 'asc' }] });
+  const counts = await prisma.programSession.groupBy({ by: ['status'], where: { programId: id, subject: { not: 'BREAK' }, ...langFilter(hide) }, _count: true });
   const pending = await prisma.programReminder.count({ where: { programId: id, status: 'PENDING', dueAt: { lte: new Date(Date.now() + 15 * 60000) } } });
   const today = T.todayColombo();
   const todayDay = program.days.find(d => d.date === today) || null;
   const planId = require('../data/program/koreaBatch1').PLAN_ID;
   const planCurrent = (await prisma.programChangeLog.count({ where: { programId: id, summary: { contains: planId } } })) > 0;
-  res.json({ program, teachers, counts, pendingReminders: pending, today, todayDay, planCurrent });
+  res.json({ program, teachers, counts, pendingReminders: pending, today, todayDay, planCurrent, hiddenLanguage: hide });
 }));
 
 // Rebuild the days and sessions from the latest 30-day plan. Keeps teachers, students and settings.
@@ -151,12 +152,22 @@ router.put('/:id', adminRoleOnly, wrap(async (req, res) => {
   res.json(await prisma.program.update({ where: { id: int(req.params.id) }, data }));
 }));
 
+// A programme teacher only sees their own language: English teachers get no Korean sessions or teachers, and the other way round.
+async function hiddenLanguage(req) {
+  if (req.user?.role !== 'PROGRAM_TEACHER') return null;
+  const t = await prisma.programTeacher.findFirst({ where: { accountId: req.user.id } });
+  return t?.subject === 'ENGLISH' ? 'KR' : t?.subject === 'KOREAN' ? 'EN' : null;
+}
+const subjectOfHidden = hide => (hide === 'KR' ? 'KOREAN' : hide === 'EN' ? 'ENGLISH' : null);
+const langFilter = hide => (hide ? { OR: [{ language: null }, { language: { not: hide } }] } : {});
+
 // ─── Sessions ────────────────────────────────────────────────────────────────
 router.get('/:id/sessions', wrap(async (req, res) => {
   const programId = int(req.params.id);
   const where = { programId };
   if (req.query.day) where.dayNumber = int(req.query.day);
   if (req.query.teacherId) where.teacherId = int(req.query.teacherId);
+  Object.assign(where, langFilter(await hiddenLanguage(req)));
   const sessions = await prisma.programSession.findMany({
     where,
     include: { teacher: { select: { id: true, name: true, phone: true } }, attendance: true },
@@ -268,7 +279,8 @@ router.get('/my', wrap(async (req, res) => {
 
 // ─── Teachers ────────────────────────────────────────────────────────────────
 router.get('/teachers', wrap(async (req, res) => {
-  res.json(await prisma.programTeacher.findMany({ orderBy: [{ subject: 'asc' }, { name: 'asc' }] }));
+  const hide = await hiddenLanguage(req);
+  res.json(await prisma.programTeacher.findMany({ where: hide ? { subject: { not: subjectOfHidden(hide) } } : {}, orderBy: [{ subject: 'asc' }, { name: 'asc' }] }));
 }));
 
 function teacherData(b) {
@@ -361,8 +373,9 @@ router.delete('/students/:psid', adminRoleOnly, wrap(async (req, res) => {
 router.get('/:id/stats', wrap(async (req, res) => {
   const programId = int(req.params.id);
   const students = await prisma.programStudent.findMany({ where: { programId, active: true }, include: { attendance: true } });
+  const hide = await hiddenLanguage(req);
   const sessions = await prisma.programSession.findMany({
-    where: { programId, subject: { notIn: ['BREAK'] } },
+    where: { programId, subject: { notIn: ['BREAK'] }, ...langFilter(hide) },
     select: { id: true, teacherId: true, status: true, dayNumber: true, language: true, startTime: true, endTime: true },
   });
   const teachers = await prisma.programTeacher.findMany();
@@ -379,7 +392,7 @@ router.get('/:id/stats', wrap(async (req, res) => {
   }).filter(t => t.total > 0);
   const lang = { EN: 0, KR: 0 };
   sessions.filter(s => s.status !== 'CANCELLED' && s.language).forEach(s => { lang[s.language] += T.minutes(s.endTime) - T.minutes(s.startTime); });
-  res.json({ byStudent, byTeacher, hours: { english: Math.round(lang.EN / 6) / 10, korean: Math.round(lang.KR / 6) / 10 } });
+  res.json({ byStudent, byTeacher, hours: { english: Math.round(lang.EN / 6) / 10, korean: Math.round(lang.KR / 6) / 10 }, hiddenLanguage: hide });
 }));
 
 // ─── Day 1 placement (General English) ──────────────────────────────────────

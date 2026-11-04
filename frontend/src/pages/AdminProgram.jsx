@@ -157,9 +157,9 @@ export default function AdminProgram() {
     { id: 'today', label: 'Today' },
     { id: 'schedule', label: 'Schedule' },
     { id: 'materials', label: 'Materials' },
-    { id: 'teachers', label: 'Teachers' },
+    ...(isAdmin ? [{ id: 'teachers', label: 'Teachers' }] : []),
     { id: 'students', label: 'Students' },
-    { id: 'reminders', label: 'Reminders', badge: data?.pendingReminders || 0 },
+    ...(isAdmin ? [{ id: 'reminders', label: 'Reminders', badge: data?.pendingReminders || 0 }] : []),
     ...(isAdmin ? [{ id: 'assistant', label: 'Ask Claude' }] : []),
     { id: 'progress', label: 'Progress' },
   ];
@@ -263,7 +263,7 @@ export default function AdminProgram() {
             {tab === 'students' && <Students programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'reminders' && <Reminders programId={programId} data={data} flash={flash} isAdmin={isAdmin} whatsappApi={boot.whatsappApi} onChanged={loadProgram} />}
             {tab === 'assistant' && <Assistant programId={programId} flash={flash} aiEnabled={boot.aiEnabled} onChanged={loadProgram} />}
-            {tab === 'progress' && <Progress programId={programId} />}
+            {tab === 'progress' && <Progress programId={programId} hide={data?.hiddenLanguage} />}
           </>
         )}
       </main>
@@ -309,10 +309,10 @@ function DayView({ programId, data, dayNumber, flash, isAdmin, onChanged, goRemi
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ fontSize: 13, color: C.muted }}>Day {day.dayNumber} · {prettyDate(day.date)}</div>
           <h2 style={{ margin: '2px 0 10px', fontSize: 22, fontFamily: 'Source Sans Pro, sans-serif' }}>{day.theme}</h2>
-          <div style={{ fontSize: 13, color: '#1e2229', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>
+          {data.hiddenLanguage !== 'EN' && <div style={{ fontSize: 13, color: '#1e2229', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>}
         </div>
         <div style={{ minWidth: 220, flex: '0 1 320px', fontSize: 13, lineHeight: 1.6 }}>
-          <div><b>Korean:</b> {day.koreanFocus}</div>
+          {data.hiddenLanguage !== 'KR' && <div><b>Korean:</b> {day.koreanFocus}</div>}
           <div style={{ marginTop: 6 }}><b>IT lab:</b> {day.itLabTask}</div>
           {data.pendingReminders > 0 && (
             <button style={{ ...btn('gold'), marginTop: 12 }} onClick={goReminders}>{data.pendingReminders} reminder{data.pendingReminders > 1 ? 's' : ''} to send</button>
@@ -571,8 +571,8 @@ function Schedule({ programId, data, flash, isAdmin, onChanged }) {
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ fontSize: 13, color: C.muted }}>Day {day.dayNumber} · {prettyDate(day.date)}</div>
                 <div style={{ fontSize: 19, fontWeight: 700, margin: '2px 0 6px' }}>{day.theme}</div>
-                <div style={{ fontSize: 13, color: '#1e2229', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>
-                <div style={{ fontSize: 13, marginTop: 6 }}><b>Korean:</b> {day.koreanFocus}</div>
+                {data.hiddenLanguage !== 'EN' && <div style={{ fontSize: 13, color: '#1e2229', whiteSpace: 'pre-line', lineHeight: 1.6 }}>{day.englishFocus}</div>}
+                {data.hiddenLanguage !== 'KR' && <div style={{ fontSize: 13, marginTop: 6 }}><b>Korean:</b> {day.koreanFocus}</div>}
               </div>
               {isAdmin && (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -1111,7 +1111,7 @@ function Assistant({ programId, flash, aiEnabled, onChanged }) {
 
 // ─── Progress ────────────────────────────────────────────────────────────────
 
-function Progress({ programId }) {
+function Progress({ programId, hide }) {
   const [s, setS] = useState(null);
   useEffect(() => { axios.get(`${P}/${programId}/stats`, api()).then(r => setS(r.data)).catch(() => setS({ error: true })); }, [programId]);
   if (!s) return <p style={{ color: C.muted }}>Loading…</p>;
@@ -1126,8 +1126,8 @@ function Progress({ programId }) {
           <div style={{ width: `${(s.hours.korean / total) * 100}%`, background: '#f97316' }} />
         </div>
         <div style={{ display: 'flex', gap: 20, marginTop: 8, fontSize: 13 }}>
-          <span><span style={{ color: C.indigo }}>■</span> English {s.hours.english} h</span>
-          <span><span style={{ color: '#f97316' }}>■</span> Korean {s.hours.korean} h</span>
+          {hide !== 'EN' && <span><span style={{ color: C.indigo }}>■</span> English {s.hours.english} h</span>}
+          {hide !== 'KR' && <span><span style={{ color: '#f97316' }}>■</span> Korean {s.hours.korean} h</span>}
         </div>
       </div>
       <div className="pg-grid2" style={{ alignItems: 'start' }}>

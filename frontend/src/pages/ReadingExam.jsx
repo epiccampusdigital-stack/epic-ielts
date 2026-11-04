@@ -690,14 +690,31 @@ export default function ReadingExam() {
    const passageTitle = currentPassageData?.title || `Reading Passage ${currentPassage}`;
    const passageText = currentPassageData?.text || splitTextMap[currentPassage] || paper?.instructions || 'Passage text not available.';
 
+   // The word under the click (or the selected word). Old code used the first word of the whole paragraph.
+   const wordAtPoint = (x, y) => {
+      let node = null, offset = 0;
+      if (document.caretPositionFromPoint) {
+         const pos = document.caretPositionFromPoint(x, y);
+         if (pos) { node = pos.offsetNode; offset = pos.offset; }
+      } else if (document.caretRangeFromPoint) {
+         const r = document.caretRangeFromPoint(x, y);
+         if (r) { node = r.startContainer; offset = r.startOffset; }
+      }
+      if (!node || node.nodeType !== 3) return '';
+      const t = node.textContent || '';
+      const isW = (c) => /[A-Za-z'\u2019-]/.test(c || '');
+      let s = Math.min(offset, t.length), e = s;
+      while (s > 0 && isW(t[s - 1])) s--;
+      while (e < t.length && isW(t[e])) e++;
+      return t.slice(s, e);
+   };
+
    const handleWordClick = async (e) => {
-      const selection = window.getSelection();
-      const word = selection?.toString().trim() ||
-         e.target.innerText?.trim().split(/\s+/)[0];
+      const selected = (window.getSelection()?.toString() || '').trim();
+      let word = selected && !/\s/.test(selected) && selected.length <= 30 ? selected : wordAtPoint(e.clientX, e.clientY);
       if (!word || word.length < 3) return;
-      const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-      if (!clean) return;
-      const rect = e.target.getBoundingClientRect();
+      const clean = word.toLowerCase().replace(/['\u2019]s$/, '').replace(/[^a-z-]/g, '').replace(/^-+|-+$/g, '');
+      if (!clean || clean.length < 3) return;
       setWordPopup({
          word: clean, definition: null,
          x: e.clientX, y: e.clientY
@@ -727,7 +744,7 @@ export default function ReadingExam() {
       } catch {
          setWordPopup({
             word: clean,
-            definition: 'Definition not found.',
+            definition: 'No definition found. Check the spelling or your internet connection.',
             x: e.clientX,
             y: e.clientY
          });
@@ -1142,9 +1159,25 @@ export default function ReadingExam() {
                   }}
                   onClick={handleWordClick}
                >
-                  {passageText.split('\n\n').map((para, i) => (
-                    <p key={i} style={{ marginBottom: 16 }}>{para}</p>
-                  ))}
+                  {(() => {
+                     const paras = passageText.split('\n\n');
+                     // IELTS reading passages show paragraph letters A, B, C... (unless the text already has them).
+                     const isLabelled = (t) => /^\s*(\[[A-H]\]|[A-H][.):]\s|[A-H]\s{2,})/.test(t);
+                     const body = paras.filter((t) => t.trim().length > 40);
+                     const addLetters = paper?.track !== 'GENERAL' && !String(paper?.paperCode || '').startsWith('GE-') && body.length >= 2 && body.length <= 8 && !body.some(isLabelled);
+                     let k = -1;
+                     return paras.map((para, i) => {
+                        const letter = addLetters && para.trim().length > 40 ? 'ABCDEFGH'[++k] : null;
+                        return (
+                           <p key={i} style={{ marginBottom: 16, position: 'relative', paddingLeft: letter ? 34 : 0 }}>
+                              {letter && (
+                                 <span style={{ position: 'absolute', left: 0, top: 4, width: 24, height: 24, lineHeight: '24px', textAlign: 'center', borderRadius: 6, background: '#0056d2', color: '#fff', fontFamily: 'Source Sans Pro, Arial, sans-serif', fontSize: 13, fontWeight: 700, userSelect: 'none' }}>{letter}</span>
+                              )}
+                              {para}
+                           </p>
+                        );
+                     });
+                  })()}
                </div>
             </div>
 

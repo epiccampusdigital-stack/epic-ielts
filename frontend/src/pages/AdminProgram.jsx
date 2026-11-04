@@ -156,6 +156,7 @@ export default function AdminProgram() {
     ...(isAdmin ? [] : [{ id: 'mine', label: 'My sessions' }]),
     { id: 'today', label: 'Today' },
     { id: 'schedule', label: 'Schedule' },
+    { id: 'materials', label: 'Materials' },
     { id: 'teachers', label: 'Teachers' },
     { id: 'students', label: 'Students' },
     { id: 'reminders', label: 'Reminders', badge: data?.pendingReminders || 0 },
@@ -256,6 +257,7 @@ export default function AdminProgram() {
           <>
             {tab === 'mine' && <MySessions flash={flash} />}
             {tab === 'today' && <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} goReminders={() => setTab('reminders')} />}
+            {tab === 'materials' && <Materials flash={flash} />}
             {tab === 'schedule' && <Schedule programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'teachers' && <Teachers programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'students' && <Students programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
@@ -414,6 +416,50 @@ function SessionCard({ s, students, flash, onSaved, live, isAdmin }) {
 }
 
 // ─── Teacher's own sessions ──────────────────────────────────────────────────
+
+function Materials({ flash }) {
+  const [groups, setGroups] = useState(null);
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    axios.get(`${P}/materials`, api()).then(r => setGroups(r.data)).catch(e => { flash(errText(e)); setGroups([]); });
+  }, [flash]);
+  const open = async (folder, name) => {
+    try {
+      const r = await axios.get(`${P}/materials/file`, { ...api(), params: { folder, name }, responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { flash('Could not open the file. Please try again.'); }
+  };
+  if (!groups) return <p style={{ color: C.muted }}>Loading…</p>;
+  const term = q.trim().toLowerCase();
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div>
+        <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Materials</h2>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Answer sheets, teacher copies and student sheets. Open them on the screen, so there is no need to print the teacher copies.</p>
+      </div>
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search (for example: present simple, reading, hangul)" style={{ ...input, maxWidth: 420 }} />
+      {groups.length === 0 && <div style={{ ...card, padding: 16, color: C.muted }}>No files yet.</div>}
+      {groups.map(g => {
+        const files = g.files.filter(f => !term || f.title.toLowerCase().includes(term));
+        if (!files.length) return null;
+        return (
+          <div key={g.folder} style={{ ...card, padding: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{g.title}</div>
+            {files.map(f => (
+              <div key={f.name} className="pg-row" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 4px', borderTop: `1px solid ${C.line}`, fontSize: 15 }}>
+                <span style={{ flex: 1 }}>{f.title}</span>
+                <span style={{ color: C.muted, fontSize: 12 }}>{f.kb} KB</span>
+                <button onClick={() => open(g.folder, f.name)} style={btn('outline')}>Open</button>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function MySessions({ flash }) {
   const [state, setState] = useState({ loading: true });

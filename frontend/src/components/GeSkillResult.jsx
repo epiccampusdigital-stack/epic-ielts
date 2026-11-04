@@ -118,6 +118,13 @@ export default function GeSkillResult({ skill, title, feedback, loading, failed,
                 {r.response?.trim() || <span style={{ color: C.faint, fontStyle: 'italic' }}>No answer</span>}
               </div>
               {item?.feedback && <p style={{ margin: '12px 0 0', fontSize: 14, lineHeight: 1.6 }}>{item.feedback}</p>}
+              {r.modelAnswer && (
+                <div style={{ marginTop: 16, background: '#effaf1', border: '1px solid #b7e4c0', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#166534', marginBottom: 6 }}>Model answer</div>
+                  <div style={{ fontFamily: SERIF, fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', color: '#0f1114' }}>{r.modelAnswer}</div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: C.sub }}>This is one good answer. Yours can be different. Compare the order of ideas, the linking words and the verb forms.</div>
+                </div>
+              )}
             </section>
           );
         })}

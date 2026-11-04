@@ -1297,7 +1297,12 @@ router.get('/:id/writing/result', auth, async (req, res) => {
       include: { paper: { include: { writingTasks: true } }, writingSubmission: true, result: true }
     });
     if (!attempt) return res.status(404).json({ message: 'Not found' });
-    res.json(attempt);
+    // General English writing: send the model answers only after the student has handed in.
+    const out = { ...attempt };
+    if (attempt.paper?.track === 'GENERAL' && attempt.writingSubmission) {
+      out.modelAnswers = require('../data/geModelAnswers').modelAnswersFor(attempt.paper.paperCode);
+    }
+    res.json(out);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -109,7 +109,7 @@ export default function WritingResults() {
         feedback={feedback}
         loading={feedbackLoading && !feedback}
         failed={!feedbackLoading && !feedback}
-        responses={tasks.map(t => ({ prompt: t.prompt, response: t.taskNumber === 1 ? ws.task1Response : ws.task2Response }))}
+        responses={tasks.map(t => ({ prompt: t.prompt, response: t.taskNumber === 1 ? ws.task1Response : ws.task2Response, modelAnswer: data.modelAnswers?.[t.taskNumber] || null }))}
       />
     );
   }

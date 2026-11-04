@@ -212,6 +212,28 @@ router.put('/sessions/:sid/attendance', wrap(async (req, res) => {
   res.json(await prisma.programAttendance.findMany({ where: { sessionId } }));
 }));
 
+// ─── Materials: answer sheets, teacher copies and print sheets (staff only: this whole router needs a staff login) ───
+// Files live in backend/materials/<folder>/<file>.pdf. A leading number in a folder name only sets the order.
+const MATERIALS_DIR = require('path').join(__dirname, '..', '..', 'materials');
+function listMaterials() {
+  const fs = require('fs'), path = require('path');
+  if (!fs.existsSync(MATERIALS_DIR)) return [];
+  return fs.readdirSync(MATERIALS_DIR, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()
+    .map(folder => ({
+      folder,
+      title: folder.replace(/^\d+\s+/, ''),
+      files: fs.readdirSync(path.join(MATERIALS_DIR, folder)).filter(f => /\.pdf$/i.test(f)).sort()
+        .map(f => ({ name: f, title: f.replace(/\.pdf$/i, ''), kb: Math.round(fs.statSync(path.join(MATERIALS_DIR, folder, f)).size / 1024) })),
+    }));
+}
+router.get('/materials', wrap(async (req, res) => { res.json(listMaterials()); }));
+router.get('/materials/file', wrap(async (req, res) => {
+  const folder = String(req.query.folder || ''), name = String(req.query.name || '');
+  const ok = listMaterials().find(g => g.folder === folder)?.files.find(f => f.name === name);
+  if (!ok) return res.status(404).json({ error: 'File not found' });
+  res.sendFile(require('path').join(MATERIALS_DIR, folder, name), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=300' } });
+}));
+
 // ─── Teacher's own view (TEACHER logins linked to a ProgramTeacher) ──────────
 router.get('/my', wrap(async (req, res) => {
   const teacher = await prisma.programTeacher.findFirst({ where: { accountId: req.user.id } });

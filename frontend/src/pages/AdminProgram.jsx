@@ -10,7 +10,7 @@ const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('t
 const P = `${API_URL}/api/program`;
 
 const C = {
-  navy: '#002761', indigo: '#0056d2', gold: '#0056d2', bg: '#ffffff', card: '#ffffff',
+  navy: '#002761', indigo: '#0056d2', gold: '#0056d2', bg: '#f3f6fb', card: '#ffffff',
   line: '#dae1ed', text: '#0f1114', muted: '#5b6780', faint: '#8495b0',
 };
 const SUBJECT = {
@@ -75,7 +75,7 @@ export default function AdminProgram() {
   const [boot, setBoot] = useState({ loading: true });
   const [programId, setProgramId] = useState(null);
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState(isAdmin ? 'today' : 'mine');
+  const [tab, setTab] = useState('dash');
   const [toast, setToast] = useState('');
 
   const toastTimer = useRef(null);
@@ -153,12 +153,14 @@ export default function AdminProgram() {
   };
 
   const tabs = [
+    { id: 'dash', label: 'Dashboard' },
     ...(isAdmin ? [] : [{ id: 'mine', label: 'My sessions' }]),
     { id: 'today', label: 'Today' },
     { id: 'schedule', label: 'Schedule' },
     { id: 'materials', label: 'Materials' },
     ...(isAdmin ? [{ id: 'teachers', label: 'Teachers' }] : []),
     { id: 'students', label: 'Students' },
+    { id: 'papers', label: 'Papers' },
     ...(isAdmin ? [{ id: 'reminders', label: 'Reminders', badge: data?.pendingReminders || 0 }] : []),
     ...(isAdmin ? [{ id: 'assistant', label: 'Ask Claude' }] : []),
     { id: 'progress', label: 'Progress' },
@@ -171,6 +173,21 @@ export default function AdminProgram() {
         .pg-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
         .pg-tabs::-webkit-scrollbar { display: none; }
         .pg-row:hover { background: #f7f9fc; }
+        .pg-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 14px; }
+        .pg-tile { background: #fff; border: 1px solid ${C.line}; border-radius: 16px; padding: 16px 18px; position: relative; overflow: hidden; transition: box-shadow .15s, transform .15s; }
+        .pg-tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--ac, ${C.indigo}); }
+        .pg-tile.click { cursor: pointer; }
+        .pg-tile.click:hover { box-shadow: 0 6px 22px rgba(0,39,97,.12); transform: translateY(-2px); }
+        .pg-tile .k { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: ${C.muted}; font-weight: 700; }
+        .pg-tile .v { font-size: 30px; font-weight: 700; line-height: 1.15; margin-top: 4px; color: ${C.text}; }
+        .pg-tile .s { font-size: 13px; color: ${C.muted}; margin-top: 4px; }
+        .pg-bar { height: 8px; border-radius: 99px; background: #e8eef7; overflow: hidden; margin-top: 10px; }
+        .pg-bar > i { display: block; height: 100%; background: var(--ac, ${C.indigo}); border-radius: 99px; }
+        .pg-tab-on { background: ${C.indigo} !important; color: #fff !important; border-radius: 10px !important; border-bottom: 3px solid transparent !important; }
+        .pg-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .pg-table th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: ${C.muted}; padding: 10px 12px; background: #f7f9fc; border-bottom: 1px solid ${C.line}; position: sticky; top: 0; }
+        .pg-table td { padding: 10px 12px; border-bottom: 1px solid #eef2f8; }
+        .pg-table tr:hover td { background: #f7faff; }
         .pg-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 760px) { .pg-grid2 { grid-template-columns: 1fr; } .pg-hide-sm { display: none !important; } }
       `}</style>
@@ -207,10 +224,9 @@ export default function AdminProgram() {
             <nav className="pg-tabs">
               {tabs.map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)} style={{
-                  height: 44, padding: '0 12px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, whiteSpace: 'nowrap',
-                  color: tab === t.id ? C.indigo : '#0f1114', fontWeight: 600,
-                  borderBottom: tab === t.id ? `3px solid ${C.indigo}` : '3px solid transparent',
-                }}>
+                  height: 40, padding: '0 16px', margin: '6px 2px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, whiteSpace: 'nowrap',
+                  color: '#0f1114', fontWeight: 600, borderRadius: 10,
+                }} className={tab === t.id ? 'pg-tab-on' : ''}>
                   {t.label}
                   {t.badge ? <span style={{ marginLeft: 6, background: C.indigo, color: '#fff', borderRadius: 50, padding: '1px 7px', fontSize: 12, fontWeight: 700 }}>{t.badge}</span> : null}
                 </button>
@@ -255,6 +271,8 @@ export default function AdminProgram() {
 
         {programId && data && (
           <>
+            {tab === 'dash' && <Dashboard programId={programId} data={data} isAdmin={isAdmin} setTab={setTab} flash={flash} />}
+            {tab === 'papers' && <Papers programId={programId} flash={flash} />}
             {tab === 'mine' && <MySessions flash={flash} />}
             {tab === 'today' && <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} goReminders={() => setTab('reminders')} />}
             {tab === 'materials' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
@@ -416,6 +434,223 @@ function SessionCard({ s, students, flash, onSaved, live, isAdmin }) {
 }
 
 // ─── Teacher's own sessions ──────────────────────────────────────────────────
+
+
+// ─── Dashboard (first screen) and Papers (all results) ──────────────────────
+
+function Tile({ k, v, s, color, onClick, bar }) {
+  return (
+    <div className={`pg-tile${onClick ? ' click' : ''}`} style={{ '--ac': color || C.indigo }} onClick={onClick}>
+      <div className="k">{k}</div>
+      <div className="v">{v}</div>
+      {s ? <div className="s">{s}</div> : null}
+      {bar != null ? <div className="pg-bar"><i style={{ width: `${Math.max(0, Math.min(100, bar))}%` }} /></div> : null}
+    </div>
+  );
+}
+const TYPE_CHIP = {
+  READING: { l: 'Reading', bg: '#e0e7ff', fg: '#003b8f' }, WRITING: { l: 'Writing', bg: '#fef9c3', fg: '#854d0e' },
+  LISTENING: { l: 'Listening', bg: '#dcfce7', fg: '#166534' }, SPEAKING: { l: 'Speaking', bg: '#ffedd5', fg: '#9a3412' },
+};
+const pctColor = p => (p == null ? C.muted : p >= 75 ? '#166534' : p >= 50 ? '#854d0e' : '#991b1b');
+function Chip({ type }) {
+  const c = TYPE_CHIP[type] || { l: type, bg: '#e8eef7', fg: C.muted };
+  return <span style={{ background: c.bg, color: c.fg, borderRadius: 50, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>{c.l}</span>;
+}
+function shortDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Colombo' });
+}
+
+function Dashboard({ programId, data, isAdmin, setTab, flash }) {
+  const [res, setRes] = useState(null);
+  const [place, setPlace] = useState(null);
+  const [today, setToday] = useState([]);
+  const [mine, setMine] = useState(null);
+  const dayNo = data?.todayDay?.dayNumber;
+  useEffect(() => {
+    if (!programId) return;
+    axios.get(`${P}/${programId}/results`, api()).then(r => setRes(r.data)).catch(() => setRes({ students: [], attempts: [] }));
+    axios.get(`${P}/${programId}/placement`, api()).then(r => setPlace(r.data)).catch(() => setPlace(null));
+    if (dayNo) axios.get(`${P}/${programId}/sessions?day=${dayNo}`, api()).then(r => setToday(r.data)).catch(() => setToday([]));
+    if (!isAdmin) axios.get(`${P}/my`, api()).then(r => setMine(r.data)).catch(() => setMine(null));
+  }, [programId, dayNo, isAdmin]);
+  if (!data?.program) return <p style={{ color: C.muted }}>Loading…</p>;
+  const user = readUser();
+  const first = (mine?.teacher?.name || user.name || '').split(' ')[0];
+  const now = new Date(Date.now() + 330 * 60000);
+  const nowStr = now.toISOString().slice(11, 16);
+  const todayStr = now.toISOString().slice(0, 10);
+  const real = today.filter(s => s.subject !== 'BREAK' && s.status !== 'CANCELLED');
+  const upcomingToday = real.filter(s => s.endTime > nowStr);
+  const mineNext = (mine?.sessions || []).filter(s => s.date && s.date >= todayStr && s.status !== 'CANCELLED' && !(s.date === todayStr && s.endTime <= nowStr)).slice(0, 5);
+  const list = isAdmin ? upcomingToday.slice(0, 5) : mineNext;
+  const week = dayNo ? Math.ceil(dayNo / 7) : null;
+  const total = data.program.days?.length || 30;
+  const attempts = res?.attempts || [];
+  const pcts = attempts.map(a => a.pct).filter(v => v != null);
+  const avg = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : null;
+  const doneToday = attempts.filter(a => a.endedAt && new Date(a.endedAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' }) === todayStr).length;
+  const counts = data.counts || [];
+  const sTotal = counts.reduce((n, c) => n + c._count, 0), sDone = counts.find(c => c.status === 'DONE')?._count || 0;
+  const levels = {};
+  [...(place?.rows || []), ...(place?.others || [])].forEach(r => { if (r.level) levels[r.level] = (levels[r.level] || 0) + 1; });
+  const levelList = ['Pre-A1', 'A1', 'A2', 'B1', 'B2'].filter(l => levels[l]);
+  const nStudents = res?.students?.length || (data.program.students || []).filter(s => s.active !== false).length;
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 26 }}>{first ? `Hi ${first}` : 'Dashboard'}</h2>
+        <p style={{ margin: '4px 0 0', color: C.muted }}>{data.todayDay ? `Day ${dayNo} of ${total} · ${prettyDate(data.todayDay.date)} · ${data.todayDay.theme}` : 'No class today.'}</p>
+      </div>
+      <div className="pg-tiles">
+        <Tile k="Today" v={dayNo ? `Day ${dayNo}` : 'Off'} s={dayNo ? `${real.length} sessions · ${upcomingToday.length} still to go` : 'No class day'} color="#0056d2" onClick={() => setTab('today')} />
+        <Tile k="Programme" v={week ? `Week ${week}` : '-'} s={dayNo ? `Day ${dayNo} of ${total}` : ''} bar={dayNo ? (dayNo / total) * 100 : 0} color="#7c3aed" onClick={() => setTab('schedule')} />
+        <Tile k="Students" v={nStudents || '-'} s="doing papers" color="#0e9f6e" onClick={() => setTab('students')} />
+        <Tile k="Papers done" v={res ? attempts.length : '…'} s={doneToday ? `${doneToday} today` : 'none yet today'} color="#f59e0b" onClick={() => setTab('papers')} />
+        <Tile k="Class average" v={avg != null ? `${avg}%` : '-'} s="reading, listening and writing" bar={avg || 0} color={avg == null ? C.muted : avg >= 75 ? '#0e9f6e' : avg >= 50 ? '#f59e0b' : '#dc2626'} onClick={() => setTab('papers')} />
+        <Tile k="Sessions done" v={`${sDone}/${sTotal || 0}`} s="across the programme" bar={sTotal ? (sDone / sTotal) * 100 : 0} color="#f97316" onClick={() => setTab('progress')} />
+      </div>
+
+      <div className="pg-grid2" style={{ alignItems: 'start' }}>
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 8 }}>{isAdmin ? 'Up next today' : 'Your next sessions'}</div>
+          {list.length === 0 && <p style={{ color: C.muted, margin: 0 }}>Nothing coming up.</p>}
+          {list.map(s => {
+            const sub = SUBJECT[s.subject] || SUBJECT.ADMIN;
+            return (
+              <div key={s.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 0', borderTop: `1px solid ${C.line}`, fontSize: 14 }}>
+                <span style={{ width: 118, color: C.muted, flexShrink: 0 }}>{!isAdmin && s.date && s.date !== todayStr ? `${prettyDate(s.date)} ` : ''}{pretty(s.startTime)}</span>
+                <span style={{ background: sub.bg, color: sub.fg, borderRadius: 50, padding: '1px 9px', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{sub.label}</span>
+                <span style={{ flex: 1 }}>{s.title}</span>
+              </div>
+            );
+          })}
+          <button style={{ ...btn('outline'), marginTop: 10 }} onClick={() => setTab(isAdmin ? 'today' : 'mine')}>{isAdmin ? 'Open today' : 'All my sessions'}</button>
+        </div>
+
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 8 }}>Latest papers</div>
+          {!res && <p style={{ color: C.muted, margin: 0 }}>Loading…</p>}
+          {res && attempts.length === 0 && <p style={{ color: C.muted, margin: 0 }}>{res.note || 'No papers finished yet.'}</p>}
+          {attempts.slice(0, 6).map(a => (
+            <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${C.line}`, fontSize: 14 }}>
+              <Chip type={a.testType} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <b>{a.studentName}</b><br /><span style={{ color: C.muted, fontSize: 12 }}>{a.title} · {shortDate(a.endedAt)}</span>
+              </span>
+              <b style={{ color: pctColor(a.pct) }}>{a.pct != null ? `${a.pct}%` : a.band != null ? `Band ${a.band}` : a.state === 'marking' ? 'Marking' : '-'}</b>
+            </div>
+          ))}
+          <button style={{ ...btn('outline'), marginTop: 10 }} onClick={() => setTab('papers')}>See all papers</button>
+        </div>
+      </div>
+
+      <div className="pg-grid2" style={{ alignItems: 'start' }}>
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>Class levels (Day 1 placement)</div>
+          {levelList.length === 0 && <p style={{ color: C.muted, margin: 0 }}>Levels show here when students finish all four parts.</p>}
+          {levelList.map(l => (
+            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0', fontSize: 14 }}>
+              <span style={{ width: 52, fontWeight: 700 }}>{l}</span>
+              <div className="pg-bar" style={{ flex: 1, marginTop: 0, height: 12 }}><i style={{ width: `${(levels[l] / Math.max(...Object.values(levels))) * 100}%` }} /></div>
+              <span style={{ width: 28, textAlign: 'right', color: C.muted }}>{levels[l]}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>Quick links</div>
+          <div className="pg-tiles" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            {[['Materials', 'Teacher copies and answers', 'materials', '#7c3aed'], ['Schedule', 'All 30 days', 'schedule', '#0056d2'], ['Papers', 'Every result', 'papers', '#f59e0b'], ['Students', 'Attendance and levels', 'students', '#0e9f6e']].map(([a, b, id, c]) => (
+              <div key={id} className="pg-tile click" style={{ '--ac': c, padding: '12px 14px' }} onClick={() => setTab(id)}>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{a}</div><div className="s">{b}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Papers({ programId, flash }) {
+  const [res, setRes] = useState(null);
+  const [sid, setSid] = useState('');
+  const [type, setType] = useState('');
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    axios.get(`${P}/${programId}/results`, api()).then(r => setRes(r.data)).catch(e => { flash(errText(e)); setRes({ students: [], attempts: [] }); });
+  }, [programId, flash]);
+  if (!res) return <p style={{ color: C.muted }}>Loading…</p>;
+  const term = q.trim().toLowerCase();
+  const rows = res.attempts.filter(a => (!sid || String(a.studentId) === sid) && (!type || a.testType === type) && (!term || `${a.title} ${a.paperCode} ${a.studentName}`.toLowerCase().includes(term)));
+  const pcts = rows.map(a => a.pct).filter(v => v != null);
+  const avg = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : null;
+  const best = pcts.length ? Math.max(...pcts) : null;
+  const sel = { ...input, minWidth: 160 };
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div>
+        <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>Papers and results</h2>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Every paper the students have finished on the site. This page is read only.</p>
+      </div>
+      <div className="pg-tiles">
+        <Tile k="Papers shown" v={rows.length} s={`of ${res.attempts.length} in total`} color="#f59e0b" />
+        <Tile k="Average" v={avg != null ? `${avg}%` : '-'} s="of the papers shown" bar={avg || 0} color={avg == null ? C.muted : avg >= 75 ? '#0e9f6e' : avg >= 50 ? '#f59e0b' : '#dc2626'} />
+        <Tile k="Best score" v={best != null ? `${best}%` : '-'} color="#0e9f6e" />
+        <Tile k="Students" v={res.students.length} s="with papers" color="#7c3aed" />
+      </div>
+
+      {res.students.length > 0 && (
+        <div style={{ ...card, padding: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>By student <span style={{ color: C.muted, fontWeight: 400, fontSize: 13 }}>(tap a name to filter)</span></div>
+          <div className="pg-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 10 }}>
+            {res.students.map(s => (
+              <div key={s.studentId} className="pg-tile click" style={{ '--ac': pctColor(s.avgPct), padding: '10px 14px', outline: String(s.studentId) === sid ? `2px solid ${C.indigo}` : 'none' }} onClick={() => setSid(String(s.studentId) === sid ? '' : String(s.studentId))}>
+                <div style={{ fontWeight: 700, fontSize: 14, textTransform: 'capitalize' }}>{String(s.name).toLowerCase()}</div>
+                <div className="s">{s.papers} {s.papers === 1 ? "paper" : "papers"} · {s.avgPct != null ? `${s.avgPct}% average` : 'no score yet'}</div>
+                <div className="pg-bar" style={{ marginTop: 6 }}><i style={{ width: `${s.avgPct || 0}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <select value={sid} onChange={e => setSid(e.target.value)} style={sel}>
+          <option value="">All students</option>
+          {res.students.map(s => <option key={s.studentId} value={s.studentId}>{s.name}</option>)}
+        </select>
+        <select value={type} onChange={e => setType(e.target.value)} style={sel}>
+          <option value="">All skills</option>
+          {Object.entries(TYPE_CHIP).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}
+        </select>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search paper or student" style={{ ...input, minWidth: 220 }} />
+      </div>
+
+      <div style={{ ...card, overflowX: 'auto' }}>
+        <table className="pg-table">
+          <thead><tr><th>Student</th><th>Paper</th><th>Skill</th><th>Score</th><th>%</th><th>Band</th><th>Time</th><th>Date</th></tr></thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={8} style={{ color: C.muted, padding: 18 }}>{res.note || 'No papers match.'}</td></tr>}
+            {rows.map(a => (
+              <tr key={a.id}>
+                <td style={{ fontWeight: 600, textTransform: 'capitalize' }}>{String(a.studentName).toLowerCase()}</td>
+                <td>{a.title}{a.isPlacement && <span style={{ marginLeft: 6, fontSize: 11, color: C.muted }}>placement</span>}</td>
+                <td><Chip type={a.testType} /></td>
+                <td>{a.score || (a.state === 'marking' ? <span style={{ color: C.muted }}>Marking…</span> : a.state === 'failed' ? <span style={{ color: '#991b1b' }}>Not marked</span> : '-')}</td>
+                <td style={{ fontWeight: 700, color: pctColor(a.pct) }}>{a.pct != null ? `${a.pct}%` : '-'}</td>
+                <td>{a.band != null ? a.band : '-'}</td>
+                <td style={{ color: C.muted }}>{a.minutes ? `${a.minutes} min` : '-'}</td>
+                <td style={{ color: C.muted, whiteSpace: 'nowrap' }}>{shortDate(a.endedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function Materials({ flash, currentWeek }) {
   const [weeks, setWeeks] = useState(null);

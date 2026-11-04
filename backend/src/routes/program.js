@@ -467,6 +467,61 @@ router.get('/:id/placement', wrap(async (req, res) => {
   res.json({ parts: GE_PARTS, rows, others });
 }));
 
+// ─── Paper results for the whole batch (read only; teachers can see it too) ───
+// The batch = programme students linked to a site account (or with the same name) + anyone who took the Day 1 placement.
+// Korean teachers get an empty list: these are English papers.
+router.get('/:id/results', wrap(async (req, res) => {
+  const programId = int(req.params.id);
+  const hide = await hiddenLanguage(req);
+  if (hide === 'EN') return res.json({ students: [], attempts: [], note: 'These are English papers.' });
+  const progStudents = await prisma.programStudent.findMany({ where: { programId, active: true } });
+  const placementAccounts = await prisma.attempt.findMany({ where: { isPlacement: true, paper: { track: 'GENERAL' } }, select: { studentId: true }, distinct: ['studentId'] });
+  const norm = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const names = new Set(progStudents.map(s => norm(s.name)));
+  const byName = names.size ? await prisma.student.findMany({ where: { role: 'STUDENT' }, select: { id: true, name: true } }) : [];
+  const ids = new Set([...progStudents.map(s => s.studentId).filter(Boolean), ...placementAccounts.map(a => a.studentId), ...byName.filter(a => names.has(norm(a.name))).map(a => a.id)]);
+  if (!ids.size) return res.json({ students: [], attempts: [] });
+  const rows = await prisma.attempt.findMany({
+    where: { studentId: { in: [...ids] }, status: 'COMPLETED' },
+    orderBy: { endedAt: 'desc' },
+    take: 600,
+    select: {
+      id: true, studentId: true, endedAt: true, startedAt: true, isPlacement: true,
+      student: { select: { name: true } },
+      paper: { select: { title: true, paperCode: true, testType: true, track: true, _count: { select: { questions: true } } } },
+      result: { select: { rawScore: true, bandEstimate: true, overrideBand: true } },
+      writingSubmission: { select: { markingStatus: true, overallBand: true } },
+      speakingSubmission: { select: { markingStatus: true, overallBand: true } },
+    },
+  });
+  const attempts = rows.map(a => {
+    const t = a.paper.testType, ge = a.paper.track === 'GENERAL', raw = a.result?.rawScore ?? null, total = a.paper._count.questions || null;
+    let score = null, pct = null, band = null, state = 'done';
+    if (t === 'READING' || t === 'LISTENING') {
+      if (raw != null && total) { score = `${Math.round(raw)} / ${total}`; pct = Math.round((raw / total) * 100); }
+      if (!ge) band = a.result?.overrideBand ?? a.result?.bandEstimate ?? null;
+    } else if (ge) {
+      const st = (t === 'WRITING' ? a.writingSubmission : a.speakingSubmission)?.markingStatus;
+      if (raw != null) { score = `${Math.round(raw)} / 100`; pct = Math.round(raw); } else state = st === 'FAILED' ? 'failed' : 'marking';
+    } else {
+      const sub = t === 'WRITING' ? a.writingSubmission : a.speakingSubmission;
+      band = a.result?.overrideBand ?? sub?.overallBand ?? null;
+      if (band == null) state = sub?.markingStatus === 'FAILED' ? 'failed' : 'marking';
+    }
+    const mins = a.endedAt && a.startedAt ? Math.max(1, Math.round((new Date(a.endedAt) - new Date(a.startedAt)) / 60000)) : null;
+    return { id: a.id, studentId: a.studentId, studentName: a.student?.name || 'Unknown', paperCode: a.paper.paperCode, title: a.paper.title, testType: t, track: a.paper.track, isPlacement: a.isPlacement, endedAt: a.endedAt, minutes: mins, score, pct, band, state };
+  });
+  const per = new Map();
+  for (const a of attempts) {
+    const e = per.get(a.studentId) || { studentId: a.studentId, name: a.studentName, papers: 0, pctSum: 0, pctN: 0, last: null };
+    e.papers++; if (a.pct != null) { e.pctSum += a.pct; e.pctN++; }
+    if (!e.last || new Date(a.endedAt) > new Date(e.last)) e.last = a.endedAt;
+    per.set(a.studentId, e);
+  }
+  const students = [...per.values()].map(e => ({ studentId: e.studentId, name: e.name, papers: e.papers, avgPct: e.pctN ? Math.round(e.pctSum / e.pctN) : null, last: e.last })).sort((x, y) => x.name.localeCompare(y.name));
+  res.json({ students, attempts });
+}));
+
 // ─── Reminders ───────────────────────────────────────────────────────────────
 router.get('/:id/reminders', wrap(async (req, res) => {
   const programId = int(req.params.id);

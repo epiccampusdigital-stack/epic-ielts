@@ -238,14 +238,20 @@ function listMaterials(viewer) {
     tokens.add(String(viewer.teacher.subject || '').toUpperCase());
     String(viewer.teacher.name || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean).forEach(w => tokens.add(w));
   }
-  const allowed = (folder, f) => viewer?.admin || (access[`${folder}/${f}`] || []).some(t => tokens.has(t));
-  return fs.readdirSync(MATERIALS_DIR, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()
-    .map(folder => ({
-      folder,
-      title: folder.replace(/^\d+\s+/, ''),
-      files: fs.readdirSync(path.join(MATERIALS_DIR, folder)).filter(f => /\.pdf$/i.test(f) && allowed(folder, f)).sort()
-        .map(f => ({ name: f, title: f.replace(/\.pdf$/i, ''), kb: Math.round(fs.statSync(path.join(MATERIALS_DIR, folder, f)).size / 1024) })),
-    })).filter(g => g.files.length);
+  const rule = (folder, f) => access[`${folder}/${f}`] || {};
+  const allowed = (folder, f) => viewer?.admin || (rule(folder, f).for || []).some(t => tokens.has(t));
+  const weeks = new Map(); // week number -> { week, title, kinds: [{ folder, title, files }] }; week 0 = every week
+  fs.readdirSync(MATERIALS_DIR, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort().forEach(folder => {
+    fs.readdirSync(path.join(MATERIALS_DIR, folder)).filter(f => /\.pdf$/i.test(f) && allowed(folder, f)).sort().forEach(f => {
+      const wk = Number.isInteger(rule(folder, f).week) ? rule(folder, f).week : 1;
+      if (!weeks.has(wk)) weeks.set(wk, { week: wk, title: wk === 0 ? 'All weeks' : `Week ${wk}`, kinds: [] });
+      const w = weeks.get(wk);
+      let k = w.kinds.find(x => x.folder === folder);
+      if (!k) { k = { folder, title: folder.replace(/^\d+\s+/, ''), files: [] }; w.kinds.push(k); }
+      k.files.push({ name: f, title: f.replace(/\.pdf$/i, ''), kb: Math.round(fs.statSync(path.join(MATERIALS_DIR, folder, f)).size / 1024) });
+    });
+  });
+  return [...weeks.values()].sort((a, b) => (a.week || 99) - (b.week || 99));
 }
 async function materialsViewer(req) {
   if (['ADMIN', 'TEACHER'].includes(req.user.role)) return { admin: true };
@@ -259,7 +265,7 @@ router.get('/materials', wrap(async (req, res) => {
 }));
 router.get('/materials/file', wrap(async (req, res) => {
   const folder = String(req.query.folder || ''), name = String(req.query.name || '');
-  const ok = listMaterials(await materialsViewer(req)).find(g => g.folder === folder)?.files.find(f => f.name === name);
+  const ok = listMaterials(await materialsViewer(req)).some(w => w.kinds.some(k => k.folder === folder && k.files.some(f => f.name === name)));
   if (!ok) return res.status(404).json({ error: 'File not found' });
   res.sendFile(require('path').join(MATERIALS_DIR, folder, name), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=300' } });
 }));

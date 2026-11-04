@@ -257,7 +257,7 @@ export default function AdminProgram() {
           <>
             {tab === 'mine' && <MySessions flash={flash} />}
             {tab === 'today' && <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} goReminders={() => setTab('reminders')} />}
-            {tab === 'materials' && <Materials flash={flash} />}
+            {tab === 'materials' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
             {tab === 'schedule' && <Schedule programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'teachers' && <Teachers programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'students' && <Students programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
@@ -417,12 +417,12 @@ function SessionCard({ s, students, flash, onSaved, live, isAdmin }) {
 
 // ─── Teacher's own sessions ──────────────────────────────────────────────────
 
-function Materials({ flash }) {
-  const [groups, setGroups] = useState(null);
+function Materials({ flash, currentWeek }) {
+  const [weeks, setWeeks] = useState(null);
   const [scope, setScope] = useState(null);
   const [q, setQ] = useState('');
   useEffect(() => {
-    axios.get(`${P}/materials`, api()).then(r => { setGroups(r.data.groups || []); setScope(r.data.scope); }).catch(e => { flash(errText(e)); setGroups([]); });
+    axios.get(`${P}/materials`, api()).then(r => { setWeeks(r.data.groups || []); setScope(r.data.scope); }).catch(e => { flash(errText(e)); setWeeks([]); });
   }, [flash]);
   const open = async (folder, name) => {
     try {
@@ -432,30 +432,42 @@ function Materials({ flash }) {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) { flash('Could not open the file. Please try again.'); }
   };
-  if (!groups) return <p style={{ color: C.muted }}>Loading…</p>;
+  if (!weeks) return <p style={{ color: C.muted }}>Loading…</p>;
   const term = q.trim().toLowerCase();
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Materials</h2>
-        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>{scope && scope !== 'Everything' ? `Showing the materials for ${scope}, and the timetable. ` : ''}Open them on the screen, so there is no need to print the teacher copies.</p>
+        <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Materials by week</h2>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>{scope && scope !== 'Everything' ? `Showing the materials for ${scope}. ` : ''}This week is open. Tap a week to open it. Open the files on the screen, so there is no need to print the teacher copies.</p>
       </div>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search (for example: present simple, reading, hangul)" style={{ ...input, maxWidth: 420 }} />
-      {groups.length === 0 && <div style={{ ...card, padding: 16, color: C.muted }}>Nothing here yet. If this looks wrong, ask the admin to link your login to your teacher name in the Teachers tab.</div>}
-      {groups.map(g => {
-        const files = g.files.filter(f => !term || f.title.toLowerCase().includes(term));
-        if (!files.length) return null;
+      {weeks.length === 0 && <div style={{ ...card, padding: 16, color: C.muted }}>Nothing here yet. If this looks wrong, ask the admin to link your login to your teacher name in the Teachers tab.</div>}
+      {weeks.map(w => {
+        const kinds = w.kinds.map(k => ({ ...k, files: k.files.filter(f => !term || f.title.toLowerCase().includes(term)) })).filter(k => k.files.length);
+        if (!kinds.length) return null;
+        const isNow = w.week === currentWeek;
         return (
-          <div key={g.folder} style={{ ...card, padding: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{g.title}</div>
-            {files.map(f => (
-              <div key={f.name} className="pg-row" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 4px', borderTop: `1px solid ${C.line}`, fontSize: 15 }}>
-                <span style={{ flex: 1 }}>{f.title}</span>
-                <span style={{ color: C.muted, fontSize: 12 }}>{f.kb} KB</span>
-                <button onClick={() => open(g.folder, f.name)} style={btn('outline')}>Open</button>
-              </div>
-            ))}
-          </div>
+          <details key={w.week} open={isNow || !!term} style={{ ...card, padding: 0 }}>
+            <summary style={{ cursor: 'pointer', padding: '14px 16px', fontSize: 18, fontWeight: 700, display: 'flex', gap: 10, alignItems: 'center' }}>
+              {w.title}
+              {isNow && <span style={{ background: C.indigo, color: '#fff', borderRadius: 50, padding: '1px 9px', fontSize: 12 }}>This week</span>}
+              <span style={{ marginLeft: 'auto', color: C.muted, fontSize: 13, fontWeight: 400 }}>{kinds.reduce((n, k) => n + k.files.length, 0)} files</span>
+            </summary>
+            <div style={{ padding: '0 16px 14px' }}>
+              {kinds.map(k => (
+                <div key={k.folder} style={{ marginTop: 10 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: C.indigo, marginBottom: 4 }}>{k.title}</div>
+                  {k.files.map(f => (
+                    <div key={f.name} className="pg-row" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 4px', borderTop: `1px solid ${C.line}`, fontSize: 15 }}>
+                      <span style={{ flex: 1 }}>{f.title}</span>
+                      <span style={{ color: C.muted, fontSize: 12 }}>{f.kb} KB</span>
+                      <button onClick={() => open(k.folder, f.name)} style={btn('outline')}>Open</button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </details>
         );
       })}
     </div>

@@ -93,6 +93,17 @@ function bandPillTone(band) {
   return { bg: '#e8eef7', fg: C.neutralBand };
 }
 
+const LEVEL_NAMES = { 1: 'Beginner · A1', 2: 'Elementary · A2', 3: 'Intermediate · B1', 4: 'Upper intermediate · B1+', 5: 'Advanced · B2' };
+function Stars({ n, size = 14 }) {
+  return (
+    <span aria-label={`${n} of 5 stars`} style={{ letterSpacing: 1, fontSize: size, lineHeight: 1 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <span key={i} style={{ color: i <= n ? '#F59E0B' : '#D5DBE5' }}>{'\u2605'}</span>
+      ))}
+    </span>
+  );
+}
+
 /** @returns {{ kind:'LOCKED' } | { kind:'IN_PROGRESS', attemptId:number|string } | { kind:'NEW' } | { kind:'DONE', bestBand: number|null, lastAttemptId: number|string, lastDone: Date|null }} */
 function getPaperState(paper, attempts, paperUnlocked) {
   const myAttempts = attempts.filter(a => a.paperId === paper.id);
@@ -154,6 +165,7 @@ export default function PracticePapers() {
   const [starting, setStarting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [skillFilter, setSkillFilter] = useState('ALL');
+  const [levelFilter, setLevelFilter] = useState(0);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -229,12 +241,16 @@ export default function PracticePapers() {
     SKILL_ORDER.forEach(skill => {
       g[skill] = papers
         .filter(p => p.testType === skill)
+        .filter(p => !levelFilter || p.difficulty === levelFilter)
         .sort((a, b) =>
+          (a.difficulty || 99) - (b.difficulty || 99) ||
           String(a.paperCode || '').localeCompare(String(b.paperCode || ''))
         );
     });
     return g;
-  }, [papers]);
+  }, [papers, levelFilter]);
+
+  const hasLevels = papers.some(p => p.difficulty);
 
   const filterCounts = useMemo(() => {
     const counts = {};
@@ -474,6 +490,27 @@ export default function PracticePapers() {
           })}
         </div>
       </div>
+
+      {hasLevels && (
+        <div style={{ maxWidth: 1100, margin: '20px auto 0', padding: '0 24px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4 }}>Level</span>
+          {[0, 1, 2, 3, 4, 5].map(n => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setLevelFilter(n)}
+              style={{
+                padding: '6px 12px', borderRadius: 9999, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                border: levelFilter === n ? `1px solid ${C.primary}` : `1px solid ${C.cardBorder}`,
+                background: levelFilter === n ? C.primary : '#fff',
+                color: levelFilter === n ? '#fff' : C.textSecondary,
+              }}
+            >
+              {n === 0 ? 'All levels' : <span>{n} <span style={{ color: '#F59E0B' }}>{'\u2605'}</span> {LEVEL_NAMES[n].split(' · ')[0]}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px 64px' }}>
         {SKILL_ORDER.filter(
@@ -742,6 +779,12 @@ export default function PracticePapers() {
                             {paper.title ||
                               `${skillMeta.label} Paper ${paper.paperCode}`}
                           </div>
+                          {paper.difficulty ? (
+                            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Stars n={paper.difficulty} />
+                              <span style={{ fontSize: 12, color: C.textSecondary, fontWeight: 600 }}>{LEVEL_NAMES[paper.difficulty]}</span>
+                            </div>
+                          ) : null}
                         </div>
                         <div style={{ flexShrink: 0, display: 'flex', gap: 6 }}>
                           {paper.paperCode === '001' ? (

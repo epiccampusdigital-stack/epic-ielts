@@ -89,7 +89,9 @@ router.get('/assigned', auth, async (req, res) => {
         timeLimitMin: true,
         status: true,
         order: true,
-        track: true
+        track: true,
+        difficulty: true,
+        topic: true
       },
       orderBy: [
         { order: 'asc' },

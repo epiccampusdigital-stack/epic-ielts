@@ -48,6 +48,9 @@ model Paper {
   order           Int           @default(0)
   practiceMode    Boolean       @default(false)
   track           String        @default("IELTS") // IELTS | GENERAL
+  difficulty      Int?          // 1 (A1) to 5 (B2), shown to students as stars
+  topic           String?
+  source          String?       // GENERATED when made by the paper builder
   questions       Question[]
   passages        Passage[]
   sections        Section[]
@@ -131,6 +134,7 @@ model Question {
   order            Int        @default(0)
   tableData        Json?
   groupInstruction String?        @db.Text
+  evidence         String?        @db.Text // words in the passage/transcript that give the answer, separated by |
   answers          Answer[]
 }
 

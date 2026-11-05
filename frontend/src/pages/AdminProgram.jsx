@@ -659,6 +659,18 @@ function Papers({ programId, flash }) {
 const TYPE_ORDER = ['READING', 'LISTENING', 'WRITING', 'SPEAKING'];
 const TYPE_NAME = { READING: 'Reading', LISTENING: 'Listening', WRITING: 'Writing', SPEAKING: 'Speaking' };
 const TYPE_COLOR = { READING: '#0056d2', LISTENING: '#7c3aed', WRITING: '#0e9f6e', SPEAKING: '#f59e0b' };
+const LEVEL_LABEL = { 1: 'Beginner · A1', 2: 'Elementary · A2', 3: 'Intermediate · B1', 4: 'Upper intermediate · B1+', 5: 'Advanced · B2' };
+function StarPicker({ value, onChange, size = 20, readOnly }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: 2 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <span key={i} role={readOnly ? undefined : 'button'} title={LEVEL_LABEL[i]} onClick={readOnly ? undefined : () => onChange(i)}
+          style={{ fontSize: size, lineHeight: 1, cursor: readOnly ? 'default' : 'pointer', color: i <= (value || 0) ? '#F59E0B' : '#D5DBE5' }}>{'\u2605'}</span>
+      ))}
+    </span>
+  );
+}
+
 function PaperReview({ flash }) {
   const [list, setList] = useState(null);
   const [sel, setSel] = useState(null);
@@ -670,6 +682,22 @@ function PaperReview({ flash }) {
   const openPaper = async (id) => {
     setSel(id); setPaper(null); stopVoice();
     try { setPaper((await axios.get(`${P}/paper-review/${id}`, api())).data); } catch (e) { flash(errText(e)); }
+  };
+  const setStars = async (id, n) => {
+    try {
+      await axios.patch(`${P}/paper-review/${id}/difficulty`, { difficulty: n }, api());
+      setList(l => l.map(x => x.id === id ? { ...x, difficulty: n } : x));
+      setPaper(pp => pp && pp.id === id ? { ...pp, difficulty: n } : pp);
+      flash('Level saved.');
+    } catch (e) { flash(errText(e)); }
+  };
+  const setLive = async (id, live) => {
+    try {
+      await axios.patch(`${P}/paper-review/${id}/publish`, { live }, api());
+      setList(l => l.map(x => x.id === id ? { ...x, status: live ? 'ACTIVE' : 'DRAFT' } : x));
+      setPaper(pp => pp && pp.id === id ? { ...pp, status: live ? 'ACTIVE' : 'DRAFT' } : pp);
+      flash(live ? 'Paper is now live for students.' : 'Paper hidden from students.');
+    } catch (e) { flash(errText(e)); }
   };
   const stopVoice = () => { try { window.speechSynthesis?.cancel(); } catch { /* no speech support */ } setSpeaking(null); };
   const playVoice = (n, script) => {
@@ -735,8 +763,9 @@ function PaperReview({ flash }) {
               <div style={{ fontSize: 12, fontWeight: 700, color: TYPE_COLOR[t], textTransform: 'uppercase', letterSpacing: .6, margin: '4px 0 6px' }}>{TYPE_NAME[t]} ({arr.length})</div>
               {arr.map(p => (
                 <button key={p.id} onClick={() => openPaper(p.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', marginBottom: 6, borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', border: `1px solid ${sel === p.id ? C.indigo : C.line}`, background: sel === p.id ? '#eef3fb' : '#fff' }}>
-                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 700 }}>{p.code}</div>
+                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 700 }}>{p.code}{p.status === 'DRAFT' ? ' · NOT LIVE' : ''}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{p.title}</div>
+                  {p.difficulty ? <StarPicker value={p.difficulty} readOnly size={13} /> : null}
                   <div style={{ fontSize: 12, color: C.muted }}>{p.questions} questions · {p.minutes} min</div>
                 </button>
               ))}
@@ -752,6 +781,11 @@ function PaperReview({ flash }) {
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.faint }}>{paper.code} · {TYPE_NAME[paper.type] || paper.type}</div>
                 <h3 style={{ margin: '2px 0 6px', fontSize: 20 }}>{paper.title}</h3>
                 <div style={{ fontSize: 14, color: C.muted }}>{paper.minutes} minutes{paper.instructions ? ` · ${paper.instructions}` : ''}</div>
+                <div style={{ marginTop: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <StarPicker value={paper.difficulty} onChange={n => setStars(paper.id, n)} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>{paper.difficulty ? LEVEL_LABEL[paper.difficulty] : 'Tap a star to set the level'}</span>
+                  <button style={btn(paper.status === 'ACTIVE' ? 'outline' : 'primary')} onClick={() => setLive(paper.id, paper.status !== 'ACTIVE')}>{paper.status === 'ACTIVE' ? 'Hide from students' : 'Make live for students'}</button>
+                </div>
               </div>
               {paper.sections.map(s => (
                 <div key={s.number} style={{ ...card, padding: 18 }}>

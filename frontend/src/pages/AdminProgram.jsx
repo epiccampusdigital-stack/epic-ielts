@@ -158,6 +158,7 @@ export default function AdminProgram() {
     { id: 'today', label: 'Today' },
     { id: 'schedule', label: 'Schedule' },
     { id: 'materials', label: 'Materials' },
+    { id: 'review', label: 'Review papers' },
     ...(isAdmin ? [{ id: 'teachers', label: 'Teachers' }] : []),
     { id: 'students', label: 'Students' },
     { id: 'papers', label: 'Papers' },
@@ -275,6 +276,7 @@ export default function AdminProgram() {
             {tab === 'papers' && <Papers programId={programId} flash={flash} />}
             {tab === 'mine' && <MySessions flash={flash} />}
             {tab === 'today' && <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} goReminders={() => setTab('reminders')} />}
+            {tab === 'review' && <PaperReview flash={flash} />}
             {tab === 'materials' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
             {tab === 'schedule' && <Schedule programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'teachers' && <Teachers programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
@@ -647,6 +649,161 @@ function Papers({ programId, flash }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Review papers: read a paper, listen to the audio, see every answer ─────────
+const TYPE_ORDER = ['READING', 'LISTENING', 'WRITING', 'SPEAKING'];
+const TYPE_NAME = { READING: 'Reading', LISTENING: 'Listening', WRITING: 'Writing', SPEAKING: 'Speaking' };
+const TYPE_COLOR = { READING: '#0056d2', LISTENING: '#7c3aed', WRITING: '#0e9f6e', SPEAKING: '#f59e0b' };
+function PaperReview({ flash }) {
+  const [list, setList] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [paper, setPaper] = useState(null);
+  const [filter, setFilter] = useState('ALL');
+  const [speaking, setSpeaking] = useState(null);
+  useEffect(() => { axios.get(`${P}/paper-review`, api()).then(r => setList(r.data)).catch(e => { flash(errText(e)); setList([]); }); }, [flash]);
+  useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* no speech support */ } }, []);
+  const openPaper = async (id) => {
+    setSel(id); setPaper(null); stopVoice();
+    try { setPaper((await axios.get(`${P}/paper-review/${id}`, api())).data); } catch (e) { flash(errText(e)); }
+  };
+  const stopVoice = () => { try { window.speechSynthesis?.cancel(); } catch { /* no speech support */ } setSpeaking(null); };
+  const playVoice = (n, script) => {
+    const synth = window.speechSynthesis;
+    if (!synth) { flash('This browser cannot read the script aloud.'); return; }
+    synth.cancel();
+    const voices = synth.getVoices().filter(v => /^en/i.test(v.lang));
+    const map = {};
+    const lines = String(script).split('\n').map(l => l.trim()).filter(Boolean).map(l => { const m = l.match(/^([A-Za-z ]{2,20}):\s*(.+)$/); return m ? { who: m[1].trim(), text: m[2] } : { who: 'Narrator', text: l }; });
+    const us = lines.map(l => {
+      const u = new SpeechSynthesisUtterance(l.text);
+      if (!(l.who in map)) map[l.who] = Object.keys(map).length;
+      if (voices.length) u.voice = voices[map[l.who] % voices.length];
+      u.lang = u.voice?.lang || 'en-GB'; u.rate = 0.9; u.pitch = /woman/i.test(l.who) ? 1.15 : /man/i.test(l.who) ? 0.85 : 1;
+      return u;
+    });
+    us[us.length - 1].onend = () => setSpeaking(null);
+    setSpeaking(n); us.forEach(u => synth.speak(u));
+  };
+  if (!list) return <p style={{ color: C.muted }}>Loading…</p>;
+  const shown = list.filter(p => filter === 'ALL' || p.type === filter);
+  const groupsByType = TYPE_ORDER.map(t => [t, shown.filter(p => p.type === t)]).filter(([, a]) => a.length);
+  const base = String(API_URL || '').replace(/\/$/, '');
+  const Questions = ({ groups }) => (
+    <div style={{ display: 'grid', gap: 14 }}>
+      {groups.map((g, gi) => (
+        <div key={gi}>
+          {g.instruction && <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, background: '#eef3fb', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>{g.instruction}</div>}
+          {g.questions.map(q => (
+            <div key={q.number} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ minWidth: 28, height: 28, borderRadius: 14, background: C.indigo, color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{q.number}</div>
+              <div style={{ flex: 1, fontSize: 14, lineHeight: 1.5 }}>
+                <div>{q.content}</div>
+                {q.options && q.options.map((o, i) => {
+                  const right = String(q.answer || '').split('|').map(x => x.trim().toUpperCase()).includes('ABCDEFGH'[i]);
+                  return <div key={i} style={{ margin: '3px 0 0 6px', padding: '2px 8px', borderRadius: 6, background: right ? '#dcfce7' : 'transparent', fontWeight: right ? 700 : 400, color: right ? '#166534' : C.text }}>{o}</div>;
+                })}
+                {!q.options && <div style={{ marginTop: 4 }}><span style={{ background: '#dcfce7', color: '#166534', fontWeight: 700, borderRadius: 6, padding: '2px 10px', fontSize: 13 }}>{String(q.answer || '').split('|').join('  or  ')}</span></div>}
+                {q.explanation && <div style={{ marginTop: 4, fontSize: 12.5, color: C.muted }}>{q.explanation}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div>
+        <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Review papers</h2>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Pick a paper to read it, listen to the audio and see every answer. Only teachers can see this page.</p>
+      </div>
+      <div className="pg-grid2" style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 320px) 1fr', gap: 16, alignItems: 'start' }}>
+        <div style={{ ...card, padding: 14 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {['ALL', ...TYPE_ORDER].map(t => (
+              <button key={t} onClick={() => setFilter(t)} style={{ ...btn('outline'), height: 30, fontSize: 13, background: filter === t ? C.indigo : '#fff', color: filter === t ? '#fff' : C.text, borderColor: filter === t ? C.indigo : C.line }}>{t === 'ALL' ? 'All' : TYPE_NAME[t]}</button>
+            ))}
+          </div>
+          {groupsByType.length === 0 && <p style={{ color: C.muted, fontSize: 14 }}>No papers found.</p>}
+          {groupsByType.map(([t, arr]) => (
+            <div key={t} style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: TYPE_COLOR[t], textTransform: 'uppercase', letterSpacing: .6, margin: '4px 0 6px' }}>{TYPE_NAME[t]} ({arr.length})</div>
+              {arr.map(p => (
+                <button key={p.id} onClick={() => openPaper(p.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', marginBottom: 6, borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', border: `1px solid ${sel === p.id ? C.indigo : C.line}`, background: sel === p.id ? '#eef3fb' : '#fff' }}>
+                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 700 }}>{p.code}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{p.title}</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>{p.questions} questions · {p.minutes} min</div>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+          {!sel && <div style={{ ...card, padding: 24, color: C.muted }}>Choose a paper on the left.</div>}
+          {sel && !paper && <div style={{ ...card, padding: 24, color: C.muted }}>Loading the paper…</div>}
+          {paper && (
+            <>
+              <div style={{ ...card, padding: 18, borderTop: `4px solid ${TYPE_COLOR[paper.type] || C.indigo}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.faint }}>{paper.code} · {TYPE_NAME[paper.type] || paper.type}</div>
+                <h3 style={{ margin: '2px 0 6px', fontSize: 20 }}>{paper.title}</h3>
+                <div style={{ fontSize: 14, color: C.muted }}>{paper.minutes} minutes{paper.instructions ? ` · ${paper.instructions}` : ''}</div>
+              </div>
+              {paper.sections.map(s => (
+                <div key={s.number} style={{ ...card, padding: 18 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                    <div><div style={{ fontSize: 12, fontWeight: 700, color: TYPE_COLOR[paper.type] }}>SECTION {s.number}</div><div style={{ fontSize: 16, fontWeight: 700 }}>{s.description}</div></div>
+                  </div>
+                  {paper.type === 'LISTENING' && (
+                    <div style={{ background: '#f5f3ff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+                      {s.audioUrl ? (
+                        <>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 6 }}>Audio recording</div>
+                          <audio controls preload="none" src={s.audioUrl.startsWith('http') ? s.audioUrl : base + s.audioUrl} style={{ width: '100%' }} />
+                        </>
+                      ) : s.script ? (
+                        <>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 6 }}>No recording yet. Students hear the computer voice.</div>
+                          {speaking === s.number
+                            ? <button style={btn('danger')} onClick={stopVoice}>Stop</button>
+                            : <button style={btn('primary')} onClick={() => playVoice(s.number, s.script)}>Play with the computer voice</button>}
+                        </>
+                      ) : <div style={{ fontSize: 13, color: C.muted }}>No audio for this section.</div>}
+                    </div>
+                  )}
+                  {s.script && (
+                    <details style={{ marginBottom: 12 }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: 700, color: C.indigo, fontSize: 14 }}>Transcript</summary>
+                      <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.8, background: '#f8fafc', border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+                        {String(s.script).split('\n').filter(Boolean).map((line, i) => { const m = line.match(/^([A-Za-z ]{2,20}):\s*(.+)$/); return <p key={i} style={{ margin: '0 0 6px' }}>{m ? <><b>{m[1]}:</b> {m[2]}</> : line}</p>; })}
+                      </div>
+                    </details>
+                  )}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, margin: '4px 0 8px' }}>QUESTIONS AND ANSWERS</div>
+                  <Questions groups={s.groups} />
+                </div>
+              ))}
+              {paper.passages.map((ps, i) => (
+                <div key={i} style={{ ...card, padding: 18 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{ps.title}</div>
+                  <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 15, lineHeight: 1.8, background: '#f8fafc', border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, whiteSpace: 'pre-wrap', marginBottom: 12 }}>{ps.text}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, margin: '4px 0 8px' }}>QUESTIONS AND ANSWERS</div>
+                  <Questions groups={ps.groups} />
+                </div>
+              ))}
+              {paper.writingTasks.map(t => (
+                <div key={t.number} style={{ ...card, padding: 18 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: TYPE_COLOR.WRITING }}>TASK {t.number} · at least {t.minWords} words · {t.minutes} min</div>
+                  <div style={{ fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginTop: 6 }}>{t.prompt}</div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

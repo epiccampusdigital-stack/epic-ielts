@@ -270,6 +270,39 @@ router.get('/materials/file', wrap(async (req, res) => {
   res.sendFile(require('path').join(MATERIALS_DIR, folder, name), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=300' } });
 }));
 
+// ─── Paper review (teachers read papers, listen to the audio, see every answer) ─
+router.get('/paper-review', wrap(async (req, res) => {
+  if ((await hiddenLanguage(req)) === 'EN') return res.json([]); // Korean teachers do not see the English papers
+  const papers = await prisma.paper.findMany({
+    where: { track: 'GENERAL', status: 'ACTIVE' },
+    select: { id: true, paperCode: true, title: true, testType: true, timeLimitMin: true, order: true, _count: { select: { questions: true } } },
+    orderBy: [{ order: 'asc' }, { id: 'asc' }],
+  });
+  res.json(papers.map(p => ({ id: p.id, code: p.paperCode, title: p.title, type: p.testType, minutes: p.timeLimitMin, questions: p._count.questions })));
+}));
+router.get('/paper-review/:paperId', wrap(async (req, res) => {
+  if ((await hiddenLanguage(req)) === 'EN') return res.status(404).json({ error: 'Not found' });
+  const paper = await prisma.paper.findFirst({
+    where: { id: parseInt(req.params.paperId, 10), track: 'GENERAL' },
+    include: {
+      passages: { orderBy: { passageNumber: 'asc' }, include: { groups: { orderBy: { order: 'asc' }, include: { questions: { orderBy: { questionNumber: 'asc' } } } } } },
+      sections: { orderBy: { number: 'asc' }, include: { groups: { orderBy: { order: 'asc' }, include: { questions: { orderBy: { questionNumber: 'asc' } } } } } },
+      writingTasks: { orderBy: { taskNumber: 'asc' } },
+    },
+  });
+  if (!paper) return res.status(404).json({ error: 'Paper not found' });
+  let scripts = {};
+  try { scripts = paper.audioScript ? JSON.parse(paper.audioScript) : {}; } catch { scripts = {}; }
+  const qs = g => g.questions.map(q => ({ number: q.questionNumber, type: q.questionType, content: q.content, options: Array.isArray(q.options) ? q.options : null, answer: q.correctAnswer, explanation: q.explanation }));
+  const groups = list => list.map(g => ({ instruction: g.instruction, type: g.groupType, questions: qs(g) }));
+  res.json({
+    id: paper.id, code: paper.paperCode, title: paper.title, type: paper.testType, minutes: paper.timeLimitMin, instructions: paper.instructions,
+    passages: paper.passages.map(p => ({ title: p.title, text: p.text, groups: groups(p.groups) })),
+    sections: paper.sections.map(s => ({ number: s.number, description: s.description, audioUrl: s.audioUrl || paper.audioUrl || null, script: scripts[s.number] || scripts[String(s.number)] || null, groups: groups(s.groups) })),
+    writingTasks: paper.writingTasks.map(t => ({ number: t.taskNumber, prompt: t.prompt, minWords: t.minWords, minutes: t.timeMinutes })),
+  });
+}));
+
 // ─── Teacher's own view (TEACHER logins linked to a ProgramTeacher) ──────────
 router.get('/my', wrap(async (req, res) => {
   const teacher = await prisma.programTeacher.findFirst({ where: { accountId: req.user.id } });

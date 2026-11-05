@@ -27,6 +27,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 try {
   app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+  app.use('/audio', express.static(path.join(__dirname, '../public-audio')));
 } catch(e) {
   console.log('Uploads folder not found, skipping');
 }
@@ -118,6 +119,8 @@ require('./ensureSchema').ensureSchema(prisma)
     try {
       const { repairGeC4R } = require('../scripts/repairGeC4R');
       console.log('[general-english] paper 4 repair:', JSON.stringify(await repairGeC4R(prisma)));
+      const { attachGeListeningAudio } = require('../scripts/attachGeListeningAudio');
+      console.log('[general-english] listening audio:', JSON.stringify(await attachGeListeningAudio(prisma)));
     } catch (e) {
       console.error('[general-english] paper 4 repair skipped:', e.message);
     }

@@ -74,7 +74,7 @@ Man: Finally, your bedroom matters. The best room for sleeping is cool, dark and
 Man: That's all for today. Next week, we'll look at how exercise affects sleep, so please come ready to discuss it. Thank you for listening.`;
 
 const listening4 = {
-  code: 'GE-C4L', testType: 'LISTENING', title: 'Course paper 4 · Listening: full practice test (40 questions)', timeLimitMin: 50,
+  code: 'GE-C4L', testType: 'LISTENING', title: 'Listening 002 · Mock test', timeLimitMin: 50,
   instructions: 'Full listening practice test: 4 sections and 40 questions. Press Play to hear each section. You can listen twice. Read the questions before you listen. If the sound does not work, put your hand up and your teacher will read it to you.',
   audioScript: JSON.stringify({ 1: S1, 2: S2, 3: S3, 4: S4 }),
   sections: [

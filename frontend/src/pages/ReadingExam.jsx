@@ -690,8 +690,23 @@ export default function ReadingExam() {
    const passageTitle = currentPassageData?.title || `Reading Passage ${currentPassage}`;
    const passageText = currentPassageData?.text || splitTextMap[currentPassage] || paper?.instructions || 'Passage text not available.';
 
-   // The word under the click (or the selected word). Old code used the first word of the whole paragraph.
-   const wordAtPoint = (x, y) => {
+   // The word under the click (or the words the student selected), with the sentence it is in.
+   const sentenceOf = (t, s0, e0) => {
+      let a = s0, b = e0;
+      while (a > 0 && !/[.!?\n]/.test(t[a - 1])) a--;
+      while (b < t.length && !/[.!?\n]/.test(t[b])) b++;
+      return t.slice(a, Math.min(b + 1, t.length)).trim();
+   };
+   const lookupAt = (x, y) => {
+      const sel = window.getSelection();
+      const picked = (sel?.toString() || '').trim();
+      if (picked && picked.split(/\s+/).length <= 4 && picked.length <= 50 && sel.rangeCount) {
+         const n = sel.getRangeAt(0).startContainer;
+         const sentence = sentenceOf(n.textContent || '', 0, 0) || '';
+         const full = (n.textContent || '');
+         const i = full.indexOf(picked);
+         return { word: picked, sentence: i >= 0 ? sentenceOf(full, i, i + picked.length) : sentence };
+      }
       let node = null, offset = 0;
       if (document.caretPositionFromPoint) {
          const pos = document.caretPositionFromPoint(x, y);
@@ -700,54 +715,29 @@ export default function ReadingExam() {
          const r = document.caretRangeFromPoint(x, y);
          if (r) { node = r.startContainer; offset = r.startOffset; }
       }
-      if (!node || node.nodeType !== 3) return '';
+      if (!node || node.nodeType !== 3) return null;
       const t = node.textContent || '';
       const isW = (c) => /[A-Za-z'\u2019-]/.test(c || '');
-      let s = Math.min(offset, t.length), e = s;
-      while (s > 0 && isW(t[s - 1])) s--;
-      while (e < t.length && isW(t[e])) e++;
-      return t.slice(s, e);
+      let s0 = Math.min(offset, t.length), e0 = s0;
+      while (s0 > 0 && isW(t[s0 - 1])) s0--;
+      while (e0 < t.length && isW(t[e0])) e0++;
+      return { word: t.slice(s0, e0), sentence: sentenceOf(t, s0, e0) };
    };
 
    const handleWordClick = async (e) => {
-      const selected = (window.getSelection()?.toString() || '').trim();
-      let word = selected && !/\s/.test(selected) && selected.length <= 30 ? selected : wordAtPoint(e.clientX, e.clientY);
-      if (!word || word.length < 3) return;
-      const clean = word.toLowerCase().replace(/['\u2019]s$/, '').replace(/[^a-z-]/g, '').replace(/^-+|-+$/g, '');
+      const hit = lookupAt(e.clientX, e.clientY);
+      if (!hit || !hit.word) return;
+      const clean = hit.word.toLowerCase().replace(/['\u2019]s$/, '').replace(/[^a-z\s-]/g, '').replace(/\s+/g, ' ').trim();
       if (!clean || clean.length < 3) return;
-      setWordPopup({
-         word: clean, definition: null,
-         x: e.clientX, y: e.clientY
-      });
+      const at = { x: e.clientX, y: e.clientY };
+      setWordPopup({ word: clean, definition: null, ...at });
       setWordLoading(true);
       try {
-         const res = await fetch(
-            `https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`
-         );
-         if (!res.ok) throw new Error('not found');
-         const data = await res.json();
-         const entry = data[0];
-         const meaning = entry?.meanings?.[0];
-         const def = meaning?.definitions?.[0]?.definition;
-         const partOfSpeech = meaning?.partOfSpeech;
-         const phonetic = entry?.phonetic || '';
-         const example = meaning?.definitions?.[0]?.example || null;
-         setWordPopup({
-            word: clean,
-            definition: def || 'No definition found.',
-            partOfSpeech,
-            phonetic,
-            example,
-            x: e.clientX,
-            y: e.clientY
-         });
+         const res = await axios.get(`${API_URL}/api/dictionary`, { ...api(), params: { word: clean, sentence: hit.sentence } });
+         const d = res.data;
+         setWordPopup({ word: clean, definition: d.meaning, partOfSpeech: d.partOfSpeech, phonetic: d.phonetic, example: d.example, ...at });
       } catch {
-         setWordPopup({
-            word: clean,
-            definition: 'No definition found. Check the spelling or your internet connection.',
-            x: e.clientX,
-            y: e.clientY
-         });
+         setWordPopup({ word: clean, definition: 'Sorry, no meaning found for this word. Try selecting just one word.', ...at });
       }
       setWordLoading(false);
    };
@@ -1454,7 +1444,7 @@ export default function ReadingExam() {
                   )}
 
                   <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e8eef7', fontSize: '10px', color: '#c3cddd', textAlign: 'right' }}>
-                     powered by Free Dictionary API
+                     Simple meaning for this sentence
                   </div>
                </div>
             </>

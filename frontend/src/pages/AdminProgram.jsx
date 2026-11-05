@@ -762,6 +762,63 @@ function TeacherGuide({ paper, onClose }) {
   );
 }
 
+function PaperBuilder({ flash, onMade }) {
+  const [skill, setSkill] = useState('READING');
+  const [stars, setStarsN] = useState(2);
+  const [topic, setTopic] = useState('');
+  const [job, setJob] = useState(null);
+  const [status, setStatus] = useState(null);
+  useEffect(() => { axios.get(`${P}/paper-builder/status`, api()).then(r => setStatus(r.data)).catch(() => setStatus(null)); }, []);
+  useEffect(() => {
+    if (!job || job.status !== 'running') return undefined;
+    const t = setInterval(async () => {
+      try {
+        const r = (await axios.get(`${P}/paper-builder/jobs/${job.id}`, api())).data;
+        setJob(j => ({ ...j, ...r }));
+        if (r.status === 'done') { flash(r.warning || 'New paper ready. Check it, then press Make live.'); onMade(r.paperId); }
+        if (r.status === 'failed') flash(r.error || 'The builder could not make the paper.');
+      } catch (e) { setJob(j => ({ ...j, status: 'failed', error: errText(e) })); }
+    }, 3000);
+    return () => clearInterval(t);
+  }, [job, flash, onMade]);
+  const go = async () => {
+    try {
+      const r = (await axios.post(`${P}/paper-builder/generate`, { skill, difficulty: stars, topic }, api())).data;
+      setJob({ id: r.jobId, status: 'running', step: 'Starting' });
+    } catch (e) { flash(errText(e)); }
+  };
+  const busy = job && job.status === 'running';
+  return (
+    <div style={{ ...card, padding: 16, borderTop: `4px solid ${C.indigo}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Create a new paper</div>
+        {status && <div style={{ fontSize: 12, color: C.muted }}>AI writer: {status.claude ? 'ready' : 'no key'} · Google voice: {status.voice ? 'ready' : 'not set (computer voice)'}</div>}
+      </div>
+      <p style={{ margin: '4px 0 12px', fontSize: 13, color: C.muted }}>The AI writes a brand new paper that does not repeat old questions. It is saved as not live, so you can check it first.</p>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['READING', 'LISTENING', 'WRITING'].map(t => (
+            <button key={t} disabled={busy} onClick={() => setSkill(t)} style={{ ...btn('outline'), height: 34, background: skill === t ? TYPE_COLOR[t] : '#fff', color: skill === t ? '#fff' : C.text, borderColor: skill === t ? TYPE_COLOR[t] : C.line }}>{TYPE_NAME[t]}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <StarPicker value={stars} onChange={busy ? () => {} : setStarsN} />
+          <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>{LEVEL_LABEL[stars]}</span>
+        </div>
+        <input value={topic} disabled={busy} onChange={e => setTopic(e.target.value)} placeholder="Topic (optional), e.g. food in Korea" style={{ flex: '1 1 200px', height: 34, borderRadius: 8, border: `1px solid ${C.line}`, padding: '0 10px', fontFamily: 'inherit', fontSize: 14 }} />
+        <button style={btn('primary')} disabled={busy || (status && !status.claude)} onClick={go}>{busy ? 'Working…' : 'Create paper'}</button>
+      </div>
+      {job && (
+        <div style={{ marginTop: 12, fontSize: 13, padding: '8px 12px', borderRadius: 8, background: job.status === 'failed' ? '#fef2f2' : job.status === 'done' ? '#f0fdf4' : '#eef3fb', color: job.status === 'failed' ? '#991b1b' : job.status === 'done' ? '#166534' : C.navy }}>
+          {job.status === 'running' && <>{job.step}… this can take 1 to 3 minutes. You can keep working on this page.</>}
+          {job.status === 'done' && <>Done. {job.warning || 'The new paper is open below. Check it, then press "Make live for students".'}</>}
+          {job.status === 'failed' && <>Could not make the paper: {job.error}</>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PaperReview({ flash }) {
   const [list, setList] = useState(null);
   const [sel, setSel] = useState(null);
@@ -769,7 +826,9 @@ function PaperReview({ flash }) {
   const [filter, setFilter] = useState('ALL');
   const [speaking, setSpeaking] = useState(null);
   const [guide, setGuide] = useState(false);
-  useEffect(() => { axios.get(`${P}/paper-review`, api()).then(r => setList(r.data)).catch(e => { flash(errText(e)); setList([]); }); }, [flash]);
+  const loadList = useCallback(() => axios.get(`${P}/paper-review`, api()).then(r => setList(r.data)).catch(e => { flash(errText(e)); setList([]); }), [flash]);
+  useEffect(() => { loadList(); }, [loadList]);
+  const [audioJob, setAudioJob] = useState(null);
   useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* no speech support */ } }, []);
   const openPaper = async (id) => {
     setSel(id); setPaper(null); stopVoice();
@@ -789,6 +848,24 @@ function PaperReview({ flash }) {
       setList(l => l.map(x => x.id === id ? { ...x, status: live ? 'ACTIVE' : 'DRAFT' } : x));
       setPaper(pp => pp && pp.id === id ? { ...pp, status: live ? 'ACTIVE' : 'DRAFT' } : pp);
       flash(live ? 'Paper is now live for students.' : 'Paper hidden from students.');
+    } catch (e) { flash(errText(e)); }
+  };
+  const removePaper = async (id) => {
+    if (!window.confirm('Delete this paper? This cannot be undone.')) return;
+    try { await axios.delete(`${P}/paper-review/${id}`, api()); setSel(null); setPaper(null); loadList(); flash('Paper deleted.'); } catch (e) { flash(errText(e)); }
+  };
+  const recordAudio = async (id) => {
+    try {
+      const r = (await axios.post(`${P}/paper-builder/${id}/audio`, {}, api())).data;
+      setAudioJob('Recording the audio… this takes about a minute.');
+      const t = setInterval(async () => {
+        try {
+          const j = (await axios.get(`${P}/paper-builder/jobs/${r.jobId}`, api())).data;
+          if (j.status === 'running') { setAudioJob(`${j.step}…`); return; }
+          clearInterval(t); setAudioJob(null);
+          if (j.status === 'done') { flash('Audio recorded.'); openPaper(id); } else flash(j.error || 'Recording failed.');
+        } catch (e) { clearInterval(t); setAudioJob(null); flash(errText(e)); }
+      }, 3000);
     } catch (e) { flash(errText(e)); }
   };
   const stopVoice = () => { try { window.speechSynthesis?.cancel(); } catch { /* no speech support */ } setSpeaking(null); };
@@ -839,6 +916,7 @@ function PaperReview({ flash }) {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       {guide && paper && <TeacherGuide paper={paper} onClose={() => setGuide(false)} />}
+      <PaperBuilder flash={flash} onMade={id => { loadList(); if (id) openPaper(id); }} />
       <div>
         <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Review papers</h2>
         <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Pick a paper to read it, listen to the audio and see every answer. Only teachers can see this page.</p>
@@ -856,7 +934,7 @@ function PaperReview({ flash }) {
               <div style={{ fontSize: 12, fontWeight: 700, color: TYPE_COLOR[t], textTransform: 'uppercase', letterSpacing: .6, margin: '4px 0 6px' }}>{TYPE_NAME[t]} ({arr.length})</div>
               {arr.map(p => (
                 <button key={p.id} onClick={() => openPaper(p.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', marginBottom: 6, borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', border: `1px solid ${sel === p.id ? C.indigo : C.line}`, background: sel === p.id ? '#eef3fb' : '#fff' }}>
-                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 700 }}>{p.code}{p.status === 'DRAFT' ? ' · NOT LIVE' : ''}</div>
+                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 700 }}>{p.code}{p.status === 'DRAFT' ? ' · NOT LIVE' : ''}{p.generated ? ' · AI MADE' : ''}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{p.title}</div>
                   {p.difficulty ? <StarPicker value={p.difficulty} readOnly size={13} /> : null}
                   <div style={{ fontSize: 12, color: C.muted }}>{p.questions} questions · {p.minutes} min</div>
@@ -878,6 +956,8 @@ function PaperReview({ flash }) {
                   <StarPicker value={paper.difficulty} onChange={n => setStars(paper.id, n)} />
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>{paper.difficulty ? LEVEL_LABEL[paper.difficulty] : 'Tap a star to set the level'}</span>
                   <button style={btn('outline')} onClick={() => setGuide(true)}>Teacher guide (print / PDF)</button>
+                  {paper.type === 'LISTENING' && <button style={btn('outline')} disabled={!!audioJob} onClick={() => recordAudio(paper.id)}>{audioJob || 'Record audio with Google voice'}</button>}
+                  {paper.generated && <button style={btn('danger')} onClick={() => removePaper(paper.id)}>Delete</button>}
                   <button style={btn(paper.status === 'ACTIVE' ? 'outline' : 'primary')} onClick={() => setLive(paper.id, paper.status !== 'ACTIVE')}>{paper.status === 'ACTIVE' ? 'Hide from students' : 'Make live for students'}</button>
                 </div>
               </div>

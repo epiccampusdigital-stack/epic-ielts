@@ -169,7 +169,9 @@ function levelFor(score) {
 }
 
 // Writes a list of General English papers (reading, listening, writing, speaking). Skips papers students have taken.
-async function seedPaperList(prisma, list, orderBase) {
+const { DEFAULT_STARS } = require('./difficulty');
+
+async function seedPaperList(prisma, list, orderBase, opts = {}) {
   let created = 0;
   for (const [pi, p] of list.entries()) {
     const existing = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType } });
@@ -182,8 +184,11 @@ async function seedPaperList(prisma, list, orderBase) {
       const paper = await tx.paper.create({
         data: {
           paperCode: p.code, testType: p.testType, track: 'GENERAL', title: p.title, timeLimitMin: p.timeLimitMin,
-          instructions: p.instructions, status: 'ACTIVE', assignedBatches: 'ALL', order: orderBase + pi,
+          instructions: p.instructions, status: opts.status || 'ACTIVE', assignedBatches: 'ALL', order: orderBase + pi,
+          ...(opts.source ? { source: opts.source } : {}),
           audioScript: p.audioScript || null,
+          ...(p.difficulty || DEFAULT_STARS[p.code] ? { difficulty: p.difficulty || DEFAULT_STARS[p.code] } : {}),
+          ...(p.topic ? { topic: p.topic } : {}),
         },
       });
       let qn = 0;
@@ -192,7 +197,8 @@ async function seedPaperList(prisma, list, orderBase) {
           paperId: paper.id, questionNumber: ++qn, questionType: q.type, content: q.content,
           // Prisma rejects a plain null for a Json column, so leave options out when there are none
           ...(q.options ? { options: q.options.map((o, k) => `${'ABCDEFGH'[k]}. ${o}`) } : {}),
-          correctAnswer: q.answer, explanation: q.explanation || null, order: qn, ...data,
+          correctAnswer: q.answer, explanation: q.explanation || null, order: qn,
+          ...(q.ev && q.ev.length ? { evidence: q.ev.join('|') } : {}), ...data,
         },
       });
       if (p.testType === 'READING') {

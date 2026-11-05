@@ -296,7 +296,7 @@ router.get('/paper-review/:paperId', wrap(async (req, res) => {
   const qs = g => g.questions.map(q => ({ number: q.questionNumber, type: q.questionType, content: q.content, options: Array.isArray(q.options) ? q.options : null, answer: q.correctAnswer, explanation: q.explanation, evidence: q.evidence || null }));
   const groups = list => list.map(g => ({ instruction: g.instruction, type: g.groupType, questions: qs(g) }));
   res.json({
-    id: paper.id, code: paper.paperCode, title: paper.title, type: paper.testType, minutes: paper.timeLimitMin, instructions: paper.instructions, difficulty: paper.difficulty, status: paper.status, topic: paper.topic,
+    id: paper.id, code: paper.paperCode, title: paper.title, type: paper.testType, minutes: paper.timeLimitMin, instructions: paper.instructions, difficulty: paper.difficulty, status: paper.status, topic: paper.topic, generated: paper.source === 'GENERATED',
     passages: paper.passages.map(p => ({ title: p.title, text: p.text, groups: groups(p.groups) })),
     sections: paper.sections.map(s => ({ number: s.number, description: s.description, audioUrl: s.audioUrl || paper.audioUrl || null, script: scripts[s.number] || scripts[String(s.number)] || null, groups: groups(s.groups) })),
     writingTasks: paper.writingTasks.map(t => ({ number: t.taskNumber, prompt: t.prompt, minWords: t.minWords, minutes: t.timeMinutes })),
@@ -319,6 +319,43 @@ router.patch('/paper-review/:paperId/publish', wrap(async (req, res) => {
   if (!paper) return res.status(404).json({ error: 'Paper not found' });
   await prisma.paper.update({ where: { id: paper.id }, data: { status: live ? 'ACTIVE' : 'DRAFT' } });
   res.json({ ok: true, status: live ? 'ACTIVE' : 'DRAFT' });
+}));
+
+// ─── Paper builder (admin + English teachers): AI writes a new paper as a draft ─────
+const builder = () => require('../services/paperBuilder');
+router.get('/paper-builder/status', wrap(async (req, res) => {
+  res.json({ claude: !!process.env.ANTHROPIC_API_KEY, voice: builder().ttsReady() });
+}));
+router.post('/paper-builder/generate', wrap(async (req, res) => {
+  if ((await hiddenLanguage(req)) === 'EN') return res.status(403).json({ error: 'Not allowed' });
+  const skill = String(req.body?.skill || '').toUpperCase();
+  const difficulty = parseInt(req.body?.difficulty, 10);
+  const topic = String(req.body?.topic || '').trim().slice(0, 80);
+  if (!['READING', 'WRITING', 'LISTENING'].includes(skill)) return res.status(400).json({ error: 'Pick Reading, Writing or Listening' });
+  if (!(difficulty >= 1 && difficulty <= 5)) return res.status(400).json({ error: 'Pick a level from 1 to 5 stars' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'The AI key is not set on the server.' });
+  const job = builder().startJob(req.user?.id, { skill, difficulty, topic });
+  res.json({ jobId: job.id });
+}));
+router.post('/paper-builder/:paperId/audio', wrap(async (req, res) => {
+  if ((await hiddenLanguage(req)) === 'EN') return res.status(403).json({ error: 'Not allowed' });
+  const paper = await prisma.paper.findFirst({ where: { id: parseInt(req.params.paperId, 10), track: 'GENERAL', testType: 'LISTENING' }, select: { id: true } });
+  if (!paper) return res.status(404).json({ error: 'Listening paper not found' });
+  const job = builder().startAudioJob(req.user?.id, paper.id);
+  res.json({ jobId: job.id });
+}));
+router.get('/paper-builder/jobs/:jobId', wrap(async (req, res) => {
+  const job = builder().getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'This job is no longer running. Refresh the list.' });
+  res.json({ status: job.status, step: job.step, paperId: job.paperId, error: job.error, warning: job.warning || null });
+}));
+router.delete('/paper-review/:paperId', wrap(async (req, res) => {
+  if ((await hiddenLanguage(req)) === 'EN') return res.status(403).json({ error: 'Not allowed' });
+  const paper = await prisma.paper.findFirst({ where: { id: parseInt(req.params.paperId, 10), track: 'GENERAL', source: 'GENERATED' }, select: { id: true } });
+  if (!paper) return res.status(404).json({ error: 'Only papers made by the builder can be deleted' });
+  if (await prisma.attempt.count({ where: { paperId: paper.id } })) return res.status(400).json({ error: 'Students have taken this paper. Hide it instead.' });
+  await prisma.paper.delete({ where: { id: paper.id } });
+  res.json({ ok: true });
 }));
 
 // ─── Teacher's own view (TEACHER logins linked to a ProgramTeacher) ──────────

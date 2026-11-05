@@ -106,16 +106,24 @@ require('./ensureSchema').ensureSchema(prisma)
       const modules = await prisma.learnModule.count({ where: { track: 'GENERAL' } });
       const placement = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-PT' } } });
       const course = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-C' } } });
-      if (modules === 0 || placement < 4 || course < 8) {
+      if (modules === 0 || placement < 4) {
         const { seedGeneralEnglish } = require('../scripts/generalEnglish');
         console.log('[general-english] content loaded:', JSON.stringify(await seedGeneralEnglish(prisma)));
+      } else if (course < 23) {
+        // Only add the course papers that are missing, so existing papers (and their audio and stars) stay as they are
+        const { COURSE_PAPERS } = require('../scripts/generalEnglish/coursePapers');
+        const { seedPaperList } = require('../scripts/generalEnglish/placement');
+        let added = 0;
+        for (const [i, p] of COURSE_PAPERS.entries()) {
+          if (await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType }, select: { id: true } })) continue;
+          added += await seedPaperList(prisma, [p], 950 + i);
+        }
+        console.log('[general-english] new course papers added:', added);
       }
     } catch (e) {
       console.error('[general-english] auto load skipped:', e.message);
     }
-  })();
-  // Fix the "undefined" paragraph options in GE paper 4 and re-mark students who picked E or F (safe to repeat)
-  (async () => {
+    // Then: fix GE paper 4 options, attach the Listening 002 audio and fill in difficulty stars (all safe to repeat)
     try {
       const { repairGeC4R } = require('../scripts/repairGeC4R');
       console.log('[general-english] paper 4 repair:', JSON.stringify(await repairGeC4R(prisma)));

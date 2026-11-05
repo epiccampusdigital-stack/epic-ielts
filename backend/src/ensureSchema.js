@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FILES = ['20261026120000_add_tracks_and_program_tracker', '20261026200000_add_student_course'];
+const FILES = ['20261026120000_add_tracks_and_program_tracker', '20261026200000_add_student_course', '20261105220000_add_paper_difficulty'];
 
 async function ensureSchema(prisma) {
   for (const name of FILES) {

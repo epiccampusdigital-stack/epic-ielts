@@ -113,6 +113,15 @@ require('./ensureSchema').ensureSchema(prisma)
       console.error('[general-english] auto load skipped:', e.message);
     }
   })();
+  // Fix the "undefined" paragraph options in GE paper 4 and re-mark students who picked E or F (safe to repeat)
+  (async () => {
+    try {
+      const { repairGeC4R } = require('../scripts/repairGeC4R');
+      console.log('[general-english] paper 4 repair:', JSON.stringify(await repairGeC4R(prisma)));
+    } catch (e) {
+      console.error('[general-english] paper 4 repair skipped:', e.message);
+    }
+  })();
   // Copy the IELTS listening papers into General English once (GE-L1...). The IELTS originals are not changed.
   (async () => {
     try {

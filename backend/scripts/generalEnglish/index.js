@@ -48,7 +48,7 @@ async function seedGeneralEnglish(prisma) {
         await tx.question.create({
           data: {
             paperId: paper.id, groupId: group.id, passageNumber: 1, questionNumber: i + 1, questionType: 'MULTIPLE_CHOICE',
-            content, options: opts.map((o, k) => `${'ABCD'[k]}. ${o}`), correctAnswer: correct, explanation, order: i,
+            content, options: opts.map((o, k) => `${'ABCDEFGH'[k]}. ${o}`), correctAnswer: correct, explanation, order: i,
           },
         });
       }

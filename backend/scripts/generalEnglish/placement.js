@@ -191,7 +191,7 @@ async function seedPaperList(prisma, list, orderBase) {
         data: {
           paperId: paper.id, questionNumber: ++qn, questionType: q.type, content: q.content,
           // Prisma rejects a plain null for a Json column, so leave options out when there are none
-          ...(q.options ? { options: q.options.map((o, k) => `${'ABCD'[k]}. ${o}`) } : {}),
+          ...(q.options ? { options: q.options.map((o, k) => `${'ABCDEFGH'[k]}. ${o}`) } : {}),
           correctAnswer: q.answer, explanation: q.explanation || null, order: qn, ...data,
         },
       });

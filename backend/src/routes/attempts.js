@@ -59,9 +59,9 @@ function calculateBand(score) {
 function extractAnswerLetter(answer) {
   if (!answer) return '';
   const text = String(answer).trim();
-  const prefixedLetter = text.match(/^([A-D])[\.\)]/i)?.[1];
+  const prefixedLetter = text.match(/^([A-H])[\.\)]/i)?.[1];
   if (prefixedLetter) return prefixedLetter.toUpperCase();
-  if (/^[A-D]$/i.test(text)) return text.toUpperCase();
+  if (/^[A-H]$/i.test(text)) return text.toUpperCase();
   return text.toUpperCase();
 }
 

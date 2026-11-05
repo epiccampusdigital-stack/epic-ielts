@@ -25,16 +25,18 @@ export default function GeneralPlacement() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    try {
-      const [p, h] = await Promise.all([
-        axios.get(`${API_URL}/api/papers/assigned?track=GENERAL`, api()),
-        axios.get(`${API_URL}/api/attempts/placement/mine`, api()),
-      ]);
-      setPapers((Array.isArray(p.data) ? p.data : []).filter(isGePlacementPaper));
-      setHistory((Array.isArray(h.data) ? h.data : []).filter(a => a.paper?.track === 'GENERAL'));
-    } catch {
-      setError('Could not load the placement test. Please refresh the page.');
-    }
+    // Load the papers and the student's history separately, so one failing request does not blank the whole page
+    const [p, h] = await Promise.allSettled([
+      axios.get(`${API_URL}/api/papers/assigned?track=GENERAL`, api()),
+      axios.get(`${API_URL}/api/attempts/placement/mine`, api()),
+    ]);
+    const why = r => (r.reason?.response ? `${r.reason.response.status} ${r.reason.response.data?.error || r.reason.response.data?.message || ''}`.trim() : 'no connection');
+    if (p.status === 'fulfilled') setPapers((Array.isArray(p.value.data) ? p.value.data : []).filter(isGePlacementPaper));
+    if (h.status === 'fulfilled') setHistory((Array.isArray(h.value.data) ? h.value.data : []).filter(a => a.paper?.track === 'GENERAL'));
+    const failed = [];
+    if (p.status === 'rejected') failed.push(`papers (${why(p)})`);
+    if (h.status === 'rejected') failed.push(`your earlier results (${why(h)})`);
+    setError(failed.length ? `Could not load: ${failed.join(' and ')}. Please refresh the page, or tell your teacher what this message says.` : '');
     setLoading(false);
   };
 

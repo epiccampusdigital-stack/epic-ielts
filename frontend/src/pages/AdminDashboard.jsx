@@ -208,6 +208,7 @@ export default function AdminDashboard() {
             .action-btn.outline:hover { border-color: #0056d2; color: #0056d2; }
             .form-input { width: 100%; padding: 11px 14px; border: 1.5px solid #dae1ed; border-radius: 8px; font-size: 14px; font-family: Source Sans Pro, sans-serif; color: #0f1114; outline: none; transition: border-color 0.2s; box-sizing: border-box; background: white; }
             .form-input:focus { border-color: #0056d2; }
+            .table-row > * { min-width: 0; overflow-wrap: anywhere; }
             .table-row { display: grid; padding: 14px 20px; border-bottom: 1px solid #e8eef7; align-items: center; transition: background 0.15s; }
             .table-row:hover { background: #f7f9fc; }
             .result-row { cursor: pointer; }
@@ -238,7 +239,7 @@ export default function AdminDashboard() {
 
          {/* NAVBAR */}
          <nav className="admin-nav">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0, flexWrap: 'wrap', rowGap: 8, paddingTop: 8, paddingBottom: 8 }}>
                <img src={settings.logoUrl} alt="" style={{ height: 26, maxWidth: 120, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
                <span style={{ fontSize: 20, fontWeight: 700, color: '#0056d2', letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>EPIC Admin</span>
                <div role="tablist" aria-label="Admin panel" style={{ display: 'inline-flex', padding: 3, borderRadius: 50, background: '#e8eef7', gap: 2 }}>

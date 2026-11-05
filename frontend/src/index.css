@@ -3,7 +3,11 @@ html, body {
   padding: 0;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  /* "clip" cuts off anything too wide without making the page scrollable sideways.
+     "hidden" (the old value) still let the browser shift the page left and leave it stuck. */
   overflow-x: hidden;
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape on iPhone */
   -webkit-tap-highlight-color: transparent;
 }
@@ -28,6 +32,8 @@ h4 {
 }
 
 button, input, select, textarea { font-family: inherit; }
+img, video, audio, iframe, table, pre { max-width: 100%; }
+#root { width: 100%; max-width: 100%; }
 a { color: #0056d2; }
 :focus-visible { outline: 2px solid #0056d2; outline-offset: 2px; }
 

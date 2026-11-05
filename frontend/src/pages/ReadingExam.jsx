@@ -1167,7 +1167,9 @@ export default function ReadingExam() {
                      const addLetters = paper?.track !== 'GENERAL' && !String(paper?.paperCode || '').startsWith('GE-') && body.length >= 2 && body.length <= 8 && !body.some(isLabelled);
                      let k = -1;
                      return paras.map((para, i) => {
-                        const letter = addLetters && para.trim().length > 40 ? 'ABCDEFGH'[++k] : null;
+                        const tagged = /^\s*\[([A-H])\]\s+/.exec(para);
+                        if (tagged) para = para.slice(tagged[0].length);
+                        const letter = tagged ? tagged[1] : (addLetters && para.trim().length > 40 ? 'ABCDEFGH'[++k] : null);
                         return (
                            <p key={i} style={{ marginBottom: 16, position: 'relative', paddingLeft: letter ? 34 : 0 }}>
                               {letter && (

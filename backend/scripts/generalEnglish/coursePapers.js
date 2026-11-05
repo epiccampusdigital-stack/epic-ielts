@@ -219,6 +219,52 @@ const writing3 = {
   ],
 };
 
-const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3];
+// ───────────── Reading 4 · Beginner IELTS-style: one 600-word text with paragraphs A to F ─────────────
+const R4_A = `[A] Tea is one of the most important things that Sri Lanka sells to other countries. Every day, millions of cups of Ceylon tea are drunk around the world. Many people think that tea has always grown on the island, but this is not true. Tea is quite new in Sri Lanka, and the story of how it began is a surprising one. It is a story about a failed crop, a brave young farmer and a lot of hard work.
+
+[B] In the early 1800s, farmers in the hills of Sri Lanka grew coffee, not tea. Coffee made a lot of money for the island, and many people moved to the hills to work on the farms. However, in the 1860s a disease began to kill the coffee plants. The leaves turned orange and fell off, and the farmers could not stop it. Within about twenty years, nearly all of the coffee farms had failed. Many farmers lost their land, and the island needed a new crop very quickly. This was a very hard time for the island.
+
+[C] A Scottish farmer called James Taylor found the answer. He came to Sri Lanka in 1852 when he was only seventeen years old. At first he worked on a coffee farm, like everyone else. Then, in 1867, he planted the first tea on a small piece of land near the city of Kandy. He learned how to make the tea by himself, and he did the work by hand in his own house. He often worked from early morning until late at night. The tea was very good. Soon other farmers saw what he had done, and they began to plant tea too.
+
+[D] The hills were a perfect place for this new crop. Tea grows best in places that are cool and wet, and the hills of Sri Lanka have plenty of rain and fresh air. The green tea bushes cover the hillsides like a soft carpet. Workers called pluckers walk between the bushes every day. They pick only the youngest leaves and a bud, because these give the best taste. Most of the pluckers are women, and they carry large baskets on their backs. Machines cannot do this job well, so people still pick the leaves by hand.
+
+[E] After the leaves are picked, they go to a factory, and the work there has four main steps. First, the leaves lie in large rooms for many hours so that they lose water. Second, they are rolled to break them open, which lets the juice come out. Third, the leaves are left for a short time and turn dark brown, and this change gives the tea its strong smell and colour. Finally, hot air dries the leaves completely. The dry tea is then sorted by size, put into bags and sent to Colombo, where it is sold at an auction.
+
+[F] Today, tea gives work to many thousands of people in Sri Lanka, and the hills where it grows are famous around the world. Visitors can stay in old houses on the tea farms, walk between the bushes and watch the pluckers at work. They can also visit a factory to see how the tea is made, and then taste a fresh cup in a small café with a view of the mountains. Many visitors say that tea tastes best in the place where it grew. Some farms now try to look after the land more carefully, so that the hills stay green for many years. For many Sri Lankans, a cup of tea is not just a drink. It is a part of their history.`;
+
+const PARA = ['Paragraph A', 'Paragraph B', 'Paragraph C', 'Paragraph D', 'Paragraph E', 'Paragraph F'];
+const reading4 = {
+  code: 'GE-C4R', testType: 'READING', title: 'Course paper 4 · Reading: Tea in Sri Lanka (beginner IELTS style)', timeLimitMin: 20,
+  instructions: 'Beginner IELTS-style reading. One text of about 600 words with paragraphs A to F, and 15 questions. Read the text, then answer the questions.',
+  passages: [
+    { title: 'Tea in Sri Lanka', text: R4_A, groups: [
+      { type: 'MULTIPLE_CHOICE', instruction: 'Questions 1 to 5. Which paragraph contains the following information? Choose the correct paragraph, A to F.', questions: [
+        mc('Why the island needed a new crop', PARA, 'B', 'Paragraph B: the coffee disease killed the farms, "the island needed a new crop very quickly".'),
+        mc('A story about one man who started tea farming', PARA, 'C', 'Paragraph C: James Taylor planted the first tea in 1867.'),
+        mc('The work that is done in a tea factory', PARA, 'E', 'Paragraph E: the four main steps in the factory.'),
+        mc('Why the hills are good for growing tea', PARA, 'D', 'Paragraph D: tea grows best where it is cool and wet.'),
+        mc('Things that visitors can do today', PARA, 'F', 'Paragraph F: visitors can stay on the farms, visit a factory and taste tea.'),
+      ] },
+      { type: 'TRUE_FALSE_NOT_GIVEN', instruction: TF(6, 10), questions: [
+        tf('Tea has grown in Sri Lanka for hundreds of years.', 'FALSE', 'Paragraph A: "Tea is quite new in Sri Lanka." The first tea was planted in 1867.'),
+        tf('A disease killed many of the coffee plants.', 'TRUE', 'Paragraph B: "a disease began to kill the coffee plants".'),
+        tf('James Taylor came from Scotland.', 'TRUE', 'Paragraph C: "A Scottish farmer called James Taylor".'),
+        tf('James Taylor became rich because of tea.', 'NOT GIVEN', 'The text does not say if he became rich.'),
+        tf('Machines pick the tea leaves in Sri Lanka.', 'FALSE', 'Paragraph D: "Machines cannot do this job well, so people still pick the leaves by hand."'),
+      ] },
+      { type: 'SENTENCE_COMPLETION', instruction: SC(11, 13), questions: [
+        sc('Pluckers pick only the youngest leaves and a ______.', 'bud', 'Paragraph D: "the youngest leaves and a bud".'),
+        sc('At first, the leaves lie in large ______ for many hours.', 'rooms', 'Paragraph E: "the leaves lie in large rooms for many hours".'),
+        sc('The tea is sold at an auction in ______.', 'Colombo', 'Paragraph E: "sent to Colombo, where it is sold at an auction".'),
+      ] },
+      { type: 'MULTIPLE_CHOICE', instruction: MC(14, 15), questions: [
+        mc('What happened to the coffee farms?', ['They grew bigger', 'Nearly all of them failed', 'They made more money', 'They moved to Kandy'], 'B', 'Paragraph B: "nearly all of the coffee farms had failed".'),
+        mc('Why do people pick tea by hand?', ['Tea bushes are very small', 'It is cheaper than a factory', 'Machines cannot do the job well', 'Visitors like to watch'], 'C', 'Paragraph D: "Machines cannot do this job well".'),
+      ] },
+    ] },
+  ],
+};
+
+const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4];
 
 module.exports = { COURSE_PAPERS };

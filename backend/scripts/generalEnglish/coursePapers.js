@@ -265,6 +265,7 @@ const reading4 = {
   ],
 };
 
-const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4];
+const { listening4 } = require('./listeningC4');
+const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4, listening4];
 
 module.exports = { COURSE_PAPERS };

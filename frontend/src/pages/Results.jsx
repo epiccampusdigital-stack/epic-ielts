@@ -472,6 +472,30 @@ const fetchExplanation = async (answer) => {
               </div>
             </div>
 
+            {/* Listening transcript (shown with the results so students can check what they heard) */}
+            {(() => {
+              let map = null;
+              try { map = data.paper?.testType === 'LISTENING' && data.paper?.audioScript ? JSON.parse(data.paper.audioScript) : null; } catch { map = null; }
+              if (!map) return null;
+              return (
+                <div className="result-section" style={{ animationDelay: '0.15s', padding: '20px' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0f1114', marginBottom: 4 }}>Transcript</div>
+                  <div style={{ fontSize: 13, color: '#8495b0', marginBottom: 12 }}>Read what was said in each section and check your answers.</div>
+                  {Object.keys(map).sort((a, b) => a - b).map((k) => (
+                    <details key={k} style={{ border: '1px solid #dae1ed', borderRadius: 10, padding: '10px 14px', marginBottom: 8, background: '#fff' }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#0056d2' }}>Section {k} transcript</summary>
+                      <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.8, color: '#1e2229' }}>
+                        {String(map[k]).split('\n').filter(Boolean).map((line, i) => {
+                          const m = line.match(/^([A-Za-z ]{2,20}):\s*(.+)$/);
+                          return <p key={i} style={{ margin: '0 0 6px' }}>{m ? <><b>{m[1]}:</b> {m[2]}</> : line}</p>;
+                        })}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Answer review table */}
             <div className="result-section" style={{ animationDelay: '0.2s', padding: '20px' }}>
                <div style={{

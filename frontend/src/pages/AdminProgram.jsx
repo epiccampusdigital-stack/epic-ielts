@@ -671,12 +671,104 @@ function StarPicker({ value, onChange, size = 20, readOnly }) {
   );
 }
 
+
+// ─── Teacher guide: print-ready, highlighted copy of a paper ────────────────
+function evidenceOf(q) {
+  const out = [];
+  if (q.evidence) String(q.evidence).split('|').map(x => x.trim()).filter(x => x.length > 2).forEach(x => out.push(x));
+  if (!out.length && q.explanation) {
+    const re = /["“‘']([^"”’']{6,160})["”’']/g; let m;
+    while ((m = re.exec(q.explanation))) out.push(m[1].trim());
+  }
+  return out;
+}
+function Highlighted({ text, questions }) {
+  const marks = [];
+  const low = String(text || '').toLowerCase();
+  questions.forEach(q => evidenceOf(q).forEach(ph => {
+    const i = low.indexOf(ph.toLowerCase());
+    if (i >= 0) marks.push({ i, e: i + ph.length, n: q.number });
+  }));
+  marks.sort((a, b) => a.i - b.i);
+  const kept = []; let end = -1;
+  marks.forEach(m => { if (m.i >= end) { kept.push(m); end = m.e; } });
+  const parts = []; let pos = 0;
+  kept.forEach((m, k) => {
+    if (m.i > pos) parts.push(String(text).slice(pos, m.i));
+    parts.push(<span key={k} style={{ background: '#fff176', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', padding: '0 1px' }}>{String(text).slice(m.i, m.e)}<sup style={{ color: '#be185d', fontWeight: 700, fontSize: '0.7em', marginLeft: 1 }}>{m.n}</sup></span>);
+    pos = m.e;
+  });
+  parts.push(String(text).slice(pos));
+  return <>{parts}</>;
+}
+function TeacherGuide({ paper, onClose }) {
+  const all = [...paper.sections, ...paper.passages].flatMap(x => x.groups.flatMap(g => g.questions));
+  const tag = { background: '#dbeafe', color: '#1e3a8a', fontWeight: 700, borderRadius: 4, padding: '1px 8px', fontSize: 12.5, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
+  const Qs = ({ groups }) => groups.map((g, gi) => (
+    <div key={gi} style={{ marginBottom: 10, breakInside: 'avoid' }}>
+      {g.instruction && <div style={{ fontWeight: 700, fontSize: 12.5, color: '#0f2a5c', margin: '8px 0 4px' }}>{g.instruction}</div>}
+      {g.questions.map(q => (
+        <div key={q.number} style={{ margin: '5px 0', fontSize: 13, lineHeight: 1.5, breakInside: 'avoid' }}>
+          <b>{q.number}.</b> {q.content} <span style={tag}>{q.number}: {String(q.answer || '').split('|').join(' / ')}</span>
+          {q.options && q.options.map((o, i) => {
+            const right = String(q.answer || '').split('|').map(x => x.trim().toUpperCase()).includes('ABCDEFGH'[i]);
+            return <div key={i} style={{ marginLeft: 18, background: right ? '#bbf7d0' : 'transparent', fontWeight: right ? 700 : 400, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{o}</div>;
+          })}
+          {q.explanation && <div style={{ marginLeft: 18, color: '#475569', fontSize: 12 }}>{q.explanation}</div>}
+        </div>
+      ))}
+    </div>
+  ));
+  const H = ({ children }) => <h2 style={{ background: '#0f2a5c', color: '#fff', fontSize: 14, margin: '18px 0 8px', padding: '6px 10px', borderRadius: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{children}</h2>;
+  return (
+    <div id="tg-overlay" style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, overflow: 'auto' }}>
+      <style>{`@media print { body * { visibility: hidden !important; } #tg-overlay, #tg-overlay * { visibility: visible !important; } #tg-overlay { position: absolute !important; inset: auto !important; left: 0; top: 0; width: 100%; overflow: visible !important; } .tg-noprint { display: none !important; } }`}</style>
+      <div className="tg-noprint" style={{ position: 'sticky', top: 0, background: '#f1f5f9', borderBottom: '1px solid #cbd5e1', padding: '10px 18px', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <button style={btn('primary')} onClick={() => window.print()}>Print / Save as PDF</button>
+        <button style={btn('outline')} onClick={onClose}>Close</button>
+        <span style={{ fontSize: 13, color: '#475569' }}>Yellow = where the answer is. Pink number = question. Blue = answer. Green = correct option.</span>
+      </div>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px 24px 48px', fontFamily: 'Source Sans Pro, Arial, sans-serif', color: '#0f172a' }}>
+        <div style={{ borderBottom: '4px solid #0f2a5c', paddingBottom: 8, marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', letterSpacing: 1 }}>EPIC CAMPUS · TEACHER COPY</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{paper.title}</div>
+          <div style={{ fontSize: 12.5, color: '#475569' }}>{paper.code} · {paper.minutes} minutes{paper.difficulty ? ` · Level ${paper.difficulty} of 5 (${LEVEL_LABEL[paper.difficulty]})` : ''}</div>
+        </div>
+        {paper.passages.map((ps, i) => (
+          <div key={i}>
+            <H>{ps.title}</H>
+            <div style={{ fontFamily: "Georgia, serif", fontSize: 13.5, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}><Highlighted text={ps.text} questions={ps.groups.flatMap(g => g.questions)} /></div>
+            <H>Questions and answers</H>
+            <Qs groups={ps.groups} />
+          </div>
+        ))}
+        {paper.sections.map(sx => (
+          <div key={sx.number}>
+            <H>Section {sx.number}{sx.description ? ` · ${sx.description}` : ''}</H>
+            {sx.script && (
+              <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 8 }}>
+                {String(sx.script).split('\n').filter(Boolean).map((line, k) => { const m = line.match(/^([A-Za-z ]{2,20}):\s*(.+)$/); return <p key={k} style={{ margin: '0 0 5px' }}>{m ? <><b>{m[1]}:</b> <Highlighted text={m[2]} questions={sx.groups.flatMap(g => g.questions)} /></> : <Highlighted text={line} questions={sx.groups.flatMap(g => g.questions)} />}</p>; })}
+              </div>
+            )}
+            <Qs groups={sx.groups} />
+          </div>
+        ))}
+        {paper.writingTasks.map(t => (
+          <div key={t.number}><H>Task {t.number} · at least {t.minWords} words</H><div style={{ fontSize: 13.5, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{t.prompt}</div></div>
+        ))}
+        {all.length === 0 && paper.writingTasks.length === 0 && <p>No questions in this paper.</p>}
+      </div>
+    </div>
+  );
+}
+
 function PaperReview({ flash }) {
   const [list, setList] = useState(null);
   const [sel, setSel] = useState(null);
   const [paper, setPaper] = useState(null);
   const [filter, setFilter] = useState('ALL');
   const [speaking, setSpeaking] = useState(null);
+  const [guide, setGuide] = useState(false);
   useEffect(() => { axios.get(`${P}/paper-review`, api()).then(r => setList(r.data)).catch(e => { flash(errText(e)); setList([]); }); }, [flash]);
   useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* no speech support */ } }, []);
   const openPaper = async (id) => {
@@ -746,6 +838,7 @@ function PaperReview({ flash }) {
   );
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      {guide && paper && <TeacherGuide paper={paper} onClose={() => setGuide(false)} />}
       <div>
         <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>Review papers</h2>
         <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Pick a paper to read it, listen to the audio and see every answer. Only teachers can see this page.</p>
@@ -784,6 +877,7 @@ function PaperReview({ flash }) {
                 <div style={{ marginTop: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
                   <StarPicker value={paper.difficulty} onChange={n => setStars(paper.id, n)} />
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>{paper.difficulty ? LEVEL_LABEL[paper.difficulty] : 'Tap a star to set the level'}</span>
+                  <button style={btn('outline')} onClick={() => setGuide(true)}>Teacher guide (print / PDF)</button>
                   <button style={btn(paper.status === 'ACTIVE' ? 'outline' : 'primary')} onClick={() => setLive(paper.id, paper.status !== 'ACTIVE')}>{paper.status === 'ACTIVE' ? 'Hide from students' : 'Make live for students'}</button>
                 </div>
               </div>

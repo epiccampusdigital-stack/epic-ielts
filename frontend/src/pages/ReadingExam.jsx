@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
-import useAnswerAutosave from '../utils/useAnswerAutosave';
+import useAnswerAutosave, { localAnswers } from '../utils/useAnswerAutosave';
 
 const api = () => ({
    headers: {
@@ -79,6 +79,8 @@ export default function ReadingExam() {
             (res.data.answers || []).forEach((a) => {
                existingAnswers[a.questionId] = a.studentAnswer;
             });
+            // answers typed just before a refresh may not have reached the server yet
+            if (res.data.status !== 'COMPLETED') Object.assign(existingAnswers, localAnswers(attemptId));
             setAnswers(existingAnswers);
             answersRef.current = existingAnswers;
             const totalSeconds = ((loadedPaper?.timeLimitMin || 60) + (res.data.extraMinutes || 0)) * 60;

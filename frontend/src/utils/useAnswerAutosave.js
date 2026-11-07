@@ -6,6 +6,16 @@ import API_URL from '../api';
 //  - every 20 seconds as a backup
 //  - when the student leaves the page, closes the tab or switches away
 // so going out of a paper and back in never loses answers.
+// A copy is also kept in this browser, so a refresh brings answers back at once,
+// even if the save to the server had not finished yet.
+const localKey = id => `epic-answers-${id}`;
+export function localAnswers(attemptId) {
+  try { const d = JSON.parse(localStorage.getItem(localKey(attemptId)) || 'null'); return d && d.answers ? d.answers : {}; } catch { return {}; }
+}
+export function keepLocal(attemptId, answers) {
+  try { localStorage.setItem(localKey(attemptId), JSON.stringify({ at: Date.now(), answers })); } catch { /* storage full or blocked */ }
+}
+
 export default function useAnswerAutosave(attemptId, answers, answersRef, enabled) {
   const lastSaved = useRef('');
 
@@ -32,9 +42,10 @@ export default function useAnswerAutosave(attemptId, answers, answersRef, enable
   const saveRef = useRef(save);
   saveRef.current = save;
 
-  // shortly after each change
+  // shortly after each change (and straight away in this browser)
   useEffect(() => {
     if (!enabled) return undefined;
+    keepLocal(attemptId, { ...(answersRef.current || {}), ...(answers || {}) });
     const t = setTimeout(() => saveRef.current(), 1500);
     return () => clearTimeout(t);
   }, [answers, enabled]);

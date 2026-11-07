@@ -336,9 +336,14 @@ export default function WritingExam() {
         setAttempt(r.data);
         setPaper(r.data.paper);
         // Bring back essays typed before the student left the page
-        if (r.data.status !== 'COMPLETED' && r.data.draft) {
+        let local = null;
+        try { local = JSON.parse(localStorage.getItem(`epic-essays-${attemptId}`) || 'null'); } catch { local = null; }
+        let server = null;
+        try { server = r.data.draft ? JSON.parse(r.data.draft) : null; } catch { server = null; }
+        const best = local && (!server || (local.at || 0) >= (server.at || 0)) ? local : server;
+        if (r.data.status !== 'COMPLETED' && best) {
           try {
-            const d = JSON.parse(r.data.draft);
+            const d = best;
             if (d.task1) setTask1(prev => { const v = prev || d.task1; task1Ref.current = v; return v; });
             if (d.task2) setTask2(prev => { const v = prev || d.task2; task2Ref.current = v; return v; });
           } catch { /* ignore a broken draft */ }
@@ -489,6 +494,9 @@ export default function WritingExam() {
   };
   useEffect(() => {
     if (!attempt) return undefined;
+    if (attempt.status !== 'COMPLETED' && (task1 || task2)) {
+      try { localStorage.setItem(`epic-essays-${attemptId}`, JSON.stringify({ task1: task1 || '', task2: task2 || '', at: Date.now() })); } catch { /* storage blocked */ }
+    }
     const t = setTimeout(() => saveDraft.current(), 2000);
     return () => clearTimeout(t);
   }, [task1, task2, attempt]);

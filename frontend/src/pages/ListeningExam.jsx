@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
-import useAnswerAutosave from '../utils/useAnswerAutosave';
+import useAnswerAutosave, { localAnswers } from '../utils/useAnswerAutosave';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -59,6 +59,8 @@ export default function ListeningExam() {
         setPaper(r.data.paper);
         const existingAnswers = {};
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
+        // answers typed just before a refresh may not have reached the server yet
+        if (r.data.status !== 'COMPLETED') Object.assign(existingAnswers, localAnswers(attemptId));
         setAnswers(existingAnswers);
         answersRef.current = existingAnswers;
         const totalSeconds = ((r.data.paper?.timeLimitMin || 30) + (r.data.extraMinutes || 0)) * 60;

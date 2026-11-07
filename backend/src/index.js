@@ -109,7 +109,7 @@ require('./ensureSchema').ensureSchema(prisma)
       if (modules === 0 || placement < 4) {
         const { seedGeneralEnglish } = require('../scripts/generalEnglish');
         console.log('[general-english] content loaded:', JSON.stringify(await seedGeneralEnglish(prisma)));
-      } else if (course < 23) {
+      } else if (course < 18) {
         // Only add the course papers that are missing, so existing papers (and their audio and stars) stay as they are
         const { COURSE_PAPERS } = require('../scripts/generalEnglish/coursePapers');
         const { seedPaperList } = require('../scripts/generalEnglish/placement');
@@ -126,6 +126,8 @@ require('./ensureSchema').ensureSchema(prisma)
     }
     // Then: fix GE paper 4 options, attach the Listening 002 audio and fill in difficulty stars (all safe to repeat)
     try {
+      const { removeSilentGeListening } = require('../scripts/removeSilentGeListening');
+      console.log('[general-english] listening without audio:', JSON.stringify(await removeSilentGeListening(prisma)));
       const { repairGeC4R } = require('../scripts/repairGeC4R');
       console.log('[general-english] paper 4 repair:', JSON.stringify(await repairGeC4R(prisma)));
       const { attachGeListeningAudio } = require('../scripts/attachGeListeningAudio');

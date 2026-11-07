@@ -389,7 +389,8 @@ const listening9 = {
 const NEW_PAPERS = [
   reading5, reading6, reading7, reading8, reading9,
   writing5, writing6, writing7, writing8, writing9,
-  listening5, listening6, listening7, listening8, listening9,
+  // Listening 005 to 009 are kept here but not loaded: listening papers go live only with real audio.
 ];
+const LISTENING_DRAFTS = [listening5, listening6, listening7, listening8, listening9];
 
-module.exports = { NEW_PAPERS };
+module.exports = { NEW_PAPERS, LISTENING_DRAFTS };

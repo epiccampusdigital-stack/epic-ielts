@@ -315,8 +315,11 @@ router.patch('/paper-review/:paperId/difficulty', wrap(async (req, res) => {
 router.patch('/paper-review/:paperId/publish', wrap(async (req, res) => {
   if ((await hiddenLanguage(req)) === 'EN') return res.status(403).json({ error: 'Not allowed' });
   const live = !!req.body?.live;
-  const paper = await prisma.paper.findFirst({ where: { id: parseInt(req.params.paperId, 10), track: 'GENERAL' }, select: { id: true, source: true } });
+  const paper = await prisma.paper.findFirst({ where: { id: parseInt(req.params.paperId, 10), track: 'GENERAL' }, select: { id: true, source: true, testType: true, paperCode: true, audioUrl: true, sections: { select: { audioUrl: true } } } });
   if (!paper) return res.status(404).json({ error: 'Paper not found' });
+  if (live && paper.testType === 'LISTENING' && !String(paper.paperCode).startsWith('GE-PT') && !paper.audioUrl && !paper.sections.some(s => s.audioUrl)) {
+    return res.status(400).json({ error: 'This listening paper has no audio yet. Press "Record audio with Google voice" first.' });
+  }
   await prisma.paper.update({ where: { id: paper.id }, data: { status: live ? 'ACTIVE' : 'DRAFT' } });
   res.json({ ok: true, status: live ? 'ACTIVE' : 'DRAFT' });
 }));

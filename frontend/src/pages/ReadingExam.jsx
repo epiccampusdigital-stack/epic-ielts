@@ -712,9 +712,11 @@ export default function ReadingExam() {
       setWordPopup({ word: clean, definition: null, ...at });
       setWordLoading(true);
       try {
-         const res = await axios.get(`${API_URL}/api/dictionary`, { ...api(), params: { word: clean, sentence: hit.sentence } });
+         // IELTS Reading 001 to 005 also show the meaning in Sinhala
+         const withSinhala = paper?.track !== 'GENERAL' && ['001', '002', '003', '004', '005'].includes(String(paper?.paperCode || ''));
+         const res = await axios.get(`${API_URL}/api/dictionary`, { ...api(), params: { word: clean, sentence: hit.sentence, ...(withSinhala ? { si: 1 } : {}) } });
          const d = res.data;
-         setWordPopup({ word: clean, definition: d.meaning, partOfSpeech: d.partOfSpeech, phonetic: d.phonetic, example: d.example, ...at });
+         setWordPopup({ word: clean, definition: d.meaning, partOfSpeech: d.partOfSpeech, phonetic: d.phonetic, example: d.example, sinhala: d.sinhala, sinhalaWord: d.sinhalaWord, ...at });
       } catch {
          setWordPopup({ word: clean, definition: 'Sorry, no meaning found for this word. Try selecting just one word.', ...at });
       }
@@ -1417,6 +1419,13 @@ export default function ReadingExam() {
                         {wordPopup.example && (
                            <div style={{ background: '#f7f9fc', borderLeft: '3px solid #0056d2', padding: '8px 12px', borderRadius: '0 8px 8px 0', fontSize: '13px', color: '#5b6780', fontStyle: 'italic' }}>
                               "{wordPopup.example}"
+                           </div>
+                        )}
+                        {wordPopup.sinhala && (
+                           <div lang="si" style={{ marginTop: '10px', background: '#fff8e6', border: '1px solid #f5d98b', borderRadius: '8px', padding: '8px 12px', fontFamily: "'Noto Sans Sinhala', 'Iskoola Pota', 'Nirmala UI', sans-serif" }}>
+                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#a16207', letterSpacing: '0.06em', marginBottom: '4px', fontFamily: 'inherit' }}>සිංහල</div>
+                              {wordPopup.sinhalaWord && <div style={{ fontSize: '15px', fontWeight: 700, color: '#1e2229', marginBottom: '2px' }}>{wordPopup.sinhalaWord}</div>}
+                              <div style={{ fontSize: '13.5px', color: '#3b4252', lineHeight: 1.6 }}>{wordPopup.sinhala}</div>
                            </div>
                         )}
                      </div>

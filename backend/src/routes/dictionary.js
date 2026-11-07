@@ -21,25 +21,26 @@ async function fromDictionaryApi(word) {
   } catch { return null; } finally { clearTimeout(t); }
 }
 
-async function fromClaude(word, sentence) {
+async function fromClaude(word, sentence, sinhala) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
   try {
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: key });
     const r = await client.messages.create({
-      model: 'claude-haiku-4-5', max_tokens: 220,
+      model: 'claude-haiku-4-5', max_tokens: sinhala ? 500 : 220,
       messages: [{ role: 'user', content:
 `A beginner English student (level A2) tapped "${word}" in this sentence:
 "${String(sentence || '').slice(0, 300)}"
 
-Explain what it means IN THIS SENTENCE using very simple words (A1-A2). Reply with JSON only, no other text:
-{"partOfSpeech":"noun/verb/adjective/...","meaning":"one short simple sentence, max 15 words","example":"one very short simple example sentence"}` }],
+Explain what it means IN THIS SENTENCE using very simple words (A1-A2).${sinhala ? ' The student is Sri Lankan, so also give the meaning in Sinhala (natural, everyday Sinhala in Sinhala script, the way a Sri Lankan teacher would explain it).' : ''} Reply with JSON only, no other text:
+{"partOfSpeech":"noun/verb/adjective/...","meaning":"one short simple sentence, max 15 words","example":"one very short simple example sentence"${sinhala ? ',"sinhalaWord":"the Sinhala word or short phrase for it","sinhala":"one short simple Sinhala sentence explaining the meaning in this sentence"' : ''}}` }],
     });
     const txt = r?.content?.[0]?.text || '';
     const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
     if (!j.meaning) return null;
-    return { meaning: String(j.meaning), partOfSpeech: String(j.partOfSpeech || ''), example: String(j.example || ''), phonetic: '' };
+    return { meaning: String(j.meaning), partOfSpeech: String(j.partOfSpeech || ''), example: String(j.example || ''), phonetic: '',
+      ...(sinhala && j.sinhala ? { sinhala: String(j.sinhala), sinhalaWord: String(j.sinhalaWord || '') } : {}) };
   } catch (e) { console.error('Dictionary Claude error:', e.message); return null; }
 }
 
@@ -48,9 +49,10 @@ router.get('/', auth, async (req, res) => {
   const word = clean(req.query.word);
   if (!word || word.length < 2 || word.length > 60 || word.split(' ').length > 5) return res.status(400).json({ error: 'Pick one word or a short phrase' });
   const sentence = String(req.query.sentence || '').slice(0, 400);
-  const k = word + '|' + sentence.slice(0, 120);
+  const sinhala = req.query.si === '1';
+  const k = (sinhala ? 'si|' : '') + word + '|' + sentence.slice(0, 120);
   if (cache.has(k)) return res.json(cache.get(k));
-  const out = (await fromClaude(word, sentence)) || (word.includes(' ') ? null : await fromDictionaryApi(word));
+  const out = (await fromClaude(word, sentence, sinhala)) || (word.includes(' ') ? null : await fromDictionaryApi(word));
   if (!out) return res.status(404).json({ error: 'No meaning found' });
   const body = { word, ...out };
   if (cache.size > 2000) cache.clear();

@@ -335,6 +335,14 @@ export default function WritingExam() {
       .then(r => {
         setAttempt(r.data);
         setPaper(r.data.paper);
+        // Bring back essays typed before the student left the page
+        if (r.data.status !== 'COMPLETED' && r.data.draft) {
+          try {
+            const d = JSON.parse(r.data.draft);
+            if (d.task1) setTask1(prev => { const v = prev || d.task1; task1Ref.current = v; return v; });
+            if (d.task2) setTask2(prev => { const v = prev || d.task2; task2Ref.current = v; return v; });
+          } catch { /* ignore a broken draft */ }
+        }
         const totalSeconds = ((r.data.paper?.timeLimitMin || 60) + (r.data.extraMinutes || 0)) * 60;
         const startedAt = r.data.startedAt ? new Date(r.data.startedAt).getTime() : null;
         const elapsed = startedAt ? Math.floor(((r.data.serverNow || Date.now()) - startedAt) / 1000) : 0;
@@ -463,6 +471,42 @@ export default function WritingExam() {
 
   const writingTasks = paper?.writingTasks || [];
   const hasWritingTasks = writingTasks.length > 0;
+  // Save essays to the student's account as they type, and when they leave the page
+  const draftSaved = useRef('');
+  const saveDraft = useRef(null);
+  saveDraft.current = (keepalive = false) => {
+    if (!attemptId || attempt?.status === 'COMPLETED' || submitting) return;
+    const body = JSON.stringify({ task1: task1Ref.current || '', task2: task2Ref.current || '' });
+    if (body === draftSaved.current || body === '{"task1":"","task2":""}') return;
+    draftSaved.current = body;
+    try {
+      fetch(`${API_URL}/api/attempts/${attemptId}/writing/draft`, {
+        method: 'PUT', keepalive,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body,
+      }).then(r => { if (!r.ok) draftSaved.current = ''; }).catch(() => { draftSaved.current = ''; });
+    } catch { draftSaved.current = ''; }
+  };
+  useEffect(() => {
+    if (!attempt) return undefined;
+    const t = setTimeout(() => saveDraft.current(), 2000);
+    return () => clearTimeout(t);
+  }, [task1, task2, attempt]);
+  useEffect(() => {
+    if (!attempt) return undefined;
+    const id = setInterval(() => saveDraft.current(), 20000);
+    const onHide = () => saveDraft.current(true);
+    const onVis = () => { if (document.visibilityState === 'hidden') saveDraft.current(true); };
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('pagehide', onHide);
+      document.removeEventListener('visibilitychange', onVis);
+      saveDraft.current(true);
+    };
+  }, [attempt]);
+
   const writingTask1 = writingTasks.find(t => t.taskNumber === 1);
   const writingTask2 = writingTasks.find(t => t.taskNumber === 2);
   const currentTask = task === 1 ? writingTask1 : task === 2 ? writingTask2 : writingTasks.find(t => t.taskNumber === task);

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import useAnswerAutosave from '../utils/useAnswerAutosave';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -27,6 +28,8 @@ export default function ListeningExam() {
   const autosaveRef = useRef(null);
   const timerStartedRef = useRef(false);
   const answersRef = useRef({});
+  // Save answers to the student's account as they go (see useAnswerAutosave)
+  useAnswerAutosave(attemptId, answers, answersRef, !!paper && !submitting);
 
   const questionMap = useMemo(() => {
     const map = {};
@@ -82,7 +85,6 @@ export default function ListeningExam() {
         return t - 1;
       });
     }, 1000);
-    autosaveRef.current = setInterval(saveAnswers, 30000);
     timerRef.current = id;
 
     return () => {

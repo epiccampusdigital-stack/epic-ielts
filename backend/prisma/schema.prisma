@@ -148,6 +148,7 @@ model Attempt {
   endedAt            DateTime?
   status             String              @default("IN_PROGRESS")
   isPlacement        Boolean             @default(false)
+  draft              String?             @db.Text // unsent writing essays, so leaving the page loses nothing
   answers            Answer[]
   writingSubmission  WritingSubmission?
   speakingSubmission SpeakingSubmission?

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import useAnswerAutosave from '../utils/useAnswerAutosave';
 
 const api = () => ({
    headers: {
@@ -29,7 +30,6 @@ export default function ReadingExam() {
    const navigate = useNavigate();
    const timerRef = useRef(null);
    const timerStartedRef = useRef(false);
-   const autosaveIntervalRef = useRef(null);
    const answersRef = useRef({});
    const teachingModeRef = useRef(false);
 
@@ -122,35 +122,14 @@ export default function ReadingExam() {
       };
    }, [timeLeft]);
 
-   const saveAnswers = async () => {
-      const payload = Object.entries(answersRef.current).map(([questionId, answer]) => ({
-         questionId: parseInt(questionId),
-         studentAnswer: String(answer)
-      }));
-      if (payload.length === 0) return;
-      try {
-         await axios.put(`${API_URL}/api/attempts/${attemptId}/autosave`, { answers: payload }, api());
-         console.log('Autosaved', payload.length, 'answers');
-      } catch (e) {
-         console.error('Autosave failed:', e.message);
-      }
-   };
-
    const toggleTeachingMode = () => {
       const entering = !teachingMode;
       setTeachingMode(entering);
       teachingModeRef.current = entering;
    };
 
-   useEffect(() => {
-      if (submitting || !timeLeft) return;
-      if (autosaveIntervalRef.current) return;
-      autosaveIntervalRef.current = setInterval(saveAnswers, 30000);
-      return () => {
-         clearInterval(autosaveIntervalRef.current);
-         autosaveIntervalRef.current = null;
-      };
-   }, [timeLeft, submitting]);
+   // Save answers to the student's account as they go (see useAnswerAutosave)
+   useAnswerAutosave(attemptId, answers, answersRef, !!paper && !submitting);
 
    const splitPassageText = (text) => {
       const full = text || '';

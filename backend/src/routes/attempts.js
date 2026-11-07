@@ -462,26 +462,14 @@ router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
       return res.json({ id: attempt.id, attemptId: attempt.id });
     }
 
-    // Auto-close any stuck IN_PROGRESS attempts for this student+paper
+    // Going back into a paper: carry on with the unfinished attempt (its saved answers come back)
+    // instead of closing it with 0 and starting an empty one.
     const existingOpen = await prisma.attempt.findMany({
-      where: { studentId, paperId: pid, status: 'IN_PROGRESS', endedAt: null }
+      where: { studentId, paperId: pid, status: 'IN_PROGRESS', endedAt: null },
+      orderBy: { id: 'desc' }
     });
     if (existingOpen.length > 0) {
-      const openIds = existingOpen.map(a => a.id);
-      await prisma.attempt.updateMany({
-        where: { id: { in: openIds } },
-        data: { status: 'COMPLETED', endedAt: new Date() }
-      });
-      for (const openId of openIds) {
-        const existingResult = await prisma.result.findUnique({
-          where: { attemptId: openId }
-        });
-        if (!existingResult) {
-          await prisma.result.create({
-            data: { attemptId: openId, rawScore: 0, bandEstimate: 0 }
-          });
-        }
-      }
+      return res.json({ id: existingOpen[0].id, attemptId: existingOpen[0].id, resumed: true });
     }
 
     const attempt = await prisma.attempt.create({
@@ -576,6 +564,7 @@ router.put('/:id/autosave', auth, async (req, res) => {
     if (!Array.isArray(answers) || answers.length === 0) return res.json({ saved: 0 });
     const attempt = await prisma.attempt.findUnique({ where: { id: attemptId } });
     if (!attempt || attempt.status === 'COMPLETED') return res.json({ saved: 0 });
+    if (attempt.studentId !== req.user.id) return res.status(403).json({ error: 'Not your attempt' });
     let saved = 0;
     for (const a of answers) {
       if (!a.questionId || a.studentAnswer === undefined) continue;
@@ -587,6 +576,22 @@ router.put('/:id/autosave', auth, async (req, res) => {
       saved++;
     }
     res.json({ saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Writing: keep the essays the student has typed so far (restored when they come back)
+router.put('/:id/writing/draft', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id, 10);
+    const attempt = await prisma.attempt.findUnique({ where: { id: attemptId }, select: { studentId: true, status: true } });
+    if (!attempt || attempt.status === 'COMPLETED') return res.json({ saved: false });
+    if (attempt.studentId !== req.user.id) return res.status(403).json({ error: 'Not your attempt' });
+    const task1 = String(req.body?.task1 || '').slice(0, 20000);
+    const task2 = String(req.body?.task2 || '').slice(0, 20000);
+    await prisma.attempt.update({ where: { id: attemptId }, data: { draft: JSON.stringify({ task1, task2, at: Date.now() }) } });
+    res.json({ saved: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

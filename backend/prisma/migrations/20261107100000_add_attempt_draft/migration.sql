@@ -1,0 +1,1 @@
+ALTER TABLE "Attempt" ADD COLUMN IF NOT EXISTS "draft" TEXT;

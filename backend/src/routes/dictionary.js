@@ -21,6 +21,37 @@ async function fromDictionaryApi(word) {
   } catch { return null; } finally { clearTimeout(t); }
 }
 
+// Sinhala needs a stronger model than the quick English one
+const SI_MODELS = [process.env.SINHALA_MODEL, 'claude-sonnet-5-5', 'claude-opus-5-5', 'claude-sonnet-4-5'].filter(Boolean);
+async function sinhalaMeaning(word, sentence, englishMeaning) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: key });
+  const prompt = `You are a Sri Lankan English teacher. A Sinhala-speaking student tapped the English word "${word}" in this sentence:
+"${String(sentence || '').slice(0, 300)}"
+Its meaning here: ${englishMeaning}
+
+Give:
+1. "sinhalaWord": the correct Sinhala word or short phrase for "${word}" with THIS meaning, as it appears in a good English-Sinhala dictionary (for example culture = සංස්කෘතිය, environment = පරිසරය, increase = වැඩි වීම). Use proper Sinhala script and correct spelling. Do not write the English word in Sinhala letters unless Sri Lankans really use the English word.
+2. "sinhala": one short, simple, natural sentence in everyday Sinhala that explains the meaning, the way a teacher would say it in class. Correct grammar and spelling. No English words.
+
+Reply with JSON only: {"sinhalaWord":"...","sinhala":"..."}`;
+  for (const model of SI_MODELS) {
+    try {
+      const r = await client.messages.create({ model, max_tokens: 400, messages: [{ role: 'user', content: prompt }] });
+      const txt = r?.content?.map(c => c.text || '').join('') || '';
+      const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+      if (j.sinhala && /[\u0D80-\u0DFF]/.test(j.sinhala)) return { sinhala: String(j.sinhala), sinhalaWord: String(j.sinhalaWord || '') };
+    } catch (e) {
+      if (e && (e.status === 404 || e.status === 400)) continue;
+      console.error('Dictionary Sinhala error:', e.message);
+      return null;
+    }
+  }
+  return null;
+}
+
 async function fromClaude(word, sentence, sinhala) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
@@ -52,8 +83,9 @@ router.get('/', auth, async (req, res) => {
   const sinhala = req.query.si === '1';
   const k = (sinhala ? 'si|' : '') + word + '|' + sentence.slice(0, 120);
   if (cache.has(k)) return res.json(cache.get(k));
-  const out = (await fromClaude(word, sentence, sinhala)) || (word.includes(' ') ? null : await fromDictionaryApi(word));
+  let out = (await fromClaude(word, sentence, false)) || (word.includes(' ') ? null : await fromDictionaryApi(word));
   if (!out) return res.status(404).json({ error: 'No meaning found' });
+  if (sinhala) out = { ...out, ...((await sinhalaMeaning(word, sentence, out.meaning)) || {}) };
   const body = { word, ...out };
   if (cache.size > 2000) cache.clear();
   cache.set(k, body);

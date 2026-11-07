@@ -116,7 +116,8 @@ require('./ensureSchema').ensureSchema(prisma)
         let added = 0;
         for (const [i, p] of COURSE_PAPERS.entries()) {
           if (await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType }, select: { id: true } })) continue;
-          added += await seedPaperList(prisma, [p], 950 + i);
+          try { added += await seedPaperList(prisma, [p], 950 + i); console.log('[general-english] added', p.code); }
+          catch (err) { console.error('[general-english] could not add', p.code, '-', err.message); }
         }
         console.log('[general-english] new course papers added:', added);
       }

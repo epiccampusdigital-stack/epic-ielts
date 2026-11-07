@@ -230,7 +230,7 @@ async function seedPaperList(prisma, list, orderBase, opts = {}) {
           }
         }
       }
-    }, { timeout: 30000 });
+    }, { timeout: 120000, maxWait: 30000 });
     created++;
   }
   return created;

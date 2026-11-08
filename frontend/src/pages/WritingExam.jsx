@@ -924,7 +924,7 @@ export default function WritingExam() {
                     <img
                       src={getFullUrl(writingTask1.chartImageUrl)}
                       alt="Task Chart"
-                      style={{ width: `${imageZoom * 100}%`, display: 'block', transition: 'width 0.2s' }}
+                      style={{ width: `${imageZoom * 100}%`, maxWidth: 'none', display: 'block', transition: 'width 0.2s' }}
                     />
                   </div>
                 </div>

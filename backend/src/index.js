@@ -135,6 +135,8 @@ require('./ensureSchema').ensureSchema(prisma)
       console.log('[general-english] listening audio:', JSON.stringify(await attachGeListeningAudio(prisma)));
       const { applyGeDifficulty } = require('../scripts/generalEnglish/difficulty');
       console.log('[general-english] difficulty stars:', JSON.stringify(await applyGeDifficulty(prisma)));
+      const { renameGePapers } = require('../scripts/generalEnglish/naming');
+      console.log('[general-english] paper names:', JSON.stringify(await renameGePapers(prisma)));
     } catch (e) {
       console.error('[general-english] paper 4 repair skipped:', e.message);
     }

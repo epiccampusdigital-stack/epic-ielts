@@ -153,7 +153,7 @@ function toPaper(skill, difficulty, j) {
   const label = { READING: 'Reading', LISTENING: 'Listening', WRITING: 'Writing' }[skill];
   const base = {
     code, testType: skill, difficulty, topic: String(j.topic || '').slice(0, 60) || null,
-    title: `${label} · ${String(j.title || 'New paper').slice(0, 80)}`,
+    title: `${label} · ${String(j.title || 'New paper').slice(0, 80)}`, // replaced with "GE Reading 0NN" when saved
     timeLimitMin: Math.min(90, Math.max(10, parseInt(j.minutes, 10) || 20)),
     instructions: String(j.instructions || '').slice(0, 400) || 'Read the instructions for each part carefully.',
   };
@@ -344,6 +344,7 @@ async function runJob(job, { skill, difficulty, topic }) {
     if (result.problems.length) throw new Error(`Could not make a clean paper: ${result.problems.slice(0, 3).join(' ')}`);
     job.step = 'Saving the paper';
     const p = result.paper;
+    p.title = await require('../../scripts/generalEnglish/naming').nextGeTitle(prisma, skill);
     await seedPaperList(prisma, [p], 2000 + Math.floor(Date.now() / 1000) % 100000, { status: 'DRAFT', source: 'GENERATED' });
     const saved = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType }, select: { id: true } });
     job.paperId = saved.id;

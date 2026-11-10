@@ -141,10 +141,13 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (member) await prisma.chatMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } });
   const tracked = rows.filter(m => !m.deletedAt && (m.isTask || m.paperId || HAS_LINK.test(m.text)));
   const stats = isStaff(req) ? await trackStats(groupId, tracked) : null;
+  // messages unsent recently, so open chats can hide them without a reload
+  const unsent = after ? (await prisma.chatMessage.findMany({ where: { groupId, id: { lte: after }, deletedAt: { gte: new Date(Date.now() - 3 * 86400000) } }, select: { id: true } })).map(r => r.id) : [];
   const mine = !isStaff(req) ? await myStatus(req.user.id, tracked) : null;
   res.json({
     group: { id: group.id, name: group.name, description: group.description, onlyStaffPost: group.onlyStaffPost, joinCode: isStaff(req) ? group.joinCode : undefined, archived: group.archived, dailyTask: group.dailyTask },
     canPost: isStaff(req) || (!group.onlyStaffPost && !!member),
+    unsent,
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
       deleted: !!m.deletedAt, text: m.deletedAt ? '' : m.text, paper: m.paperId && !m.deletedAt ? (pm.get(m.paperId) || { id: m.paperId, title: 'Paper not available', missing: true }) : null,

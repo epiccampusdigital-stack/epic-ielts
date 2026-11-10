@@ -179,11 +179,13 @@ export default function Messages() {
       const d = r.data;
       setData(prev => {
         if (full || !prev || prev.group.id !== d.group.id) { lastId.current = d.messages.length ? d.messages[d.messages.length - 1].id : 0; scrollDown(); return d; }
-        if (!d.messages.length) return { ...prev, group: d.group, canPost: d.canPost };
+        const gone = new Set(d.unsent || []);
+        const base = gone.size ? prev.messages.map(m => gone.has(m.id) && !m.deleted ? { ...m, deleted: true, text: '', paper: null, stats: null, status: null } : m) : prev.messages;
+        if (!d.messages.length) return { ...prev, group: d.group, canPost: d.canPost, messages: base };
         lastId.current = d.messages[d.messages.length - 1].id;
         const el = listRef.current; const atBottom = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 120;
         if (atBottom) scrollDown();
-        return { ...d, messages: [...prev.messages, ...d.messages] };
+        return { ...d, messages: [...base, ...d.messages] };
       });
     } catch (e) {
       if (e.response?.status === 404) { setSel(null); setData(null); loadGroups(); }
@@ -208,8 +210,8 @@ export default function Messages() {
     setSending(false);
   };
   const del = async id => {
-    if (!window.confirm('Delete this message?')) return;
-    try { await axios.delete(`${API_URL}/api/chat/messages/${id}`, api()); setData(d => ({ ...d, messages: d.messages.map(m => m.id === id ? { ...m, deleted: true, text: '', paper: null } : m) })); } catch (e) { flash(errText(e)); }
+    if (!window.confirm(staff ? 'Unsend this message? It will be removed for everyone in the group.' : 'Unsend this message?')) return;
+    try { await axios.delete(`${API_URL}/api/chat/messages/${id}`, api()); setData(d => ({ ...d, messages: d.messages.map(m => m.id === id ? { ...m, deleted: true, text: '', paper: null, stats: null, status: null } : m) })); } catch (e) { flash(errText(e)); }
   };
   const join = async () => {
     try { const r = await axios.post(`${API_URL}/api/chat/join`, { code }, api()); setCode(''); await loadGroups(); setSel(r.data.id); flash(`You joined ${r.data.name}.`); } catch (e) { flash(errText(e)); }
@@ -321,7 +323,7 @@ export default function Messages() {
                     <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.mine ? 'flex-end' : 'flex-start', marginTop: showName ? 12 : 4 }}>
                       {showName && <div style={{ fontSize: 12.5, fontWeight: 700, color: m.staff ? T.primary : T.muted, margin: '0 4px 2px' }}>{m.senderName}{m.staff ? ' · Teacher' : ''}</div>}
                       <div style={{ maxWidth: 'min(560px, 88%)', background: m.deleted ? 'transparent' : m.mine ? T.primary : m.staff ? '#fff8e1' : '#fff', color: m.deleted ? T.mid : m.mine ? '#fff' : T.ink, border: m.deleted ? `1px dashed ${T.hairline}` : m.mine ? 'none' : `1px solid ${m.staff ? '#f5d98b' : T.hairline}`, borderRadius: 14, padding: '8px 12px', fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                        {m.deleted ? <i>Message deleted</i> : (<>
+                        {m.deleted ? <i>{m.mine ? 'You unsent this message' : 'This message was unsent'}</i> : (<>
                           {m.isTask && <div style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 800, letterSpacing: '.06em', background: m.mine ? 'rgba(255,255,255,.22)' : '#f5b400', color: m.mine ? '#fff' : '#1d1600', borderRadius: 50, padding: '1px 9px', marginBottom: 4 }}>TASK</div>}
                           {m.text && <div><Linkify text={m.text} onLink={staff ? null : () => track(m.id, 'LINK')} /></div>}
                           {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={pid => startPaper(pid, m.id)} starting={starting === m.paper.id} />}
@@ -338,7 +340,7 @@ export default function Messages() {
                         </>)}
                         <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 3, textAlign: 'right', whiteSpace: 'nowrap' }}>
                           {when(m.createdAt)}
-                          {!m.deleted && (m.mine || staff) && <button type="button" onClick={() => del(m.id)} style={{ marginLeft: 8, border: 0, background: 'none', color: 'inherit', cursor: 'pointer', fontSize: 11.5, textDecoration: 'underline', padding: 0, fontFamily: 'inherit' }}>Delete</button>}
+                          {!m.deleted && (m.mine || staff) && <button type="button" onClick={() => del(m.id)} title="Remove this message for everyone" style={{ marginLeft: 8, border: `1px solid ${m.mine ? 'rgba(255,255,255,.6)' : '#e2a3a3'}`, borderRadius: 50, background: m.mine ? 'rgba(255,255,255,.14)' : '#fff5f5', color: m.mine ? '#fff' : '#b3261e', cursor: 'pointer', fontSize: 12, fontWeight: 700, padding: '1px 10px', fontFamily: 'inherit' }}>Unsend</button>}
                         </div>
                       </div>
                     </div>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import API_URL from '../api';
 import { getTrack, setTrack } from '../utils/track';
 import { T } from '../theme';
+import TaskNotifier from './TaskNotifier';
 
 export function readUser() {
   try {
@@ -184,6 +185,7 @@ export default function StudentNav({ active = null }) {
           ))}
         </nav>
       </div>
+      <TaskNotifier />
     </div>
   );
 }

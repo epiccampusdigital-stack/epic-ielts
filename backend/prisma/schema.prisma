@@ -454,6 +454,8 @@ model ChatGroup {
   joinCode      String        @unique
   onlyStaffPost Boolean       @default(false)
   archived      Boolean       @default(false)
+  dailyTask     Boolean       @default(false) // post a task automatically every morning
+  lastAutoTaskOn String?      // YYYY-MM-DD (Sri Lanka) of the last automatic task
   createdById   Int
   createdAt     DateTime      @default(now())
   members       ChatMember[]
@@ -481,6 +483,7 @@ model ChatMessage {
   kind       String    @default("TEXT") // TEXT or PAPER
   text       String    @db.Text
   paperId    Int?
+  isTask     Boolean   @default(false) // students get a notification; teachers see who did it
   createdAt  DateTime  @default(now())
   deletedAt  DateTime?
   group      ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -497,4 +500,15 @@ model AiSaved {
   createdAt DateTime @default(now())
 
   @@index([studentId])
+}
+
+// A student opened a link / paper in a message, or marked a task as done
+model ChatClick {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  studentId Int
+  kind      String   // LINK, PAPER, DONE
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, studentId, kind])
 }

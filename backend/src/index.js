@@ -100,6 +100,7 @@ const PORT = process.env.PORT || 10000;
 require('./ensureSchema').ensureSchema(prisma)
   .catch(e => console.error('[schema] update failed:', e.message))
   .finally(() => app.listen(PORT, '0.0.0.0', () => {
+    try { require('./services/dailyTask').startDailyTaskTimer(); } catch (e) { console.error('[daily-task] not started:', e.message); }
   console.log(`EPIC IELTS Backend running on port ${PORT}`);
   console.log('AI Key loaded:', !!process.env.ANTHROPIC_API_KEY);
   // Load the General English lessons, quizzes and placement tests once, if they are not there yet

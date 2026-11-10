@@ -1,0 +1,12 @@
+ALTER TABLE "ChatMessage" ADD COLUMN IF NOT EXISTS "isTask" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "ChatGroup" ADD COLUMN IF NOT EXISTS "dailyTask" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "ChatGroup" ADD COLUMN IF NOT EXISTS "lastAutoTaskOn" TEXT;
+CREATE TABLE IF NOT EXISTS "ChatClick" (
+  "id" SERIAL NOT NULL,
+  "messageId" INTEGER NOT NULL,
+  "studentId" INTEGER NOT NULL,
+  "kind" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "ChatClick_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "ChatClick_messageId_studentId_kind_key" ON "ChatClick"("messageId", "studentId", "kind");

@@ -42,7 +42,7 @@ router.get('/groups', auth, wrap(async (req, res) => {
   });
   const unread = await unreadFor(req.user.id, groups);
   res.json(groups.map(g => ({
-    id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived,
+    id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
     joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0,
     last: g.messages[0] ? { text: g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].text.slice(0, 80), by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
@@ -73,6 +73,7 @@ router.patch('/groups/:id', auth, wrap(async (req, res) => {
   if (typeof req.body?.description === 'string') data.description = req.body.description.trim().slice(0, 300) || null;
   if (typeof req.body?.onlyStaffPost === 'boolean') data.onlyStaffPost = req.body.onlyStaffPost;
   if (typeof req.body?.archived === 'boolean') data.archived = req.body.archived;
+  if (typeof req.body?.dailyTask === 'boolean') data.dailyTask = req.body.dailyTask;
   if (req.body?.newCode) { let c = newCode(); while (await prisma.chatGroup.findUnique({ where: { joinCode: c } })) c = newCode(); data.joinCode = c; }
   const g = await prisma.chatGroup.update({ where: { id: parseInt(req.params.id, 10) }, data });
   res.json(g);
@@ -138,13 +139,18 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const papers = paperIds.length ? await prisma.paper.findMany({ where: { id: { in: paperIds } }, select: { id: true, title: true, testType: true, track: true, timeLimitMin: true, difficulty: true, status: true } }) : [];
   const pm = new Map(papers.map(p => [p.id, p]));
   if (member) await prisma.chatMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } });
+  const tracked = rows.filter(m => !m.deletedAt && (m.isTask || m.paperId || HAS_LINK.test(m.text)));
+  const stats = isStaff(req) ? await trackStats(groupId, tracked) : null;
+  const mine = !isStaff(req) ? await myStatus(req.user.id, tracked) : null;
   res.json({
-    group: { id: group.id, name: group.name, description: group.description, onlyStaffPost: group.onlyStaffPost, joinCode: isStaff(req) ? group.joinCode : undefined, archived: group.archived },
+    group: { id: group.id, name: group.name, description: group.description, onlyStaffPost: group.onlyStaffPost, joinCode: isStaff(req) ? group.joinCode : undefined, archived: group.archived, dailyTask: group.dailyTask },
     canPost: isStaff(req) || (!group.onlyStaffPost && !!member),
     messages: rows.map(m => ({
-      id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt,
+      id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
       deleted: !!m.deletedAt, text: m.deletedAt ? '' : m.text, paper: m.paperId && !m.deletedAt ? (pm.get(m.paperId) || { id: m.paperId, title: 'Paper not available', missing: true }) : null,
       mine: m.senderId === req.user.id,
+      stats: stats ? stats.get(m.id) || null : undefined,
+      status: mine ? mine.get(m.id) || null : undefined,
     })),
   });
 }));
@@ -164,7 +170,8 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (paperId && !(await prisma.paper.findUnique({ where: { id: paperId }, select: { id: true } }))) return res.status(400).json({ error: 'Paper not found' });
   const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { name: true, role: true } });
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : 'TEXT', text, paperId } });
+  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId);
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : 'TEXT', text, paperId, isTask } });
   res.json({ id: m.id });
 }));
 router.delete('/messages/:id', auth, wrap(async (req, res) => {
@@ -173,6 +180,109 @@ router.delete('/messages/:id', auth, wrap(async (req, res) => {
   if (!isStaff(req) && m.senderId !== req.user.id) return res.status(403).json({ error: 'You can only delete your own messages' });
   await prisma.chatMessage.update({ where: { id: m.id }, data: { deletedAt: new Date() } });
   res.json({ ok: true });
+}));
+
+
+// ─── Tracking: who saw a message, who opened its link / paper, who did the task ──
+const HAS_LINK = /https?:\/\/\S+/;
+async function studentMembers(groupId) {
+  const ms = await prisma.chatMember.findMany({ where: { groupId } });
+  const people = await prisma.student.findMany({ where: { id: { in: ms.map(m => m.studentId) }, role: 'STUDENT' }, select: { id: true, name: true, email: true } });
+  const read = new Map(ms.map(m => [m.studentId, m.lastReadAt]));
+  return people.map(p => ({ ...p, lastReadAt: read.get(p.id) }));
+}
+async function doneMap(studentIds, paperIds) {
+  if (!studentIds.length || !paperIds.length) return new Map();
+  const atts = await prisma.attempt.findMany({
+    where: { studentId: { in: studentIds }, paperId: { in: paperIds }, status: 'COMPLETED' },
+    select: { studentId: true, paperId: true, endedAt: true, result: { select: { rawScore: true, bandEstimate: true } }, writingSubmission: { select: { overallBand: true } } },
+    orderBy: { id: 'desc' },
+  });
+  const m = new Map();
+  for (const a of atts) { const k = `${a.studentId}:${a.paperId}`; if (!m.has(k)) m.set(k, a); }
+  return m;
+}
+async function trackStats(groupId, msgs, detail = false) {
+  const out = new Map();
+  if (!msgs.length) return out;
+  const people = await studentMembers(groupId);
+  const ids = people.map(p => p.id);
+  const clicks = await prisma.chatClick.findMany({ where: { messageId: { in: msgs.map(m => m.id) }, studentId: { in: ids } } });
+  const done = await doneMap(ids, [...new Set(msgs.filter(m => m.paperId).map(m => m.paperId))]);
+  for (const m of msgs) {
+    const rows = people.map(p => {
+      const c = clicks.filter(x => x.messageId === m.id && x.studentId === p.id);
+      const att = m.paperId ? done.get(`${p.id}:${m.paperId}`) : null;
+      const isDone = m.paperId ? !!att : c.some(x => x.kind === 'DONE');
+      return {
+        id: p.id, name: p.name, email: p.email,
+        seen: !!p.lastReadAt && new Date(p.lastReadAt) >= new Date(m.createdAt),
+        opened: c.some(x => x.kind === 'LINK' || x.kind === 'PAPER') || isDone,
+        done: isDone,
+        score: att ? (att.writingSubmission?.overallBand != null ? `Band ${att.writingSubmission.overallBand}` : att.result?.rawScore != null ? String(att.result.rawScore) : null) : null,
+      };
+    });
+    const summary = { total: rows.length, seen: rows.filter(r => r.seen || r.opened).length, opened: rows.filter(r => r.opened).length, done: rows.filter(r => r.done).length, task: m.isTask || !!m.paperId };
+    out.set(m.id, detail ? { ...summary, students: rows } : summary);
+  }
+  return out;
+}
+async function myStatus(studentId, msgs) {
+  const out = new Map();
+  if (!msgs.length) return out;
+  const clicks = await prisma.chatClick.findMany({ where: { studentId, messageId: { in: msgs.map(m => m.id) } } });
+  const done = await doneMap([studentId], [...new Set(msgs.filter(m => m.paperId).map(m => m.paperId))]);
+  for (const m of msgs) {
+    const c = clicks.filter(x => x.messageId === m.id);
+    out.set(m.id, { opened: c.some(x => x.kind !== 'DONE'), done: m.paperId ? done.has(`${studentId}:${m.paperId}`) : c.some(x => x.kind === 'DONE') });
+  }
+  return out;
+}
+
+// Student opened a link / paper, or pressed "Mark as done"
+router.post('/messages/:id/click', auth, wrap(async (req, res) => {
+  const kind = ['LINK', 'PAPER', 'DONE'].includes(req.body?.kind) ? req.body.kind : 'LINK';
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m) return res.status(404).json({ error: 'Message not found' });
+  const member = await prisma.chatMember.findUnique({ where: { groupId_studentId: { groupId: m.groupId, studentId: req.user.id } } });
+  if (!member) return res.status(403).json({ error: 'Not in this group' });
+  await prisma.chatClick.upsert({ where: { messageId_studentId_kind: { messageId: m.id, studentId: req.user.id, kind } }, update: {}, create: { messageId: m.id, studentId: req.user.id, kind } });
+  if (req.body?.undo && kind === 'DONE') await prisma.chatClick.deleteMany({ where: { messageId: m.id, studentId: req.user.id, kind: 'DONE' } });
+  res.json({ ok: true });
+}));
+
+// Staff: who saw / opened / did one message
+router.get('/messages/:id/stats', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m) return res.status(404).json({ error: 'Message not found' });
+  const st = (await trackStats(m.groupId, [m], true)).get(m.id);
+  res.json(st);
+}));
+
+// New tasks for the student's pop-up notification
+router.get('/notifications', auth, wrap(async (req, res) => {
+  const after = parseInt(req.query.after, 10) || 0;
+  const groups = await prisma.chatMember.findMany({ where: { studentId: req.user.id, group: { archived: false } }, select: { groupId: true } });
+  const gids = groups.map(g => g.groupId);
+  if (!gids.length) return res.json({ latestId: after, tasks: [] });
+  const latest = await prisma.chatMessage.findFirst({ where: { groupId: { in: gids }, isTask: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true } });
+  if (!after) return res.json({ latestId: latest?.id || 0, tasks: [] });
+  const rows = await prisma.chatMessage.findMany({
+    where: { groupId: { in: gids }, isTask: true, deletedAt: null, id: { gt: after }, senderId: { not: req.user.id } },
+    orderBy: { id: 'asc' }, take: 5, include: { group: { select: { name: true } } },
+  });
+  const papers = rows.filter(r => r.paperId).length ? await prisma.paper.findMany({ where: { id: { in: rows.filter(r => r.paperId).map(r => r.paperId) } }, select: { id: true, title: true } }) : [];
+  const pt = new Map(papers.map(p => [p.id, p.title]));
+  res.json({ latestId: latest?.id || after, tasks: rows.map(r => ({ id: r.id, groupId: r.groupId, group: r.group.name, from: r.senderName, text: r.text, paper: r.paperId ? pt.get(r.paperId) || 'A paper' : null, createdAt: r.createdAt })) });
+}));
+
+// Staff: post today's automatic task now
+router.post('/groups/:id/daily-now', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  const { postDailyTask } = require('../services/dailyTask');
+  const r = await postDailyTask(parseInt(req.params.id, 10), { force: true });
+  res.json(r);
 }));
 
 module.exports = router;

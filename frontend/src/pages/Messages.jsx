@@ -12,10 +12,10 @@ const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
 const TYPE = { READING: ['Reading', '#0056d2'], WRITING: ['Writing', '#7c3aed'], LISTENING: ['Listening', '#0e7490'], SPEAKING: ['Speaking', '#c2410c'] };
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
 
-function Linkify({ text }) {
+function Linkify({ text, onLink }) {
   const parts = String(text).split(URL_RE);
   return parts.map((p, i) => (i % 2 === 1
-    ? <a key={i} href={p} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all', fontWeight: 600 }}>{p}</a>
+    ? <a key={i} href={p} target="_blank" rel="noreferrer" onClick={() => onLink && onLink()} style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all', fontWeight: 600 }}>{p}</a>
     : <Fragment key={i}>{p}</Fragment>));
 }
 const when = d => {
@@ -39,6 +39,46 @@ function PaperCard({ paper, staff, onStart, starting }) {
         {paper.missing ? <div style={{ fontSize: 13, color: T.error, marginTop: 6 }}>This paper is no longer available.</div>
           : staff ? <div style={{ fontSize: 13, color: T.mid, marginTop: 8 }}>Students see a Start button here.</div>
             : <button type="button" disabled={starting} onClick={() => onStart(paper.id)} style={{ marginTop: 10, height: 38, padding: '0 18px', border: 0, borderRadius: 8, background: col, color: '#fff', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', fontFamily: 'inherit' }}>{starting ? 'Opening…' : 'Start paper'}</button>}
+      </div>
+    </div>
+  );
+}
+
+function StatsModal({ messageId, onClose }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { axios.get(`${API_URL}/api/chat/messages/${messageId}/stats`, api()).then(r => setD(r.data)).catch(e => setErr(errText(e))); }, [messageId]);
+  const tick = ok => <span style={{ fontWeight: 700, color: ok ? T.success : '#c3cad6' }}>{ok ? '✓' : '–'}</span>;
+  const rows = d ? [...d.students].sort((a, b) => (b.done - a.done) || (b.opened - a.opened) || (b.seen - a.seen) || a.name.localeCompare(b.name)) : [];
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,20,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 100%)', maxHeight: '86vh', overflowY: 'auto', background: '#fff', borderRadius: 16, padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Who did it?</h2>
+          <button type="button" onClick={onClose} style={{ border: 0, background: 'none', fontSize: 22, cursor: 'pointer' }} aria-label="Close">×</button>
+        </div>
+        {err && <p style={{ color: T.error }}>{err}</p>}
+        {!d && !err && <p style={{ color: T.muted }}>Loading…</p>}
+        {d && (<>
+          <div style={{ display: 'flex', gap: 8, margin: '12px 0', flexWrap: 'wrap' }}>
+            {[['Seen', d.seen, '#e3eeff', T.primary], ['Opened', d.opened, '#fff4e8', '#c2410c'], ['Done', d.done, '#e9f5e6', '#276a1a'], ['Not yet', d.total - d.done, '#fdecee', T.error]].map(([k, v, bg, c]) => (
+              <div key={k} style={{ background: bg, color: c, borderRadius: 10, padding: '8px 14px', fontWeight: 700 }}><div style={{ fontSize: 22 }}>{v}<span style={{ fontSize: 13, opacity: .8 }}>/{d.total}</span></div><div style={{ fontSize: 12.5 }}>{k}</div></div>
+            ))}
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14.5 }}>
+            <thead><tr style={{ textAlign: 'left', color: T.muted, fontSize: 12.5 }}><th style={{ padding: 6 }}>Student</th><th style={{ padding: 6, textAlign: 'center' }}>Seen</th><th style={{ padding: 6, textAlign: 'center' }}>Opened</th><th style={{ padding: 6, textAlign: 'center' }}>Done</th><th style={{ padding: 6 }}>Score</th></tr></thead>
+            <tbody>{rows.map(r => (
+              <tr key={r.id} style={{ borderTop: `1px solid ${T.tint}`, background: r.done ? '#f5fbf3' : 'transparent' }}>
+                <td style={{ padding: 6 }}><b>{r.name}</b></td>
+                <td style={{ padding: 6, textAlign: 'center' }}>{tick(r.seen || r.opened)}</td>
+                <td style={{ padding: 6, textAlign: 'center' }}>{tick(r.opened)}</td>
+                <td style={{ padding: 6, textAlign: 'center' }}>{tick(r.done)}</td>
+                <td style={{ padding: 6, color: T.muted }}>{r.score || ''}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+          {d.total === 0 && <p style={{ color: T.muted }}>No students in this group yet.</p>}
+        </>)}
       </div>
     </div>
   );
@@ -117,6 +157,9 @@ export default function Messages() {
   const [msg, setMsg] = useState('');
   const [sending, setSending] = useState(false);
   const [starting, setStarting] = useState(null);
+  const [asTask, setAsTask] = useState(false);
+  const [statsFor, setStatsFor] = useState(null);
+  const [notifPerm, setNotifPerm] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
   const [narrow, setNarrow] = useState(() => window.innerWidth < 820);
   const listRef = useRef(null);
   const lastId = useRef(0);
@@ -158,8 +201,8 @@ export default function Messages() {
     if (sending || (!text.trim() && !paperId)) return;
     setSending(true);
     try {
-      await axios.post(`${API_URL}/api/chat/groups/${sel}/messages`, { text, paperId: paperId || undefined }, api());
-      setText(''); setPaperId(''); setShowPapers(false);
+      await axios.post(`${API_URL}/api/chat/groups/${sel}/messages`, { text, paperId: paperId || undefined, isTask: asTask || !!paperId }, api());
+      setText(''); setPaperId(''); setShowPapers(false); setAsTask(false);
       await loadMessages(false); scrollDown(); loadGroups();
     } catch (e) { flash(errText(e)); }
     setSending(false);
@@ -177,7 +220,14 @@ export default function Messages() {
   const patch = async body => {
     try { await axios.patch(`${API_URL}/api/chat/groups/${sel}`, body, api()); loadMessages(true); loadGroups(); } catch (e) { flash(errText(e)); }
   };
-  const startPaper = async id => {
+  const track = (messageId, kind, undo) => axios.post(`${API_URL}/api/chat/messages/${messageId}/click`, { kind, undo }, api()).catch(() => {});
+  const markDone = async (m, undo) => {
+    await track(m.id, 'DONE', undo);
+    setData(d => ({ ...d, messages: d.messages.map(x => x.id === m.id ? { ...x, status: { ...(x.status || {}), done: !undo, opened: true } } : x) }));
+  };
+  const askNotif = async () => { try { const p = await Notification.requestPermission(); setNotifPerm(p); if (p === 'granted') flash('Notifications are on. You will get a message when there is a new task.'); } catch { /* not supported */ } };
+  const startPaper = async (id, messageId) => {
+    if (messageId && !staff) track(messageId, 'PAPER');
     setStarting(id);
     try { const r = await axios.post(`${API_URL}/api/attempts`, { paperId: id }, api()); navigate(`/exam/${r.data.id || r.data.attemptId}/greeting`); }
     catch (e) { if (e.response?.status === 403) navigate('/upgrade'); else flash(errText(e)); }
@@ -254,8 +304,11 @@ export default function Messages() {
                   <button type="button" onClick={copyInvite} style={btn(false)}>Copy invite</button>
                   <button type="button" onClick={() => setShowMembers(true)} style={btn(false)}>Members</button>
                   <button type="button" onClick={() => patch({ onlyStaffPost: !data.group.onlyStaffPost })} style={btn(false)}>{data.group.onlyStaffPost ? 'Let students post' : 'Only teachers post'}</button>
+                  <button type="button" title="Post a task automatically every morning at 8:00" onClick={() => patch({ dailyTask: !data.group.dailyTask })} style={{ ...btn(false), background: data.group.dailyTask ? '#e9f5e6' : '#fff', borderColor: data.group.dailyTask ? '#9fd18f' : T.ink, color: data.group.dailyTask ? '#276a1a' : T.ink }}>Daily task: {data.group.dailyTask ? 'On' : 'Off'}</button>
+                  <button type="button" title="Post today's automatic task now" onClick={async () => { try { await axios.post(`${API_URL}/api/chat/groups/${sel}/daily-now`, {}, api()); loadMessages(false); scrollDown(); } catch (e) { flash(errText(e)); } }} style={btn(false)}>Post a task now</button>
                   <button type="button" onClick={() => { if (window.confirm('Archive this group? Students will not see it any more.')) patch({ archived: true }).then(() => setSel(null)); }} style={{ ...btn(false), color: T.error, borderColor: '#f3b4bd' }}>Archive</button>
                 </>)}
+                {!staff && notifPerm === 'default' && <button type="button" onClick={askNotif} style={{ ...btn(true), background: '#f5b400', color: '#1d1600' }}>Turn on notifications</button>}
                 {!staff && <button type="button" onClick={async () => { if (!window.confirm('Leave this group?')) return; try { await axios.delete(`${API_URL}/api/chat/groups/${sel}/members/${user.id}`, api()); setSel(null); loadGroups(); } catch (e) { flash(errText(e)); } }} style={{ ...btn(false), color: T.muted, borderColor: T.hairline }}>Leave</button>}
               </div>
 
@@ -269,8 +322,19 @@ export default function Messages() {
                       {showName && <div style={{ fontSize: 12.5, fontWeight: 700, color: m.staff ? T.primary : T.muted, margin: '0 4px 2px' }}>{m.senderName}{m.staff ? ' · Teacher' : ''}</div>}
                       <div style={{ maxWidth: 'min(560px, 88%)', background: m.deleted ? 'transparent' : m.mine ? T.primary : m.staff ? '#fff8e1' : '#fff', color: m.deleted ? T.mid : m.mine ? '#fff' : T.ink, border: m.deleted ? `1px dashed ${T.hairline}` : m.mine ? 'none' : `1px solid ${m.staff ? '#f5d98b' : T.hairline}`, borderRadius: 14, padding: '8px 12px', fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                         {m.deleted ? <i>Message deleted</i> : (<>
-                          {m.text && <Linkify text={m.text} />}
-                          {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={startPaper} starting={starting === m.paper.id} />}
+                          {m.isTask && <div style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 800, letterSpacing: '.06em', background: m.mine ? 'rgba(255,255,255,.22)' : '#f5b400', color: m.mine ? '#fff' : '#1d1600', borderRadius: 50, padding: '1px 9px', marginBottom: 4 }}>TASK</div>}
+                          {m.text && <div><Linkify text={m.text} onLink={staff ? null : () => track(m.id, 'LINK')} /></div>}
+                          {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={pid => startPaper(pid, m.id)} starting={starting === m.paper.id} />}
+                          {staff && m.stats && (
+                            <button type="button" onClick={() => setStatsFor(m.id)} style={{ display: 'block', marginTop: 8, border: 0, borderRadius: 8, background: m.mine ? 'rgba(255,255,255,.18)' : T.primaryXSoft, color: m.mine ? '#fff' : T.primary, padding: '5px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                              Seen {m.stats.seen}/{m.stats.total} · Opened {m.stats.opened}{m.stats.task ? ` · Done ${m.stats.done}` : ''} · See who ›
+                            </button>
+                          )}
+                          {!staff && m.isTask && m.status && (
+                            m.status.done
+                              ? <div style={{ marginTop: 8, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓{!m.paper && <button type="button" onClick={() => markDone(m, true)} style={{ marginLeft: 8, border: 0, background: 'none', color: T.mid, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', fontFamily: 'inherit' }}>undo</button>}</div>
+                              : !m.paper && <button type="button" onClick={() => markDone(m)} style={{ display: 'block', marginTop: 8, height: 34, padding: '0 14px', border: 0, borderRadius: 8, background: '#2e7d32', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Mark as done</button>
+                          )}
                         </>)}
                         <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 3, textAlign: 'right', whiteSpace: 'nowrap' }}>
                           {when(m.createdAt)}
@@ -296,6 +360,7 @@ export default function Messages() {
                       </div>
                     </div>
                   )}
+                  {staff && <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 13.5, marginBottom: 6, color: T.inkSoft }}><input type="checkbox" checked={asTask || !!paperId} disabled={!!paperId} onChange={e => setAsTask(e.target.checked)} /> This is a task (students get a notification, you see who did it)</label>}
                   {chosenPaper && <div style={{ marginBottom: 8, fontSize: 14, display: 'flex', gap: 8, alignItems: 'center' }}>Sharing paper: <b>{chosenPaper.title}</b><button type="button" onClick={() => setPaperId('')} style={{ border: 0, background: 'none', color: T.error, cursor: 'pointer', fontFamily: 'inherit' }}>remove</button></div>}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                     {staff && <button type="button" onClick={() => setShowPapers(v => !v)} title="Share a paper" style={{ ...btn(false), height: 44 }}>+ Paper</button>}
@@ -311,6 +376,7 @@ export default function Messages() {
           </section>
         )}
       </div>
+      {statsFor && <StatsModal messageId={statsFor} onClose={() => setStatsFor(null)} />}
       {showMembers && data && <Members group={data.group} onClose={() => { setShowMembers(false); loadGroups(); }} flash={flash} />}
     </div>
   );

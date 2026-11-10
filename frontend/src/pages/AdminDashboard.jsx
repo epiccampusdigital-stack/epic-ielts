@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import AiLearnControl from '../components/AiLearnControl';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -273,6 +274,7 @@ export default function AdminDashboard() {
                <p style={{ margin: '4px 0 0', color: '#5b6780', fontSize: 16 }}>
                   {isGE ? 'Placement tests, weekly quizzes and lesson papers for the General English course. Scores are out of 100.' : 'IELTS papers, students and band results.'} Switch course at the top.
                </p>
+               <div style={{ marginTop: 12 }}><AiLearnControl /></div>
             </div>
 
             {/* STAT CARDS */}

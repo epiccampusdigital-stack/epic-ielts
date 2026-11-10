@@ -24,6 +24,8 @@ import PlacementTest from './pages/PlacementTest';
 import LevelPaymentSuccess from './pages/LevelPaymentSuccess';
 import PracticePapers from './pages/PracticePapers';
 import LearnPage from './pages/LearnPage';
+import EverydayEnglish from './pages/EverydayEnglish';
+import AILearn from './pages/AILearn';
 import LearnModule from './pages/LearnModule';
 import LearnLesson from './pages/LearnLesson';
 import AdminProgram from './pages/AdminProgram';
@@ -111,6 +113,12 @@ function App() {
       } />
       <Route path="/practice" element={
         <RequireStudentAccess><PracticePapers /></RequireStudentAccess>
+      } />
+      <Route path="/everyday" element={
+        <RequireStudentAccess><EverydayEnglish /></RequireStudentAccess>
+      } />
+      <Route path="/ai-learn" element={
+        <RequireStudentAccess><AILearn /></RequireStudentAccess>
       } />
       <Route path="/learn" element={
         <RequireStudentAccess><LearnPage /></RequireStudentAccess>

@@ -17,6 +17,8 @@ const NAV = [
   { key: 'dashboard', label: 'Dashboard', href: '/student/dashboard', active: 'dashboard' },
   { key: 'practice', label: 'Practice', href: '/practice', active: 'practice' },
   { key: 'learn', label: 'Learn', href: '/learn', active: 'learn' },
+  { key: 'everyday', label: 'Day to day English', href: '/everyday', active: 'everyday', generalOnly: true },
+  { key: 'ailearn', label: 'AI Learn', href: '/ai-learn', active: 'ailearn', generalOnly: true },
   { key: 'levels', label: 'Levels', href: '/levels', active: 'levels', ieltsOnly: true },
   { key: 'placement', label: 'Placement test', href: '/placement-test', active: 'placement' },
 ];
@@ -31,7 +33,7 @@ export function saveCourse(course) {
   axios.post(`${API_URL}/api/auth/course`, { course }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).catch(() => {});
 }
 
-/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | null }} props */
+/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | 'everyday' | 'ailearn' | null }} props */
 export default function StudentNav({ active = null }) {
   const navigate = useNavigate();
   const user = readUser();
@@ -64,7 +66,7 @@ export default function StudentNav({ active = null }) {
   }, []);
 
   const track = getTrack();
-  const links = NAV.filter(n => !(n.ieltsOnly && track === 'GENERAL'));
+  const links = NAV.filter(n => !(n.ieltsOnly && track === 'GENERAL') && !(n.generalOnly && track !== 'GENERAL'));
   const switchTrack = next => {
     if (next === track) return;
     saveCourse(next);

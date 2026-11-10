@@ -78,6 +78,7 @@ app.use('/api/levels', require('./routes/levels'));
 app.use('/api/learn', require('./routes/learn'));
 app.use('/api/dictionary', require('./routes/dictionary'));
 app.use('/api/agent', require('./routes/agent'));
+app.use('/api/ai-learn', require('./routes/aiLearn'));
 app.use('/api/program', require('./routes/program'));
 
 app.get('/', (req, res) => {

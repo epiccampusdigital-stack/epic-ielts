@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import AiLearnControl from '../components/AiLearnControl';
 
 // Programme tracker: today's sessions, the 30-day schedule, teachers, students,
 // WhatsApp reminder outbox and the Claude schedule assistant.
@@ -211,6 +212,7 @@ export default function AdminProgram() {
           ) : data?.program ? (
             <div style={{ fontSize: 14, color: C.muted }}>No class day today</div>
           ) : null}
+          <AiLearnControl compact />
           {isAdmin && data?.program && (
             <button style={btn(paused ? 'primary' : 'outline')} onClick={togglePause}>{paused ? 'Turn tracker back on' : 'Pause tracker'}</button>
           )}

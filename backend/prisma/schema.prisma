@@ -438,3 +438,10 @@ model ProgramChangeLog {
   actor     String?
   createdAt DateTime @default(now())
 }
+
+// Simple site switches, e.g. when AI Learn is open for students
+model AppSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @default(now()) @updatedAt
+}

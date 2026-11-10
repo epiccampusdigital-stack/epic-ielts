@@ -26,6 +26,7 @@ import PracticePapers from './pages/PracticePapers';
 import LearnPage from './pages/LearnPage';
 import EverydayEnglish from './pages/EverydayEnglish';
 import AILearn from './pages/AILearn';
+import Messages from './pages/Messages';
 import LearnModule from './pages/LearnModule';
 import LearnLesson from './pages/LearnLesson';
 import AdminProgram from './pages/AdminProgram';
@@ -116,6 +117,9 @@ function App() {
       } />
       <Route path="/everyday" element={
         <RequireStudentAccess><EverydayEnglish /></RequireStudentAccess>
+      } />
+      <Route path="/messages" element={
+        <RequireAuth><Messages /></RequireAuth>
       } />
       <Route path="/ai-learn" element={
         <RequireStudentAccess><AILearn /></RequireStudentAccess>

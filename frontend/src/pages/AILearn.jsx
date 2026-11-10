@@ -26,6 +26,19 @@ export default function AILearn() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const endRef = useRef(null);
+  const [view, setView] = useState('chat');
+  const [saved, setSaved] = useState([]);
+  const [savedIds, setSavedIds] = useState({}); // message index -> saved row id
+  const loadSaved = useCallback(() => { axios.get(`${API_URL}/api/ai-learn/saved`, api()).then(r => setSaved(r.data)).catch(() => {}); }, []);
+  useEffect(() => { loadSaved(); }, [loadSaved]);
+  const saveAnswer = async i => {
+    const q = [...msgs.slice(0, i)].reverse().find(m => m.role === 'user')?.content || '';
+    try { const r = await axios.post(`${API_URL}/api/ai-learn/saved`, { question: q, answer: msgs[i].content }, api()); setSavedIds(x => ({ ...x, [i]: r.data.id })); setSaved(x => [r.data, ...x]); }
+    catch (e) { setErr(e.response?.data?.error || 'Could not save. Try again.'); }
+  };
+  const removeSaved = async id => {
+    try { await axios.delete(`${API_URL}/api/ai-learn/saved/${id}`, api()); setSaved(x => x.filter(r => r.id !== id)); setSavedIds(x => Object.fromEntries(Object.entries(x).filter(([, v]) => v !== id))); } catch { /* ignore */ }
+  };
 
   const load = useCallback(() => {
     axios.get(`${API_URL}/api/ai-learn/status`, api()).then(r => { setSt(r.data); setLeft(r.data.secondsLeft || 0); }).catch(() => setSt({ open: false }));
@@ -69,7 +82,27 @@ export default function AILearn() {
           </div>
         </div>
 
-        {msgs.length === 0 && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
+          {[['chat', 'Ask AI Learn'], ['saved', `My saved answers (${saved.length})`]].map(([id, label]) => (
+            <button key={id} type="button" onClick={() => setView(id)} style={{ height: 38, padding: '0 16px', borderRadius: 50, border: `1.5px solid ${view === id ? T.primary : T.hairline}`, background: view === id ? T.primary : '#fff', color: view === id ? '#fff' : T.ink, fontWeight: 700, fontSize: 14.5, cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+          ))}
+        </div>
+
+        {view === 'saved' && (
+          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+            {saved.length === 0 && <div style={{ background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 14, padding: 18, color: T.muted, fontSize: 15 }}>No saved answers yet. When AI Learn gives you a useful answer, press <b>Save</b> under it. You can read your saved answers here any time, even when AI Learn is closed.</div>}
+            {saved.map(r => (
+              <details key={r.id} style={{ background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 14, padding: '12px 16px' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15.5, color: T.ink, lineHeight: 1.4 }}>{r.question.length > 140 ? r.question.slice(0, 140) + '…' : r.question}
+                  <span style={{ display: 'block', fontWeight: 400, fontSize: 12.5, color: T.mid, marginTop: 2 }}>Saved {new Date(r.createdAt).toLocaleDateString()}</span></summary>
+                <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.55 }}><MiniMarkdown text={r.answer} /></div>
+                <button type="button" onClick={() => removeSaved(r.id)} style={{ marginTop: 6, border: 0, background: 'none', color: T.error, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, padding: 0 }}>Delete</button>
+              </details>
+            ))}
+          </div>
+        )}
+
+        {view === 'chat' && msgs.length === 0 && (
           <div style={{ marginTop: 18 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.muted, marginBottom: 8 }}>Try one of these</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -80,19 +113,26 @@ export default function AILearn() {
           </div>
         )}
 
-        <div style={{ marginTop: 18, display: 'grid', gap: 12 }}>
+        {view === 'chat' && <div style={{ marginTop: 18, display: 'grid', gap: 12 }}>
           {msgs.map((m, i) => (
             <div key={i} style={{ justifySelf: m.role === 'user' ? 'end' : 'stretch', maxWidth: m.role === 'user' ? '80%' : '100%', background: m.role === 'user' ? T.primary : '#fff', color: m.role === 'user' ? '#fff' : T.ink, border: m.role === 'user' ? 'none' : `1px solid ${T.hairline}`, borderRadius: 14, padding: '12px 16px', fontSize: 15, lineHeight: 1.55, whiteSpace: m.role === 'user' ? 'pre-wrap' : 'normal' }}>
               {m.role === 'user' ? m.content : <MiniMarkdown text={m.content} />}
+              {m.role === 'assistant' && (
+                <div style={{ borderTop: `1px solid ${T.tint}`, marginTop: 8, paddingTop: 8 }}>
+                  {savedIds[i]
+                    ? <span style={{ fontSize: 13.5, fontWeight: 700, color: T.success }}>Saved to My saved answers ✓</span>
+                    : <button type="button" onClick={() => saveAnswer(i)} style={{ border: `1px solid ${T.primary}`, background: T.primaryXSoft, color: T.primary, borderRadius: 50, height: 32, padding: '0 14px', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>Save this answer</button>}
+                </div>
+              )}
             </div>
           ))}
           {busy && <div style={{ background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 14, padding: '12px 16px', color: T.muted, fontSize: 15 }}>Thinking…</div>}
           {err && <div style={{ background: T.errorSoft, color: T.error, borderRadius: 12, padding: '10px 14px', fontSize: 14 }}>{err}</div>}
           <div ref={endRef} />
-        </div>
+        </div>}
       </div>
 
-      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: '#fff', borderTop: `1px solid ${T.hairline}`, padding: '12px 16px' }}>
+      {view === 'chat' && <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: '#fff', borderTop: `1px solid ${T.hairline}`, padding: '12px 16px' }}>
         <form onSubmit={e => { e.preventDefault(); ask(); }} style={{ maxWidth: 860, margin: '0 auto', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <textarea value={q} onChange={e => setQ(e.target.value)} disabled={!open} rows={q.split('\n').length > 2 ? 5 : 1}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }}
@@ -101,7 +141,7 @@ export default function AILearn() {
           <button type="submit" disabled={!canAsk || !q.trim()} style={{ height: 46, padding: '0 20px', borderRadius: 12, border: 0, background: canAsk && q.trim() ? T.primary : '#b8c3d6', color: '#fff', fontWeight: 700, fontSize: 15, cursor: canAsk && q.trim() ? 'pointer' : 'default', fontFamily: 'inherit' }}>Ask</button>
           {msgs.length > 0 && <button type="button" onClick={() => { setMsgs([]); setErr(''); }} style={{ height: 46, padding: '0 14px', borderRadius: 12, border: `1px solid ${T.hairline}`, background: '#fff', color: T.muted, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>New chat</button>}
         </form>
-      </div>
+      </div>}
     </div>
   );
 }

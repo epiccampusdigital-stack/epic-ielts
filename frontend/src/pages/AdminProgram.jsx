@@ -213,6 +213,7 @@ export default function AdminProgram() {
             <div style={{ fontSize: 14, color: C.muted }}>No class day today</div>
           ) : null}
           <AiLearnControl compact />
+          <button style={btn('outline')} onClick={() => navigate('/messages')}>Messages</button>
           {isAdmin && data?.program && (
             <button style={btn(paused ? 'primary' : 'outline')} onClick={togglePause}>{paused ? 'Turn tracker back on' : 'Pause tracker'}</button>
           )}

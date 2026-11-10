@@ -445,3 +445,56 @@ model AppSetting {
   value     String   @db.Text
   updatedAt DateTime @default(now()) @updatedAt
 }
+
+// Group chat: staff create groups, students join with a code
+model ChatGroup {
+  id            Int           @id @default(autoincrement())
+  name          String
+  description   String?
+  joinCode      String        @unique
+  onlyStaffPost Boolean       @default(false)
+  archived      Boolean       @default(false)
+  createdById   Int
+  createdAt     DateTime      @default(now())
+  members       ChatMember[]
+  messages      ChatMessage[]
+}
+
+model ChatMember {
+  id         Int       @id @default(autoincrement())
+  groupId    Int
+  studentId  Int
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime  @default(now())
+  group      ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, studentId])
+  @@index([studentId])
+}
+
+model ChatMessage {
+  id         Int       @id @default(autoincrement())
+  groupId    Int
+  senderId   Int
+  senderName String
+  senderRole String
+  kind       String    @default("TEXT") // TEXT or PAPER
+  text       String    @db.Text
+  paperId    Int?
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+  group      ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, id])
+}
+
+// AI Learn answers a student saved to read later (works even when AI Learn is closed)
+model AiSaved {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  question  String   @db.Text
+  answer    String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+}

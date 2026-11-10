@@ -37,7 +37,12 @@ export default function AiLearnControl({ compact = false }) {
         AI Learn: {st == null ? '…' : open ? `open · ${fmt(left)} left` : 'closed'}
       </span>
       {open ? (
-        <button type="button" disabled={busy} onClick={() => act('close')} style={pill('#fff', '#d30a28', '#f3b4bd')}>Close now</button>
+        <>
+          {[5, 10].map(m => (
+            <button key={m} type="button" disabled={busy} onClick={() => act('extend', { minutes: m })} style={pill('#fff', '#276a1a', '#9fd18f')} title={`Add ${m} more minutes`}>+{m} min</button>
+          ))}
+          <button type="button" disabled={busy} onClick={() => act('close')} style={pill('#fff', '#d30a28', '#f3b4bd')}>Close now</button>
+        </>
       ) : (
         [10, 20, 30].concat(compact ? [] : [60]).map(m => (
           <button key={m} type="button" disabled={busy} onClick={() => act('open', { minutes: m })} style={pill('#fff', '#0056d2', '#b9d2f7')} title={`Open AI Learn for students for ${m} minutes`}>{m} min</button>

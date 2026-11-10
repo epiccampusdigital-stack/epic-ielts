@@ -274,7 +274,7 @@ export default function AdminDashboard() {
                <p style={{ margin: '4px 0 0', color: '#5b6780', fontSize: 16 }}>
                   {isGE ? 'Placement tests, weekly quizzes and lesson papers for the General English course. Scores are out of 100.' : 'IELTS papers, students and band results.'} Switch course at the top.
                </p>
-               <div style={{ marginTop: 12 }}><AiLearnControl /></div>
+               <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}><AiLearnControl /><button type="button" onClick={() => navigate('/messages')} style={{ height: 38, padding: '0 16px', borderRadius: 50, border: '1.5px solid #0056d2', background: '#fff', color: '#0056d2', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Messages</button></div>
             </div>
 
             {/* STAT CARDS */}

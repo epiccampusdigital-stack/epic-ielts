@@ -47,6 +47,18 @@ router.post('/open', auth, async (req, res) => {
   await setOpenUntil(Date.now() + minutes * 60000);
   res.json(await status());
 });
+// Add more time to an open session (or open it if it is closed)
+router.post('/extend', auth, async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff can change AI Learn' });
+  const minutes = parseInt(req.body?.minutes, 10);
+  if (![5, 10, 15, 20, 30].includes(minutes)) return res.status(400).json({ error: 'Choose 5, 10, 15, 20 or 30 minutes' });
+  const until = await openUntil();
+  const base = until > Date.now() ? until : Date.now();
+  const next = Math.min(base + minutes * 60000, Date.now() + 4 * 3600000); // never more than 4 hours ahead
+  await prisma.appSetting.upsert({ where: { key: KEY }, update: { value: String(next) }, create: { key: KEY, value: String(next) } });
+  cachedUntil = { at: Date.now(), value: next }; // extending keeps each student's question count
+  res.json(await status());
+});
 router.post('/close', auth, async (req, res) => {
   if (!isStaff(req)) return res.status(403).json({ error: 'Only staff can close AI Learn' });
   await setOpenUntil(0);
@@ -130,6 +142,26 @@ router.post('/ask', auth, async (req, res) => {
     console.error('[ai-learn]', e.message);
     res.status(500).json({ error: 'AI Learn could not answer just now. Please try again.' });
   }
+});
+
+// Saved answers: students keep useful answers and read them any time, even when AI Learn is closed
+router.get('/saved', auth, async (req, res) => {
+  const rows = await prisma.aiSaved.findMany({ where: { studentId: req.user.id }, orderBy: { id: 'desc' }, take: 200 });
+  res.json(rows);
+});
+router.post('/saved', auth, async (req, res) => {
+  const question = String(req.body?.question || '').trim().slice(0, 4000);
+  const answer = String(req.body?.answer || '').trim().slice(0, 20000);
+  if (!answer) return res.status(400).json({ error: 'Nothing to save' });
+  const count = await prisma.aiSaved.count({ where: { studentId: req.user.id } });
+  if (count >= 200) return res.status(400).json({ error: 'You have 200 saved answers. Delete some old ones first.' });
+  const row = await prisma.aiSaved.create({ data: { studentId: req.user.id, question: question || '(no question)', answer } });
+  res.json(row);
+});
+router.delete('/saved/:id', auth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  await prisma.aiSaved.deleteMany({ where: { id, studentId: req.user.id } });
+  res.json({ ok: true });
 });
 
 module.exports = router;

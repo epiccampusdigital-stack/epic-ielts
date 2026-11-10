@@ -19,6 +19,7 @@ const NAV = [
   { key: 'learn', label: 'Learn', href: '/learn', active: 'learn' },
   { key: 'everyday', label: 'Day to day English', href: '/everyday', active: 'everyday', generalOnly: true },
   { key: 'ailearn', label: 'AI Learn', href: '/ai-learn', active: 'ailearn', generalOnly: true },
+  { key: 'messages', label: 'Messages', href: '/messages', active: 'messages', badge: true },
   { key: 'levels', label: 'Levels', href: '/levels', active: 'levels', ieltsOnly: true },
   { key: 'placement', label: 'Placement test', href: '/placement-test', active: 'placement' },
 ];
@@ -33,7 +34,7 @@ export function saveCourse(course) {
   axios.post(`${API_URL}/api/auth/course`, { course }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).catch(() => {});
 }
 
-/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | 'everyday' | 'ailearn' | null }} props */
+/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | 'everyday' | 'ailearn' | 'messages' | null }} props */
 export default function StudentNav({ active = null }) {
   const navigate = useNavigate();
   const user = readUser();
@@ -44,6 +45,17 @@ export default function StudentNav({ active = null }) {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const avatarRef = useRef(null);
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () => axios.get(`${API_URL}/api/chat/unread`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(r => { if (alive) setUnread(r.data.unread || 0); }).catch(() => {});
+    load(); const id = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  const badge = item => (item.badge && unread > 0
+    ? <span style={{ marginLeft: 6, background: '#d30a28', color: '#fff', borderRadius: 50, fontSize: 11, fontWeight: 700, padding: '1px 7px', verticalAlign: 'middle' }}>{unread > 99 ? '99+' : unread}</span>
+    : null);
   const mobileBtnRef = useRef(null);
   const mobilePanelRef = useRef(null);
 
@@ -92,14 +104,19 @@ export default function StudentNav({ active = null }) {
       <style>{`
         .sn-row { max-width: 1280px; margin: 0 auto; padding: 0 32px; height: 68px; display: flex; align-items: center; gap: 20px; }
         .sn-links { display: flex; align-items: stretch; gap: 4px; height: 100%; }
-        .sn-link { position: relative; display: inline-flex; align-items: center; padding: 0 10px; border: 0; background: none; cursor: pointer; font: inherit; font-size: 16px; font-weight: 600; color: ${T.ink}; }
+        .sn-link { position: relative; display: inline-flex; align-items: center; padding: 0 8px; white-space: nowrap; border: 0; background: none; cursor: pointer; font: inherit; font-size: 15px; font-weight: 600; color: ${T.ink}; }
         .sn-link:hover { color: ${T.primary}; }
         .sn-link[aria-current="page"] { color: ${T.primary}; }
-        .sn-link[aria-current="page"]::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: ${T.primary}; }
+        .sn-link[aria-current="page"]::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: ${T.primary}; }
         .sn-burger { display: none; }
         .sn-mobile { display: none; }
         .sn-item { display: block; width: 100%; padding: 10px 16px; font: inherit; font-size: 14px; color: ${T.ink}; background: none; border: 0; cursor: pointer; text-align: left; }
         .sn-item:hover { background: ${T.primaryXSoft}; }
+        @media (max-width: 1240px) {
+          .sn-links, .sn-track-desktop { display: none; }
+          .sn-burger { display: inline-flex; }
+          .sn-mobile.open { display: block; border-top: 1px solid ${T.hairline}; padding: 8px 0 12px; }
+        }
         @media (max-width: 900px) {
           .sn-row { padding: 0 16px; height: 60px; gap: 12px; }
           .sn-links, .sn-track-desktop { display: none; }
@@ -121,7 +138,7 @@ export default function StudentNav({ active = null }) {
         <nav className="sn-links" aria-label="Main">
           {links.map(item => (
             <button key={item.key} type="button" className="sn-link" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}>
-              {item.label}
+              {item.label}{badge(item)}
             </button>
           ))}
         </nav>
@@ -162,7 +179,7 @@ export default function StudentNav({ active = null }) {
           {links.map(item => (
             <button key={item.key} type="button" className="sn-item" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}
               style={{ fontSize: 16, fontWeight: 600, color: active === item.active ? T.primary : T.ink }}>
-              {item.label}
+              {item.label}{badge(item)}
             </button>
           ))}
         </nav>

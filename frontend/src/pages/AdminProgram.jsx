@@ -160,6 +160,7 @@ export default function AdminProgram() {
     { id: 'schedule', label: 'Schedule' },
     { id: 'materials', label: 'Materials' },
     { id: 'review', label: 'Review papers' },
+    { id: 'messages', label: 'Messages' },
     ...(isAdmin ? [{ id: 'teachers', label: 'Teachers' }] : []),
     { id: 'students', label: 'Students' },
     { id: 'papers', label: 'Papers' },
@@ -227,7 +228,7 @@ export default function AdminProgram() {
           <div className="pg-wrap" style={{ paddingTop: 0, paddingBottom: 0 }}>
             <nav className="pg-tabs">
               {tabs.map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                <button key={t.id} onClick={() => (t.id === 'messages' ? navigate('/messages') : setTab(t.id))} style={{
                   height: 40, padding: '0 16px', margin: '6px 2px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, whiteSpace: 'nowrap',
                   color: '#0f1114', fontWeight: 600, borderRadius: 10,
                 }} className={tab === t.id ? 'pg-tab-on' : ''}>

@@ -307,9 +307,10 @@ export default function AdminDashboard() {
                         { id: 'results', label: 'Results', count: results.length },
                         { id: 'feedback', label: 'Feedback', count: null },
                         { id: 'settings', label: 'Settings', count: null },
-                        { id: 'levels', label: 'Levels', count: null }
+                        { id: 'levels', label: 'Levels', count: null },
+                        { id: 'messages', label: 'Messages', count: null }
                      ].map(tab => (
-                        <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+                        <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => (tab.id === 'messages' ? navigate('/messages') : setActiveTab(tab.id))}>
                            {tab.label}
                            {tab.count !== null && (
                               <span style={{ marginLeft: '8px', background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#e8eef7', color: activeTab === tab.id ? '#ffffff' : '#5b6780', borderRadius: '12px', padding: '1px 8px', fontSize: '11px', fontWeight: '700' }}>{tab.count}</span>

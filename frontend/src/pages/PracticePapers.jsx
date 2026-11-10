@@ -762,8 +762,7 @@ export default function PracticePapers() {
                             }}
                           >
                             {skill}
-                            {' '}
-                            {paper.paperCode}
+                            {paper.topic ? ` · ${paper.topic}` : ''}
                           </div>
                           <div
                             style={{

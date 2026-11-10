@@ -480,9 +480,10 @@ model ChatMessage {
   senderId   Int
   senderName String
   senderRole String
-  kind       String    @default("TEXT") // TEXT or PAPER
+  kind       String    @default("TEXT") // TEXT, PAPER or LESSON
   text       String    @db.Text
   paperId    Int?
+  lessonId   Int?      // a Learn lesson shared in the chat
   isTask     Boolean   @default(false) // students get a notification; teachers see who did it
   createdAt  DateTime  @default(now())
   deletedAt  DateTime?
@@ -507,7 +508,7 @@ model ChatClick {
   id        Int      @id @default(autoincrement())
   messageId Int
   studentId Int
-  kind      String   // LINK, PAPER, DONE
+  kind      String   // LINK, PAPER, LESSON, DONE
   createdAt DateTime @default(now())
 
   @@unique([messageId, studentId, kind])

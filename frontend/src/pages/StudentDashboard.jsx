@@ -4,6 +4,7 @@ import axios from 'axios';
 import API_URL from '../api';
 import { trackParam, getTrack } from '../utils/track';
 import GeneralDashboard from './GeneralDashboard';
+import SuggestedPapers from '../components/SuggestedPapers';
 import StudentNav from '../components/StudentNav';
 import AgentWidget from '../components/AgentWidget';
 
@@ -557,7 +558,7 @@ function IeltsDashboard() {
         sub: lb != null
           ? `Latest ${skillLabel} band: ${Number(lb).toFixed(1)}. This paper targets your weak areas.`
           : `Build consistency in ${skillLabel}. This paper is a great next step.`,
-        cta: `Start ${code} →`,
+        cta: 'Start paper →',
       };
     }
 
@@ -573,7 +574,7 @@ function IeltsDashboard() {
       sub: lb != null
         ? `Latest ${skillLabel} band: ${Number(lb).toFixed(1)}. A second run often lifts your score.`
         : `Keep practising ${skillLabel} to see a clear band estimate.`,
-      cta: recentPaper?.paperCode ? `Start ${recentPaper.paperCode} →` : 'Open practice →',
+      cta: recentPaper?.id ? 'Try it again →' : 'Open practice →',
       go: recentPaper?.id ? undefined : () => navigate('/practice'),
     };
   }, [rawHistory, completedAttempts, myLevels.placementDone, papers, completedIds, navigate]);
@@ -1006,7 +1007,9 @@ function IeltsDashboard() {
                   fontFamily: 'Source Sans Pro, sans-serif',
                 }}
               >
-                Hello, {firstName} 👋
+                <span style={{ display: 'block', fontSize: 13, fontWeight: 700, letterSpacing: '.08em', color: C.primary, textTransform: 'uppercase', marginBottom: 2 }}>My dashboard</span>
+                Hi {firstName}
+                <span style={{ display: 'block', fontSize: 15, fontWeight: 400, color: C.textSecondary, marginTop: 6 }}>This page is yours. It shows your band, your progress and what to do next.</span>
               </h1>
               <div style={{ marginBottom: 16 }}>
                 {editingExamDate ? (
@@ -1237,7 +1240,7 @@ function IeltsDashboard() {
                   })}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 400, color: C.textMuted, marginTop: 8 }}>
-                  Last 7 days · {streak}-day streak
+                  Days you practised this week{streak > 1 ? ` · ${streak} days in a row` : ''}
                 </div>
               </div>
 
@@ -1378,150 +1381,10 @@ function IeltsDashboard() {
           </div>
         </div>
 
-        {/* Today's session */}
-        <div
-          className="dash-session-card"
-          style={{
-            marginBottom: 32,
-            padding: 24,
-            borderRadius: 16,
-            background: C.cardBg,
-            border: `1px solid ${C.cardBorder}`,
-            boxShadow: C.shadow,
-          }}
-        >
-          <div
-            className="dash-session-row"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 20,
-            }}
-          >
-            <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: C.primary,
-                  marginBottom: 8,
-                }}
-              >
-                TODAY&apos;S SESSION
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: C.text, lineHeight: 1.35 }}>
-                {recommendation.headline}
-              </div>
-              <p style={{ fontSize: 14, color: C.textSecondary, margin: '8px 0 0', lineHeight: 1.5 }}>
-                {recommendation.sub}
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={todayBusy}
-              className={pulseSessionBtn ? 'dash-session-pulse' : ''}
-              onClick={runTodaySession}
-              style={{
-                flexShrink: 0,
-                padding: '12px 20px',
-                borderRadius: 12,
-                border: 'none',
-                cursor: todayBusy ? 'wait' : 'pointer',
-                background: C.primary,
-                color: '#FFFFFF',
-                fontSize: 14,
-                fontWeight: 600,
-                boxShadow: C.shadow,
-                transition: `background ${C.transition}, box-shadow ${C.transition}, transform ${C.transition}`,
-                opacity: todayBusy ? 0.75 : 1,
-                fontFamily: 'Source Sans Pro, sans-serif',
-              }}
-              onMouseEnter={e => {
-                if (!todayBusy) e.currentTarget.style.background = C.primaryHover;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = C.primary;
-              }}
-            >
-              {todayBusy ? 'Starting…' : recommendation.cta}
-            </button>
-          </div>
+        {/* Suggested papers */}
+        <div style={{ marginBottom: 32 }}>
+          <SuggestedPapers track="IELTS" />
         </div>
-
-        {weakestSkillCallout != null && (
-          <div
-            style={{
-              marginBottom: 32,
-              padding: 20,
-              borderRadius: 16,
-              border: '1px solid #FCD34D',
-              background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 16,
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  color: '#B45309',
-                  marginBottom: 8,
-                }}
-              >
-                ⚠️ FOCUS AREA
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>
-                Your {SKILL_LABEL[weakestSkillCallout.skill]} is{' '}
-                {weakestSkillCallout.gap.toFixed(1)} bands below your other skills.
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 400, color: C.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
-                {weakestSkillCallout.recommendedPaper
-                  ? `Try ${weakestSkillCallout.recommendedPaper.title || weakestSkillCallout.recommendedPaper.paperCode} — the next step for ${SKILL_LABEL[weakestSkillCallout.skill]}.`
-                  : `Keep practising ${SKILL_LABEL[weakestSkillCallout.skill]} to balance your performance.`}
-              </div>
-            </div>
-            {weakestSkillCallout.recommendedPaper ? (
-              <button
-                type="button"
-                disabled={focusBusy}
-                onClick={() => runFocusPaperStart(weakestSkillCallout.recommendedPaper.id)}
-                style={{
-                  flexShrink: 0,
-                  padding: '10px 16px',
-                  borderRadius: 10,
-                  border: 'none',
-                  cursor: focusBusy ? 'wait' : 'pointer',
-                  background: '#D97706',
-                  color: '#FFFFFF',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: 'Source Sans Pro, sans-serif',
-                  opacity: focusBusy ? 0.85 : 1,
-                  transition: `background ${C.transition}`,
-                }}
-                onMouseEnter={e => {
-                  if (!focusBusy) e.currentTarget.style.background = '#B45309';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = '#D97706';
-                }}
-              >
-                {focusBusy
-                  ? 'Starting…'
-                  : `Start ${weakestSkillCallout.recommendedPaper.paperCode || 'paper'} →`}
-              </button>
-            ) : null}
-          </div>
-        )}
 
         {/* Skill grid */}
         <div
@@ -1690,11 +1553,6 @@ function IeltsDashboard() {
                           <span style={{ fontSize: 14, fontWeight: 400, color: C.text }}>
                             {attempt.paper?.title || SKILL_LABEL[skill]}
                           </span>
-                          {attempt.paper?.paperCode && (
-                            <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>
-                              {attempt.paper.paperCode}
-                            </span>
-                          )}
                         </div>
                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
                           {relativeTime(attempt.endedAt || attempt.startedAt)}
@@ -1779,7 +1637,7 @@ function IeltsDashboard() {
             </div>
             <div style={{ fontSize: 18, fontWeight: 600, color: C.text, marginTop: 8 }}>All papers</div>
             <p style={{ fontSize: 13, color: C.textMuted, margin: '8px 0 16px' }}>
-              {totalPapers} papers · {completedPaperCount} done
+              {Math.min(completedPaperCount, totalPapers)} of {totalPapers} papers done
             </p>
             <div style={{ height: 4, background: '#e8eef7', borderRadius: 9999, overflow: 'hidden' }}>
               <div
@@ -2073,11 +1931,6 @@ function IeltsDashboard() {
                                 <span style={{ fontSize: 14, fontWeight: 400, color: C.text }}>
                                   {attempt.paper?.title || SKILL_LABEL[skill]}
                                 </span>
-                                {attempt.paper?.paperCode && (
-                                  <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 6 }}>
-                                    {attempt.paper.paperCode}
-                                  </span>
-                                )}
                               </div>
                               <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
                                 {relativeTime(attempt.endedAt || attempt.startedAt)}

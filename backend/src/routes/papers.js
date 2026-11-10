@@ -106,6 +106,17 @@ router.get('/assigned', auth, async (req, res) => {
   }
 });
 
+// Papers the system suggests to this student (dashboard "Suggested for you")
+router.get('/suggested', auth, async (req, res) => {
+  try {
+    const { suggestionsFor } = require('../services/suggestions');
+    res.json(await suggestionsFor(prisma, req.user.id, normalizeTrack(req.query.track), { limit: Math.min(6, parseInt(req.query.limit, 10) || 4) }));
+  } catch (err) {
+    console.error('Suggested papers error:', err.message);
+    res.status(500).json({ error: 'Could not load suggestions' });
+  }
+});
+
 router.get('/debug', auth, adminOnly, async (req, res) => {
   try {
     const all = await prisma.paper.findMany({ orderBy: { id: 'desc' } });

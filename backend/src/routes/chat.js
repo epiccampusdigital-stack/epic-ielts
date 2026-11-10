@@ -44,7 +44,7 @@ router.get('/groups', auth, wrap(async (req, res) => {
   res.json(groups.map(g => ({
     id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
     joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0,
-    last: g.messages[0] ? { text: g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].text.slice(0, 80), by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
+    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
 }));
 
@@ -127,6 +127,13 @@ router.get('/papers', auth, wrap(async (req, res) => {
   res.json(papers);
 }));
 
+// Lessons staff can share
+router.get('/lessons', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  const mods = await prisma.learnModule.findMany({ orderBy: [{ track: 'asc' }, { order: 'asc' }], select: { id: true, title: true, track: true, lessons: { orderBy: { order: 'asc' }, select: { id: true, title: true, estimatedMin: true } } } });
+  res.json(mods.flatMap(m => m.lessons.map(l => ({ id: l.id, title: l.title, estimatedMin: l.estimatedMin, moduleId: m.id, module: m.title, track: m.track }))));
+}));
+
 // Messages
 router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const groupId = parseInt(req.params.id, 10);
@@ -138,8 +145,11 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const paperIds = [...new Set(rows.filter(r => r.paperId).map(r => r.paperId))];
   const papers = paperIds.length ? await prisma.paper.findMany({ where: { id: { in: paperIds } }, select: { id: true, title: true, testType: true, track: true, timeLimitMin: true, difficulty: true, status: true } }) : [];
   const pm = new Map(papers.map(p => [p.id, p]));
+  const lessonIds = [...new Set(rows.filter(r => r.lessonId).map(r => r.lessonId))];
+  const lessons = lessonIds.length ? await prisma.learnLesson.findMany({ where: { id: { in: lessonIds } }, select: { id: true, title: true, moduleId: true, estimatedMin: true, module: { select: { title: true } } } }) : [];
+  const lm = new Map(lessons.map(l => [l.id, { id: l.id, title: l.title, moduleId: l.moduleId, module: l.module?.title, estimatedMin: l.estimatedMin }]));
   if (member) await prisma.chatMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } });
-  const tracked = rows.filter(m => !m.deletedAt && (m.isTask || m.paperId || HAS_LINK.test(m.text)));
+  const tracked = rows.filter(m => !m.deletedAt && (m.isTask || m.paperId || m.lessonId || HAS_LINK.test(m.text)));
   const stats = isStaff(req) ? await trackStats(groupId, tracked) : null;
   // messages unsent recently, so open chats can hide them without a reload
   const unsent = after ? (await prisma.chatMessage.findMany({ where: { groupId, id: { lte: after }, deletedAt: { gte: new Date(Date.now() - 3 * 86400000) } }, select: { id: true } })).map(r => r.id) : [];
@@ -151,6 +161,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
       deleted: !!m.deletedAt, text: m.deletedAt ? '' : m.text, paper: m.paperId && !m.deletedAt ? (pm.get(m.paperId) || { id: m.paperId, title: 'Paper not available', missing: true }) : null,
+      lesson: m.lessonId && !m.deletedAt ? (lm.get(m.lessonId) || { id: m.lessonId, title: 'Lesson not available', missing: true }) : null,
       mine: m.senderId === req.user.id,
       stats: stats ? stats.get(m.id) || null : undefined,
       status: mine ? mine.get(m.id) || null : undefined,
@@ -164,17 +175,19 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (!isStaff(req) && (!member || group.onlyStaffPost)) return res.status(403).json({ error: 'Only teachers can post in this group.' });
   const text = String(req.body?.text || '').trim().slice(0, 3000);
   const paperId = isStaff(req) ? parseInt(req.body?.paperId, 10) || null : null;
-  if (!text && !paperId) return res.status(400).json({ error: 'Type a message' });
+  const lessonId = isStaff(req) && !paperId ? parseInt(req.body?.lessonId, 10) || null : null;
+  if (!text && !paperId && !lessonId) return res.status(400).json({ error: 'Type a message' });
   if (!isStaff(req)) {
     const last = lastPost.get(req.user.id) || 0;
     if (Date.now() - last < 2000) return res.status(429).json({ error: 'Slow down a little.' });
     lastPost.set(req.user.id, Date.now());
   }
   if (paperId && !(await prisma.paper.findUnique({ where: { id: paperId }, select: { id: true } }))) return res.status(400).json({ error: 'Paper not found' });
+  if (lessonId && !(await prisma.learnLesson.findUnique({ where: { id: lessonId }, select: { id: true } }))) return res.status(400).json({ error: 'Lesson not found' });
   const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { name: true, role: true } });
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
-  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : 'TEXT', text, paperId, isTask } });
+  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId);
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : 'TEXT', text, paperId, lessonId, isTask } });
   res.json({ id: m.id });
 }));
 router.delete('/messages/:id', auth, wrap(async (req, res) => {
@@ -205,6 +218,12 @@ async function doneMap(studentIds, paperIds) {
   for (const a of atts) { const k = `${a.studentId}:${a.paperId}`; if (!m.has(k)) m.set(k, a); }
   return m;
 }
+async function lessonDone(studentIds, msgs) {
+  const lessonIds = [...new Set(msgs.filter(m => m.lessonId).map(m => m.lessonId))];
+  if (!studentIds.length || !lessonIds.length) return new Set();
+  const rows = await prisma.learnProgress.findMany({ where: { studentId: { in: studentIds }, lessonId: { in: lessonIds } }, select: { studentId: true, lessonId: true } });
+  return new Set(rows.map(r => `${r.studentId}:${r.lessonId}`));
+}
 async function trackStats(groupId, msgs, detail = false) {
   const out = new Map();
   if (!msgs.length) return out;
@@ -212,20 +231,21 @@ async function trackStats(groupId, msgs, detail = false) {
   const ids = people.map(p => p.id);
   const clicks = await prisma.chatClick.findMany({ where: { messageId: { in: msgs.map(m => m.id) }, studentId: { in: ids } } });
   const done = await doneMap(ids, [...new Set(msgs.filter(m => m.paperId).map(m => m.paperId))]);
+  const learnt = await lessonDone(ids, msgs);
   for (const m of msgs) {
     const rows = people.map(p => {
       const c = clicks.filter(x => x.messageId === m.id && x.studentId === p.id);
       const att = m.paperId ? done.get(`${p.id}:${m.paperId}`) : null;
-      const isDone = m.paperId ? !!att : c.some(x => x.kind === 'DONE');
+      const isDone = m.paperId ? !!att : m.lessonId ? learnt.has(`${p.id}:${m.lessonId}`) || c.some(x => x.kind === 'DONE') : c.some(x => x.kind === 'DONE');
       return {
         id: p.id, name: p.name, email: p.email,
         seen: !!p.lastReadAt && new Date(p.lastReadAt) >= new Date(m.createdAt),
-        opened: c.some(x => x.kind === 'LINK' || x.kind === 'PAPER') || isDone,
+        opened: c.some(x => x.kind === 'LINK' || x.kind === 'PAPER' || x.kind === 'LESSON') || isDone,
         done: isDone,
         score: att ? (att.writingSubmission?.overallBand != null ? `Band ${att.writingSubmission.overallBand}` : att.result?.rawScore != null ? String(att.result.rawScore) : null) : null,
       };
     });
-    const summary = { total: rows.length, seen: rows.filter(r => r.seen || r.opened).length, opened: rows.filter(r => r.opened).length, done: rows.filter(r => r.done).length, task: m.isTask || !!m.paperId };
+    const summary = { total: rows.length, seen: rows.filter(r => r.seen || r.opened).length, opened: rows.filter(r => r.opened).length, done: rows.filter(r => r.done).length, task: m.isTask || !!m.paperId || !!m.lessonId };
     out.set(m.id, detail ? { ...summary, students: rows } : summary);
   }
   return out;
@@ -235,16 +255,17 @@ async function myStatus(studentId, msgs) {
   if (!msgs.length) return out;
   const clicks = await prisma.chatClick.findMany({ where: { studentId, messageId: { in: msgs.map(m => m.id) } } });
   const done = await doneMap([studentId], [...new Set(msgs.filter(m => m.paperId).map(m => m.paperId))]);
+  const learnt = await lessonDone([studentId], msgs);
   for (const m of msgs) {
     const c = clicks.filter(x => x.messageId === m.id);
-    out.set(m.id, { opened: c.some(x => x.kind !== 'DONE'), done: m.paperId ? done.has(`${studentId}:${m.paperId}`) : c.some(x => x.kind === 'DONE') });
+    out.set(m.id, { opened: c.some(x => x.kind !== 'DONE'), done: m.paperId ? done.has(`${studentId}:${m.paperId}`) : (m.lessonId && learnt.has(`${studentId}:${m.lessonId}`)) || c.some(x => x.kind === 'DONE') });
   }
   return out;
 }
 
 // Student opened a link / paper, or pressed "Mark as done"
 router.post('/messages/:id/click', auth, wrap(async (req, res) => {
-  const kind = ['LINK', 'PAPER', 'DONE'].includes(req.body?.kind) ? req.body.kind : 'LINK';
+  const kind = ['LINK', 'PAPER', 'LESSON', 'DONE'].includes(req.body?.kind) ? req.body.kind : 'LINK';
   const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
   if (!m) return res.status(404).json({ error: 'Message not found' });
   const member = await prisma.chatMember.findUnique({ where: { groupId_studentId: { groupId: m.groupId, studentId: req.user.id } } });
@@ -277,7 +298,9 @@ router.get('/notifications', auth, wrap(async (req, res) => {
   });
   const papers = rows.filter(r => r.paperId).length ? await prisma.paper.findMany({ where: { id: { in: rows.filter(r => r.paperId).map(r => r.paperId) } }, select: { id: true, title: true } }) : [];
   const pt = new Map(papers.map(p => [p.id, p.title]));
-  res.json({ latestId: latest?.id || after, tasks: rows.map(r => ({ id: r.id, groupId: r.groupId, group: r.group.name, from: r.senderName, text: r.text, paper: r.paperId ? pt.get(r.paperId) || 'A paper' : null, createdAt: r.createdAt })) });
+  const ls = rows.filter(r => r.lessonId).length ? await prisma.learnLesson.findMany({ where: { id: { in: rows.filter(r => r.lessonId).map(r => r.lessonId) } }, select: { id: true, title: true } }) : [];
+  const lt = new Map(ls.map(l => [l.id, l.title]));
+  res.json({ latestId: latest?.id || after, tasks: rows.map(r => ({ id: r.id, groupId: r.groupId, group: r.group.name, from: r.senderName, text: r.text, paper: r.paperId ? pt.get(r.paperId) || 'A paper' : r.lessonId ? `Lesson: ${lt.get(r.lessonId) || 'a lesson'}` : null, createdAt: r.createdAt })) });
 }));
 
 // Staff: post today's automatic task now

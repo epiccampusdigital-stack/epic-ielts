@@ -142,6 +142,12 @@ require('./ensureSchema').ensureSchema(prisma)
     } catch (e) {
       console.error('[general-english] paper 4 repair skipped:', e.message);
     }
+    try {
+      const { renameIeltsPapers } = require('../scripts/ieltsNaming');
+      console.log('[ielts] paper names:', JSON.stringify(await renameIeltsPapers(prisma)));
+    } catch (e) {
+      console.error('[ielts] paper names skipped:', e.message);
+    }
   })();
   // Copy the IELTS listening papers into General English once (GE-L1...). The IELTS originals are not changed.
   (async () => {

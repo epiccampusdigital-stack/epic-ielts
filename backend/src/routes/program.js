@@ -52,6 +52,80 @@ router.get('/', wrap(async (req, res) => {
   res.json({ programs, whatsappApi: svc.whatsappApiConfigured(), aiEnabled: !!process.env.ANTHROPIC_API_KEY });
 }));
 
+// ─── Batches and monthly calendar ───────────────────────────────────────────
+// Every batch with its dates and how far along it is
+router.get('/batches', wrap(async (req, res) => {
+  const hide = await hiddenLanguage(req);
+  const programs = await prisma.program.findMany({ orderBy: { startDate: 'asc' }, include: { days: { select: { date: true, dayNumber: true }, orderBy: { dayNumber: 'asc' } }, _count: { select: { students: true } } } });
+  const today = T.todayColombo();
+  const out = [];
+  for (const p of programs) {
+    const counts = await prisma.programSession.groupBy({ by: ['status'], where: { programId: p.id, subject: { not: 'BREAK' }, ...langFilter(hide) }, _count: true });
+    const n = s => counts.find(c => c.status === s)?._count || 0;
+    const first = p.days[0]?.date || p.startDate; const last = p.days[p.days.length - 1]?.date || T.addDays(p.startDate, p.totalDays - 1);
+    const todayDay = p.days.find(d => d.date === today);
+    out.push({
+      id: p.id, name: p.name, status: p.status, startDate: first, endDate: last, totalDays: p.days.length || p.totalDays, students: p._count.students,
+      todayDay: todayDay ? todayDay.dayNumber : null, phase: today < first ? 'UPCOMING' : today > last ? 'FINISHED' : 'RUNNING',
+      sessions: { total: n('SCHEDULED') + n('DONE') + n('CANCELLED'), done: n('DONE'), cancelled: n('CANCELLED') },
+    });
+  }
+  res.json(out);
+}));
+
+// One month of the schedule, all batches or one (?month=YYYY-MM&programId=)
+router.get('/calendar', wrap(async (req, res) => {
+  const month = /^\d{4}-\d{2}$/.test(String(req.query.month || '')) ? req.query.month : T.todayColombo().slice(0, 7);
+  const hide = await hiddenLanguage(req);
+  const programId = int(req.query.programId) || null;
+  const days = await prisma.programDay.findMany({
+    where: { date: { startsWith: month }, ...(programId ? { programId } : {}) },
+    include: { program: { select: { id: true, name: true, status: true } } },
+    orderBy: [{ date: 'asc' }, { programId: 'asc' }],
+  });
+  const sessions = days.length ? await prisma.programSession.findMany({
+    where: { OR: days.map(d => ({ programId: d.programId, dayNumber: d.dayNumber })), ...langFilter(hide) },
+    include: { teacher: { select: { id: true, name: true } } },
+    orderBy: [{ startTime: 'asc' }],
+  }) : [];
+  const key = (p, d) => `${p}:${d}`;
+  const byDay = new Map();
+  sessions.forEach(s => { const k = key(s.programId, s.dayNumber); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(s); });
+  const mins = s => { const [a, b] = s.startTime.split(':').map(Number); const [c, d] = s.endTime.split(':').map(Number); return Math.max(0, c * 60 + d - (a * 60 + b)); };
+  const summary = {};
+  const out = days.map(d => {
+    const list = (byDay.get(key(d.programId, d.dayNumber)) || []);
+    const real = list.filter(s => s.subject !== 'BREAK');
+    const sm = summary[d.programId] || (summary[d.programId] = { programId: d.programId, name: d.program.name, days: 0, sessions: 0, done: 0, cancelled: 0, englishHours: 0, koreanHours: 0 });
+    sm.days++; sm.sessions += real.length; sm.done += real.filter(s => s.status === 'DONE').length; sm.cancelled += real.filter(s => s.status === 'CANCELLED').length;
+    real.filter(s => s.status !== 'CANCELLED').forEach(s => { if (s.language === 'EN' || s.subject === 'ENGLISH') sm.englishHours += mins(s) / 60; if (s.language === 'KR' || s.subject === 'KOREAN') sm.koreanHours += mins(s) / 60; });
+    return {
+      date: d.date, programId: d.programId, program: d.program.name, dayNumber: d.dayNumber, theme: d.theme,
+      sessions: real.map(s => ({ id: s.id, startTime: s.startTime, endTime: s.endTime, subject: s.subject, title: s.title, status: s.status, teacher: s.teacher?.name || null })),
+    };
+  });
+  Object.values(summary).forEach(s => { s.englishHours = Math.round(s.englishHours * 10) / 10; s.koreanHours = Math.round(s.koreanHours * 10) / 10; });
+  res.json({ month, days: out, summary: Object.values(summary) });
+}));
+
+// New batch: copies the days and sessions of an existing batch onto a new start date (teachers kept, students not copied)
+router.post('/batches', adminRoleOnly, wrap(async (req, res) => {
+  const { name, startDate } = req.body || {};
+  const copyFromId = int(req.body?.copyFromId);
+  if (!String(name || '').trim()) throw new Error('Give the batch a name');
+  if (!T.isValidDate(startDate)) throw new Error('Pick a start date');
+  const src = await prisma.program.findUnique({ where: { id: copyFromId }, include: { days: true, sessions: true } });
+  if (!src) throw new Error('Choose a batch to copy the timetable from');
+  const p = await prisma.$transaction(async tx => {
+    const created = await tx.program.create({ data: { name: String(name).trim().slice(0, 120), startDate, totalDays: src.totalDays, dayStartTime: src.dayStartTime, dayEndTime: src.dayEndTime, koreanSiteUrl: src.koreanSiteUrl, adminPhone: src.adminPhone, remindMinutes: src.remindMinutes, status: 'ACTIVE' } });
+    await tx.programDay.createMany({ data: src.days.map(d => ({ programId: created.id, dayNumber: d.dayNumber, date: T.addDays(startDate, d.dayNumber - 1), theme: d.theme, englishFocus: d.englishFocus, koreanFocus: d.koreanFocus, itLabTask: d.itLabTask })) });
+    await tx.programSession.createMany({ data: src.sessions.map(s => ({ programId: created.id, dayNumber: s.dayNumber, startTime: s.startTime, endTime: s.endTime, subject: s.subject, language: s.language, title: s.title, description: s.description, teacherId: s.teacherId, room: s.room, link: s.link, status: 'SCHEDULED' })) });
+    await tx.programChangeLog.create({ data: { programId: created.id, summary: `Batch created from "${src.name}", starting ${startDate}`, actor: actorOf(req) } });
+    return created;
+  }, { timeout: 30000 });
+  res.json({ program: p });
+}));
+
 // Creates the Korea batch 1 plan (teachers as placeholders). Safe to call twice.
 router.post('/seed/korea-batch-1', adminRoleOnly, wrap(async (req, res) => {
   const plan = require('../data/program/koreaBatch1');

@@ -158,6 +158,7 @@ export default function AdminProgram() {
     ...(isAdmin ? [] : [{ id: 'mine', label: 'My sessions' }]),
     { id: 'today', label: 'Today' },
     { id: 'schedule', label: 'Schedule' },
+    { id: 'batches', label: 'Batches & months' },
     { id: 'materials', label: 'Materials' },
     { id: 'review', label: 'Review papers' },
     { id: 'messages', label: 'Messages' },
@@ -282,6 +283,7 @@ export default function AdminProgram() {
             {tab === 'today' && <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} goReminders={() => setTab('reminders')} />}
             {tab === 'review' && <PaperReview flash={flash} />}
             {tab === 'materials' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
+            {tab === 'batches' && <BatchesCalendar isAdmin={isAdmin} flash={flash} today={data?.today} openBatch={id => { setProgramId(id); setTab('schedule'); }} onCreated={async id => { await loadList(); setProgramId(id); }} />}
             {tab === 'schedule' && <Schedule programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'teachers' && <Teachers programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'students' && <Students programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
@@ -1767,6 +1769,175 @@ function Progress({ programId, hide }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Batches and monthly calendar ────────────────────────────────────────────
+const BATCH_COLORS = ['#0056d2', '#c2410c', '#0e9f6e', '#7c3aed', '#be185d', '#0e7490', '#a16207'];
+const PHASE = { RUNNING: ['Running now', '#e9f5e6', '#276a1a'], UPCOMING: ['Starts soon', '#e3eeff', '#0056d2'], FINISHED: ['Finished', '#e8eef7', '#5b6780'] };
+const monthLabel = m => new Date(`${m}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+const shiftMonth = (m, n) => { const d = new Date(`${m}-01T00:00:00`); d.setMonth(d.getMonth() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+
+function BatchesCalendar({ isAdmin, flash, today, openBatch, onCreated }) {
+  const [batches, setBatches] = useState(null);
+  const [month, setMonth] = useState((today || new Date().toISOString()).slice(0, 7));
+  const [only, setOnly] = useState('');
+  const [cal, setCal] = useState(null);
+  const [pick, setPick] = useState(null);
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadBatches = useCallback(() => axios.get(`${P}/batches`, api()).then(r => setBatches(r.data)).catch(e => { setBatches([]); flash(errText(e)); }), [flash]);
+  useEffect(() => { loadBatches(); }, [loadBatches]);
+  useEffect(() => {
+    setCal(null);
+    axios.get(`${P}/calendar`, { ...api(), params: { month, ...(only ? { programId: only } : {}) } }).then(r => setCal(r.data)).catch(e => { setCal({ days: [], summary: [] }); flash(errText(e)); });
+  }, [month, only, flash]);
+
+  const colorOf = useMemo(() => { const m = {}; (batches || []).forEach((b, i) => { m[b.id] = BATCH_COLORS[i % BATCH_COLORS.length]; }); return id => m[id] || C.indigo; }, [batches]);
+  const cells = useMemo(() => {
+    const first = new Date(`${month}-01T00:00:00`);
+    const lead = (first.getDay() + 6) % 7; // Monday first
+    const n = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    const out = Array.from({ length: lead }, () => null);
+    for (let i = 1; i <= n; i++) out.push(`${month}-${String(i).padStart(2, '0')}`);
+    while (out.length % 7) out.push(null);
+    return out;
+  }, [month]);
+  const byDate = useMemo(() => { const m = {}; (cal?.days || []).forEach(d => { (m[d.date] = m[d.date] || []).push(d); }); return m; }, [cal]);
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${P}/batches`, form, api());
+      flash(`${r.data.program.name} created. Add its students next.`);
+      setForm(null); await loadBatches(); onCreated(r.data.program.id);
+    } catch (e) { flash(errText(e)); }
+    setBusy(false);
+  };
+
+  const sel = pick && byDate[pick];
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <section style={{ ...card, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          <div><div style={{ fontSize: 19, fontWeight: 700 }}>Batches</div><div style={{ fontSize: 13, color: C.muted }}>Every batch, its dates and how far along it is.</div></div>
+          {isAdmin && !form && <button style={btn('primary')} onClick={() => setForm({ name: `Korea Batch ${(batches?.length || 0) + 1}`, startDate: '', copyFromId: batches?.[batches.length - 1]?.id || '' })}>+ New batch</button>}
+        </div>
+        {form && (
+          <div style={{ background: '#f7f9fc', border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: C.muted, display: 'grid', gap: 4 }}>Batch name<input style={{ ...input, width: 220 }} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
+            <label style={{ fontSize: 12, color: C.muted, display: 'grid', gap: 4 }}>Start date<input type="date" style={input} value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} /></label>
+            <label style={{ fontSize: 12, color: C.muted, display: 'grid', gap: 4 }}>Copy the timetable from<select style={{ ...input, width: 240 }} value={form.copyFromId} onChange={e => setForm({ ...form, copyFromId: Number(e.target.value) })}>{(batches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+            <button style={btn('primary')} disabled={busy || !form.name.trim() || !form.startDate || !form.copyFromId} onClick={create}>{busy ? 'Creating…' : 'Create batch'}</button>
+            <button style={btn()} onClick={() => setForm(null)}>Cancel</button>
+            <div style={{ width: '100%', fontSize: 12.5, color: C.muted }}>The days, sessions and teachers are copied onto the new dates. Students are not copied.</div>
+          </div>
+        )}
+        {batches == null ? <div style={{ color: C.muted }}>Loading…</div> : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
+            {batches.map(b => {
+              const [pl, pbg, pfg] = PHASE[b.phase] || PHASE.FINISHED;
+              const pct = b.sessions.total ? Math.round((b.sessions.done / b.sessions.total) * 100) : 0;
+              return (
+                <div key={b.id} className="pg-tile" style={{ '--ac': colorOf(b.id) }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <b style={{ fontSize: 16 }}>{b.name}</b>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, background: pbg, color: pfg, borderRadius: 50, padding: '2px 9px', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}>{pl}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{prettyDate(b.startDate)} to {prettyDate(b.endDate)} · {b.totalDays} days · {b.students} students</div>
+                  <div style={{ fontSize: 13, marginTop: 6 }}>{b.todayDay ? <>Today is <b>Day {b.todayDay}</b> · </> : null}{b.sessions.done} of {b.sessions.total} sessions done</div>
+                  <div className="pg-bar"><i style={{ width: `${pct}%` }} /></div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                    <button style={btn()} onClick={() => openBatch(b.id)}>Open</button>
+                    <button style={btn()} onClick={() => { setOnly(String(b.id)); setMonth((b.todayDay ? today : b.startDate).slice(0, 7)); }}>See on calendar</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section style={{ ...card, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button style={btn()} onClick={() => setMonth(m => shiftMonth(m, -1))} aria-label="Previous month">‹</button>
+            <div style={{ fontSize: 19, fontWeight: 700, minWidth: 170, textAlign: 'center' }}>{monthLabel(month)}</div>
+            <button style={btn()} onClick={() => setMonth(m => shiftMonth(m, 1))} aria-label="Next month">›</button>
+            <button style={btn()} onClick={() => setMonth((today || '').slice(0, 7))}>This month</button>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button style={{ ...btn(only ? 'outline' : 'primary') }} onClick={() => setOnly('')}>All batches</button>
+            {(batches || []).map(b => (
+              <button key={b.id} onClick={() => setOnly(String(b.id))} style={{ ...btn(), borderColor: colorOf(b.id), background: only === String(b.id) ? colorOf(b.id) : '#fff', color: only === String(b.id) ? '#fff' : colorOf(b.id) }}>{b.name}</button>
+            ))}
+          </div>
+        </div>
+
+        {cal?.summary?.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 10, marginTop: 14 }}>
+            {cal.summary.map(s => (
+              <div key={s.programId} style={{ borderLeft: `4px solid ${colorOf(s.programId)}`, background: '#f7f9fc', borderRadius: 10, padding: '8px 12px', fontSize: 13 }}>
+                <b style={{ fontSize: 14 }}>{s.name}</b>
+                <div style={{ color: C.muted }}>{s.days} class days this month · {s.done}/{s.sessions} sessions done{s.cancelled ? ` · ${s.cancelled} cancelled` : ''}</div>
+                <div>English {s.englishHours} h · Korean {s.koreanHours} h</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginTop: 14 }}>
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d} style={{ fontSize: 12, fontWeight: 700, color: C.muted, textAlign: 'center', padding: '4px 0' }}>{d}</div>)}
+          {cells.map((date, i) => {
+            if (!date) return <div key={i} />;
+            const list = byDate[date] || [];
+            const isToday = date === today;
+            return (
+              <button key={date} onClick={() => setPick(date)} style={{ textAlign: 'left', minHeight: 92, border: `1px solid ${pick === date ? C.indigo : isToday ? '#f5b400' : C.line}`, borderWidth: pick === date || isToday ? 2 : 1, borderRadius: 10, padding: 6, background: list.length ? '#fff' : '#fafbfd', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: isToday ? '#a16207' : C.text }}>{Number(date.slice(8))}{isToday ? ' · Today' : ''}</span>
+                {list.map(d => (
+                  <span key={d.programId} style={{ fontSize: 11.5, lineHeight: 1.3, background: `${colorOf(d.programId)}14`, borderLeft: `3px solid ${colorOf(d.programId)}`, borderRadius: 4, padding: '2px 5px', overflow: 'hidden' }}>
+                    <b style={{ color: colorOf(d.programId) }}>Day {d.dayNumber}</b>{!only && (batches || []).length > 1 ? ` · ${d.program}` : ''}
+                    <span className="pg-hide-sm" style={{ display: 'block', color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.sessions.length} sessions{d.sessions.some(s => s.status === 'DONE') ? ` · ${d.sessions.filter(s => s.status === 'DONE').length} done` : ''}</span>
+                  </span>
+                ))}
+              </button>
+            );
+          })}
+        </div>
+        {cal == null && <div style={{ color: C.muted, marginTop: 8 }}>Loading…</div>}
+        {cal && cal.days.length === 0 && <div style={{ color: C.muted, marginTop: 10 }}>No classes in {monthLabel(month)}{only ? ' for this batch' : ''}.</div>}
+      </section>
+
+      {pick && (
+        <section style={{ ...card, padding: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{new Date(`${pick}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+            <button style={btn()} onClick={() => setPick(null)}>Close</button>
+          </div>
+          {!sel && <div style={{ color: C.muted, marginTop: 8 }}>No classes on this day.</div>}
+          {(sel || []).map(d => (
+            <div key={d.programId} style={{ marginTop: 12, borderLeft: `4px solid ${colorOf(d.programId)}`, paddingLeft: 12 }}>
+              <div style={{ fontWeight: 700 }}>{d.program} · Day {d.dayNumber}{d.theme ? ` · ${d.theme}` : ''}</div>
+              <table className="pg-table" style={{ marginTop: 6 }}>
+                <tbody>
+                  {d.sessions.map(s => (
+                    <tr key={s.id}>
+                      <td style={{ whiteSpace: 'nowrap', width: 140 }}>{pretty(s.startTime)}–{pretty(s.endTime)}</td>
+                      <td style={{ width: 90 }}><Pill subject={s.subject} /></td>
+                      <td>{s.title}</td>
+                      <td className="pg-hide-sm" style={{ color: C.muted }}>{s.teacher || ''}</td>
+                      <td style={{ color: s.status === 'DONE' ? '#276a1a' : s.status === 'CANCELLED' ? '#dc2626' : C.muted, fontWeight: 600 }}>{s.status === 'DONE' ? 'Done' : s.status === 'CANCELLED' ? 'Cancelled' : 'Planned'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

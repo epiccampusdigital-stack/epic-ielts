@@ -244,6 +244,8 @@ export default function Messages() {
   const [data, setData] = useState(null);
   const [text, setText] = useState('');
   const [attach, setAttach] = useState(null); // { kind: 'paper'|'lesson', item }
+  const [photo, setPhoto] = useState(null); // { url, preview, uploading }
+  const fileRef = useRef(null);
   const [picker, setPicker] = useState(null); // 'menu' | 'paper' | 'lesson'
   const [papers, setPapers] = useState([]);
   const [lessons, setLessons] = useState(null);
@@ -283,7 +285,7 @@ export default function Messages() {
       setData(prev => {
         if (full || !prev || prev.group.id !== d.group.id) { lastId.current = d.messages.length ? d.messages[d.messages.length - 1].id : 0; scrollDown(); return d; }
         const gone = new Set(d.unsent || []);
-        const base = gone.size ? prev.messages.map(m => gone.has(m.id) && !m.deleted ? { ...m, deleted: true, text: '', paper: null, lesson: null, stats: null, status: null } : m) : prev.messages;
+        const base = gone.size ? prev.messages.map(m => gone.has(m.id) && !m.deleted ? { ...m, deleted: true, text: '', paper: null, lesson: null, imageUrl: null, stats: null, status: null } : m) : prev.messages;
         if (!d.messages.length) return { ...prev, group: d.group, canPost: d.canPost, messages: base };
         lastId.current = d.messages[d.messages.length - 1].id;
         const el = listRef.current; const atBottom = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 120;
@@ -295,14 +297,27 @@ export default function Messages() {
     }
   }, [sel, loadGroups]);
   useEffect(() => {
-    setData(null); lastId.current = 0; setShowInfo(false); setPicker(null); setAttach(null);
+    setData(null); lastId.current = 0; setShowInfo(false); setPicker(null); setAttach(null); setPhoto(null);
     if (!sel) return undefined;
     loadMessages(true);
     const id = setInterval(() => { if (document.visibilityState === 'visible') loadMessages(false); }, 4000);
     return () => clearInterval(id);
   }, [sel, loadMessages]);
 
-  const canSend = !sending && (text.trim() || attach);
+  const canSend = !sending && !photo?.uploading && (text.trim() || attach || photo?.url);
+  const pickPhoto = async file => {
+    if (!file || !file.type?.startsWith('image/')) return;
+    if (file.size > 8 * 1024 * 1024) { flash('The photo is too big (8 MB max).'); return; }
+    const preview = URL.createObjectURL(file);
+    setPhoto({ preview, uploading: true }); setPicker(null);
+    try {
+      const fd = new FormData(); fd.append('photo', file);
+      const r = await axios.post(`${API_URL}/api/chat/photo`, fd, api());
+      setPhoto({ preview, url: r.data.url, uploading: false });
+      inputRef.current?.focus();
+    } catch (e) { setPhoto(null); flash(errText(e)); }
+  };
+  const imgSrc = u => (u && u.startsWith('/') ? `${API_URL}${u}` : u);
   const send = async () => {
     if (!canSend) return;
     setSending(true);
@@ -311,9 +326,10 @@ export default function Messages() {
         text,
         paperId: attach?.kind === 'paper' ? attach.item.id : undefined,
         lessonId: attach?.kind === 'lesson' ? attach.item.id : undefined,
+        imageUrl: photo?.url || undefined,
         isTask: asTask || !!attach,
       }, api());
-      setText(''); setAttach(null); setPicker(null); setAsTask(false);
+      setText(''); setAttach(null); setPhoto(null); setPicker(null); setAsTask(false);
       await loadMessages(false); scrollDown(); loadGroups();
       inputRef.current?.focus();
     } catch (e) { flash(errText(e)); }
@@ -321,7 +337,7 @@ export default function Messages() {
   };
   const del = async id => {
     if (!window.confirm(staff ? 'Unsend this message? It will be removed for everyone in the group.' : 'Unsend this message?')) return;
-    try { await axios.delete(`${API_URL}/api/chat/messages/${id}`, api()); setData(d => ({ ...d, messages: d.messages.map(m => m.id === id ? { ...m, deleted: true, text: '', paper: null, lesson: null, stats: null, status: null } : m) })); } catch (e) { flash(errText(e)); }
+    try { await axios.delete(`${API_URL}/api/chat/messages/${id}`, api()); setData(d => ({ ...d, messages: d.messages.map(m => m.id === id ? { ...m, deleted: true, text: '', paper: null, lesson: null, imageUrl: null, stats: null, status: null } : m) })); } catch (e) { flash(errText(e)); }
   };
   const join = async () => {
     try { const r = await axios.post(`${API_URL}/api/chat/join`, { code }, api()); setCode(''); await loadGroups(); setSel(r.data.id); flash(`You joined ${r.data.name}.`); } catch (e) { flash(errText(e)); }
@@ -489,7 +505,7 @@ export default function Messages() {
                   </div>
                 )}
                 {feed.map(({ m, newDay, pos, showName, showAvatar, showTime }) => {
-                  const cardOnly = !m.deleted && !m.text && (m.paper || m.lesson) && !m.isTask;
+                  const cardOnly = !m.deleted && !m.text && (m.paper || m.lesson || m.imageUrl) && !m.isTask;
                   return (
                     <Fragment key={m.id}>
                       {newDay && <div className="mc-day">{dayName(m.createdAt)}</div>}
@@ -501,6 +517,12 @@ export default function Messages() {
                           <div className={`mc-bub${m.deleted ? ' gone' : ''}${cardOnly ? ' cardonly' : ''}`}>
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
                               {m.isTask && <div className="mc-task">TASK</div>}
+                              {m.imageUrl && (
+                                <a href={imgSrc(m.imageUrl)} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: m.text ? 6 : 0 }}>
+                                  <img src={imgSrc(m.imageUrl)} alt="Photo sent in the chat" loading="lazy" onLoad={() => { const el = listRef.current; if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) el.scrollTop = el.scrollHeight; }}
+                                    style={{ display: 'block', maxWidth: 'min(320px, 68vw)', maxHeight: 360, width: 'auto', borderRadius: 14, border: '1px solid #e4e6eb', background: '#f0f2f5' }} />
+                                </a>
+                              )}
                               {m.text && <div><Linkify text={m.text} onLink={staff ? null : () => track(m.id, 'LINK')} /></div>}
                               {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={pid => startPaper(pid, m.id)} starting={starting === m.paper.id} />}
                               {m.lesson && <LessonCard lesson={m.lesson} staff={staff} onOpen={l => openLesson(l, m.id)} />}
@@ -536,6 +558,7 @@ export default function Messages() {
                     <div className="mc-pop" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" className="mc-chip" onClick={() => { setPicker('paper'); setPickQ(''); }}>Share a paper</button>
                       <button type="button" className="mc-chip" onClick={() => { setPicker('lesson'); setPickQ(''); }}>Share a lesson</button>
+                      <button type="button" className="mc-chip" onClick={() => fileRef.current?.click()}>Send a photo</button>
                     </div>
                   )}
                   {staff && (picker === 'paper' || picker === 'lesson') && (
@@ -561,6 +584,16 @@ export default function Messages() {
                       </div>
                     </div>
                   )}
+                  {staff && <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />}
+                  {photo && (
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ position: 'relative' }}>
+                        <img src={photo.preview} alt="Photo to send" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 12, border: '1px solid #e4e6eb', opacity: photo.uploading ? 0.5 : 1 }} />
+                        <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo" style={{ position: 'absolute', top: -8, right: -8, width: 24, height: 24, borderRadius: '50%', border: 0, background: '#050505', color: '#fff', cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>
+                      </div>
+                      <span style={{ fontSize: 13.5, color: '#65676b' }}>{photo.uploading ? 'Uploading…' : 'Photo ready. Add a message or press send.'}</span>
+                    </div>
+                  )}
                   {(attach || staff) && (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
                       {attach && (
@@ -577,10 +610,11 @@ export default function Messages() {
                     </div>
                   )}
                   <div className="mc-bar">
-                    {staff && <button type="button" className="mc-iconbtn" onClick={() => setPicker(p => (p ? null : 'menu'))} aria-label="Share a paper or lesson" title="Share a paper or lesson" style={{ height: 42, width: 42 }}>{Icon.plus}</button>}
+                    {staff && <button type="button" className="mc-iconbtn" onClick={() => setPicker(p => (p ? null : 'menu'))} aria-label="Share a paper, lesson or photo" title="Share a paper, lesson or photo" style={{ height: 42, width: 42 }}>{Icon.plus}</button>}
                     <textarea ref={inputRef} className="mc-input" value={text} onChange={e => setText(e.target.value)} rows={Math.min(5, Math.max(1, text.split('\n').length))}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-                      placeholder={attach ? 'Add a note (optional)' : 'Aa'} aria-label="Message" />
+                      onPaste={e => { if (!staff) return; const f = [...(e.clipboardData?.files || [])].find(x => x.type.startsWith('image/')); if (f) { e.preventDefault(); pickPhoto(f); } }}
+                      placeholder={attach || photo ? 'Add a note (optional)' : 'Aa'} aria-label="Message" />
                     <button type="button" className="mc-send" onClick={send} disabled={!canSend} aria-label="Send">{Icon.send}</button>
                   </div>
                 </div>

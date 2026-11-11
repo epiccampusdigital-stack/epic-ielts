@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FILES = ['20261026120000_add_tracks_and_program_tracker', '20261026200000_add_student_course', '20261105220000_add_paper_difficulty', '20261107100000_add_attempt_draft', '20261110110000_add_app_setting', '20261110150000_add_group_chat', '20261110151000_add_ai_saved', '20261110170000_chat_tasks', '20261110210000_chat_lesson'];
+const FILES = ['20261026120000_add_tracks_and_program_tracker', '20261026200000_add_student_course', '20261105220000_add_paper_difficulty', '20261107100000_add_attempt_draft', '20261110110000_add_app_setting', '20261110150000_add_group_chat', '20261110151000_add_ai_saved', '20261110170000_chat_tasks', '20261110210000_chat_lesson', '20261111100000_chat_image'];
 
 async function ensureSchema(prisma) {
   for (const name of FILES) {

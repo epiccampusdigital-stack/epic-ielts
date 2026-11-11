@@ -10,6 +10,10 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I
 const newCode = () => Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
 const wrap = fn => (req, res) => fn(req, res).catch(e => { console.error('[chat]', e.message); res.status(500).json({ error: 'Something went wrong. Please try again.' }); });
 const lastPost = new Map(); // studentId -> time of last message (simple flood control)
+const multer = require('multer');
+const photoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 }, fileFilter: (req, f, cb) => cb(null, /^image\/(jpeg|png|webp|gif|heic|heif)$/.test(f.mimetype)) });
+// Only accept photo links that this server created
+const okImage = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/.+\/epic-ielts\/chat\//.test(u) || /^\/uploads\/images\/chat_[\w.-]+$/.test(u));
 
 async function canSee(req, groupId) {
   const group = await prisma.chatGroup.findUnique({ where: { id: groupId } });
@@ -44,7 +48,7 @@ router.get('/groups', auth, wrap(async (req, res) => {
   res.json(groups.map(g => ({
     id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
     joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0,
-    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
+    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
 }));
 
@@ -161,6 +165,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
       deleted: !!m.deletedAt, text: m.deletedAt ? '' : m.text, paper: m.paperId && !m.deletedAt ? (pm.get(m.paperId) || { id: m.paperId, title: 'Paper not available', missing: true }) : null,
+      imageUrl: m.deletedAt ? null : m.imageUrl || null,
       lesson: m.lessonId && !m.deletedAt ? (lm.get(m.lessonId) || { id: m.lessonId, title: 'Lesson not available', missing: true }) : null,
       mine: m.senderId === req.user.id,
       stats: stats ? stats.get(m.id) || null : undefined,
@@ -168,6 +173,33 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     })),
   });
 }));
+// Upload a photo for a chat message (staff). Returns the link to send with the message.
+router.post('/photo', auth, (req, res, next) => (isStaff(req) ? next() : res.status(403).json({ error: 'Only teachers can send photos.' })), (req, res) => {
+  photoUpload.single('photo')(req, res, async err => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'The photo is too big (8 MB max).' : 'Could not read the photo.' });
+    if (!req.file) return res.status(400).json({ error: 'Choose a photo (JPG, PNG, WebP or GIF).' });
+    try {
+      const { cloudinary, isLocal } = require('../config/cloudinary');
+      const name = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      if (!isLocal && cloudinary) {
+        const url = await new Promise((resolve, reject) => {
+          const s = cloudinary.uploader.upload_stream({ resource_type: 'image', folder: 'epic-ielts/chat', public_id: name, transformation: [{ width: 1600, height: 1600, crop: 'limit', quality: 'auto', fetch_format: 'jpg' }] }, (e, r) => (e ? reject(e) : resolve(r.secure_url)));
+          s.end(req.file.buffer);
+        });
+        return res.json({ url });
+      }
+      const fs = require('fs'); const path = require('path');
+      const dir = path.join(__dirname, '../../uploads/images'); fs.mkdirSync(dir, { recursive: true });
+      const ext = ({ 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' })[req.file.mimetype] || '.jpg';
+      fs.writeFileSync(path.join(dir, name + ext), req.file.buffer);
+      res.json({ url: `/uploads/images/${name}${ext}` });
+    } catch (e) {
+      console.error('[chat] photo upload', e.message);
+      res.status(500).json({ error: 'Could not upload the photo. Please try again.' });
+    }
+  });
+});
+
 router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   const { group, member } = await canSee(req, groupId);
@@ -176,7 +208,8 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const text = String(req.body?.text || '').trim().slice(0, 3000);
   const paperId = isStaff(req) ? parseInt(req.body?.paperId, 10) || null : null;
   const lessonId = isStaff(req) && !paperId ? parseInt(req.body?.lessonId, 10) || null : null;
-  if (!text && !paperId && !lessonId) return res.status(400).json({ error: 'Type a message' });
+  const imageUrl = isStaff(req) && okImage(req.body?.imageUrl) ? req.body.imageUrl : null;
+  if (!text && !paperId && !lessonId && !imageUrl) return res.status(400).json({ error: 'Type a message' });
   if (!isStaff(req)) {
     const last = lastPost.get(req.user.id) || 0;
     if (Date.now() - last < 2000) return res.status(429).json({ error: 'Slow down a little.' });
@@ -187,7 +220,7 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { name: true, role: true } });
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
   const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : 'TEXT', text, paperId, lessonId, isTask } });
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : 'TEXT', text, paperId, lessonId, imageUrl, isTask } });
   res.json({ id: m.id });
 }));
 router.delete('/messages/:id', auth, wrap(async (req, res) => {

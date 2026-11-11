@@ -484,6 +484,7 @@ model ChatMessage {
   text       String    @db.Text
   paperId    Int?
   lessonId   Int?      // a Learn lesson shared in the chat
+  imageUrl   String?   // a photo sent in the chat
   isTask     Boolean   @default(false) // students get a notification; teachers see who did it
   createdAt  DateTime  @default(now())
   deletedAt  DateTime?

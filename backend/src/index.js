@@ -145,6 +145,12 @@ require('./ensureSchema').ensureSchema(prisma)
       console.error('[general-english] paper 4 repair skipped:', e.message);
     }
     try {
+      const { upgradePaper8 } = require('../scripts/generalEnglish/paper8Part2');
+      console.log('[general-english] reading 008 part 2:', JSON.stringify(await upgradePaper8(prisma)));
+    } catch (e) {
+      console.error('[general-english] reading 008 part 2 skipped:', e.message);
+    }
+    try {
       const { renameIeltsPapers } = require('../scripts/ieltsNaming');
       console.log('[ielts] paper names:', JSON.stringify(await renameIeltsPapers(prisma)));
     } catch (e) {

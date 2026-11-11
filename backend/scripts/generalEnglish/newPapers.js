@@ -2,6 +2,7 @@
 // Stars: 1 = A1, 2 = A2, 3 = B1, 4 = B1+, 5 = B2. All content is original.
 // `ev` lists the exact words in the text or script that give each answer (stored as Question.evidence).
 
+const P8 = require('./paper8Part2');
 const mc = (content, options, answer, explanation, ev) => ({ type: 'MULTIPLE_CHOICE', content, options, answer, explanation, ev });
 const tf = (content, answer, explanation, ev) => ({ type: 'TRUE_FALSE_NOT_GIVEN', content, answer, explanation, ev });
 const sc = (content, answer, explanation, ev) => ({ type: 'SENTENCE_COMPLETION', content, answer, explanation, ev });
@@ -119,8 +120,8 @@ The environmental consequences are equally serious. Growing cotton requires enor
 Not all experts agree on the solution. Some argue that consumers should simply buy less and choose better quality, accepting higher prices. Others believe that this places an unfair burden on people with low incomes, and that governments should instead require companies to make clothes that last longer and can be recycled. A third group is more optimistic about technology, pointing to new methods that turn old cotton into fresh fibre. Whatever approach proves most effective, nearly everyone accepts that the present system cannot continue indefinitely.`;
 
 const reading8 = {
-  code: 'GE-C8R', testType: 'READING', title: 'Reading 008 · The cost of cheap clothes', timeLimitMin: 20, difficulty: 4, topic: 'Society and environment',
-  instructions: 'One text and 10 questions. Read the text, then answer the questions.',
+  code: 'GE-C8R', testType: 'READING', title: 'Reading 008 · The cost of cheap clothes', timeLimitMin: P8.NEW_TIME, difficulty: 4, topic: 'Society and environment',
+  instructions: P8.NEW_INSTRUCTIONS,
   passages: [{ title: 'The hidden cost of cheap clothes', text: R8, groups: [
     { type: 'TRUE_FALSE_NOT_GIVEN', instruction: TF(1, 4), questions: [
       tf('People today buy more clothes than people did in the year 2000.', 'TRUE', '"buys sixty per cent more clothing than in the year 2000"', ['buys sixty per cent more clothing than in the year 2000']),
@@ -138,7 +139,7 @@ const reading8 = {
       sc('New methods can turn old cotton into fresh ________.', 'FIBRE|FIBER', '"turn old cotton into fresh fibre"', ['turn old cotton into fresh fibre']),
       sc('Companies compete fiercely on ________, so they push suppliers to cut costs.', 'PRICE', '"compete fiercely on price"', ['compete fiercely on price']),
     ] },
-  ] }],
+  ] }, P8.PART2],
 };
 
 const R9 = `Almost one-third of the food that humans eat depends on pollination, the process by which pollen is carried from one flower to another so that plants can produce fruit and seeds. For centuries, this task has been performed free of charge by insects, above all by bees. Yet in the past two decades, beekeepers in North America and Europe have reported alarming losses, with some losing up to forty per cent of their hives in a single winter.

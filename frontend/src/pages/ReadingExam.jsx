@@ -1,3 +1,4 @@
+import EndTestConfirm from '../components/EndTestConfirm';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -1440,66 +1441,23 @@ export default function ReadingExam() {
             </>
          )}
 
-         {showConfirm && (
-            <div style={{
-               position: 'fixed',
-               top: 0, left: 0, right: 0, bottom: 0,
-               background: 'rgba(15, 23, 42, 0.75)',
-               display: 'flex',
-               alignItems: 'center',
-               justifyContent: 'center',
-               zIndex: 9999,
-               fontFamily: 'Source Sans Pro, sans-serif'
-            }}>
-               <div style={{
-                  background: 'white',
-                  padding: 32,
-                  borderRadius: 16,
-                  maxWidth: 400,
-                  width: '90%',
-                  textAlign: 'center',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-               }}>
-                  <h2 style={{ margin: '0 0 16px', color: '#0f1114' }}>Submit Test?</h2>
-                  <p style={{ color: '#5b6780', marginBottom: 24, lineHeight: 1.6 }}>
-                     You have answered <strong>{Object.keys(answers).length}</strong> of <strong>{questions.length}</strong> questions.
-                     This action cannot be undone.
-                  </p>
-                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                     <button
-                        onClick={() => setShowConfirm(false)}
-                        style={{
-                           padding: '10px 20px',
-                           background: '#e8eef7',
-                           color: '#5b6780',
-                           border: 'none',
-                           borderRadius: 8,
-                           fontWeight: 600,
-                           cursor: 'pointer',
-                           flex: 1
-                        }}
-                     >
-                        Cancel
-                     </button>
-                     <button
-                        onClick={() => handleEnd()}
-                        style={{
-                           padding: '10px 20px',
-                           background: '#dc2626',
-                           color: 'white',
-                           border: 'none',
-                           borderRadius: 8,
-                           fontWeight: 600,
-                           cursor: 'pointer',
-                           flex: 1
-                        }}
-                     >
-                        Confirm Submit
-                     </button>
-                  </div>
-               </div>
-            </div>
-         )}
+         <EndTestConfirm
+            open={showConfirm}
+            answered={questions.filter((q) => String(answers[q.id] ?? '').trim() !== '').length}
+            total={questions.length}
+            unanswered={questions.filter((q) => String(answers[q.id] ?? '').trim() === '').map((q) => q.questionNumber)}
+            onBack={() => setShowConfirm(false)}
+            onEnd={() => handleEnd()}
+            onJump={(num) => {
+               const q = questions.find((x) => x.questionNumber === num);
+               if (!q) return;
+               const pn = q.passageNumber || 1;
+               const idx = questions.filter((x) => (x.passageNumber || 1) === pn).findIndex((x) => x.id === q.id);
+               setCurrentPassage(pn);
+               setQuestionPage(Math.max(0, Math.floor(idx / 5)));
+               setShowConfirm(false);
+            }}
+         />
       </div>
    );
 }

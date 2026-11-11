@@ -1,3 +1,4 @@
+import EndTestConfirm from '../components/EndTestConfirm';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -1094,43 +1095,29 @@ export default function WritingExam() {
         </div>
       </div>
 
-      {/* Confirm modal */}
-      {showConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#ffffff', borderRadius: 20, padding: 36, maxWidth: 460, width: '90%', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
-            <h2 style={{ fontFamily: 'Source Sans Pro, Arial, sans-serif', fontSize: 22, color: '#002761', marginBottom: 8 }}>
-              Submit Writing Test?
-            </h2>
-            <p style={{ color: '#5b6780', fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>
-              You are about to submit your writing test. This cannot be undone.
-            </p>
-            <div style={{ background: '#f0f6ff', borderRadius: 10, padding: 16, marginBottom: 24, border: '1px solid #e3eeff' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 13, color: '#5b6780' }}>Task 1</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: wordCount(task1) >= min1 ? '#16a34a' : '#dc2626' }}>
-                  {wordCount(task1)} words {wordCount(task1) < min1 ? '⚠️ Under minimum' : '✅'}
+      {/* Confirm before ending */}
+      <EndTestConfirm
+        open={showConfirm}
+        unit="tasks"
+        answered={[task1, task2].filter(x => wordCount(x) > 0).length}
+        total={2}
+        unanswered={[task1, task2].map((x, i) => (wordCount(x) > 0 ? null : i + 1)).filter(Boolean)}
+        onBack={() => setShowConfirm(false)}
+        onEnd={confirmSubmit}
+        onJump={n => { setTask(n); setShowConfirm(false); }}
+        extra={
+          <div style={{ background: '#f0f6ff', borderRadius: 10, padding: '10px 14px', marginTop: 14, border: '1px solid #e3eeff' }}>
+            {[[1, task1, min1], [2, task2, min2]].map(([n, txt, min]) => (
+              <div key={n} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 14 }}>
+                <span style={{ color: '#5b6780' }}>Task {n}</span>
+                <span style={{ fontWeight: 700, color: wordCount(txt) >= min ? '#16a34a' : '#dc2626' }}>
+                  {wordCount(txt)} words {wordCount(txt) < min ? `(minimum ${min})` : '✓'}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: '#5b6780' }}>Task 2</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: wordCount(task2) >= min2 ? '#16a34a' : '#dc2626' }}>
-                  {wordCount(task2)} words {wordCount(task2) < min2 ? '⚠️ Under minimum' : '✅'}
-                </span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowConfirm(false)}
-                style={{ flex: 1, padding: 12, background: '#e8eef7', border: '1px solid #dae1ed', borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'Source Sans Pro, sans-serif', fontSize: 14 }}>
-                Go Back
-              </button>
-              <button onClick={confirmSubmit}
-                style={{ flex: 2, padding: 12, background: '#0056d2', color: 'white', border: 'none', borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'Source Sans Pro, sans-serif', fontSize: 14 }}>
-                Submit Now
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        }
+      />
     </div>
   );
 }

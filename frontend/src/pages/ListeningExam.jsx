@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import EndTestConfirm from '../components/EndTestConfirm';
 import useAnswerAutosave, { localAnswers } from '../utils/useAnswerAutosave';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
@@ -106,10 +107,10 @@ export default function ListeningExam() {
     }
   };
 
+  const [showConfirm, setShowConfirm] = useState(false);
   const handleEnd = async (auto = false) => {
-    if (!auto) {
-      if (!window.confirm("Are you sure you want to submit your listening test?")) return;
-    }
+    if (!auto) { setShowConfirm(true); return; }
+    setShowConfirm(false);
     setSubmitting(true);
     clearInterval(timerRef.current);
     clearInterval(autosaveRef.current);
@@ -506,6 +507,21 @@ export default function ListeningExam() {
           );
         })}
       </div>
+      {(() => {
+        const allQs = sections.flatMap((s, si) => (s.groups || []).flatMap(g => (g.questions || []).map(q => ({ ...q, si }))));
+        const blank = q => String(answers[q.id] ?? '').trim() === '';
+        return (
+          <EndTestConfirm
+            open={showConfirm}
+            answered={allQs.filter(q => !blank(q)).length}
+            total={allQs.length}
+            unanswered={allQs.filter(blank).map(q => q.questionNumber).sort((a, b) => a - b)}
+            onBack={() => setShowConfirm(false)}
+            onEnd={() => handleEnd(true)}
+            onJump={num => { const q = allQs.find(x => x.questionNumber === num); if (q) setActiveSIdx(q.si); setShowConfirm(false); }}
+          />
+        );
+      })()}
     </div>
   );
 }

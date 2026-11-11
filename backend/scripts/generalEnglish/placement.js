@@ -205,7 +205,7 @@ async function seedPaperList(prisma, list, orderBase, opts = {}) {
         for (const [i, ps] of p.passages.entries()) {
           const passage = await tx.passage.create({ data: { paperId: paper.id, passageNumber: i + 1, title: ps.title, text: ps.text } });
           for (const [gi, g] of ps.groups.entries()) {
-            const group = await tx.questionGroup.create({ data: { passageId: passage.id, groupType: g.type, instruction: g.instruction, wordLimit: g.wordLimit || null, order: gi } });
+            const group = await tx.questionGroup.create({ data: { passageId: passage.id, groupType: g.type, instruction: g.instruction, wordLimit: g.wordLimit || null, imageUrl: g.imageUrl || null, order: gi } });
             for (const q of g.questions) await addQ({ groupId: group.id, passageNumber: i + 1 }, q);
           }
         }

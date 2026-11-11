@@ -28,6 +28,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 try {
   app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
   app.use('/audio', express.static(path.join(__dirname, '../public-audio')));
+  app.use('/media', express.static(path.join(__dirname, '../public-media'), { maxAge: '7d' }));
 } catch(e) {
   console.log('Uploads folder not found, skipping');
 }

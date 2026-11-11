@@ -267,6 +267,7 @@ const reading4 = {
 
 const { listening4 } = require('./listeningC4');
 const { NEW_PAPERS } = require('./newPapers');
-const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4, listening4, ...NEW_PAPERS];
+const { HARD_PAPERS } = require('./hardPapers');
+const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4, listening4, ...NEW_PAPERS, ...HARD_PAPERS];
 
 module.exports = { COURSE_PAPERS };

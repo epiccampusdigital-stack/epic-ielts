@@ -108,17 +108,18 @@ require('./ensureSchema').ensureSchema(prisma)
     try {
       const modules = await prisma.learnModule.count({ where: { track: 'GENERAL' } });
       const placement = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-PT' } } });
-      const course = await prisma.paper.count({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-C' } } });
+      const { COURSE_PAPERS } = require('../scripts/generalEnglish/coursePapers');
+      const have = new Set((await prisma.paper.findMany({ where: { track: 'GENERAL', paperCode: { startsWith: 'GE-C' } }, select: { paperCode: true, testType: true } })).map(p => `${p.paperCode}:${p.testType}`));
+      const missing = COURSE_PAPERS.filter(p => !have.has(`${p.code}:${p.testType}`));
       if (modules === 0 || placement < 4) {
         const { seedGeneralEnglish } = require('../scripts/generalEnglish');
         console.log('[general-english] content loaded:', JSON.stringify(await seedGeneralEnglish(prisma)));
-      } else if (course < 18) {
+      } else if (missing.length) {
         // Only add the course papers that are missing, so existing papers (and their audio and stars) stay as they are
-        const { COURSE_PAPERS } = require('../scripts/generalEnglish/coursePapers');
         const { seedPaperList } = require('../scripts/generalEnglish/placement');
         let added = 0;
         for (const [i, p] of COURSE_PAPERS.entries()) {
-          if (await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType }, select: { id: true } })) continue;
+          if (!missing.includes(p)) continue;
           try { added += await seedPaperList(prisma, [p], 950 + i); console.log('[general-english] added', p.code); }
           catch (err) { console.error('[general-english] could not add', p.code, '-', err.message); }
         }

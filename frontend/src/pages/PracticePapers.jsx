@@ -150,11 +150,6 @@ function getPaperState(paper, attempts, paperUnlocked) {
   };
 }
 
-function countCompletedPapers(skillPapers, attempts) {
-  return skillPapers.filter(p =>
-    attempts.some(a => a.paperId === p.id && a.status === 'COMPLETED')
-  ).length;
-}
 
 export default function PracticePapers() {
   const [papers, setPapers] = useState([]);
@@ -167,7 +162,15 @@ export default function PracticePapers() {
   const [skillFilter, setSkillFilter] = useState('ALL');
   const [levelFilter, setLevelFilter] = useState(0);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Two tabs: papers still to do, and finished papers (review or retake from there)
+  const [view, setViewState] = useState(() => (searchParams.get('view') === 'finished' ? 'FINISHED' : 'TODO'));
+  const setView = v => {
+    setViewState(v);
+    const next = new URLSearchParams(searchParams);
+    if (v === 'FINISHED') next.set('view', 'finished'); else next.delete('view');
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -236,19 +239,33 @@ export default function PracticePapers() {
     return false;
   };
 
+  // A paper is finished when it has a completed attempt and no retake in progress
+  const finishedAt = useMemo(() => {
+    const m = new Map();
+    const open = new Set(history.filter(a => a.status === 'IN_PROGRESS').map(a => a.paperId));
+    history.filter(a => a.status === 'COMPLETED' && !open.has(a.paperId)).forEach(a => {
+      const t = new Date(a.endedAt || a.startedAt).getTime() || 0;
+      if (!m.has(a.paperId) || t > m.get(a.paperId)) m.set(a.paperId, t);
+    });
+    return m;
+  }, [history]);
+  const finishedCount = papers.filter(p => finishedAt.has(p.id)).length;
+  const todoCount = papers.length - finishedCount;
+
   const grouped = useMemo(() => {
     const g = {};
     SKILL_ORDER.forEach(skill => {
       g[skill] = papers
         .filter(p => p.testType === skill)
+        .filter(p => (view === 'FINISHED' ? finishedAt.has(p.id) : !finishedAt.has(p.id)))
         .filter(p => !levelFilter || p.difficulty === levelFilter)
-        .sort((a, b) =>
-          (a.difficulty || 99) - (b.difficulty || 99) ||
-          String(a.paperCode || '').localeCompare(String(b.paperCode || ''))
-        );
+        .sort((a, b) => view === 'FINISHED'
+          ? (finishedAt.get(b.id) - finishedAt.get(a.id))
+          : ((a.difficulty || 99) - (b.difficulty || 99) ||
+            String(a.paperCode || '').localeCompare(String(b.paperCode || ''))));
     });
     return g;
-  }, [papers, levelFilter]);
+  }, [papers, levelFilter, view, finishedAt]);
 
   const hasLevels = papers.some(p => p.difficulty);
 
@@ -407,6 +424,35 @@ export default function PracticePapers() {
         )}
       </div>
 
+      {/* To do / Finished tabs */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '18px 24px 0' }}>
+        <div role="tablist" aria-label="Papers" style={{ display: 'inline-flex', background: '#eef2f8', borderRadius: 12, padding: 4, gap: 4 }}>
+          {[['TODO', 'To do', todoCount], ['FINISHED', 'Finished papers', finishedCount]].map(([k, label, n]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={view === k}
+              onClick={() => setView(k)}
+              style={{
+                padding: '9px 18px', borderRadius: 9, border: 0, cursor: 'pointer', fontSize: 15, fontWeight: 700,
+                fontFamily: 'Source Sans Pro, sans-serif',
+                background: view === k ? '#fff' : 'transparent',
+                color: view === k ? C.text : C.textSecondary,
+                boxShadow: view === k ? '0 1px 3px rgba(15,23,42,.12)' : 'none',
+              }}
+            >
+              {label} <span style={{ fontWeight: 600, color: view === k ? C.primary : C.textMuted }}>{n}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 14, color: C.textMuted, marginTop: 8 }}>
+          {view === 'FINISHED'
+            ? 'Papers you have finished. Review your answers or take a paper again.'
+            : 'Papers you have not finished yet. When you finish one, it moves to Finished papers.'}
+        </div>
+      </div>
+
       {/* Sticky skill filter */}
       <div
         style={{
@@ -431,7 +477,7 @@ export default function PracticePapers() {
             overflowX: 'auto',
           }}
         >
-          {[{ key: 'ALL', label: 'All', count: papers.length },
+          {[{ key: 'ALL', label: 'All', count: SKILL_ORDER.reduce((s, k) => s + (filterCounts[k] || 0), 0) },
             ...SKILL_ORDER.map(skill => ({
               key: skill,
               label: SKILL_STYLE[skill].label,
@@ -513,6 +559,21 @@ export default function PracticePapers() {
       )}
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px 64px' }}>
+        {SKILL_ORDER.every(s => !(grouped[s] || []).length) && skillFilter === 'ALL' && (
+          <div style={{ textAlign: 'center', padding: '56px 24px' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>
+              {view === 'FINISHED'
+                ? (levelFilter ? 'No finished papers at this level.' : 'You have not finished any papers yet.')
+                : (levelFilter ? 'No papers left at this level.' : 'You have finished every paper. Well done!')}
+            </div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>
+              {view === 'FINISHED' ? 'Finish a paper and it will appear here.' : 'You can review or retake them in Finished papers.'}
+            </div>
+            <button type="button" onClick={() => setView(view === 'FINISHED' ? 'TODO' : 'FINISHED')} style={{ marginTop: 14, padding: '9px 18px', borderRadius: 10, border: 0, background: C.primary, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              {view === 'FINISHED' ? 'See papers to do' : 'Open Finished papers'}
+            </button>
+          </div>
+        )}
         {SKILL_ORDER.filter(
           skill => skillFilter === 'ALL' || skillFilter === skill
         ).map(skill => {
@@ -531,10 +592,10 @@ export default function PracticePapers() {
               >
                 <div style={{ fontSize: 48, marginBottom: 12 }}>📄</div>
                 <div style={{ fontSize: 17, fontWeight: 600, color: C.text }}>
-                  No {skillMeta.label} papers yet
+                  {view === 'FINISHED' ? `No finished ${skillMeta.label} papers yet` : `No ${skillMeta.label} papers left to do`}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 400, color: C.textMuted, marginTop: 8 }}>
-                  Check back soon.
+                  {view === 'FINISHED' ? 'Finish a paper and it will appear here.' : 'You can review or retake them in Finished papers.'}
                 </div>
               </div>
             );
@@ -542,7 +603,6 @@ export default function PracticePapers() {
 
           if (skillPapers.length === 0) return null;
 
-          const completedPaperN = countCompletedPapers(skillPapers, history);
 
           return (
             <section key={skill} style={{ marginBottom: 48 }}>
@@ -581,8 +641,9 @@ export default function PracticePapers() {
                       color: C.textMuted,
                     }}
                   >
-                    {skillPapers.length} paper{skillPapers.length !== 1 ? 's' : ''}{' '}
-                    · {completedPaperN} completed
+                    {view === 'FINISHED'
+                      ? `${skillPapers.length} finished`
+                      : `${skillPapers.length} to do`}
                   </div>
                 </div>
               </header>
@@ -837,18 +898,20 @@ export default function PracticePapers() {
                           {lastTxt}
                         </div>
                         {ps.kind === 'DONE' ? (
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                            <span
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                navigate(`/exam/${ps.lastAttemptId}/${RESULT_ROUTES[skill] || 'results'}`);
+                              }}
                               style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: C.textSecondary,
-                                fontFamily: 'Source Sans Pro, sans-serif',
-                                cursor: 'pointer',
+                                fontSize: 13, fontWeight: 700, color: C.text, fontFamily: 'Source Sans Pro, sans-serif',
+                                background: '#fff', border: `1px solid ${C.cardBorder}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
                               }}
                             >
-                              Review →
-                            </span>
+                              Review
+                            </button>
                             <button
                               type="button"
                               onClick={e => {
@@ -857,17 +920,12 @@ export default function PracticePapers() {
                               }}
                               disabled={busy}
                               style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: busy ? C.textMuted : C.primary,
-                                fontFamily: 'Source Sans Pro, sans-serif',
-                                background: 'none',
-                                border: 'none',
+                                fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'Source Sans Pro, sans-serif',
+                                background: busy ? C.textMuted : C.primary, border: 0, borderRadius: 8, padding: '7px 12px',
                                 cursor: busy ? 'wait' : 'pointer',
-                                padding: 0,
                               }}
                             >
-                              {busy ? 'Starting...' : 'Retake →'}
+                              {busy ? 'Starting...' : 'Retake'}
                             </button>
                           </div>
                         ) : (

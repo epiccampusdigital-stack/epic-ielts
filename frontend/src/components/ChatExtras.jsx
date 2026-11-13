@@ -346,3 +346,56 @@ export function ImageViewer({ m, src, staff, flash, onSaved, onClose }) {
     </div>
   );
 }
+
+// The small quote of the message being replied to (inside a bubble, or above the composer)
+export function ReplyQuote({ reply, mine, onClick, onClear }) {
+  if (!reply) return null;
+  return (
+    <div onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
+      style={{ display: 'flex', gap: 8, alignItems: 'center', borderLeft: `4px solid ${mine ? 'rgba(255,255,255,.7)' : T.primary}`, background: mine ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.05)', borderRadius: 8, padding: '5px 9px', marginBottom: 6, cursor: onClick ? 'pointer' : 'default', whiteSpace: 'normal' }}>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800 }}>{onClear ? 'Replying to ' : ''}{reply.by || 'a message'}</span>
+        <span style={{ display: 'block', fontSize: 13.5, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reply.text || (reply.imageUrl ? 'A photo' : '')}</span>
+      </span>
+      {onClear && <button type="button" onClick={onClear} aria-label="Cancel reply" style={{ border: 0, background: 'none', fontSize: 20, cursor: 'pointer', color: '#65676b', lineHeight: 1 }}>×</button>}
+    </div>
+  );
+}
+
+// Every reply to one message in one place, so the teacher can check them easily
+export function RepliesModal({ messageId, staff, flash, onClose, onReply }) {
+  const [d, setD] = useState(null);
+  useEffect(() => { axios.get(`${API_URL}/api/chat/messages/${messageId}/replies`, api()).then(r => setD(r.data)).catch(e => { flash(errText(e)); onClose(); }); }, [messageId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const people = d ? new Set(d.replies.filter(r => !r.staff).map(r => r.senderId)).size : 0;
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Replies" onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 2500, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ width: 'min(600px, 100%)', height: '100%', background: '#f0f2f5', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 32px rgba(0,0,0,.2)' }}>
+        <div style={{ background: '#fff', padding: '14px 18px', borderBottom: '1px solid #e4e6eb' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <b style={{ fontSize: 19 }}>Replies{d ? ` (${d.replies.length})` : ''}</b>
+            <button type="button" onClick={onClose} aria-label="Close" style={{ border: 0, background: '#f0f2f5', width: 36, height: 36, borderRadius: '50%', fontSize: 20, cursor: 'pointer' }}>×</button>
+          </div>
+          {d && <div style={{ marginTop: 8, background: '#f7f8fa', borderLeft: `4px solid ${T.primary}`, borderRadius: 8, padding: '8px 10px', fontSize: 14.5, whiteSpace: 'pre-wrap', maxHeight: 110, overflowY: 'auto' }}><b>{d.message.by}:</b> {d.message.text || (d.message.imageUrl ? 'A photo' : '')}</div>}
+          {d && staff && <div style={{ fontSize: 13.5, color: '#65676b', marginTop: 8 }}>{people} student{people === 1 ? '' : 's'} replied{d.notReplied?.length ? ` · Not replied yet: ${d.notReplied.join(', ')}` : ' · everyone replied'}</div>}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
+          {!d && <div style={{ color: '#65676b' }}>Loading…</div>}
+          {d && !d.replies.length && <div style={{ color: '#65676b', textAlign: 'center', padding: 30 }}>No replies yet.</div>}
+          {d && d.replies.map(r => (
+            <div key={r.id} style={{ background: r.staff ? '#fff6dc' : '#fff', border: '1px solid #e4e6eb', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#65676b', marginBottom: 4 }}>
+                <b style={{ color: '#050505', fontSize: 15 }}>{r.mine ? 'You' : r.senderName}{r.staff ? ' · Teacher' : ''}</b>
+                <span>{new Date(r.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 15.5, lineHeight: 1.5 }}>{r.text}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: '#fff', padding: 12, borderTop: '1px solid #e4e6eb' }}>
+          <button type="button" onClick={() => { onReply(); onClose(); }} style={{ width: '100%', height: 42, border: 0, borderRadius: 50, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>Write a reply</button>
+        </div>
+      </div>
+    </div>
+  );
+}

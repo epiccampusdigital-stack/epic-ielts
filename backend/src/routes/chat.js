@@ -162,6 +162,11 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const stats = isStaff(req) ? await trackStats(groupId, tracked) : null;
   const asking = rows.filter(m => m.askAnswer && !m.deletedAt).map(m => m.id);
   const answerRows = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking }, ...(isStaff(req) ? {} : { studentId: req.user.id }) } }) : [];
+  const parentIds = [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))];
+  const parents = parentIds.length ? await prisma.chatMessage.findMany({ where: { id: { in: parentIds } }, select: { id: true, senderName: true, text: true, imageUrl: true, kind: true, deletedAt: true } }) : [];
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
+  const replyCounts = rows.length ? await prisma.chatMessage.groupBy({ by: ['replyToId'], where: { replyToId: { in: rows.map(r => r.id) }, deletedAt: null }, _count: { _all: true } }) : [];
+  const replyCount = new Map(replyCounts.map(c => [c.replyToId, c._count._all]));
   const pinRow = await prisma.chatMessage.findFirst({ where: { groupId, pinned: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true, text: true, senderName: true, kind: true } });
   // messages unsent recently, so open chats can hide them without a reload
   const unsent = after ? (await prisma.chatMessage.findMany({ where: { groupId, id: { lte: after }, deletedAt: { gte: new Date(Date.now() - 3 * 86400000) } }, select: { id: true } })).map(r => r.id) : [];
@@ -181,6 +186,8 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
       mine: m.senderId === req.user.id,
       highlights: m.deletedAt ? [] : (Array.isArray(m.highlights) ? m.highlights : []),
       pinned: !!m.pinned && !m.deletedAt, askAnswer: !!m.askAnswer,
+      replyTo: m.replyToId ? parentMap.get(m.replyToId) || { id: m.replyToId, by: '', text: 'Message not found' } : null,
+      replies: replyCount.get(m.id) || 0,
       answers: m.askAnswer && isStaff(req) ? { total: answerRows.filter(a => a.messageId === m.id).length, checked: answerRows.filter(a => a.messageId === m.id && a.checkedAt).length } : undefined,
       myAnswer: m.askAnswer && !isStaff(req) ? (answerRows.some(a => a.messageId === m.id) ? pickAnswer(answerRows.find(a => a.messageId === m.id)) : null) : undefined,
       stats: stats ? stats.get(m.id) || null : undefined,
@@ -219,7 +226,11 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   const { group, member } = await canSee(req, groupId);
   if (!group) return res.status(404).json({ error: 'Group not found' });
-  if (!isStaff(req) && (!member || group.onlyStaffPost)) return res.status(403).json({ error: 'Only teachers can post in this group.' });
+  const replyToId = parseInt(req.body?.replyToId, 10) || null;
+  const parent = replyToId ? await prisma.chatMessage.findUnique({ where: { id: replyToId }, select: { id: true, groupId: true, deletedAt: true } }) : null;
+  if (replyToId && (!parent || parent.groupId !== groupId || parent.deletedAt)) return res.status(400).json({ error: 'That message is no longer available.' });
+  // students can always reply to a message, even in groups where only teachers post
+  if (!isStaff(req) && (!member || (group.onlyStaffPost && !parent))) return res.status(403).json({ error: 'Only teachers can post in this group. You can reply to a message.' });
   const text = String(req.body?.text || '').trim().slice(0, 3000);
   const paperId = isStaff(req) ? parseInt(req.body?.paperId, 10) || null : null;
   const lessonId = isStaff(req) && !paperId ? parseInt(req.body?.lessonId, 10) || null : null;
@@ -236,7 +247,8 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
   const askAnswer = isStaff(req) && !paperId && !lessonId && !!req.body?.askAnswer;
   const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId || askAnswer);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : 'TEXT', text, paperId, lessonId, imageUrl, isTask, askAnswer } });
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : 'TEXT', text, paperId, lessonId, imageUrl, isTask, askAnswer, replyToId: parent ? parent.id : null } });
+  if (parent) await prisma.chatMessage.update({ where: { id: parent.id }, data: { editedAt: new Date() } }); // reply counts update live
   res.json({ id: m.id });
 }));
 router.delete('/messages/:id', auth, wrap(async (req, res) => {
@@ -245,6 +257,21 @@ router.delete('/messages/:id', auth, wrap(async (req, res) => {
   if (!isStaff(req) && m.senderId !== req.user.id) return res.status(403).json({ error: 'You can only delete your own messages' });
   await prisma.chatMessage.update({ where: { id: m.id }, data: { deletedAt: new Date(), editedAt: new Date(), pinned: false } });
   res.json({ ok: true });
+}));
+// All replies to one message (to check students' replies in one place)
+router.get('/messages/:id/replies', auth, wrap(async (req, res) => {
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m) return res.status(404).json({ error: 'Message not found' });
+  const { group } = await canSee(req, m.groupId);
+  if (!group) return res.status(404).json({ error: 'Message not found' });
+  const rows = await prisma.chatMessage.findMany({ where: { replyToId: m.id, deletedAt: null }, orderBy: { id: 'asc' }, take: 300 });
+  const people = isStaff(req) ? await studentMembers(m.groupId) : [];
+  const replied = new Set(rows.map(r => r.senderId));
+  res.json({
+    message: { id: m.id, by: m.senderName, text: m.deletedAt ? '' : m.text, imageUrl: m.deletedAt ? null : m.imageUrl },
+    replies: rows.map(r => ({ id: r.id, senderId: r.senderId, senderName: r.senderName, staff: STAFF.includes(r.senderRole), text: r.text, createdAt: r.createdAt, mine: r.senderId === req.user.id })),
+    notReplied: isStaff(req) ? people.filter(p => !replied.has(p.id)).map(p => p.name) : undefined,
+  });
 }));
 // ─── Highlights and pins (staff) ─────────────────────────────────────────────
 const HL_COLORS = ['yellow', 'green', 'pink', 'blue'];

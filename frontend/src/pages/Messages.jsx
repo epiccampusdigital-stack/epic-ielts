@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
-import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, PinBar, ImageViewer } from '../components/ChatExtras';
+import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, PinBar, ImageViewer, ReplyQuote, RepliesModal } from '../components/ChatExtras';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
@@ -266,6 +266,8 @@ export default function Messages() {
   const [answersFor, setAnswersFor] = useState(null);
   const [hlBar, setHlBar] = useState(null);
   const [sideTab, setSideTab] = useState('chats');
+  const [replyTo, setReplyTo] = useState(null); // message being replied to
+  const [repliesFor, setRepliesFor] = useState(null);
   const [viewer, setViewer] = useState(null); // message id whose photo is open full screen
   const flash = useCallback(m => { setMsg(m); setTimeout(() => setMsg(''), 3500); }, []);
 
@@ -303,7 +305,7 @@ export default function Messages() {
     }
   }, [sel, loadGroups]);
   useEffect(() => {
-    setData(null); lastId.current = 0; lastSync.current = null; setShowInfo(false); setHlBar(null); setAskAnswer(false); setPicker(null); setAttach(null); setPhoto(null);
+    setData(null); lastId.current = 0; lastSync.current = null; setShowInfo(false); setHlBar(null); setAskAnswer(false); setReplyTo(null); setPicker(null); setAttach(null); setPhoto(null);
     if (!sel) return undefined;
     loadMessages(true);
     const id = setInterval(() => { if (document.visibilityState === 'visible') loadMessages(false); }, 4000);
@@ -335,8 +337,9 @@ export default function Messages() {
         imageUrl: photo?.url || undefined,
         isTask: asTask || !!attach || askAnswer,
         askAnswer: askAnswer && !attach ? true : undefined,
+        replyToId: replyTo ? replyTo.id : undefined,
       }, api());
-      setText(''); setAttach(null); setPhoto(null); setPicker(null); setAsTask(false); setAskAnswer(false);
+      setReplyTo(null); setText(''); setAttach(null); setPhoto(null); setPicker(null); setAsTask(false); setAskAnswer(false);
       await loadMessages(false); scrollDown(); loadGroups();
       inputRef.current?.focus();
     } catch (e) { flash(errText(e)); }
@@ -384,6 +387,10 @@ export default function Messages() {
       flash(m.pinned ? 'Unpinned.' : 'Pinned to the top of the chat.');
       loadMessages(true);
     } catch (e) { flash(errText(e)); }
+  };
+  const startReply = m => {
+    setReplyTo({ id: m.id, by: m.senderName, text: (m.text || '').slice(0, 160), imageUrl: m.imageUrl });
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
   const jumpTo = id => {
     const el = document.getElementById(`msg-${id}`);
@@ -576,6 +583,7 @@ export default function Messages() {
                       <div id={`msg-${m.id}`} className={`mc-row ${m.mine ? 'mine' : ''} ${m.staff ? 'staff' : ''} ${pos}`}>
                         {!m.mine && (showAvatar ? <Avatar name={m.senderName} size={28} color={m.senderName === 'EPIC Daily Task' ? '#f5b400' : undefined} /> : <span style={{ width: 28, flex: 'none' }} />)}
                         {m.mine && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
+                          <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>
                           {staff && <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>}
                           <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
                         </span>)}
@@ -583,6 +591,7 @@ export default function Messages() {
                           {showName && <div className="mc-name">{m.senderName}{m.staff ? ' · Teacher' : ''}</div>}
                           <div className={`mc-bub${m.deleted ? ' gone' : ''}${cardOnly ? ' cardonly' : ''}`}>
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
+                              {m.replyTo && <ReplyQuote reply={m.replyTo} mine={m.mine} onClick={() => jumpTo(m.replyTo.id)} />}
                               {(m.isTask || m.pinned) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}</div>}
                               {m.imageUrl && (
                                 <button type="button" onClick={() => setViewer(m.id)} title="Open the photo full screen" style={{ display: 'block', position: 'relative', padding: 0, border: 0, background: 'none', cursor: 'zoom-in', marginBottom: m.text ? 8 : 0, width: '100%', maxWidth: 680 }}>
@@ -606,9 +615,10 @@ export default function Messages() {
                               {!staff && m.isTask && m.status?.done && m.paper && <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓</div>}
                             </>)}
                           </div>
-                          {(showTime || (staff && (m.stats || m.answers) && !m.deleted)) && (
+                          {(showTime || m.replies > 0 || (staff && (m.stats || m.answers) && !m.deleted)) && (
                             <div className="mc-meta">
                               {showTime && <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
+                              {m.replies > 0 && !m.deleted && <button type="button" className="mc-stat" onClick={() => setRepliesFor(m.id)}>{m.replies} repl{m.replies === 1 ? 'y' : 'ies'} ›</button>}
                               {staff && m.askAnswer && m.answers && !m.deleted && (
                                 <button type="button" className="mc-stat" style={{ background: m.answers.total > m.answers.checked ? '#fff1d6' : '#e9f7ee', color: m.answers.total > m.answers.checked ? '#8a5a00' : '#15803d' }} onClick={() => setAnswersFor(m.id)}>
                                   Answers {m.answers.total}{m.stats ? `/${m.stats.total}` : ''}{m.answers.total > m.answers.checked ? ` · ${m.answers.total - m.answers.checked} to check` : m.answers.total ? ' · all checked' : ''} ›
@@ -622,7 +632,9 @@ export default function Messages() {
                             </div>
                           )}
                         </div>
+                        {!m.mine && !staff && !m.deleted && <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>}
                         {!m.mine && staff && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
+                          <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>
                           <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>
                           <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
                         </span>)}
@@ -632,8 +644,9 @@ export default function Messages() {
                 })}
               </div>
 
-              {data.canPost ? (
+              {data.canPost || replyTo ? (
                 <div className="mc-comp">
+                  {replyTo && <ReplyQuote reply={replyTo} onClear={() => setReplyTo(null)} />}
                   {staff && picker === 'menu' && (
                     <div className="mc-pop" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" className="mc-chip" onClick={() => { setPicker('paper'); setPickQ(''); }}>Share a paper</button>
@@ -704,7 +717,7 @@ export default function Messages() {
                     <button type="button" className="mc-send" onClick={send} disabled={!canSend} aria-label="Send">{Icon.send}</button>
                   </div>
                 </div>
-              ) : <div style={{ borderTop: '1px solid #e4e6eb', padding: 14, textAlign: 'center', color: '#65676b', fontSize: 14 }}>Only teachers can post in this group.</div>}
+              ) : <div style={{ borderTop: '1px solid #e4e6eb', padding: 14, textAlign: 'center', color: '#65676b', fontSize: 14 }}>Only teachers can post in this group. To answer, tap <b>Reply</b> on a message.</div>}
             </>)}
           </section>
         )}
@@ -716,6 +729,8 @@ export default function Messages() {
       ) : null; })()}
       {staff && <HighlightToolbar at={hlBar} onPick={pickColour} onClear={clearColour} onClose={() => setHlBar(null)} />}
       {answersFor && <AnswersModal messageId={answersFor} flash={flash} onClose={() => setAnswersFor(null)} onChanged={() => loadMessages(false)} />}
+      {repliesFor && <RepliesModal messageId={repliesFor} staff={staff} flash={flash} onClose={() => setRepliesFor(null)}
+        onReply={() => { const pm = data?.messages.find(x => x.id === repliesFor); if (pm) startReply(pm); }} />}
       {statsFor && <StatsModal messageId={statsFor} onClose={() => setStatsFor(null)} />}
       {showMembers && data && <Members group={data.group} onClose={() => { setShowMembers(false); loadGroups(); }} flash={flash} />}
     </div>

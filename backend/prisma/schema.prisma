@@ -488,6 +488,7 @@ model ChatMessage {
   isTask     Boolean   @default(false) // students get a notification; teachers see who did it
   askAnswer  Boolean   @default(false) // students write an answer; teachers check each one
   pinned     Boolean   @default(false) // shown at the top of the chat
+  replyToId  Int?      // a reply to another message in the same group
   highlights Json?     // [{ s, e, c }] character ranges highlighted by the teacher
   editedAt   DateTime? // last highlight / pin change, so open chats can update
   createdAt  DateTime  @default(now())
@@ -496,6 +497,7 @@ model ChatMessage {
 
   @@index([groupId, id])
   @@index([groupId, editedAt])
+  @@index([replyToId])
 }
 
 model ChatAnswer {

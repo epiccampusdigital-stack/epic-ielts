@@ -480,17 +480,39 @@ model ChatMessage {
   senderId   Int
   senderName String
   senderRole String
-  kind       String    @default("TEXT") // TEXT, PAPER or LESSON
+  kind       String    @default("TEXT") // TEXT, PAPER, LESSON or IMAGE
   text       String    @db.Text
   paperId    Int?
   lessonId   Int?      // a Learn lesson shared in the chat
   imageUrl   String?   // a photo sent in the chat
   isTask     Boolean   @default(false) // students get a notification; teachers see who did it
+  askAnswer  Boolean   @default(false) // students write an answer; teachers check each one
+  pinned     Boolean   @default(false) // shown at the top of the chat
+  highlights Json?     // [{ s, e, c }] character ranges highlighted by the teacher
+  editedAt   DateTime? // last highlight / pin change, so open chats can update
   createdAt  DateTime  @default(now())
   deletedAt  DateTime?
   group      ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([groupId, id])
+  @@index([groupId, editedAt])
+}
+
+model ChatAnswer {
+  id        Int       @id @default(autoincrement())
+  messageId Int
+  studentId Int
+  text      String    @db.Text
+  status    String    @default("SENT") // SENT, GOOD, REDO
+  score     Int?      // optional mark out of 10
+  feedback  String?   @db.Text
+  checkedBy String?
+  checkedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+
+  @@unique([messageId, studentId])
+  @@index([studentId, checkedAt])
 }
 
 // AI Learn answers a student saved to read later (works even when AI Learn is closed)

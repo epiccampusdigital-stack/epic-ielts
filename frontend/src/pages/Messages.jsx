@@ -4,21 +4,13 @@ import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
+import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, PinBar } from '../components/ChatExtras';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
 const me = () => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } };
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
 const TYPE = { READING: ['Reading', '#0056d2'], WRITING: ['Writing', '#7c3aed'], LISTENING: ['Listening', '#0e7490'], SPEAKING: ['Speaking', '#c2410c'] };
-const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
-
-function Linkify({ text, onLink }) {
-  const parts = String(text).split(URL_RE);
-  return parts.map((p, i) => (i % 2 === 1
-    ? <a key={i} href={p} target="_blank" rel="noreferrer" onClick={() => onLink && onLink()} style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all', fontWeight: 600 }}>{p}</a>
-    : <Fragment key={i}>{p}</Fragment>));
-}
-
 function PaperCard({ paper, staff, onStart, starting }) {
   if (!paper) return null;
   const [label, col] = TYPE[paper.testType] || ['Paper', T.primary];
@@ -267,6 +259,11 @@ export default function Messages() {
   const listRef = useRef(null);
   const inputRef = useRef(null);
   const lastId = useRef(0);
+  const lastSync = useRef(null);
+  const [askAnswer, setAskAnswer] = useState(false);
+  const [answersFor, setAnswersFor] = useState(null);
+  const [hlBar, setHlBar] = useState(null);
+  const [sideTab, setSideTab] = useState('chats');
   const flash = useCallback(m => { setMsg(m); setTimeout(() => setMsg(''), 3500); }, []);
 
   useEffect(() => { const f = () => setNarrow(window.innerWidth < 820); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
@@ -280,24 +277,30 @@ export default function Messages() {
   const loadMessages = useCallback(async (full) => {
     if (!sel) return;
     try {
-      const r = await axios.get(`${API_URL}/api/chat/groups/${sel}/messages`, { ...api(), params: full ? {} : { after: lastId.current } });
+      const after = lastId.current;
+      const r = await axios.get(`${API_URL}/api/chat/groups/${sel}/messages`, { ...api(), params: full || !after ? {} : { after, since: lastSync.current || undefined } });
       const d = r.data;
+      if (d.serverTime) lastSync.current = d.serverTime;
       setData(prev => {
-        if (full || !prev || prev.group.id !== d.group.id) { lastId.current = d.messages.length ? d.messages[d.messages.length - 1].id : 0; scrollDown(); return d; }
+        if (full || !after || !prev || prev.group.id !== d.group.id) { lastId.current = d.messages.length ? d.messages[d.messages.length - 1].id : 0; scrollDown(); return d; }
         const gone = new Set(d.unsent || []);
-        const base = gone.size ? prev.messages.map(m => gone.has(m.id) && !m.deleted ? { ...m, deleted: true, text: '', paper: null, lesson: null, imageUrl: null, stats: null, status: null } : m) : prev.messages;
-        if (!d.messages.length) return { ...prev, group: d.group, canPost: d.canPost, messages: base };
-        lastId.current = d.messages[d.messages.length - 1].id;
+        // older messages that changed (highlights, pins, answers) replace the copy on screen
+        const changed = new Map(d.messages.filter(m => m.id <= after).map(m => [m.id, m]));
+        const fresh = d.messages.filter(m => m.id > after);
+        let base = changed.size ? prev.messages.map(m => changed.get(m.id) || m) : prev.messages;
+        if (gone.size) base = base.map(m => gone.has(m.id) && !m.deleted ? { ...m, deleted: true, text: '', paper: null, lesson: null, imageUrl: null, stats: null, status: null, highlights: [], pinned: false } : m);
+        if (!fresh.length) return { ...prev, group: d.group, canPost: d.canPost, pin: d.pin, messages: base };
+        lastId.current = fresh[fresh.length - 1].id;
         const el = listRef.current; const atBottom = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 120;
         if (atBottom) scrollDown();
-        return { ...d, messages: [...base, ...d.messages] };
+        return { ...d, messages: [...base, ...fresh] };
       });
     } catch (e) {
       if (e.response?.status === 404) { setSel(null); setData(null); loadGroups(); }
     }
   }, [sel, loadGroups]);
   useEffect(() => {
-    setData(null); lastId.current = 0; setShowInfo(false); setPicker(null); setAttach(null); setPhoto(null);
+    setData(null); lastId.current = 0; lastSync.current = null; setShowInfo(false); setHlBar(null); setAskAnswer(false); setPicker(null); setAttach(null); setPhoto(null);
     if (!sel) return undefined;
     loadMessages(true);
     const id = setInterval(() => { if (document.visibilityState === 'visible') loadMessages(false); }, 4000);
@@ -327,9 +330,10 @@ export default function Messages() {
         paperId: attach?.kind === 'paper' ? attach.item.id : undefined,
         lessonId: attach?.kind === 'lesson' ? attach.item.id : undefined,
         imageUrl: photo?.url || undefined,
-        isTask: asTask || !!attach,
+        isTask: asTask || !!attach || askAnswer,
+        askAnswer: askAnswer && !attach ? true : undefined,
       }, api());
-      setText(''); setAttach(null); setPhoto(null); setPicker(null); setAsTask(false);
+      setText(''); setAttach(null); setPhoto(null); setPicker(null); setAsTask(false); setAskAnswer(false);
       await loadMessages(false); scrollDown(); loadGroups();
       inputRef.current?.focus();
     } catch (e) { flash(errText(e)); }
@@ -338,6 +342,51 @@ export default function Messages() {
   const del = async id => {
     if (!window.confirm(staff ? 'Unsend this message? It will be removed for everyone in the group.' : 'Unsend this message?')) return;
     try { await axios.delete(`${API_URL}/api/chat/messages/${id}`, api()); setData(d => ({ ...d, messages: d.messages.map(m => m.id === id ? { ...m, deleted: true, text: '', paper: null, lesson: null, imageUrl: null, stats: null, status: null } : m) })); } catch (e) { flash(errText(e)); }
+  };
+  const setMsgFields = (id, fields) => setData(d => (d ? { ...d, messages: d.messages.map(m => (m.id === id ? { ...m, ...fields } : m)) } : d));
+  // Teacher highlights: select words in a message, pick a colour. Students see it on their next refresh (a few seconds).
+  const onFeedMouseUp = () => {
+    if (!staff) return;
+    setTimeout(() => { const at = selectionInMessage(); setHlBar(at); }, 0);
+  };
+  const saveHighlights = async (id, list) => {
+    const before = data?.messages.find(m => m.id === id)?.highlights || [];
+    setMsgFields(id, { highlights: list }); setHlBar(null);
+    try { window.getSelection()?.removeAllRanges(); } catch { /* old browser */ }
+    try { const r = await axios.patch(`${API_URL}/api/chat/messages/${id}/highlights`, { highlights: list }, api()); setMsgFields(id, { highlights: r.data.highlights }); }
+    catch (e) { setMsgFields(id, { highlights: before }); flash(errText(e)); }
+  };
+  const pickColour = c => {
+    if (!hlBar) return;
+    const cur = data?.messages.find(m => m.id === hlBar.id)?.highlights || [];
+    saveHighlights(hlBar.id, [...cutRange(cur, hlBar.s, hlBar.e), { s: hlBar.s, e: hlBar.e, c }].sort((a, b) => a.s - b.s));
+  };
+  const clearColour = () => {
+    if (!hlBar) return;
+    const cur = data?.messages.find(m => m.id === hlBar.id)?.highlights || [];
+    saveHighlights(hlBar.id, cutRange(cur, hlBar.s, hlBar.e));
+  };
+  useEffect(() => {
+    if (!hlBar) return undefined;
+    const close = e => { if (e.key === 'Escape') setHlBar(null); };
+    const onSel = () => { const sl = window.getSelection(); if (!sl || sl.isCollapsed) setHlBar(null); };
+    const onScroll = () => setHlBar(null);
+    window.addEventListener('keydown', close); document.addEventListener('selectionchange', onSel);
+    const el = listRef.current; el?.addEventListener('scroll', onScroll);
+    return () => { window.removeEventListener('keydown', close); document.removeEventListener('selectionchange', onSel); el?.removeEventListener('scroll', onScroll); };
+  }, [hlBar]);
+  const togglePin = async m => {
+    try {
+      await axios.patch(`${API_URL}/api/chat/messages/${m.id}/pin`, { pinned: !m.pinned }, api());
+      flash(m.pinned ? 'Unpinned.' : 'Pinned to the top of the chat.');
+      loadMessages(true);
+    } catch (e) { flash(errText(e)); }
+  };
+  const jumpTo = id => {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) { flash('That message is older. Scroll up to find it.'); return; }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.animate?.([{ background: '#fff3bf' }, { background: 'transparent' }], { duration: 1600 });
   };
   const join = async () => {
     try { const r = await axios.post(`${API_URL}/api/chat/join`, { code }, api()); setCode(''); await loadGroups(); setSel(r.data.id); flash(`You joined ${r.data.name}.`); } catch (e) { flash(errText(e)); }
@@ -453,15 +502,26 @@ export default function Messages() {
                   <div style={{ display: 'flex', gap: 6 }}><button type="button" disabled={!newName.trim()} onClick={create} style={pill(true)}>Create</button><button type="button" onClick={() => setShowNew(false)} style={pill(false)}>Cancel</button></div>
                 </div>
               )}
-              <label className="mc-search">{Icon.search}<input value={listQ} onChange={e => setListQ(e.target.value)} placeholder="Search chats" aria-label="Search chats" /></label>
               {!staff && (
+                <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {[['chats', 'Chats'], ['tasks', 'My tasks']].map(([k, label]) => (
+                    <button key={k} type="button" role="tab" aria-selected={sideTab === k} onClick={() => setSideTab(k)}
+                      style={{ height: 34, padding: '0 14px', borderRadius: 50, border: 0, background: sideTab === k ? '#e7f0fe' : '#f0f2f5', color: sideTab === k ? T.primary : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+                  ))}
+                </div>
+              )}
+              {sideTab === 'chats' && <label className="mc-search">{Icon.search}<input value={listQ} onChange={e => setListQ(e.target.value)} placeholder="Search chats" aria-label="Search chats" /></label>}
+              {!staff && sideTab === 'chats' && (
                 <form onSubmit={e => { e.preventDefault(); join(); }} style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                   <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="Have a group code? Type it here" maxLength={8} style={{ flex: 1, minWidth: 0, border: '1px solid #e4e6eb', borderRadius: 50, padding: '0 14px', height: 38, fontSize: 14, fontFamily: 'inherit', letterSpacing: code ? 2 : 0, fontWeight: code ? 700 : 400 }} />
                   <button type="submit" disabled={!code.trim()} style={{ ...pill(true), opacity: code.trim() ? 1 : 0.5 }}>Join</button>
                 </form>
               )}
             </div>
-            <div className="mc-list">
+            {sideTab === 'tasks' && !staff && (
+              <div className="mc-list"><MyTasks onOpen={r => { setSideTab('chats'); setSel(r.groupId); setTimeout(() => jumpTo(r.id), 900); }} /></div>
+            )}
+            <div className="mc-list" style={{ display: sideTab === 'tasks' && !staff ? 'none' : undefined }}>
               {groups == null && <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>Loading…</div>}
               {groups && groups.length === 0 && <div style={{ color: '#65676b', fontSize: 14, lineHeight: 1.5, padding: 10 }}>{staff ? 'No groups yet. Create one, then share its code with your students.' : 'You are not in a group yet. Ask your teacher for the group code and type it above.'}</div>}
               {shownGroups.map(g => (
@@ -496,7 +556,8 @@ export default function Messages() {
                 <button type="button" className="mc-iconbtn" onClick={() => setShowInfo(v => !v)} aria-label="Group details" title="Group details">{Icon.info}</button>
               </div>
 
-              <div ref={listRef} className="mc-feed">
+              <PinBar pin={data.pin} staff={staff} onJump={() => jumpTo(data.pin.id)} onUnpin={() => togglePin({ id: data.pin.id, pinned: true })} />
+              <div ref={listRef} className="mc-feed" onMouseUp={onFeedMouseUp} onTouchEnd={onFeedMouseUp}>
                 {data.messages.length === 0 && (
                   <div style={{ textAlign: 'center', marginTop: 40 }}>
                     <Avatar name={data.group.name} size={64} />
@@ -509,24 +570,28 @@ export default function Messages() {
                   return (
                     <Fragment key={m.id}>
                       {newDay && <div className="mc-day">{dayName(m.createdAt)}</div>}
-                      <div className={`mc-row ${m.mine ? 'mine' : ''} ${m.staff ? 'staff' : ''} ${pos}`}>
+                      <div id={`msg-${m.id}`} className={`mc-row ${m.mine ? 'mine' : ''} ${m.staff ? 'staff' : ''} ${pos}`}>
                         {!m.mine && (showAvatar ? <Avatar name={m.senderName} size={28} color={m.senderName === 'EPIC Daily Task' ? '#f5b400' : undefined} /> : <span style={{ width: 28, flex: 'none' }} />)}
-                        {m.mine && !m.deleted && <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>}
+                        {m.mine && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
+                          {staff && <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>}
+                          <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
+                        </span>)}
                         <div className="mc-col">
                           {showName && <div className="mc-name">{m.senderName}{m.staff ? ' · Teacher' : ''}</div>}
                           <div className={`mc-bub${m.deleted ? ' gone' : ''}${cardOnly ? ' cardonly' : ''}`}>
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
-                              {m.isTask && <div className="mc-task">TASK</div>}
+                              {(m.isTask || m.pinned) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}</div>}
                               {m.imageUrl && (
                                 <a href={imgSrc(m.imageUrl)} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: m.text ? 6 : 0 }}>
                                   <img src={imgSrc(m.imageUrl)} alt="Photo sent in the chat" loading="lazy" onLoad={() => { const el = listRef.current; if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) el.scrollTop = el.scrollHeight; }}
                                     style={{ display: 'block', maxWidth: 'min(320px, 68vw)', maxHeight: 360, width: 'auto', borderRadius: 14, border: '1px solid #e4e6eb', background: '#f0f2f5' }} />
                                 </a>
                               )}
-                              {m.text && <div><Linkify text={m.text} onLink={staff ? null : () => track(m.id, 'LINK')} /></div>}
+                              {m.text && <HighlightedText id={m.id} text={m.text} highlights={m.highlights} onLink={staff ? null : () => track(m.id, 'LINK')} />}
                               {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={pid => startPaper(pid, m.id)} starting={starting === m.paper.id} />}
                               {m.lesson && <LessonCard lesson={m.lesson} staff={staff} onOpen={l => openLesson(l, m.id)} />}
-                              {!staff && m.isTask && m.status && !m.paper && (
+                              {!staff && m.askAnswer && <AnswerBox m={m} flash={flash} onSaved={a => setMsgFields(m.id, { myAnswer: a, status: { ...(m.status || {}), done: true } })} />}
+                              {!staff && m.isTask && m.status && !m.paper && !m.askAnswer && (
                                 m.status.done
                                   ? <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: m.mine ? '#fff' : '#276a1a' }}>Done ✓ {!m.lesson && <button type="button" onClick={() => markDone(m, true)} style={{ border: 0, background: 'none', color: 'inherit', opacity: .7, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', fontFamily: 'inherit' }}>undo</button>}</div>
                                   : !m.lesson && <button type="button" onClick={() => markDone(m)} style={{ display: 'block', marginTop: 8, height: 34, padding: '0 14px', border: 0, borderRadius: 50, background: '#2e7d32', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Mark as done</button>
@@ -534,10 +599,15 @@ export default function Messages() {
                               {!staff && m.isTask && m.status?.done && m.paper && <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓</div>}
                             </>)}
                           </div>
-                          {(showTime || (staff && m.stats && !m.deleted)) && (
+                          {(showTime || (staff && (m.stats || m.answers) && !m.deleted)) && (
                             <div className="mc-meta">
                               {showTime && <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
-                              {staff && m.stats && !m.deleted && (
+                              {staff && m.askAnswer && m.answers && !m.deleted && (
+                                <button type="button" className="mc-stat" style={{ background: m.answers.total > m.answers.checked ? '#fff1d6' : '#e9f7ee', color: m.answers.total > m.answers.checked ? '#8a5a00' : '#15803d' }} onClick={() => setAnswersFor(m.id)}>
+                                  Answers {m.answers.total}{m.stats ? `/${m.stats.total}` : ''}{m.answers.total > m.answers.checked ? ` · ${m.answers.total - m.answers.checked} to check` : m.answers.total ? ' · all checked' : ''} ›
+                                </button>
+                              )}
+                              {staff && m.stats && !m.deleted && !m.askAnswer && (
                                 <button type="button" className="mc-stat" onClick={() => setStatsFor(m.id)}>
                                   Seen {m.stats.seen}/{m.stats.total}{m.stats.task ? ` · Done ${m.stats.done}` : ` · Opened ${m.stats.opened}`} ›
                                 </button>
@@ -545,7 +615,10 @@ export default function Messages() {
                             </div>
                           )}
                         </div>
-                        {!m.mine && staff && !m.deleted && <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>}
+                        {!m.mine && staff && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
+                          <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>
+                          <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
+                        </span>)}
                       </div>
                     </Fragment>
                   );
@@ -607,6 +680,12 @@ export default function Messages() {
                           {asTask || attach ? '✓ ' : ''}Task
                         </button>
                       )}
+                      {staff && !attach && (
+                        <button type="button" className={`mc-chip${askAnswer ? ' on' : ''}`} onClick={() => setAskAnswer(v => !v)} title="Students write an answer in the chat. You check each one and send feedback.">
+                          {askAnswer ? '✓ ' : ''}Ask for answers
+                        </button>
+                      )}
+                      {staff && askAnswer && !attach && <span style={{ fontSize: 12.5, color: '#65676b' }}>Students will see an answer box. You can check every answer.</span>}
                     </div>
                   )}
                   <div className="mc-bar">
@@ -624,6 +703,8 @@ export default function Messages() {
         )}
         {showInfo && info}
       </div>
+      {staff && <HighlightToolbar at={hlBar} onPick={pickColour} onClear={clearColour} onClose={() => setHlBar(null)} />}
+      {answersFor && <AnswersModal messageId={answersFor} flash={flash} onClose={() => setAnswersFor(null)} onChanged={() => loadMessages(false)} />}
       {statsFor && <StatsModal messageId={statsFor} onClose={() => setStatsFor(null)} />}
       {showMembers && data && <Members group={data.group} onClose={() => { setShowMembers(false); loadGroups(); }} flash={flash} />}
     </div>

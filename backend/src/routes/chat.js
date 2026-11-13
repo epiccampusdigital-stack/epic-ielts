@@ -144,8 +144,13 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const { group, member } = await canSee(req, groupId);
   if (!group) return res.status(404).json({ error: 'Group not found' });
   const after = parseInt(req.query.after, 10) || 0;
+  const serverTime = new Date();
+  const since = after && req.query.since && !Number.isNaN(Date.parse(req.query.since)) ? new Date(req.query.since) : null;
   let rows = await prisma.chatMessage.findMany({ where: { groupId, ...(after ? { id: { gt: after } } : {}) }, orderBy: { id: after ? 'asc' : 'desc' }, take: after ? 200 : 150 });
   if (!after) rows = rows.reverse();
+  // older messages that changed (highlight, pin, unsend) since the last poll, so open chats update live
+  const changed = since ? await prisma.chatMessage.findMany({ where: { groupId, id: { lte: after }, editedAt: { gt: new Date(since.getTime() - 1500) } }, orderBy: { id: 'asc' }, take: 100 }) : [];
+  rows = [...rows, ...changed.filter(c => !rows.some(r => r.id === c.id))];
   const paperIds = [...new Set(rows.filter(r => r.paperId).map(r => r.paperId))];
   const papers = paperIds.length ? await prisma.paper.findMany({ where: { id: { in: paperIds } }, select: { id: true, title: true, testType: true, track: true, timeLimitMin: true, difficulty: true, status: true } }) : [];
   const pm = new Map(papers.map(p => [p.id, p]));
@@ -155,6 +160,9 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (member) await prisma.chatMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } });
   const tracked = rows.filter(m => !m.deletedAt && (m.isTask || m.paperId || m.lessonId || HAS_LINK.test(m.text)));
   const stats = isStaff(req) ? await trackStats(groupId, tracked) : null;
+  const asking = rows.filter(m => m.askAnswer && !m.deletedAt).map(m => m.id);
+  const answerRows = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking }, ...(isStaff(req) ? {} : { studentId: req.user.id }) } }) : [];
+  const pinRow = await prisma.chatMessage.findFirst({ where: { groupId, pinned: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true, text: true, senderName: true, kind: true } });
   // messages unsent recently, so open chats can hide them without a reload
   const unsent = after ? (await prisma.chatMessage.findMany({ where: { groupId, id: { lte: after }, deletedAt: { gte: new Date(Date.now() - 3 * 86400000) } }, select: { id: true } })).map(r => r.id) : [];
   const mine = !isStaff(req) ? await myStatus(req.user.id, tracked) : null;
@@ -162,12 +170,19 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     group: { id: group.id, name: group.name, description: group.description, onlyStaffPost: group.onlyStaffPost, joinCode: isStaff(req) ? group.joinCode : undefined, archived: group.archived, dailyTask: group.dailyTask },
     canPost: isStaff(req) || (!group.onlyStaffPost && !!member),
     unsent,
+    serverTime,
+    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson' })[pinRow.kind] || '' } : null,
+    updatedIds: changed.map(c => c.id),
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
       deleted: !!m.deletedAt, text: m.deletedAt ? '' : m.text, paper: m.paperId && !m.deletedAt ? (pm.get(m.paperId) || { id: m.paperId, title: 'Paper not available', missing: true }) : null,
       imageUrl: m.deletedAt ? null : m.imageUrl || null,
       lesson: m.lessonId && !m.deletedAt ? (lm.get(m.lessonId) || { id: m.lessonId, title: 'Lesson not available', missing: true }) : null,
       mine: m.senderId === req.user.id,
+      highlights: m.deletedAt ? [] : (Array.isArray(m.highlights) ? m.highlights : []),
+      pinned: !!m.pinned && !m.deletedAt, askAnswer: !!m.askAnswer,
+      answers: m.askAnswer && isStaff(req) ? { total: answerRows.filter(a => a.messageId === m.id).length, checked: answerRows.filter(a => a.messageId === m.id && a.checkedAt).length } : undefined,
+      myAnswer: m.askAnswer && !isStaff(req) ? (answerRows.some(a => a.messageId === m.id) ? pickAnswer(answerRows.find(a => a.messageId === m.id)) : null) : undefined,
       stats: stats ? stats.get(m.id) || null : undefined,
       status: mine ? mine.get(m.id) || null : undefined,
     })),
@@ -219,17 +234,159 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (lessonId && !(await prisma.learnLesson.findUnique({ where: { id: lessonId }, select: { id: true } }))) return res.status(400).json({ error: 'Lesson not found' });
   const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { name: true, role: true } });
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
-  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : 'TEXT', text, paperId, lessonId, imageUrl, isTask } });
+  const askAnswer = isStaff(req) && !paperId && !lessonId && !!req.body?.askAnswer;
+  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId || askAnswer);
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : 'TEXT', text, paperId, lessonId, imageUrl, isTask, askAnswer } });
   res.json({ id: m.id });
 }));
 router.delete('/messages/:id', auth, wrap(async (req, res) => {
   const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
   if (!m) return res.status(404).json({ error: 'Message not found' });
   if (!isStaff(req) && m.senderId !== req.user.id) return res.status(403).json({ error: 'You can only delete your own messages' });
-  await prisma.chatMessage.update({ where: { id: m.id }, data: { deletedAt: new Date() } });
+  await prisma.chatMessage.update({ where: { id: m.id }, data: { deletedAt: new Date(), editedAt: new Date(), pinned: false } });
   res.json({ ok: true });
 }));
+// ─── Highlights and pins (staff) ─────────────────────────────────────────────
+const HL_COLORS = ['yellow', 'green', 'pink', 'blue'];
+router.patch('/messages/:id/highlights', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can highlight.' });
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m || m.deletedAt) return res.status(404).json({ error: 'Message not found' });
+  const len = (m.text || '').length;
+  const list = (Array.isArray(req.body?.highlights) ? req.body.highlights : []).slice(0, 60)
+    .map(h => ({ s: Math.max(0, parseInt(h.s, 10) || 0), e: Math.min(len, parseInt(h.e, 10) || 0), c: HL_COLORS.includes(h.c) ? h.c : 'yellow' }))
+    .filter(h => h.e > h.s).sort((a, b) => a.s - b.s);
+  // keep ranges apart: where two overlap, the later one starts where the earlier one ends
+  const merged = [];
+  for (const h of list) {
+    const last = merged[merged.length - 1];
+    if (last && h.s < last.e) {
+      if (h.c === last.c) { last.e = Math.max(last.e, h.e); continue; }
+      const s = last.e; if (h.e > s) merged.push({ ...h, s });
+    } else merged.push(h);
+  }
+  await prisma.chatMessage.update({ where: { id: m.id }, data: { highlights: merged, editedAt: new Date() } });
+  res.json({ highlights: merged });
+}));
+router.patch('/messages/:id/pin', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can pin messages.' });
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m || m.deletedAt) return res.status(404).json({ error: 'Message not found' });
+  const pin = !!req.body?.pinned;
+  if (pin) await prisma.chatMessage.updateMany({ where: { groupId: m.groupId, pinned: true, id: { not: m.id } }, data: { pinned: false, editedAt: new Date() } });
+  await prisma.chatMessage.update({ where: { id: m.id }, data: { pinned: pin, editedAt: new Date() } });
+  res.json({ pinned: pin });
+}));
+
+// ─── Answers: students answer a teacher's question; teachers check each one ─────
+function pickAnswer(a) {
+  return { id: a.id, text: a.text, status: a.status, score: a.score, feedback: a.feedback, checkedBy: a.checkedBy, checkedAt: a.checkedAt, updatedAt: a.updatedAt };
+}
+router.post('/messages/:id/answer', auth, wrap(async (req, res) => {
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m || m.deletedAt || !m.askAnswer) return res.status(404).json({ error: 'This question is not open for answers.' });
+  const member = await prisma.chatMember.findUnique({ where: { groupId_studentId: { groupId: m.groupId, studentId: req.user.id } } });
+  if (!member) return res.status(403).json({ error: 'Not in this group' });
+  const text = String(req.body?.text || '').trim().slice(0, 6000);
+  if (!text) return res.status(400).json({ error: 'Write your answer first.' });
+  const old = await prisma.chatAnswer.findUnique({ where: { messageId_studentId: { messageId: m.id, studentId: req.user.id } } });
+  if (old && old.status === 'GOOD') return res.status(400).json({ error: 'Your teacher has already marked this answer as good.' });
+  const a = old
+    ? await prisma.chatAnswer.update({ where: { id: old.id }, data: { text, status: 'SENT', checkedAt: null } })
+    : await prisma.chatAnswer.create({ data: { messageId: m.id, studentId: req.user.id, text } });
+  await prisma.chatClick.upsert({ where: { messageId_studentId_kind: { messageId: m.id, studentId: req.user.id, kind: 'DONE' } }, update: {}, create: { messageId: m.id, studentId: req.user.id, kind: 'DONE' } });
+  await prisma.chatMessage.update({ where: { id: m.id }, data: { editedAt: new Date() } }); // teachers' answer counts update live
+  res.json(pickAnswer(a));
+}));
+router.get('/messages/:id/answers', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m) return res.status(404).json({ error: 'Message not found' });
+  const people = await studentMembers(m.groupId);
+  const answers = await prisma.chatAnswer.findMany({ where: { messageId: m.id } });
+  const byStudent = new Map(answers.map(a => [a.studentId, a]));
+  const rank = r => (!r.answer ? 2 : r.answer.checkedAt ? 1 : 0); // waiting first, then checked, then not answered
+  const rows = people.map(p => ({ id: p.id, name: p.name, email: p.email, answer: byStudent.has(p.id) ? pickAnswer(byStudent.get(p.id)) : null }))
+    .sort((a, b) => rank(a) - rank(b) || String(a.name).localeCompare(String(b.name)));
+  res.json({ question: m.text, imageUrl: m.imageUrl, students: rows });
+}));
+router.patch('/answers/:id', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  const a = await prisma.chatAnswer.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!a) return res.status(404).json({ error: 'Answer not found' });
+  const status = ['GOOD', 'REDO'].includes(req.body?.status) ? req.body.status : null;
+  if (!status) return res.status(400).json({ error: 'Choose Good or Try again.' });
+  let score = req.body?.score === '' || req.body?.score == null ? null : parseInt(req.body.score, 10);
+  score = Number.isNaN(score) || score == null ? null : Math.max(0, Math.min(10, score));
+  const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { name: true } });
+  const u = await prisma.chatAnswer.update({ where: { id: a.id }, data: { status, score, feedback: String(req.body?.feedback || '').trim().slice(0, 3000) || null, checkedBy: me?.name || 'Teacher', checkedAt: new Date() } });
+  await prisma.chatMessage.update({ where: { id: a.messageId }, data: { editedAt: new Date() } }); // the student sees the result live
+  res.json(pickAnswer(u));
+}));
+// AI suggestion for the teacher: corrections and short feedback (the teacher edits it before saving)
+router.post('/answers/:id/suggest', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ error: 'AI is not set up on the server.' });
+  const a = await prisma.chatAnswer.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!a) return res.status(404).json({ error: 'Answer not found' });
+  const m = await prisma.chatMessage.findUnique({ where: { id: a.messageId }, select: { text: true, imageUrl: true } });
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const prompt = [
+    'You help an English teacher in Sri Lanka check a student\'s answer. The students are about B1 level.',
+    '',
+    'Teacher\'s question:',
+    '---',
+    (m?.text || '').slice(0, 3000),
+    '---',
+    m?.imageUrl ? '(The question also had a picture, for example a chart or a map, that you cannot see. Do not guess numbers from it.)' : '',
+    '',
+    'Student\'s answer:',
+    '---',
+    a.text.slice(0, 5000),
+    '---',
+    '',
+    'Reply with JSON only: {"good": true or false, "score": 0-10, "feedback": "2 to 4 short, kind sentences in simple English: one thing done well, then the most important things to fix", "corrections": [{"wrong": "exact words from the answer", "right": "corrected words"}]}. Give at most 6 corrections, only real mistakes.',
+  ].join('\n');
+  const models = [process.env.CHAT_CHECK_MODEL, 'claude-haiku-4-5', 'claude-sonnet-4-5'].filter(Boolean);
+  let out = null; let lastErr = null;
+  for (const model of models) {
+    try {
+      const r = await client.messages.create({ model, max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
+      const txt = r.content.map(c => c.text || '').join('');
+      const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+      out = {
+        good: !!j.good, score: Math.max(0, Math.min(10, parseInt(j.score, 10) || 0)), feedback: String(j.feedback || '').slice(0, 1500),
+        corrections: (Array.isArray(j.corrections) ? j.corrections : []).slice(0, 6).map(c => ({ wrong: String(c.wrong || ''), right: String(c.right || '') })).filter(c => c.wrong && c.right),
+      };
+      break;
+    } catch (e) { lastErr = e; }
+  }
+  if (!out) { console.error('[chat] suggest', lastErr && lastErr.message); return res.status(502).json({ error: 'AI could not check this answer. Please try again.' }); }
+  res.json(out);
+}));
+
+// Student: my tasks from the last 30 days, with what I still need to do
+router.get('/my-tasks', auth, wrap(async (req, res) => {
+  const groups = await prisma.chatMember.findMany({ where: { studentId: req.user.id, group: { archived: false } }, select: { groupId: true, group: { select: { name: true } } } });
+  if (!groups.length) return res.json([]);
+  const gname = new Map(groups.map(g => [g.groupId, g.group.name]));
+  const msgs = await prisma.chatMessage.findMany({ where: { groupId: { in: groups.map(g => g.groupId) }, isTask: true, deletedAt: null, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } }, orderBy: { id: 'desc' }, take: 60 });
+  const status = await myStatus(req.user.id, msgs);
+  const answers = await prisma.chatAnswer.findMany({ where: { studentId: req.user.id, messageId: { in: msgs.map(m => m.id) } } });
+  const papers = msgs.some(m => m.paperId) ? await prisma.paper.findMany({ where: { id: { in: msgs.filter(m => m.paperId).map(m => m.paperId) } }, select: { id: true, title: true } }) : [];
+  const lessons = msgs.some(m => m.lessonId) ? await prisma.learnLesson.findMany({ where: { id: { in: msgs.filter(m => m.lessonId).map(m => m.lessonId) } }, select: { id: true, title: true } }) : [];
+  res.json(msgs.map(m => {
+    const a = answers.find(x => x.messageId === m.id);
+    const st = status.get(m.id) || {};
+    const state = m.askAnswer ? (!a ? 'TODO' : a.checkedAt ? (a.status === 'GOOD' ? 'GOOD' : 'REDO') : 'SENT') : (st.done ? 'DONE' : 'TODO');
+    const title = m.paperId ? (papers.find(p => p.id === m.paperId)?.title || 'A paper')
+      : m.lessonId ? `Lesson: ${lessons.find(l => l.id === m.lessonId)?.title || 'a lesson'}`
+      : (m.text || (m.imageUrl ? 'A photo task' : 'Task')).split('\n')[0].slice(0, 120);
+    return { id: m.id, groupId: m.groupId, group: gname.get(m.groupId), from: m.senderName, createdAt: m.createdAt, state, title, kind: m.paperId ? 'PAPER' : m.lessonId ? 'LESSON' : m.askAnswer ? 'ANSWER' : 'TASK', score: a?.score ?? null, feedback: a?.checkedAt ? a.feedback : null };
+  }));
+}));
+
 
 
 // ─── Tracking: who saw a message, who opened its link / paper, who did the task ──
@@ -322,9 +479,14 @@ router.get('/notifications', auth, wrap(async (req, res) => {
   const after = parseInt(req.query.after, 10) || 0;
   const groups = await prisma.chatMember.findMany({ where: { studentId: req.user.id, group: { archived: false } }, select: { groupId: true } });
   const gids = groups.map(g => g.groupId);
-  if (!gids.length) return res.json({ latestId: after, tasks: [] });
+  const fbAfter = req.query.fbAfter && !Number.isNaN(Date.parse(req.query.fbAfter)) ? new Date(req.query.fbAfter) : null;
+  const feedback = fbAfter ? await prisma.chatAnswer.findMany({ where: { studentId: req.user.id, checkedAt: { gt: fbAfter } }, orderBy: { checkedAt: 'asc' }, take: 5 }) : [];
+  const fbMsgs = feedback.length ? await prisma.chatMessage.findMany({ where: { id: { in: feedback.map(f => f.messageId) } }, select: { id: true, groupId: true, text: true, group: { select: { name: true } } } }) : [];
+  const fb = feedback.map(f => { const mm = fbMsgs.find(x => x.id === f.messageId); return { id: f.id, messageId: f.messageId, groupId: mm?.groupId, group: mm?.group?.name || '', from: f.checkedBy || 'Teacher', status: f.status, score: f.score, feedback: f.feedback, question: (mm?.text || '').slice(0, 100), checkedAt: f.checkedAt }; });
+  const serverTime = new Date();
+  if (!gids.length) return res.json({ latestId: after, tasks: [], feedback: fb, serverTime });
   const latest = await prisma.chatMessage.findFirst({ where: { groupId: { in: gids }, isTask: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true } });
-  if (!after) return res.json({ latestId: latest?.id || 0, tasks: [] });
+  if (!after) return res.json({ latestId: latest?.id || 0, tasks: [], feedback: fb, serverTime });
   const rows = await prisma.chatMessage.findMany({
     where: { groupId: { in: gids }, isTask: true, deletedAt: null, id: { gt: after }, senderId: { not: req.user.id } },
     orderBy: { id: 'asc' }, take: 5, include: { group: { select: { name: true } } },
@@ -333,7 +495,7 @@ router.get('/notifications', auth, wrap(async (req, res) => {
   const pt = new Map(papers.map(p => [p.id, p.title]));
   const ls = rows.filter(r => r.lessonId).length ? await prisma.learnLesson.findMany({ where: { id: { in: rows.filter(r => r.lessonId).map(r => r.lessonId) } }, select: { id: true, title: true } }) : [];
   const lt = new Map(ls.map(l => [l.id, l.title]));
-  res.json({ latestId: latest?.id || after, tasks: rows.map(r => ({ id: r.id, groupId: r.groupId, group: r.group.name, from: r.senderName, text: r.text, paper: r.paperId ? pt.get(r.paperId) || 'A paper' : r.lessonId ? `Lesson: ${lt.get(r.lessonId) || 'a lesson'}` : null, createdAt: r.createdAt })) });
+  res.json({ latestId: latest?.id || after, tasks: rows.map(r => ({ id: r.id, groupId: r.groupId, group: r.group.name, from: r.senderName, text: r.text, paper: r.paperId ? pt.get(r.paperId) || 'A paper' : r.lessonId ? `Lesson: ${lt.get(r.lessonId) || 'a lesson'}` : r.askAnswer ? 'Question: write your answer' : null, createdAt: r.createdAt })), feedback: fb, serverTime });
 }));
 
 // Staff: post today's automatic task now

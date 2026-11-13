@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
-import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, PinBar } from '../components/ChatExtras';
+import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, PinBar, ImageViewer } from '../components/ChatExtras';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
@@ -189,6 +189,8 @@ const CSS = `
 .mc-row.mine { justify-content: flex-end; }
 .mc-col { display: flex; flex-direction: column; max-width: min(560px, 76%); min-width: 0; }
 .mc-row.mine .mc-col { align-items: flex-end; }
+.mc-col.wide { width: min(720px, 86%); max-width: min(720px, 86%); }
+.mc-col.wide .mc-bub { width: 100%; box-sizing: border-box; }
 .mc-name { font-size: 12.5px; color: #65676b; margin: 10px 0 2px 12px; }
 .mc-bub { padding: 8px 12px; border-radius: 18px; font-size: 15px; line-height: 1.42; white-space: pre-wrap; overflow-wrap: anywhere; background: #f0f2f5; color: #050505; position: relative; }
 .mc-row.mine .mc-bub { background: ${T.primary}; color: #fff; }
@@ -209,7 +211,7 @@ const CSS = `
 .mc-stat { border: 0; background: #ebf5ff; color: ${T.primary}; font: inherit; font-size: 12.5px; font-weight: 700; border-radius: 50px; padding: 3px 10px; cursor: pointer; }
 .mc-comp { padding: 10px 12px 12px; border-top: 1px solid #e4e6eb; flex: none; background: #fff; }
 .mc-bar { display: flex; align-items: flex-end; gap: 6px; }
-.mc-input { flex: 1; min-width: 0; background: #f0f2f5; border-radius: 22px; padding: 10px 16px; border: 0; outline: none; font: inherit; font-size: 15px; resize: none; max-height: 160px; line-height: 1.4; color: #050505; }
+.mc-input { flex: 1; min-width: 0; background: #f0f2f5; border-radius: 22px; padding: 10px 16px; border: 0; outline: none; font: inherit; font-size: 16px; resize: none; max-height: 160px; line-height: 1.4; color: #050505; }
 .mc-send { width: 42px; height: 42px; border-radius: 50%; border: 0; background: transparent; color: ${T.primary}; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .mc-send:disabled { color: #bcc0c4; cursor: default; }
 .mc-pop { border: 1px solid #e4e6eb; border-radius: 14px; padding: 8px; margin-bottom: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.08); background: #fff; }
@@ -224,7 +226,7 @@ const CSS = `
 .mc-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
 .mc-toggle.on::after { transform: translateX(18px); }
 @media (max-width: 1100px) { .mc-wrap.with-info { grid-template-columns: 300px minmax(0, 1fr); } .mc-info { position: fixed; right: 0; top: 0; bottom: 0; width: min(340px, 100%); background: #fff; z-index: 40; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
-@media (max-width: 819px) { .mc-wrap, .mc-wrap.with-info { grid-template-columns: 1fr; } .mc-side { border-right: 0; } .mc-col { max-width: 84%; } }
+@media (max-width: 819px) { .mc-wrap, .mc-wrap.with-info { grid-template-columns: 1fr; } .mc-side { border-right: 0; } .mc-col { max-width: 84%; } .mc-col.wide { width: 100%; max-width: calc(100% - 36px); } .mc-feed { padding: 10px 10px 8px; } .mc-bub { font-size: 16px; } }
 `;
 
 export default function Messages() {
@@ -264,6 +266,7 @@ export default function Messages() {
   const [answersFor, setAnswersFor] = useState(null);
   const [hlBar, setHlBar] = useState(null);
   const [sideTab, setSideTab] = useState('chats');
+  const [viewer, setViewer] = useState(null); // message id whose photo is open full screen
   const flash = useCallback(m => { setMsg(m); setTimeout(() => setMsg(''), 3500); }, []);
 
   useEffect(() => { const f = () => setNarrow(window.innerWidth < 820); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
@@ -576,20 +579,24 @@ export default function Messages() {
                           {staff && <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>}
                           <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
                         </span>)}
-                        <div className="mc-col">
+                        <div className={`mc-col${!m.deleted && (m.imageUrl || m.askAnswer) ? ' wide' : ''}`}>
                           {showName && <div className="mc-name">{m.senderName}{m.staff ? ' · Teacher' : ''}</div>}
                           <div className={`mc-bub${m.deleted ? ' gone' : ''}${cardOnly ? ' cardonly' : ''}`}>
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
                               {(m.isTask || m.pinned) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}</div>}
                               {m.imageUrl && (
-                                <a href={imgSrc(m.imageUrl)} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: m.text ? 6 : 0 }}>
+                                <button type="button" onClick={() => setViewer(m.id)} title="Open the photo full screen" style={{ display: 'block', position: 'relative', padding: 0, border: 0, background: 'none', cursor: 'zoom-in', marginBottom: m.text ? 8 : 0, width: '100%', maxWidth: 680 }}>
                                   <img src={imgSrc(m.imageUrl)} alt="Photo sent in the chat" loading="lazy" onLoad={() => { const el = listRef.current; if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) el.scrollTop = el.scrollHeight; }}
-                                    style={{ display: 'block', maxWidth: 'min(320px, 68vw)', maxHeight: 360, width: 'auto', borderRadius: 14, border: '1px solid #e4e6eb', background: '#f0f2f5' }} />
-                                </a>
+                                    style={{ display: 'block', width: '100%', height: 'auto', maxHeight: '62vh', objectFit: 'contain', borderRadius: 14, border: '1px solid #e4e6eb', background: '#fff' }} />
+                                  <span style={{ position: 'absolute', right: 10, bottom: 10, background: 'rgba(0,0,0,.62)', color: '#fff', fontSize: 12.5, fontWeight: 700, borderRadius: 50, padding: '4px 10px' }}>Tap to enlarge</span>
+                                </button>
                               )}
                               {m.text && <HighlightedText id={m.id} text={m.text} highlights={m.highlights} onLink={staff ? null : () => track(m.id, 'LINK')} />}
                               {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={pid => startPaper(pid, m.id)} starting={starting === m.paper.id} />}
                               {m.lesson && <LessonCard lesson={m.lesson} staff={staff} onOpen={l => openLesson(l, m.id)} />}
+                              {!staff && m.askAnswer && m.imageUrl && (!m.myAnswer || m.myAnswer.status !== 'GOOD' || !m.myAnswer.checkedAt) && (
+                                <button type="button" onClick={() => setViewer(m.id)} style={{ display: 'block', marginTop: 10, height: 40, padding: '0 18px', border: 0, borderRadius: 50, background: '#050505', color: '#fff', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', fontFamily: 'inherit' }}>Open photo and answer side by side</button>
+                              )}
                               {!staff && m.askAnswer && <AnswerBox m={m} flash={flash} onSaved={a => setMsgFields(m.id, { myAnswer: a, status: { ...(m.status || {}), done: true } })} />}
                               {!staff && m.isTask && m.status && !m.paper && !m.askAnswer && (
                                 m.status.done
@@ -703,6 +710,10 @@ export default function Messages() {
         )}
         {showInfo && info}
       </div>
+      {viewer && (() => { const vm = data?.messages.find(x => x.id === viewer); return vm && vm.imageUrl ? (
+        <ImageViewer m={vm} src={imgSrc(vm.imageUrl)} staff={staff} flash={flash} onClose={() => setViewer(null)}
+          onSaved={a => setMsgFields(vm.id, { myAnswer: a, status: { ...(vm.status || {}), done: true } })} />
+      ) : null; })()}
       {staff && <HighlightToolbar at={hlBar} onPick={pickColour} onClear={clearColour} onClose={() => setHlBar(null)} />}
       {answersFor && <AnswersModal messageId={answersFor} flash={flash} onClose={() => setAnswersFor(null)} onChanged={() => loadMessages(false)} />}
       {statsFor && <StatsModal messageId={statsFor} onClose={() => setStatsFor(null)} />}

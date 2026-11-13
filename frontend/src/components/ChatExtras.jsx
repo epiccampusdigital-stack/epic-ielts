@@ -45,7 +45,7 @@ export function selectionInMessage() {
   const range = sel.getRangeAt(0);
   const box = n => (n && (n.nodeType === 1 ? n : n.parentElement))?.closest?.('[data-hl-id]');
   const el = box(range.startContainer);
-  if (!el || el !== box(range.endContainer)) return null;
+  if (!el || el !== box(range.endContainer) || !/^\d+$/.test(el.dataset.hlId)) return null;
   const offset = (node, off) => {
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     let n = 0; let cur;
@@ -106,9 +106,9 @@ export function StateBadge({ state, score }) {
 }
 
 // Student: answer a teacher's question inside the chat
-export function AnswerBox({ m, onSaved, flash }) {
+export function AnswerBox({ m, onSaved, flash, startOpen }) {
   const a = m.myAnswer;
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!startOpen && (!a || (a.checkedAt && a.status !== 'GOOD')));
   const [text, setText] = useState(a?.text || '');
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (!editing) setText(a?.text || ''); }, [a?.text, editing]);
@@ -127,8 +127,8 @@ export function AnswerBox({ m, onSaved, flash }) {
     return (
       <div style={box}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#65676b', marginBottom: 6 }}>Your answer (only your teacher sees it)</div>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={Math.min(12, Math.max(4, text.split('\n').length + 1))} autoFocus
-          placeholder="Write your answer here…" style={{ width: '100%', border: '1px solid #ccd0d5', borderRadius: 10, padding: '9px 11px', font: 'inherit', fontSize: 15, lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box' }} />
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={Math.min(14, Math.max(6, text.split('\n').length + 1))} autoFocus={!startOpen}
+          placeholder="Write your answer here…" style={{ width: '100%', border: '1px solid #ccd0d5', borderRadius: 10, padding: '9px 11px', font: 'inherit', fontSize: 16, lineHeight: 1.55, resize: 'vertical', boxSizing: 'border-box', minHeight: 140 }} />
         <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
           <button type="button" onClick={save} disabled={busy || !text.trim()} style={{ height: 36, padding: '0 16px', border: 0, borderRadius: 50, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: busy || !text.trim() ? 0.6 : 1 }}>{busy ? 'Sending…' : a ? 'Send again' : 'Send answer'}</button>
           <button type="button" onClick={() => { setEditing(false); setText(a?.text || ''); }} style={{ height: 36, padding: '0 14px', border: '1px solid #ccd0d5', borderRadius: 50, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
@@ -207,7 +207,7 @@ function AnswerCard({ row, flash, onSaved }) {
           </select>
         </label>
         <label style={{ fontSize: 12.5, color: '#65676b', display: 'grid', gap: 3, flex: 1, minWidth: 220 }}>Feedback for {row.name.split(' ')[0]}
-          <textarea value={feedback} onChange={e => setFeedback(e.target.value)} rows={3} placeholder="What was good, and what to fix…" style={{ border: '1px solid #ccd0d5', borderRadius: 8, padding: '7px 9px', font: 'inherit', fontSize: 14, lineHeight: 1.45, resize: 'vertical' }} />
+          <textarea value={feedback} onChange={e => setFeedback(e.target.value)} rows={3} placeholder="What was good, and what to fix…" style={{ border: '1px solid #ccd0d5', borderRadius: 8, padding: '7px 9px', font: 'inherit', fontSize: 16, lineHeight: 1.45, resize: 'vertical' }} />
         </label>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -290,6 +290,59 @@ export function PinBar({ pin, staff, onJump, onUnpin }) {
         <b>{pin.by}:</b> {pin.text}
       </button>
       {staff && <button type="button" onClick={onUnpin} style={{ border: 0, background: 'none', color: '#8a5a00', fontWeight: 700, fontSize: 13, cursor: 'pointer', flex: 'none', fontFamily: 'inherit' }}>Unpin</button>}
+    </div>
+  );
+}
+
+// Full-screen photo viewer. For a question with a photo, students see the photo and their answer box
+// side by side (stacked on a phone), so they can look and write at the same time without zooming the page.
+export function ImageViewer({ m, src, staff, flash, onSaved, onClose }) {
+  const [zoom, setZoom] = useState(1);
+  const [natural, setNatural] = useState(null);
+  const answering = !staff && m.askAnswer;
+  useEffect(() => {
+    const k = e => { if (e.key === 'Escape') onClose(); if (e.key === '+' || e.key === '=') setZoom(z => Math.min(4, z + 0.5)); if (e.key === '-') setZoom(z => Math.max(1, z - 0.5)); };
+    window.addEventListener('keydown', k);
+    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev; };
+  }, [onClose]);
+  const zbtn = { width: 44, height: 44, borderRadius: '50%', border: 0, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 22, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' };
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Photo" className={`mc-viewer${answering ? ' answering' : ''}`}>
+      <style>{`
+        .mc-viewer { position: fixed; inset: 0; z-index: 3000; background: #111; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+        .mc-viewer.answering { grid-template-columns: minmax(0, 1fr) minmax(360px, 34%); }
+        .mc-vpane { position: relative; min-height: 0; min-width: 0; }
+        .mc-vimg { position: absolute; inset: 0; overflow: auto; display: flex; }
+        .mc-vimg img { margin: auto; display: block; }
+        .mc-vside { background: #f0f2f5; overflow-y: auto; padding: 18px 18px 28px; min-height: 0; }
+        .mc-vbar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,.6); border-radius: 50px; padding: 6px 10px; }
+        @media (max-width: 819px) {
+          .mc-viewer.answering { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 46%) minmax(0, 1fr); }
+          .mc-vside { padding: 12px 12px 24px; }
+        }
+      `}</style>
+      <div className="mc-vpane">
+      <div className="mc-vimg">
+        <img src={src} alt="Photo sent by the teacher" onLoad={e => setNatural(e.currentTarget.naturalWidth)}
+          onDoubleClick={() => setZoom(z => (z > 1 ? 1 : 2))}
+          style={zoom === 1 ? { maxWidth: 'calc(100% - 24px)', maxHeight: 'calc(100% - 24px)', objectFit: 'contain' } : { width: `${Math.round((natural || 800) * zoom * 0.75)}px`, maxWidth: 'none', maxHeight: 'none' }} />
+      </div>
+        <button type="button" onClick={onClose} aria-label="Close photo" style={{ ...zbtn, position: 'absolute', top: 14, left: 14, zIndex: 2, background: 'rgba(0,0,0,.55)', fontSize: 26 }}>×</button>
+        <div className="mc-vbar">
+          <button type="button" style={zbtn} aria-label="Zoom out" onClick={() => setZoom(z => Math.max(1, z - 0.5))}>−</button>
+          <button type="button" style={{ ...zbtn, width: 'auto', padding: '0 14px', fontSize: 14 }} onClick={() => setZoom(1)}>{zoom === 1 ? 'Fit' : `${Math.round(zoom * 100)}%`}</button>
+          <button type="button" style={zbtn} aria-label="Zoom in" onClick={() => setZoom(z => Math.min(4, z + 0.5))}>+</button>
+        </div>
+      </div>
+      {answering && (
+        <div className="mc-vside">
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: '#8a5a00', marginBottom: 6 }}>QUESTION · {m.senderName}</div>
+          {m.text && <div style={{ fontSize: 16.5, lineHeight: 1.55, whiteSpace: 'pre-wrap', color: '#050505', background: '#fff', borderRadius: 12, padding: '12px 14px', border: '1px solid #e4e6eb' }}><HighlightedText id={`v${m.id}`} text={m.text} highlights={m.highlights} /></div>}
+          <AnswerBox m={m} flash={flash} onSaved={onSaved} startOpen />
+          <div style={{ fontSize: 12.5, color: '#65676b', marginTop: 10 }}>Tip: use + and − to zoom the photo. Your answer stays here while you look.</div>
+        </div>
+      )}
     </div>
   );
 }

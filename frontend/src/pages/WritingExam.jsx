@@ -325,6 +325,23 @@ export default function WritingExam() {
   const [imageZoom, setImageZoom] = useState(1);
   const [lookWrite, setLookWrite] = useState(false); // picture and writing box side by side, full screen
   const [lwZoom, setLwZoom] = useState(1);
+  const [floatPic, setFloatPic] = useState(false); // a small picture window the student can drag anywhere
+  const [floatPos, setFloatPos] = useState(() => ({ x: Math.max(8, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 400), y: 90 }));
+  const [floatZoom, setFloatZoom] = useState(1);
+  const dragRef = useRef(null);
+  const startDrag = e => {
+    const p = e.touches ? e.touches[0] : e;
+    dragRef.current = { dx: p.clientX - floatPos.x, dy: p.clientY - floatPos.y };
+    const move = ev => {
+      const q = ev.touches ? ev.touches[0] : ev;
+      if (!dragRef.current) return;
+      if (ev.cancelable) ev.preventDefault();
+      setFloatPos({ x: Math.min(window.innerWidth - 120, Math.max(0, q.clientX - dragRef.current.dx)), y: Math.min(window.innerHeight - 60, Math.max(0, q.clientY - dragRef.current.dy)) });
+    };
+    const up = () => { dragRef.current = null; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
+  };
   const [teachingMode, setTeachingMode] = useState(false);
   const timerRef = useRef();
   const timerStartedRef = useRef(false);
@@ -943,7 +960,12 @@ export default function WritingExam() {
 
             return (
             <div style={{ background: '#ffffff', borderRadius: 14, padding: 20, border: '1px solid #e3eeff', marginTop: 16 }}>
-              {lwTask && <button type="button" onClick={() => { setLwZoom(1); setLookWrite(true); }} style={{ width: '100%', marginBottom: 14, padding: '10px 14px', border: 0, borderRadius: 10, background: '#002761', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>⤢ Open the picture and my writing box side by side</button>}
+              {lwTask && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => { setLwZoom(1); setLookWrite(true); }} style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: 0, borderRadius: 10, background: '#002761', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>⤢ Picture and writing box side by side</button>
+                  <button type="button" onClick={() => setFloatPic(f => !f)} style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: '1.5px solid #002761', borderRadius: 10, background: floatPic ? '#e3eeff' : '#fff', color: '#002761', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>{floatPic ? '✕ Close the small picture' : '▣ Small picture I can move'}</button>
+                </div>
+              )}
               {chartTask.chartImageUrl ? (
                 <div style={{ marginBottom: '24px', animation: 'fadeIn 0.5s ease' }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#0048b0', marginBottom: 12, textAlign: 'center' }}>
@@ -1058,7 +1080,6 @@ export default function WritingExam() {
             <h3 style={{ fontSize: 14, fontWeight: 700, color: '#002761', margin: 0 }}>
               Your Answer — Task {shownNo(task)}
             </h3>
-            {lwTask && <button type="button" onClick={() => { setLwZoom(1); setLookWrite(true); }} style={{ border: '1.5px solid #0056d2', background: '#fff', color: '#0056d2', borderRadius: 50, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>⤢ Picture beside my writing</button>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: wcColor }}>
                 {wc} / {minWords} words minimum
@@ -1102,7 +1123,7 @@ export default function WritingExam() {
       <div style={{ background: '#ffffff', borderTop: '1px solid #e3eeff', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div className="mobile-hide" style={{ display: 'flex', gap: 12 }}>
           {ORDER.map(n => (
-            <span key={n} style={{ fontSize: 11, color: '#5b6780' }}>
+            <span key={n} style={{ fontSize: 11, color: '#5b6780', marginRight: 12, whiteSpace: 'nowrap' }}>
               T{shownNo(n)}: <strong style={{ color: wordCount(TEXTS[n][0]) >= TEXTS[n][1] ? '#16a34a' : '#dc2626' }}>{wordCount(TEXTS[n][0])}</strong>
             </span>
           ))}
@@ -1133,6 +1154,26 @@ export default function WritingExam() {
           )}
         </div>
       </div>
+
+      {/* Small movable picture window (drag the dark bar; drag the bottom-right corner to resize) */}
+      {floatPic && lwTask && !lookWrite && (
+        <div role="dialog" aria-label="Small picture" style={{ position: 'fixed', left: floatPos.x, top: floatPos.y, zIndex: 2900, width: 380, height: 300, minWidth: 220, minHeight: 160, maxWidth: '96vw', maxHeight: '85vh', resize: 'both', overflow: 'hidden', background: '#fff', borderRadius: 12, boxShadow: '0 12px 36px rgba(0,0,0,.3)', border: '2px solid #002761', display: 'flex', flexDirection: 'column' }}>
+          <div onPointerDown={e => { if (e.pointerType !== 'touch') startDrag(e); }} onTouchStart={startDrag}
+            style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: '#002761', color: '#fff', cursor: 'move', touchAction: 'none', userSelect: 'none' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, flex: 1 }}>✥ Drag me</span>
+            {visualOf(lwTask) === 'img' && (<>
+              <button type="button" onPointerDown={e => e.stopPropagation()} onClick={() => setFloatZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))} style={{ width: 26, height: 26, borderRadius: '50%', border: 0, background: '#fff', color: '#002761', fontWeight: 800, cursor: 'pointer' }}>−</button>
+              <button type="button" onPointerDown={e => e.stopPropagation()} onClick={() => setFloatZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} style={{ width: 26, height: 26, borderRadius: '50%', border: 0, background: '#fff', color: '#002761', fontWeight: 800, cursor: 'pointer' }}>+</button>
+            </>)}
+            <button type="button" onPointerDown={e => e.stopPropagation()} onClick={() => setFloatPic(false)} aria-label="Close" style={{ width: 26, height: 26, borderRadius: '50%', border: 0, background: '#fff', color: '#002761', fontWeight: 800, cursor: 'pointer' }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            {visualOf(lwTask) === 'img' && <img src={getFullUrl(lwTask.chartImageUrl)} alt="Task picture" draggable={false} style={{ width: `${floatZoom * 100}%`, maxWidth: 'none', display: 'block' }} />}
+            {visualOf(lwTask) === 'chart' && <ChartRenderer chartData={lwTask.tableData} taskType={lwTask.tableData._writingTaskType} />}
+            {visualOf(lwTask) === 'table' && (() => { const td = parseTaskTableData(lwTask); const g = td ? { ...td } : null; if (g) delete g._writingTaskType; return renderTable(g); })()}
+          </div>
+        </div>
+      )}
 
       {/* Picture and writing box side by side (full screen) */}
       {lookWrite && lwTask && (() => {

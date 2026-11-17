@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import PassageReview from '../components/PassageReview';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -495,6 +496,9 @@ const fetchExplanation = async (answer) => {
                 </div>
               );
             })()}
+
+            {/* Reading: the passages with the answers highlighted */}
+            {data.paper?.testType === 'READING' && <PassageReview paper={data.paper} answers={answers} />}
 
             {/* Answer review table */}
             <div className="result-section" style={{ animationDelay: '0.2s', padding: '20px' }}>

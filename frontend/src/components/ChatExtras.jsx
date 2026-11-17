@@ -352,7 +352,7 @@ export function ReplyQuote({ reply, mine, onClick, onClear }) {
   if (!reply) return null;
   return (
     <div onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
-      style={{ display: 'flex', gap: 8, alignItems: 'center', borderLeft: `4px solid ${mine ? 'rgba(255,255,255,.7)' : T.primary}`, background: mine ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.05)', borderRadius: 8, padding: '5px 9px', marginBottom: 6, cursor: onClick ? 'pointer' : 'default', whiteSpace: 'normal' }}>
+      style={{ display: 'flex', gap: 8, alignItems: 'center', borderLeft: `4px solid ${T.primary}`, background: mine ? 'rgba(8,102,255,.07)' : 'rgba(0,0,0,.04)', borderRadius: 8, padding: '5px 9px', marginBottom: 6, cursor: onClick ? 'pointer' : 'default', whiteSpace: 'normal' }}>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800 }}>{onClear ? 'Replying to ' : ''}{reply.by || 'a message'}</span>
         <span style={{ display: 'block', fontSize: 13.5, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reply.text || (reply.imageUrl ? 'A photo' : '')}</span>

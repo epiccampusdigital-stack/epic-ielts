@@ -192,9 +192,9 @@ const CSS = `
 .mc-col.wide { width: min(720px, 86%); max-width: min(720px, 86%); }
 .mc-col.wide .mc-bub { width: 100%; box-sizing: border-box; }
 .mc-name { font-size: 12.5px; color: #65676b; margin: 10px 0 2px 12px; }
-.mc-bub { padding: 8px 12px; border-radius: 18px; font-size: 15px; line-height: 1.42; white-space: pre-wrap; overflow-wrap: anywhere; background: #f0f2f5; color: #050505; position: relative; }
-.mc-row.mine .mc-bub { background: ${T.primary}; color: #fff; }
-.mc-row.staff:not(.mine) .mc-bub { background: #fff6dc; }
+.mc-bub { padding: 9px 13px; border-radius: 18px; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; background: #f7f8fa; color: #1c1e21; position: relative; border: 1px solid #eceef1; }
+.mc-row.mine .mc-bub { background: #eaf2ff; color: #0b1b3a; border-color: #d6e4fd; }
+.mc-row.staff:not(.mine) .mc-bub { background: #fffbef; border-color: #f6ead0; }
 .mc-row:not(.mine).first .mc-bub { border-bottom-left-radius: 6px; } .mc-row:not(.mine).mid .mc-bub { border-top-left-radius: 6px; border-bottom-left-radius: 6px; } .mc-row:not(.mine).last .mc-bub { border-top-left-radius: 6px; }
 .mc-row.mine.first .mc-bub { border-bottom-right-radius: 6px; } .mc-row.mine.mid .mc-bub { border-top-right-radius: 6px; border-bottom-right-radius: 6px; } .mc-row.mine.last .mc-bub { border-top-right-radius: 6px; }
 .mc-bub.cardonly { background: transparent !important; padding: 0; }
@@ -204,7 +204,7 @@ const CSS = `
 .mc-row:hover .mc-act, .mc-act:focus { opacity: 1; }
 @media (hover: none) { .mc-act { opacity: .85; } }
 .mc-task { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .06em; background: #f5b400; color: #1d1600; border-radius: 50px; padding: 1px 8px; margin-bottom: 4px; }
-.mc-row.mine .mc-task { background: rgba(255,255,255,.25); color: #fff; }
+.mc-row.mine .mc-task { background: #d6e4fd; color: #1d4ed8; }
 .mc-card { background: #fff; border: 1px solid #e4e6eb; border-radius: 16px; overflow: hidden; width: min(340px, 70vw); color: #050505; white-space: normal; margin-top: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
 .mc-card-top { color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 6px 12px; }
 .mc-card-btn { margin-top: 10px; height: 38px; width: 100%; border: 0; border-radius: 10px; color: #fff; font: inherit; font-weight: 700; font-size: 14.5px; cursor: pointer; }
@@ -649,7 +649,7 @@ export default function Messages() {
                               {!staff && m.askAnswer && <AnswerBox m={m} flash={flash} onSaved={a => setMsgFields(m.id, { myAnswer: a, status: { ...(m.status || {}), done: true } })} />}
                               {!staff && m.isTask && m.status && !m.paper && !m.askAnswer && (
                                 m.status.done
-                                  ? <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: m.mine ? '#fff' : '#276a1a' }}>Done ✓ {!m.lesson && <button type="button" onClick={() => markDone(m, true)} style={{ border: 0, background: 'none', color: 'inherit', opacity: .7, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', fontFamily: 'inherit' }}>undo</button>}</div>
+                                  ? <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓ {!m.lesson && <button type="button" onClick={() => markDone(m, true)} style={{ border: 0, background: 'none', color: 'inherit', opacity: .7, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', fontFamily: 'inherit' }}>undo</button>}</div>
                                   : !m.lesson && <button type="button" onClick={() => markDone(m)} style={{ display: 'block', marginTop: 8, height: 34, padding: '0 14px', border: 0, borderRadius: 50, background: '#2e7d32', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Mark as done</button>
                               )}
                               {!staff && m.isTask && m.status?.done && m.paper && <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓</div>}

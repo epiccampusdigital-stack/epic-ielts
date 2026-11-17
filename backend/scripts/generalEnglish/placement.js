@@ -219,7 +219,7 @@ async function seedPaperList(prisma, list, orderBase, opts = {}) {
         }
       } else if (p.testType === 'WRITING') {
         for (const t of p.tasks) {
-          await tx.writingTask.create({ data: { paperId: paper.id, taskNumber: t.taskNumber, prompt: t.prompt, minWords: t.minWords, timeMinutes: t.timeMinutes } });
+          await tx.writingTask.create({ data: { paperId: paper.id, taskNumber: t.taskNumber, prompt: t.prompt, minWords: t.minWords, timeMinutes: t.timeMinutes, ...(t.chartImageUrl ? { chartImageUrl: t.chartImageUrl } : {}), ...(t.chartDescription ? { chartDescription: t.chartDescription } : {}) } });
         }
       } else if (p.testType === 'SPEAKING') {
         for (const s of p.sections) {

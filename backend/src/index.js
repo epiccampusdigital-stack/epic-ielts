@@ -153,6 +153,8 @@ require('./ensureSchema').ensureSchema(prisma)
     try {
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');
       console.log('[ielts] new reading paper:', JSON.stringify(await addSleepTreesReading(prisma)));
+      const { addParkLifeWriting } = require('../scripts/ielts/writingParkLifeStages');
+      console.log('[ielts] new writing paper:', JSON.stringify(await addParkLifeWriting(prisma)));
     } catch (e) {
       console.error('[ielts] new reading paper skipped:', e.message);
     }

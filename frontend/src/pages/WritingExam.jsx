@@ -323,6 +323,8 @@ export default function WritingExam() {
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
+  const [lookWrite, setLookWrite] = useState(false); // picture and writing box side by side, full screen
+  const [lwZoom, setLwZoom] = useState(1);
   const [teachingMode, setTeachingMode] = useState(false);
   const timerRef = useRef();
   const timerStartedRef = useRef(false);
@@ -537,6 +539,16 @@ export default function WritingExam() {
   const writingTask2 = writingTasks.find(t => t.taskNumber === 2);
   const currentTask = task === 1 ? writingTask1 : task === 2 ? writingTask2 : writingTasks.find(t => t.taskNumber === task);
   const chartTask = task === 1 ? writingTask1 : (currentTask?.chartImageUrl ? currentTask : null);
+  // What the student can open beside the writing box: a picture, a drawn chart or a table
+  const visualOf = t => {
+    if (!t) return null;
+    if (t.chartImageUrl) return 'img';
+    const td = parseTaskTableData(t);
+    if (td?._writingTaskType && td._writingTaskType !== 'ESSAY' && t.tableData) return 'chart';
+    if (td?.headers?.length) return 'table';
+    return null;
+  };
+  const lwTask = chartTask && visualOf(chartTask) ? chartTask : null;
   const currentText = task === 1 ? task1 : task === 3 ? task3 : task2;
   const setCurrentText = task === 1
     ? (v) => { setTask1(v); task1Ref.current = v; }
@@ -931,6 +943,7 @@ export default function WritingExam() {
 
             return (
             <div style={{ background: '#ffffff', borderRadius: 14, padding: 20, border: '1px solid #e3eeff', marginTop: 16 }}>
+              {lwTask && <button type="button" onClick={() => { setLwZoom(1); setLookWrite(true); }} style={{ width: '100%', marginBottom: 14, padding: '10px 14px', border: 0, borderRadius: 10, background: '#002761', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>⤢ Open the picture and my writing box side by side</button>}
               {chartTask.chartImageUrl ? (
                 <div style={{ marginBottom: '24px', animation: 'fadeIn 0.5s ease' }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#0048b0', marginBottom: 12, textAlign: 'center' }}>
@@ -1043,8 +1056,9 @@ export default function WritingExam() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: '#002761', margin: 0 }}>
-              Your Answer — Task {task}
+              Your Answer — Task {shownNo(task)}
             </h3>
+            {lwTask && <button type="button" onClick={() => { setLwZoom(1); setLookWrite(true); }} style={{ border: '1.5px solid #0056d2', background: '#fff', color: '#0056d2', borderRadius: 50, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>⤢ Picture beside my writing</button>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: wcColor }}>
                 {wc} / {minWords} words minimum
@@ -1119,6 +1133,50 @@ export default function WritingExam() {
           )}
         </div>
       </div>
+
+      {/* Picture and writing box side by side (full screen) */}
+      {lookWrite && lwTask && (() => {
+        const kind = visualOf(lwTask);
+        const td = parseTaskTableData(lwTask);
+        const tdGrid = td ? { ...td } : null; if (tdGrid) delete tdGrid._writingTaskType;
+        const zb = { width: 38, height: 38, borderRadius: '50%', border: '1.5px solid #c9dcfb', background: '#fff', fontSize: 20, fontWeight: 700, color: '#0048b0', cursor: 'pointer', lineHeight: 1 };
+        return (
+          <div className="lw-wrap" role="dialog" aria-label="Picture and writing box">
+            <style>{`
+              .lw-wrap { position: fixed; inset: 0; z-index: 3000; background: #eef2f8; display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 42%); grid-template-rows: auto minmax(0, 1fr); }
+              .lw-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: linear-gradient(135deg, #002761, #0048b0); color: #fff; }
+              .lw-pic { overflow: auto; padding: 12px; min-height: 0; background: #fff; border-right: 1px solid #dae1ed; }
+              .lw-write { display: flex; flex-direction: column; padding: 12px; gap: 8px; min-height: 0; }
+              .lw-write textarea { flex: 1; min-height: 0; width: 100%; box-sizing: border-box; border: 1.5px solid #c9dcfb; border-radius: 10px; padding: 12px 14px; font: inherit; font-size: 16px; line-height: 1.7; resize: none; background: #fff; }
+              @media (max-width: 899px) {
+                .lw-wrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 45%) minmax(0, 1fr); }
+                .lw-pic { border-right: 0; border-bottom: 1px solid #dae1ed; }
+              }
+            `}</style>
+            <div className="lw-top">
+              <b style={{ fontSize: 14 }}>Writing Task {shownNo(task)}</b>
+              <span style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: timeLeft < 300 ? '#fca5a5' : '#fff' }}>{timeLeft !== null ? formatTime(timeLeft) : '--:--'}</span>
+              <span style={{ flex: 1 }} />
+              {kind === 'img' && (<>
+                <button type="button" style={zb} aria-label="Zoom out" onClick={() => setLwZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}>−</button>
+                <button type="button" style={{ ...zb, width: 'auto', borderRadius: 50, padding: '0 12px', fontSize: 13 }} onClick={() => setLwZoom(1)}>{lwZoom === 1 ? 'Fit' : `${Math.round(lwZoom * 100)}%`}</button>
+                <button type="button" style={zb} aria-label="Zoom in" onClick={() => setLwZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}>+</button>
+              </>)}
+              <button type="button" onClick={() => setLookWrite(false)} style={{ marginLeft: 6, border: 0, borderRadius: 50, padding: '8px 16px', background: '#fff', color: '#002761', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Close ✕</button>
+            </div>
+            <div className="lw-pic">
+              {kind === 'img' && <img src={getFullUrl(lwTask.chartImageUrl)} alt="Task picture" style={lwZoom === 1 ? { width: '100%', height: 'auto', display: 'block' } : { width: `${lwZoom * 100}%`, maxWidth: 'none', display: 'block' }} />}
+              {kind === 'chart' && <ChartRenderer chartData={lwTask.tableData} taskType={lwTask.tableData._writingTaskType} />}
+              {kind === 'table' && renderTable(tdGrid)}
+            </div>
+            <div className="lw-write">
+              <div style={{ fontSize: 13, color: '#334155', maxHeight: 90, overflowY: 'auto', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: (currentTask?.prompt || '').split('\n')[0] }} />
+              <textarea value={currentText} onChange={e => setCurrentText(e.target.value)} spellCheck={false} autoCorrect="off" autoCapitalize="off" data-gramm="false" data-enable-grammarly="false" placeholder={`Write your Task ${shownNo(task)} answer here…`} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: wcColor }}>{wc} / {minWords} words minimum</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Confirm before ending */}
       <EndTestConfirm

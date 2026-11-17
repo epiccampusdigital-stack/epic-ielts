@@ -177,7 +177,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     // Delay to avoid rate limit bursts
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const task1Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 1)?.prompt || '';
+    const task1Prompt = reportPrompt(attempt.paper?.writingTasks);
     const task2Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
 
     const { gradeWritingAttempt } = require('../services/claudeMarking');
@@ -241,7 +241,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       aiCache.set(`writing_${attemptId}`, aiFeedback);
 
       try {
-        const task1P = attempt.paper?.writingTasks?.find(t => t.taskNumber === 1)?.prompt || '';
+        const task1P = reportPrompt(attempt.paper?.writingTasks);
         const task2P = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
         if (task1P || task2P) {
           const Anthropic = require('@anthropic-ai/sdk');
@@ -299,6 +299,13 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 }
 
 // ─── ROUTES ────────────────────────────────────────────────────────────────
+
+// Task 1 prompt for marking. On a three-task paper both report prompts are joined (the second report is taskNumber 3).
+function reportPrompt(tasks) {
+  const t1 = (tasks || []).find(t => t.taskNumber === 1)?.prompt || '';
+  const t3 = (tasks || []).find(t => t.taskNumber === 3)?.prompt || '';
+  return t3 ? `Two reports. (1) ${t1.split('\n')[0]} (2) ${t3.split('\n')[0]} Summarise the main features of each.` : t1;
+}
 
 // ─── Exam timer setting: can students pause their own timer? (admin switch, stored in AppSetting) ───
 const PAUSE_KEY = 'exam.studentPause';
@@ -608,7 +615,8 @@ router.put('/:id/writing/draft', auth, async (req, res) => {
     if (attempt.studentId !== req.user.id) return res.status(403).json({ error: 'Not your attempt' });
     const task1 = String(req.body?.task1 || '').slice(0, 20000);
     const task2 = String(req.body?.task2 || '').slice(0, 20000);
-    await prisma.attempt.update({ where: { id: attemptId }, data: { draft: JSON.stringify({ task1, task2, at: Date.now() }) } });
+    const task3 = String(req.body?.task3 || '').slice(0, 20000);
+    await prisma.attempt.update({ where: { id: attemptId }, data: { draft: JSON.stringify({ task1, task2, ...(task3 ? { task3 } : {}), at: Date.now() }) } });
     res.json({ saved: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1172,7 +1180,13 @@ router.get('/:id/speaking/feedback', auth, async (req, res) => {
 router.post('/:id/writing/submit', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-    const { task1Response, task2Response } = req.body;
+    const { task2Response, task3Response } = req.body;
+    let { task1Response } = req.body;
+    // Three-task papers (two reports + an essay): the second report (taskNumber 3) is saved with Task 1, so both
+    // reports are marked together and the essay (taskNumber 2) is marked as the essay.
+    if (task3Response && String(task3Response).trim()) {
+      task1Response = `${String(task1Response || '').trim()}\n\n--- Second report (pie chart) ---\n${String(task3Response).trim()}`;
+    }
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },

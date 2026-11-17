@@ -313,6 +313,7 @@ export default function WritingExam() {
   const [task, setTask] = useState(1);
   const [task1, setTask1] = useState('');
   const [task2, setTask2] = useState('');
+  const [task3, setTask3] = useState(''); // three-task papers: the second report (taskNumber 3)
   const [timeLeft, setTimeLeft] = useState(null);
   const getFullUrl = (url) => {
     if (!url) return '';
@@ -327,6 +328,7 @@ export default function WritingExam() {
   const timerStartedRef = useRef(false);
   const task1Ref = useRef('');
   const task2Ref = useRef('');
+  const task3Ref = useRef('');
   const teachingModeRef = useRef(false);
   // Admin can switch off the student pause button (Admin dashboard → Exam timer)
   const [canPause, setCanPause] = useState(false);
@@ -354,6 +356,7 @@ export default function WritingExam() {
             const d = best;
             if (d.task1) setTask1(prev => { const v = prev || d.task1; task1Ref.current = v; return v; });
             if (d.task2) setTask2(prev => { const v = prev || d.task2; task2Ref.current = v; return v; });
+            if (d.task3) setTask3(prev => { const v = prev || d.task3; task3Ref.current = v; return v; });
           } catch { /* ignore a broken draft */ }
         }
         const totalSeconds = ((r.data.paper?.timeLimitMin || 60) + (r.data.extraMinutes || 0)) * 60;
@@ -438,9 +441,15 @@ export default function WritingExam() {
     teachingModeRef.current = entering;
   };
 
+  // Task order on screen. With three tasks: Task 1 = taskNumber 1, Task 2 = taskNumber 3 (second report), Task 3 = taskNumber 2 (essay)
+  const hasTask3 = (paper?.writingTasks || []).some(t => t.taskNumber === 3);
+  const ORDER = hasTask3 ? [1, 3, 2] : [1, 2];
+  const shownNo = n => ORDER.indexOf(n) + 1;
+  const nextTask = ORDER[ORDER.indexOf(task) + 1];
+  const prevTask = ORDER[ORDER.indexOf(task) - 1];
   const handleSubmit = async (auto = false) => {
     if (!auto) {
-      if (task === 1) { setTask(2); return; }
+      if (nextTask) { setTask(nextTask); return; }
       setShowConfirm(true);
       return;
     }
@@ -453,7 +462,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: finalTask1, task2Response: finalTask2 },
+        { task1Response: finalTask1, task2Response: finalTask2, ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);
@@ -471,7 +480,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: task1Ref.current || task1, task2Response: task2Ref.current || task2 },
+        { task1Response: task1Ref.current || task1, task2Response: task2Ref.current || task2, ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);
@@ -490,8 +499,8 @@ export default function WritingExam() {
   const saveDraft = useRef(null);
   saveDraft.current = (keepalive = false) => {
     if (!attemptId || attempt?.status === 'COMPLETED' || submitting) return;
-    const body = JSON.stringify({ task1: task1Ref.current || '', task2: task2Ref.current || '' });
-    if (body === draftSaved.current || body === '{"task1":"","task2":""}') return;
+    const body = JSON.stringify({ task1: task1Ref.current || '', task2: task2Ref.current || '', task3: task3Ref.current || '' });
+    if (body === draftSaved.current || body === '{"task1":"","task2":"","task3":""}') return;
     draftSaved.current = body;
     try {
       fetch(`${API_URL}/api/attempts/${attemptId}/writing/draft`, {
@@ -503,12 +512,12 @@ export default function WritingExam() {
   };
   useEffect(() => {
     if (!attempt) return undefined;
-    if (attempt.status !== 'COMPLETED' && (task1 || task2)) {
-      try { localStorage.setItem(`epic-essays-${attemptId}`, JSON.stringify({ task1: task1 || '', task2: task2 || '', at: Date.now() })); } catch { /* storage blocked */ }
+    if (attempt.status !== 'COMPLETED' && (task1 || task2 || task3)) {
+      try { localStorage.setItem(`epic-essays-${attemptId}`, JSON.stringify({ task1: task1 || '', task2: task2 || '', task3: task3 || '', at: Date.now() })); } catch { /* storage blocked */ }
     }
     const t = setTimeout(() => saveDraft.current(), 2000);
     return () => clearTimeout(t);
-  }, [task1, task2, attempt]);
+  }, [task1, task2, task3, attempt]);
   useEffect(() => {
     if (!attempt) return undefined;
     const id = setInterval(() => saveDraft.current(), 20000);
@@ -527,13 +536,20 @@ export default function WritingExam() {
   const writingTask1 = writingTasks.find(t => t.taskNumber === 1);
   const writingTask2 = writingTasks.find(t => t.taskNumber === 2);
   const currentTask = task === 1 ? writingTask1 : task === 2 ? writingTask2 : writingTasks.find(t => t.taskNumber === task);
-  const currentText = task === 1 ? task1 : task2;
+  const chartTask = task === 1 ? writingTask1 : (currentTask?.chartImageUrl ? currentTask : null);
+  const currentText = task === 1 ? task1 : task === 3 ? task3 : task2;
   const setCurrentText = task === 1
     ? (v) => { setTask1(v); task1Ref.current = v; }
-    : (v) => { setTask2(v); task2Ref.current = v; };
+    : task === 3
+      ? (v) => { setTask3(v); task3Ref.current = v; }
+      : (v) => { setTask2(v); task2Ref.current = v; };
+  const writingTask3 = writingTasks.find(t => t.taskNumber === 3);
+  const min3 = writingTask3?.minWords || 150;
+
   const minWords = currentTask?.minWords || (task === 1 ? 150 : 250);
   const min1 = writingTask1?.minWords || 150;
   const min2 = writingTask2?.minWords || 250;
+  const TEXTS = { 1: [task1, min1], 2: [task2, min2], 3: [task3, min3] };
   const wc = wordCount(currentText);
   const wcColor = wc >= minWords ? '#16a34a' : wc >= minWords * 0.8 ? '#d97706' : '#dc2626';
 
@@ -773,11 +789,11 @@ export default function WritingExam() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {/* Task tabs */}
           <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 4 }}>
-            {[1, 2].map(t => (
+            {ORDER.map(t => (
               <button key={t} className="task-tab"
                 style={{ background: task === t ? '#ffffff' : 'transparent', color: task === t ? '#002761' : 'rgba(255,255,255,0.7)', padding: '6px 14px', fontSize: '11px' }}
                 onClick={() => setTask(t)}>
-                Task {t}
+                Task {shownNo(t)}
               </button>
             ))}
           </div>
@@ -846,7 +862,7 @@ export default function WritingExam() {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e3eeff', borderRadius: 20, padding: '4px 14px', marginBottom: 16 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#0056d2', display: 'inline-block' }} />
             <span style={{ fontSize: 10, fontWeight: 700, color: '#0048b0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Writing Task {task}
+              Writing Task {shownNo(task)}
             </span>
           </div>
 
@@ -893,32 +909,32 @@ export default function WritingExam() {
           })()}
 
           {/* Chart for Task 1 */}
-          {task === 1 && writingTask1 && (() => {
-            const tdMeta = parseTaskTableData(writingTask1);
+          {chartTask && (() => {
+            const tdMeta = parseTaskTableData(chartTask);
             const importTaskType = tdMeta?._writingTaskType;
             const tdForGrid = tdMeta ? { ...tdMeta } : null;
             if (tdForGrid) delete tdForGrid._writingTaskType;
             const hasTableGrid = !!(tdForGrid?.headers?.length);
-            const promptPlain = (writingTask1.prompt || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            const promptPlain = (chartTask.prompt || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
             const promptSnippet = promptPlain.slice(0, 160) + (promptPlain.length > 160 ? '…' : '');
             const visualPending =
-              !writingTask1.chartImageUrl &&
+              !chartTask.chartImageUrl &&
               !hasTableGrid &&
               ((importTaskType && VISUAL_WRITING_TASK_TYPES.has(importTaskType)) ||
                 (tdMeta && Object.keys(tdMeta).filter((k) => k !== '_writingTaskType').length > 0));
             const showChartPanel =
-              writingTask1.chartImageUrl ||
-              (writingTask1.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(writingTask1.chartDescription)) ||
+              chartTask.chartImageUrl ||
+              (chartTask.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(chartTask.chartDescription)) ||
               visualPending;
 
             if (!showChartPanel) return null;
 
             return (
             <div style={{ background: '#ffffff', borderRadius: 14, padding: 20, border: '1px solid #e3eeff', marginTop: 16 }}>
-              {writingTask1.chartImageUrl ? (
+              {chartTask.chartImageUrl ? (
                 <div style={{ marginBottom: '24px', animation: 'fadeIn 0.5s ease' }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#0048b0', marginBottom: 12, textAlign: 'center' }}>
-                    {writingTask1.chartDescription || "Figure 1: Task Visualization"}
+                    {chartTask.chartDescription || "Figure 1: Task Visualization"}
                   </p>
                   <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
@@ -933,24 +949,24 @@ export default function WritingExam() {
                   </div>
                   <div style={{ overflow: 'auto', maxHeight: '55vh', borderRadius: 12, border: '1px solid #dae1ed' }}>
                     <img
-                      src={getFullUrl(writingTask1.chartImageUrl)}
+                      src={getFullUrl(chartTask.chartImageUrl)}
                       alt="Task Chart"
                       style={{ width: `${imageZoom * 100}%`, maxWidth: 'none', display: 'block', transition: 'width 0.2s' }}
                     />
                   </div>
                 </div>
-              ) : writingTask1.tableData &&
-                  writingTask1.tableData._writingTaskType &&
-                  writingTask1.tableData._writingTaskType !== 'ESSAY' ? (
+              ) : chartTask.tableData &&
+                  chartTask.tableData._writingTaskType &&
+                  chartTask.tableData._writingTaskType !== 'ESSAY' ? (
                 <ChartRenderer
-                  chartData={writingTask1.tableData}
-                  taskType={writingTask1.tableData._writingTaskType}
+                  chartData={chartTask.tableData}
+                  taskType={chartTask.tableData._writingTaskType}
                 />
-              ) : writingTask1.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(writingTask1.chartDescription) ? (
+              ) : chartTask.chartDescription && !VISUAL_WRITING_TASK_TYPES.has(chartTask.chartDescription) ? (
                 <div style={{ background: '#f7f9fc', border: '2px dashed #c3cddd', borderRadius: 12, padding: 24, textAlign: 'center' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#5b6780', marginBottom: 12 }}>🖼️ CHART DESCRIPTION</div>
                   <p style={{ fontSize: 14, color: '#5b6780', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-                    "{writingTask1.chartDescription}"
+                    "{chartTask.chartDescription}"
                   </p>
                 </div>
               ) : visualPending ? (
@@ -982,7 +998,7 @@ export default function WritingExam() {
 
           {task === 2 && (
             <div style={{ background: '#f0f6ff', borderRadius: 12, padding: 14, border: '1px solid #c9dcfb' }}>
-              <p style={{ fontSize: 11, color: '#0048b0', fontWeight: 600, marginBottom: 6 }}>💡 Task 2 Tips</p>
+              <p style={{ fontSize: 11, color: '#0048b0', fontWeight: 600, marginBottom: 6 }}>💡 Task {shownNo(2)} Tips</p>
               <ul style={{ paddingLeft: 16, margin: 0, fontSize: 11, color: '#003b8f', lineHeight: 1.6 }}>
                 <li>Plan your essay before writing (5 minutes)</li>
                 <li>Write an introduction, 2 body paragraphs, conclusion</li>
@@ -1057,11 +1073,11 @@ export default function WritingExam() {
             data-gramm="false"
             data-gramm_editor="false"
             data-enable-grammarly="false"
-            placeholder={`Write your Task ${task} response here...\n\nMinimum ${minWords} words required.`}
+            placeholder={`Write your Task ${shownNo(task)} response here...\n\nMinimum ${minWords} words required.`}
           />
 
           <div style={{ fontSize: 11, color: '#8495b0', flexShrink: 0 }}>
-            {task === 1
+            {task !== 2
               ? 'Describe the chart: overview → key features → comparisons'
               : 'Structure: Introduction → View 1 → View 2 → Your opinion → Conclusion'}
           </div>
@@ -1071,26 +1087,25 @@ export default function WritingExam() {
       {/* Bottom bar */}
       <div style={{ background: '#ffffff', borderTop: '1px solid #e3eeff', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div className="mobile-hide" style={{ display: 'flex', gap: 12 }}>
-          <span style={{ fontSize: 11, color: '#5b6780' }}>
-            T1: <strong style={{ color: wordCount(task1) >= min1 ? '#16a34a' : '#dc2626' }}>{wordCount(task1)}</strong>
-          </span>
-          <span style={{ fontSize: 11, color: '#5b6780' }}>
-            T2: <strong style={{ color: wordCount(task2) >= min2 ? '#16a34a' : '#dc2626' }}>{wordCount(task2)}</strong>
-          </span>
+          {ORDER.map(n => (
+            <span key={n} style={{ fontSize: 11, color: '#5b6780' }}>
+              T{shownNo(n)}: <strong style={{ color: wordCount(TEXTS[n][0]) >= TEXTS[n][1] ? '#16a34a' : '#dc2626' }}>{wordCount(TEXTS[n][0])}</strong>
+            </span>
+          ))}
         </div>
 
         <div style={{ display: 'flex', gap: 8, width: '100%', justifyContent: 'flex-end' }}>
-          {task === 2 && (
+          {prevTask && (
             <button className="nav-btn"
-              onClick={() => setTask(1)}
+              onClick={() => setTask(prevTask)}
               style={{ background: '#e8eef7', color: '#5b6780', border: '1px solid #dae1ed', padding: '8px 16px', fontSize: '12px' }}>
-              ← T1
+              ← T{shownNo(prevTask)}
             </button>
           )}
 
-          {task === 1 ? (
+          {nextTask ? (
             <button className="nav-btn"
-              onClick={() => setTask(2)}
+              onClick={() => setTask(nextTask)}
               style={{ background: '#0056d2', color: '#ffffff', padding: '8px 16px', fontSize: '12px' }}>
               Next Task →
             </button>
@@ -1109,15 +1124,15 @@ export default function WritingExam() {
       <EndTestConfirm
         open={showConfirm}
         unit="tasks"
-        answered={[task1, task2].filter(x => wordCount(x) > 0).length}
-        total={2}
-        unanswered={[task1, task2].map((x, i) => (wordCount(x) > 0 ? null : i + 1)).filter(Boolean)}
+        answered={ORDER.filter(n => wordCount(TEXTS[n][0]) > 0).length}
+        total={ORDER.length}
+        unanswered={ORDER.map((n, i) => (wordCount(TEXTS[n][0]) > 0 ? null : i + 1)).filter(Boolean)}
         onBack={() => setShowConfirm(false)}
         onEnd={confirmSubmit}
-        onJump={n => { setTask(n); setShowConfirm(false); }}
+        onJump={n => { setTask(ORDER[n - 1] || n); setShowConfirm(false); }}
         extra={
           <div style={{ background: '#f0f6ff', borderRadius: 10, padding: '10px 14px', marginTop: 14, border: '1px solid #e3eeff' }}>
-            {[[1, task1, min1], [2, task2, min2]].map(([n, txt, min]) => (
+            {ORDER.map((t, i) => [i + 1, TEXTS[t][0], TEXTS[t][1]]).map(([n, txt, min]) => (
               <div key={n} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 14 }}>
                 <span style={{ color: '#5b6780' }}>Task {n}</span>
                 <span style={{ fontWeight: 700, color: wordCount(txt) >= min ? '#16a34a' : '#dc2626' }}>

@@ -183,7 +183,7 @@ async function seedPaperList(prisma, list, orderBase, opts = {}) {
     await prisma.$transaction(async tx => {
       const paper = await tx.paper.create({
         data: {
-          paperCode: p.code, testType: p.testType, track: 'GENERAL', title: p.title, timeLimitMin: p.timeLimitMin,
+          paperCode: p.code, testType: p.testType, track: opts.track || 'GENERAL', title: p.title, timeLimitMin: p.timeLimitMin,
           instructions: p.instructions, status: opts.status || 'ACTIVE', assignedBatches: 'ALL', order: orderBase + pi,
           ...(opts.source ? { source: opts.source } : {}),
           audioScript: p.audioScript || null,

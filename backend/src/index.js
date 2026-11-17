@@ -151,6 +151,12 @@ require('./ensureSchema').ensureSchema(prisma)
       console.error('[general-english] reading 008 part 2 skipped:', e.message);
     }
     try {
+      const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');
+      console.log('[ielts] new reading paper:', JSON.stringify(await addSleepTreesReading(prisma)));
+    } catch (e) {
+      console.error('[ielts] new reading paper skipped:', e.message);
+    }
+    try {
       const { renameIeltsPapers } = require('../scripts/ieltsNaming');
       console.log('[ielts] paper names:', JSON.stringify(await renameIeltsPapers(prisma)));
     } catch (e) {

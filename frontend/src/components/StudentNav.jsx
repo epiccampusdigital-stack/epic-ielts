@@ -47,15 +47,21 @@ export default function StudentNav({ active = null }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const avatarRef = useRef(null);
   const [unread, setUnread] = useState(0);
+  const [toAnswer, setToAnswer] = useState(0);
   useEffect(() => {
     let alive = true;
     const load = () => axios.get(`${API_URL}/api/chat/unread`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-      .then(r => { if (alive) setUnread(r.data.unread || 0); }).catch(() => {});
+      .then(r => { if (alive) { setUnread(r.data.unread || 0); setToAnswer(r.data.unanswered || 0); } }).catch(() => {});
     load(); const id = setInterval(load, 30000);
-    return () => { alive = false; clearInterval(id); };
+    window.addEventListener('epic-chat-refresh', load);
+    return () => { alive = false; clearInterval(id); window.removeEventListener('epic-chat-refresh', load); };
   }, []);
-  const badge = item => (item.badge && unread > 0
-    ? <span style={{ marginLeft: 6, background: '#d30a28', color: '#fff', borderRadius: 50, fontSize: 11, fontWeight: 700, padding: '1px 7px', verticalAlign: 'middle' }}>{unread > 99 ? '99+' : unread}</span>
+  // Blue count = unread messages; red dot = teacher questions not answered yet
+  const badge = item => (item.badge && (unread > 0 || toAnswer > 0)
+    ? <>
+      {unread > 0 && <span style={{ marginLeft: 6, background: '#0866ff', color: '#fff', borderRadius: 50, fontSize: 11, fontWeight: 700, padding: '1px 7px', verticalAlign: 'middle' }}>{unread > 99 ? '99+' : unread}</span>}
+      {toAnswer > 0 && <span title={`${toAnswer} question${toAnswer === 1 ? '' : 's'} from your teacher to answer`} aria-label={`${toAnswer} questions to answer`} style={{ display: 'inline-block', marginLeft: 6, width: 10, height: 10, borderRadius: '50%', background: '#d30a28', boxShadow: '0 0 0 2px #fff', verticalAlign: 'middle' }} />}
+    </>
     : null);
   const mobileBtnRef = useRef(null);
   const mobilePanelRef = useRef(null);

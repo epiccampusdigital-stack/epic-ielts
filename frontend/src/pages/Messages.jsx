@@ -175,6 +175,10 @@ const CSS = `
 .mc-search { display: flex; align-items: center; gap: 8px; background: #f0f2f5; border-radius: 50px; padding: 0 14px; height: 40px; color: #65676b; }
 .mc-search input { border: 0; background: transparent; outline: none; font: inherit; font-size: 15px; flex: 1; min-width: 0; color: #050505; }
 .mc-list { overflow-y: auto; padding: 4px 8px 12px; flex: 1; }
+.mc-qdot { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 50px; background: #d30a28; color: #fff; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; animation: mcPulse 2s ease-in-out infinite; }
+.mc-qdot-sm { min-width: 10px; width: 10px; height: 10px; padding: 0; box-shadow: none; }
+@keyframes mcPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .mc-qdot { animation: none; } }
 .mc-item { width: 100%; display: flex; gap: 12px; align-items: center; padding: 10px; border: 0; border-radius: 10px; background: transparent; cursor: pointer; font: inherit; text-align: left; }
 .mc-item:hover { background: #f2f2f2; }
 .mc-item.on { background: #ebf5ff; }
@@ -283,6 +287,9 @@ export default function Messages() {
   useEffect(() => { const f = () => setNarrow(window.innerWidth < 820); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
   const loadGroups = useCallback(() => axios.get(`${API_URL}/api/chat/groups`, api()).then(r => setGroups(r.data)).catch(e => { setGroups([]); flash(errText(e)); }), [flash]);
   useEffect(() => { loadGroups(); const id = setInterval(loadGroups, 15000); return () => clearInterval(id); }, [loadGroups]);
+  // red dots: teacher questions this student has not answered yet
+  const toAnswer = (groups || []).reduce((n, g) => n + (g.unanswered || 0), 0);
+  const answered = useCallback(() => { loadGroups(); window.dispatchEvent(new Event('epic-chat-refresh')); }, [loadGroups]);
   useEffect(() => { if (staff) axios.get(`${API_URL}/api/chat/papers`, api()).then(r => setPapers(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, [staff]);
   useEffect(() => { if (staff && picker === 'lesson' && lessons == null) axios.get(`${API_URL}/api/chat/lessons`, api()).then(r => setLessons(Array.isArray(r.data) ? r.data : [])).catch(() => setLessons([])); }, [staff, picker, lessons]);
   useEffect(() => { try { if (sel) sessionStorage.setItem('chat-group', String(sel)); } catch { /* blocked */ } }, [sel]);
@@ -587,7 +594,7 @@ export default function Messages() {
                 <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                   {[['chats', 'Chats'], ['tasks', 'My tasks']].map(([k, label]) => (
                     <button key={k} type="button" role="tab" aria-selected={sideTab === k} onClick={() => setSideTab(k)}
-                      style={{ height: 34, padding: '0 14px', borderRadius: 50, border: 0, background: sideTab === k ? '#e7f0fe' : '#f0f2f5', color: sideTab === k ? T.primary : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+                      style={{ height: 34, padding: '0 14px', borderRadius: 50, border: 0, background: sideTab === k ? '#e7f0fe' : '#f0f2f5', color: sideTab === k ? T.primary : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{label}{k === 'tasks' && toAnswer > 0 && <span className="mc-qdot" title={`${toAnswer} question${toAnswer === 1 ? '' : 's'} to answer`}>{toAnswer}</span>}</button>
                   ))}
                 </div>
               )}
@@ -619,7 +626,9 @@ export default function Messages() {
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{g.last ? `${g.last.by === user.name ? 'You' : g.last.by.split(' ')[0]}: ${g.last.text || ''}` : `${g.members} member${g.members === 1 ? '' : 's'}`}</span>
                       {g.last && <span style={{ flex: 'none' }}>· {shortWhen(g.last.at)}</span>}
                     </span>
+                    {!staff && g.unanswered > 0 && <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#d30a28', marginTop: 1 }}>{g.unanswered} question{g.unanswered === 1 ? '' : 's'} to answer</span>}
                   </span>
+                  {!staff && g.unanswered > 0 && <span className="mc-qdot" title={`${g.unanswered} question${g.unanswered === 1 ? '' : 's'} from your teacher not answered yet`} aria-label={`${g.unanswered} questions not answered`}>{g.unanswered}</span>}
                   {g.unread > 0 && <span style={{ width: 12, height: 12, borderRadius: '50%', background: T.primary, flex: 'none' }} aria-label={`${g.unread} unread`} />}
                 </button>
               ))}
@@ -693,7 +702,8 @@ export default function Messages() {
                               {!staff && m.askAnswer && m.imageUrl && (!m.myAnswer || m.myAnswer.status !== 'GOOD' || !m.myAnswer.checkedAt) && (
                                 <button type="button" onClick={() => setViewer(m.id)} style={{ display: 'block', marginTop: 10, height: 40, padding: '0 18px', border: 0, borderRadius: 50, background: '#050505', color: '#fff', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', fontFamily: 'inherit' }}>Open photo and answer side by side</button>
                               )}
-                              {!staff && m.askAnswer && <AnswerBox m={m} flash={flash} onSaved={a => setMsgFields(m.id, { myAnswer: a, status: { ...(m.status || {}), done: true } })} />}
+                              {!staff && m.askAnswer && !m.myAnswer && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 13, fontWeight: 700, color: '#d30a28' }}><span className="mc-qdot mc-qdot-sm" />Not answered yet</div>}
+                              {!staff && m.askAnswer && <AnswerBox m={m} flash={flash} onSaved={a => { setMsgFields(m.id, { myAnswer: a, status: { ...(m.status || {}), done: true } }); answered(); }} />}
                               {!staff && m.isTask && m.status && !m.paper && !m.askAnswer && (
                                 m.status.done
                                   ? <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓ {!m.lesson && <button type="button" onClick={() => markDone(m, true)} style={{ border: 0, background: 'none', color: 'inherit', opacity: .7, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', fontFamily: 'inherit' }}>undo</button>}</div>
@@ -831,7 +841,7 @@ export default function Messages() {
       </div>
       {viewer && (() => { const vm = data?.messages.find(x => x.id === viewer); return vm && vm.imageUrl ? (
         <ImageViewer m={vm} src={imgSrc(vm.imageUrl)} staff={staff} flash={flash} onClose={() => setViewer(null)}
-          onSaved={a => setMsgFields(vm.id, { myAnswer: a, status: { ...(vm.status || {}), done: true } })} />
+          onSaved={a => { setMsgFields(vm.id, { myAnswer: a, status: { ...(vm.status || {}), done: true } }); answered(); }} />
       ) : null; })()}
       {wordPop && (
         <div role="dialog" aria-label="Word meaning" onMouseDown={e => e.stopPropagation()}

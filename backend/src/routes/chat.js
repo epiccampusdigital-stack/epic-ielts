@@ -37,6 +37,17 @@ async function unreadFor(studentId, groups) {
   return out;
 }
 
+// Student: teacher questions (askAnswer) from the last 30 days with no answer from me yet, per group
+async function unansweredFor(studentId, groupIds) {
+  const out = {};
+  if (!groupIds.length) return out;
+  const qs = await prisma.chatMessage.findMany({ where: { groupId: { in: groupIds }, askAnswer: true, deletedAt: null, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { id: true, groupId: true } });
+  if (!qs.length) return out;
+  const done = new Set((await prisma.chatAnswer.findMany({ where: { studentId, messageId: { in: qs.map(q => q.id) } }, select: { messageId: true } })).map(a => a.messageId));
+  for (const q of qs) if (!done.has(q.id)) out[q.groupId] = (out[q.groupId] || 0) + 1;
+  return out;
+}
+
 // My groups (staff: every group)
 router.get('/groups', auth, wrap(async (req, res) => {
   const where = isStaff(req) ? { archived: req.query.archived === '1' } : { archived: false, members: { some: { studentId: req.user.id } } };
@@ -49,9 +60,10 @@ router.get('/groups', auth, wrap(async (req, res) => {
     },
   });
   const unread = await unreadFor(req.user.id, groups);
+  const unanswered = isStaff(req) ? {} : await unansweredFor(req.user.id, groups.map(g => g.id));
   res.json(groups.map(g => ({
     id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
-    joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0,
+    joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0, unanswered: unanswered[g.id] || 0,
     last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : g.messages[0].kind === 'FILE' ? 'Sent a PDF' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
 }));
@@ -60,7 +72,8 @@ router.get('/groups', auth, wrap(async (req, res) => {
 router.get('/unread', auth, wrap(async (req, res) => {
   const groups = await prisma.chatGroup.findMany({ where: { archived: false, members: { some: { studentId: req.user.id } } }, include: { members: { where: { studentId: req.user.id }, select: { lastReadAt: true } } } });
   const u = await unreadFor(req.user.id, groups);
-  res.json({ unread: Object.values(u).reduce((a, b) => a + b, 0) });
+  const un = isStaff(req) ? {} : await unansweredFor(req.user.id, groups.map(g => g.id));
+  res.json({ unread: Object.values(u).reduce((a, b) => a + b, 0), unanswered: Object.values(un).reduce((a, b) => a + b, 0) });
 }));
 
 // Staff: create / edit groups

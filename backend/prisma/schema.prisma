@@ -485,6 +485,8 @@ model ChatMessage {
   paperId    Int?
   lessonId   Int?      // a Learn lesson shared in the chat
   imageUrl   String?   // a photo sent in the chat
+  fileUrl    String?   // a PDF sent in the chat
+  fileName   String?
   isTask     Boolean   @default(false) // students get a notification; teachers see who did it
   askAnswer  Boolean   @default(false) // students write an answer; teachers check each one
   pinned     Boolean   @default(false) // shown at the top of the chat

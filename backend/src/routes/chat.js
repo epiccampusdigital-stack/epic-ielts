@@ -13,6 +13,10 @@ const lastPost = new Map(); // studentId -> time of last message (simple flood c
 const multer = require('multer');
 const photoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 }, fileFilter: (req, f, cb) => cb(null, /^image\/(jpeg|png|webp|gif|heic|heif)$/.test(f.mimetype)) });
 // Only accept photo links that this server created
+const fileUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: (req, f, cb) => cb(null, f.mimetype === 'application/pdf' || /\.pdf$/i.test(f.originalname || '')) });
+// Only accept PDF links that this server created
+const okFile = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/(raw|image)\/upload\/.+\/epic-ielts\/chat-files\//.test(u) || /^\/uploads\/files\/chat_[\w.-]+\.pdf$/.test(u));
+const cleanName = n => String(n || 'document.pdf').replace(/[^\w .()-]+/g, '').trim().slice(0, 120) || 'document.pdf';
 const okImage = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/.+\/epic-ielts\/chat\//.test(u) || /^\/uploads\/images\/chat_[\w.-]+$/.test(u));
 
 async function canSee(req, groupId) {
@@ -48,7 +52,7 @@ router.get('/groups', auth, wrap(async (req, res) => {
   res.json(groups.map(g => ({
     id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
     joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0,
-    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
+    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : g.messages[0].kind === 'FILE' ? 'Sent a PDF' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
 }));
 
@@ -164,7 +168,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const answerRows = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking }, ...(isStaff(req) ? {} : { studentId: req.user.id }) } }) : [];
   const parentIds = [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))];
   const parents = parentIds.length ? await prisma.chatMessage.findMany({ where: { id: { in: parentIds } }, select: { id: true, senderName: true, text: true, imageUrl: true, kind: true, deletedAt: true } }) : [];
-  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
   const replyCounts = rows.length ? await prisma.chatMessage.groupBy({ by: ['replyToId'], where: { replyToId: { in: rows.map(r => r.id) }, deletedAt: null }, _count: { _all: true } }) : [];
   const replyCount = new Map(replyCounts.map(c => [c.replyToId, c._count._all]));
   const pinRow = await prisma.chatMessage.findFirst({ where: { groupId, pinned: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true, text: true, senderName: true, kind: true } });
@@ -176,12 +180,13 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     canPost: isStaff(req) || (!group.onlyStaffPost && !!member),
     unsent,
     serverTime,
-    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson' })[pinRow.kind] || '' } : null,
+    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[pinRow.kind] || '' } : null,
     updatedIds: changed.map(c => c.id),
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
       deleted: !!m.deletedAt, text: m.deletedAt ? '' : m.text, paper: m.paperId && !m.deletedAt ? (pm.get(m.paperId) || { id: m.paperId, title: 'Paper not available', missing: true }) : null,
       imageUrl: m.deletedAt ? null : m.imageUrl || null,
+      fileUrl: m.deletedAt ? null : m.fileUrl || null, fileName: m.deletedAt ? null : m.fileName || null,
       lesson: m.lessonId && !m.deletedAt ? (lm.get(m.lessonId) || { id: m.lessonId, title: 'Lesson not available', missing: true }) : null,
       mine: m.senderId === req.user.id,
       highlights: m.deletedAt ? [] : (Array.isArray(m.highlights) ? m.highlights : []),
@@ -222,6 +227,33 @@ router.post('/photo', auth, (req, res, next) => (isStaff(req) ? next() : res.sta
   });
 });
 
+// Upload a PDF for a chat message (staff). Returns the link and the file name to send with the message.
+router.post('/file', auth, (req, res, next) => (isStaff(req) ? next() : res.status(403).json({ error: 'Only teachers can send files.' })), (req, res) => {
+  fileUpload.single('file')(req, res, async err => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'The PDF is too big (20 MB max).' : 'Could not read the file.' });
+    if (!req.file) return res.status(400).json({ error: 'Choose a PDF file.' });
+    const fileName = cleanName(req.file.originalname).replace(/(\.pdf)?$/i, '.pdf');
+    try {
+      const { cloudinary, isLocal } = require('../config/cloudinary');
+      const name = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      if (!isLocal && cloudinary) {
+        const url = await new Promise((resolve, reject) => {
+          const s = cloudinary.uploader.upload_stream({ resource_type: 'raw', folder: 'epic-ielts/chat-files', public_id: `${name}.pdf` }, (e, r) => (e ? reject(e) : resolve(r.secure_url)));
+          s.end(req.file.buffer);
+        });
+        return res.json({ url, fileName });
+      }
+      const fs = require('fs'); const path = require('path');
+      const dir = path.join(__dirname, '../../uploads/files'); fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${name}.pdf`), req.file.buffer);
+      res.json({ url: `/uploads/files/${name}.pdf`, fileName });
+    } catch (e) {
+      console.error('[chat] file upload', e.message);
+      res.status(500).json({ error: 'Could not upload the PDF. Please try again.' });
+    }
+  });
+});
+
 router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   const { group, member } = await canSee(req, groupId);
@@ -235,7 +267,9 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const paperId = isStaff(req) ? parseInt(req.body?.paperId, 10) || null : null;
   const lessonId = isStaff(req) && !paperId ? parseInt(req.body?.lessonId, 10) || null : null;
   const imageUrl = isStaff(req) && okImage(req.body?.imageUrl) ? req.body.imageUrl : null;
-  if (!text && !paperId && !lessonId && !imageUrl) return res.status(400).json({ error: 'Type a message' });
+  const fileUrl = isStaff(req) && okFile(req.body?.fileUrl) ? req.body.fileUrl : null;
+  const fileName = fileUrl ? cleanName(req.body?.fileName) : null;
+  if (!text && !paperId && !lessonId && !imageUrl && !fileUrl) return res.status(400).json({ error: 'Type a message' });
   if (!isStaff(req)) {
     const last = lastPost.get(req.user.id) || 0;
     if (Date.now() - last < 2000) return res.status(429).json({ error: 'Slow down a little.' });
@@ -247,7 +281,7 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
   const askAnswer = isStaff(req) && !paperId && !lessonId && !!req.body?.askAnswer;
   const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId || askAnswer);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : 'TEXT', text, paperId, lessonId, imageUrl, isTask, askAnswer, replyToId: parent ? parent.id : null } });
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : fileUrl ? 'FILE' : 'TEXT', text, paperId, lessonId, imageUrl, fileUrl, fileName, isTask, askAnswer, replyToId: parent ? parent.id : null } });
   if (parent) await prisma.chatMessage.update({ where: { id: parent.id }, data: { editedAt: new Date() } }); // reply counts update live
   res.json({ id: m.id });
 }));

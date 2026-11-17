@@ -239,6 +239,8 @@ export default function Messages() {
   const [text, setText] = useState('');
   const [attach, setAttach] = useState(null); // { kind: 'paper'|'lesson', item }
   const [photo, setPhoto] = useState(null); // { url, preview, uploading }
+  const [pdf, setPdf] = useState(null); // { url, name, uploading }
+  const pdfRef = useRef(null);
   const fileRef = useRef(null);
   const [picker, setPicker] = useState(null); // 'menu' | 'paper' | 'lesson'
   const [papers, setPapers] = useState([]);
@@ -312,7 +314,19 @@ export default function Messages() {
     return () => clearInterval(id);
   }, [sel, loadMessages]);
 
-  const canSend = !sending && !photo?.uploading && (text.trim() || attach || photo?.url);
+  const canSend = !sending && !photo?.uploading && !pdf?.uploading && (text.trim() || attach || photo?.url || pdf?.url);
+  const pickPdf = async file => {
+    if (!file) return;
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) { flash('Choose a PDF file.'); return; }
+    if (file.size > 20 * 1024 * 1024) { flash('The PDF is too big (20 MB max).'); return; }
+    setPdf({ name: file.name, uploading: true }); setPicker(null);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${API_URL}/api/chat/file`, fd, api());
+      setPdf({ name: r.data.fileName || file.name, url: r.data.url, uploading: false });
+      inputRef.current?.focus();
+    } catch (e) { setPdf(null); flash(errText(e)); }
+  };
   const pickPhoto = async file => {
     if (!file || !file.type?.startsWith('image/')) return;
     if (file.size > 8 * 1024 * 1024) { flash('The photo is too big (8 MB max).'); return; }
@@ -335,11 +349,13 @@ export default function Messages() {
         paperId: attach?.kind === 'paper' ? attach.item.id : undefined,
         lessonId: attach?.kind === 'lesson' ? attach.item.id : undefined,
         imageUrl: photo?.url || undefined,
+        fileUrl: pdf?.url || undefined,
+        fileName: pdf?.url ? pdf.name : undefined,
         isTask: asTask || !!attach || askAnswer,
         askAnswer: askAnswer && !attach ? true : undefined,
         replyToId: replyTo ? replyTo.id : undefined,
       }, api());
-      setReplyTo(null); setText(''); setAttach(null); setPhoto(null); setPicker(null); setAsTask(false); setAskAnswer(false);
+      setReplyTo(null); setText(''); setAttach(null); setPhoto(null); setPdf(null); setPicker(null); setAsTask(false); setAskAnswer(false);
       await loadMessages(false); scrollDown(); loadGroups();
       inputRef.current?.focus();
     } catch (e) { flash(errText(e)); }
@@ -593,6 +609,16 @@ export default function Messages() {
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
                               {m.replyTo && <ReplyQuote reply={m.replyTo} mine={m.mine} onClick={() => jumpTo(m.replyTo.id)} />}
                               {(m.isTask || m.pinned) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}</div>}
+                              {m.fileUrl && (
+                                <a href={imgSrc(m.fileUrl)} target="_blank" rel="noreferrer" onClick={staff ? undefined : () => track(m.id, 'LINK')}
+                                  style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#fff', color: '#050505', textDecoration: 'none', borderRadius: 12, padding: '10px 12px', marginBottom: m.text ? 8 : 0, border: '1px solid #e4e6eb', maxWidth: 420 }}>
+                                  <span style={{ width: 40, height: 50, borderRadius: 6, background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>PDF</span>
+                                  <span style={{ flex: 1, minWidth: 0 }}>
+                                    <b style={{ display: 'block', fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.fileName || 'Document.pdf'}</b>
+                                    <span style={{ fontSize: 13, color: '#0866ff', fontWeight: 700 }}>Tap to open</span>
+                                  </span>
+                                </a>
+                              )}
                               {m.imageUrl && (
                                 <button type="button" onClick={() => setViewer(m.id)} title="Open the photo full screen" style={{ display: 'block', position: 'relative', padding: 0, border: 0, background: 'none', cursor: 'zoom-in', marginBottom: m.text ? 8 : 0, width: '100%', maxWidth: 680 }}>
                                   <img src={imgSrc(m.imageUrl)} alt="Photo sent in the chat" loading="lazy" onLoad={() => { const el = listRef.current; if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) el.scrollTop = el.scrollHeight; }}
@@ -652,6 +678,7 @@ export default function Messages() {
                       <button type="button" className="mc-chip" onClick={() => { setPicker('paper'); setPickQ(''); }}>Share a paper</button>
                       <button type="button" className="mc-chip" onClick={() => { setPicker('lesson'); setPickQ(''); }}>Share a lesson</button>
                       <button type="button" className="mc-chip" onClick={() => fileRef.current?.click()}>Send a photo</button>
+                      <button type="button" className="mc-chip" onClick={() => pdfRef.current?.click()}>Send a PDF</button>
                     </div>
                   )}
                   {staff && (picker === 'paper' || picker === 'lesson') && (
@@ -678,6 +705,14 @@ export default function Messages() {
                     </div>
                   )}
                   {staff && <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />}
+                  {staff && <input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={e => { pickPdf(e.target.files?.[0]); e.target.value = ''; }} />}
+                  {pdf && (
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, background: '#f0f2f5', borderRadius: 12, padding: '8px 10px' }}>
+                      <span style={{ width: 40, height: 48, borderRadius: 6, background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', opacity: pdf.uploading ? 0.5 : 1 }}>PDF</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}><b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdf.name}</b><span style={{ fontSize: 13, color: '#65676b' }}>{pdf.uploading ? 'Uploading…' : 'Ready. Add a message or press send.'}</span></span>
+                      <button type="button" onClick={() => setPdf(null)} aria-label="Remove PDF" style={{ width: 28, height: 28, borderRadius: '50%', border: 0, background: '#050505', color: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: 1, flex: 'none' }}>×</button>
+                    </div>
+                  )}
                   {photo && (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
                       <div style={{ position: 'relative' }}>
@@ -709,11 +744,11 @@ export default function Messages() {
                     </div>
                   )}
                   <div className="mc-bar">
-                    {staff && <button type="button" className="mc-iconbtn" onClick={() => setPicker(p => (p ? null : 'menu'))} aria-label="Share a paper, lesson or photo" title="Share a paper, lesson or photo" style={{ height: 42, width: 42 }}>{Icon.plus}</button>}
+                    {staff && <button type="button" className="mc-iconbtn" onClick={() => setPicker(p => (p ? null : 'menu'))} aria-label="Share a paper, lesson, photo or PDF" title="Share a paper, lesson, photo or PDF" style={{ height: 42, width: 42 }}>{Icon.plus}</button>}
                     <textarea ref={inputRef} className="mc-input" value={text} onChange={e => setText(e.target.value)} rows={Math.min(5, Math.max(1, text.split('\n').length))}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
                       onPaste={e => { if (!staff) return; const f = [...(e.clipboardData?.files || [])].find(x => x.type.startsWith('image/')); if (f) { e.preventDefault(); pickPhoto(f); } }}
-                      placeholder={attach || photo ? 'Add a note (optional)' : 'Aa'} aria-label="Message" />
+                      placeholder={attach || photo || pdf ? 'Add a note (optional)' : 'Aa'} aria-label="Message" />
                     <button type="button" className="mc-send" onClick={send} disabled={!canSend} aria-label="Send">{Icon.send}</button>
                   </div>
                 </div>

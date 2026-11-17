@@ -178,13 +178,14 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const task1Prompt = reportPrompt(attempt.paper?.writingTasks);
-    const task2Prompt = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
+    const task2Prompt = essayPrompt(attempt.paper?.writingTasks);
 
     const { gradeWritingAttempt } = require('../services/claudeMarking');
     aiFeedback = await gradeWritingAttempt(
       sub.task1Response, task1Prompt,
       sub.task2Response, task2Prompt,
-      studentName
+      studentName, undefined,
+      twoReports(attempt.paper?.writingTasks) ? { secondReport: true, task2Min: (attempt.paper.writingTasks.find(t => t.taskNumber === 3)?.minWords) || 150 } : undefined
     );
   } else {
     const answerReview = savedAnswers.map((a) => ({
@@ -242,7 +243,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 
       try {
         const task1P = reportPrompt(attempt.paper?.writingTasks);
-        const task2P = attempt.paper?.writingTasks?.find(t => t.taskNumber === 2)?.prompt || '';
+        const task2P = essayPrompt(attempt.paper?.writingTasks);
         if (task1P || task2P) {
           const Anthropic = require('@anthropic-ai/sdk');
           const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -300,8 +301,18 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 
 // ─── ROUTES ────────────────────────────────────────────────────────────────
 
+// Two reports and no essay (taskNumber 1 and 3, no taskNumber 2): the second report is stored and marked as Task 2.
+function twoReports(tasks) {
+  const nums = (tasks || []).map(t => t.taskNumber);
+  return nums.includes(3) && !nums.includes(2);
+}
+function essayPrompt(tasks) {
+  const t = (tasks || []).find(x => x.taskNumber === (twoReports(tasks) ? 3 : 2));
+  return t?.prompt || '';
+}
 // Task 1 prompt for marking. On a three-task paper both report prompts are joined (the second report is taskNumber 3).
 function reportPrompt(tasks) {
+  if (twoReports(tasks)) return (tasks || []).find(t => t.taskNumber === 1)?.prompt || '';
   const t1 = (tasks || []).find(t => t.taskNumber === 1)?.prompt || '';
   const t3 = (tasks || []).find(t => t.taskNumber === 3)?.prompt || '';
   return t3 ? `Two reports. (1) ${t1.split('\n')[0]} (2) ${t3.split('\n')[0]} Summarise the main features of each.` : t1;
@@ -1180,18 +1191,20 @@ router.get('/:id/speaking/feedback', auth, async (req, res) => {
 router.post('/:id/writing/submit', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
-    const { task2Response, task3Response } = req.body;
-    let { task1Response } = req.body;
-    // Three-task papers (two reports + an essay): the second report (taskNumber 3) is saved with Task 1, so both
-    // reports are marked together and the essay (taskNumber 2) is marked as the essay.
-    if (task3Response && String(task3Response).trim()) {
-      task1Response = `${String(task1Response || '').trim()}\n\n--- Second report (pie chart) ---\n${String(task3Response).trim()}`;
-    }
+    const { task3Response } = req.body;
+    let { task1Response, task2Response } = req.body;
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       include: { student: { select: STUDENT_PUBLIC }, paper: { include: { writingTasks: true } } }
     });
+    if (attempt && twoReports(attempt.paper?.writingTasks)) {
+      // Two reports, no essay: the second report (taskNumber 3) is saved and marked as Task 2
+      task2Response = task3Response || '';
+    } else if (task3Response && String(task3Response).trim()) {
+      // Three tasks (two reports + an essay): the second report is saved with Task 1, the essay stays Task 2
+      task1Response = `${String(task1Response || '').trim()}\n\n--- Second report (pie chart) ---\n${String(task3Response).trim()}`;
+    }
 
     console.log(`Step 1: Attempt ${attemptId} data fetched`);
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });

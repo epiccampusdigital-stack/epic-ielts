@@ -462,7 +462,9 @@ export default function WritingExam() {
 
   // Task order on screen. With three tasks: Task 1 = taskNumber 1, Task 2 = taskNumber 3 (second report), Task 3 = taskNumber 2 (essay)
   const hasTask3 = (paper?.writingTasks || []).some(t => t.taskNumber === 3);
-  const ORDER = hasTask3 ? [1, 3, 2] : [1, 2];
+  const hasTask2 = !hasTask3 || (paper?.writingTasks || []).some(t => t.taskNumber === 2);
+  // Only the tasks this paper has (a paper with taskNumber 1 and 3 and no essay shows two tasks)
+  const ORDER = (hasTask3 ? [1, 3, 2] : [1, 2]).filter(n => n !== 2 || hasTask2);
   const shownNo = n => ORDER.indexOf(n) + 1;
   const nextTask = ORDER[ORDER.indexOf(task) + 1];
   const prevTask = ORDER[ORDER.indexOf(task) - 1];
@@ -481,7 +483,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: finalTask1, task2Response: finalTask2, ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
+        { task1Response: finalTask1, ...(hasTask2 ? { task2Response: finalTask2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);
@@ -499,7 +501,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: task1Ref.current || task1, task2Response: task2Ref.current || task2, ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
+        { task1Response: task1Ref.current || task1, ...(hasTask2 ? { task2Response: task2Ref.current || task2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
         api()
       );
       navigate(`/exam/${attemptId}/writing-results`);

@@ -61,4 +61,16 @@ async function addParkLifeWriting(prisma) {
   return { added: n };
 }
 
-module.exports = { PAPER, addParkLifeWriting, splitParkLifeWriting };
+// No time for the essay: remove it (taskNumber 2). The map (1) and pie chart (3) stay, and are marked as two reports.
+async function dropParkLifeEssay(prisma) {
+  const paper = await prisma.paper.findFirst({ where: { paperCode: PAPER.code, testType: 'WRITING' }, include: { writingTasks: true } });
+  if (!paper) return { skipped: 'paper not found' };
+  const essay = paper.writingTasks.find(t => t.taskNumber === 2);
+  if (!essay || !paper.writingTasks.some(t => t.taskNumber === 3)) return { skipped: 'nothing to remove' };
+  await prisma.writingSubmission.updateMany({ where: { writingTaskId: essay.id }, data: { writingTaskId: null } });
+  await prisma.writingTask.delete({ where: { id: essay.id } });
+  await prisma.paper.update({ where: { id: paper.id }, data: { instructions: 'Two tasks. Task 1: the maps. Task 2: the pie chart. Both tasks count equally.' } });
+  return { removedEssay: true };
+}
+
+module.exports = { PAPER, addParkLifeWriting, splitParkLifeWriting, dropParkLifeEssay };

@@ -140,7 +140,9 @@ Return ONLY JSON:
   }
 }
 
-async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand) {
+async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand, opts = {}) {
+  // opts.secondReport: Task 2 is a second report (Task 1 style, opts.task2Min words), both tasks count equally
+  const R2 = !!(opts && opts.secondReport); const t2Min = (opts && opts.task2Min) || (R2 ? 150 : 250);
   try {
     console.log('gradeWritingAttempt called for:', studentName);
 
@@ -187,8 +189,8 @@ async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, ta
       : `Task 1 word count: approximately ${task1Words} words (minimum 150).${task1Words < 150 ? ' Student is UNDER the word limit — penalise Task Achievement.' : ''}`;
 
     const task2TooShort = task2Words < 20
-      ? `WARNING: Student wrote only ${task2Words} words. Task 2 minimum is 250 words. Penalise heavily — Task Response cannot exceed Band 3.`
-      : `Task 2 word count: approximately ${task2Words} words (minimum 250).${task2Words < 250 ? ' Student is UNDER the word limit — penalise Task Response.' : ''}`;
+      ? `WARNING: Student wrote only ${task2Words} words. Task 2 minimum is ${t2Min} words. Penalise heavily — Task ${R2 ? 'Achievement' : 'Response'} cannot exceed Band 3.`
+      : `Task 2 word count: approximately ${task2Words} words (minimum ${t2Min}).${task2Words < t2Min ? ` Student is UNDER the word limit — penalise Task ${R2 ? 'Achievement' : 'Response'}.` : ''}`;
 
     const prompt = `You are a strict, certified IELTS examiner marking an Academic Writing test.
 You must apply the official IELTS band descriptors STRICTLY and honestly.
@@ -228,8 +230,9 @@ ${task2Words < 5 ? '[NO RESPONSE — Student left Task 2 blank]' : (task2Respons
 ═══════════════════════════════════
 
 MARKING RULES YOU MUST FOLLOW:
-1. Task 1 is worth 33% and Task 2 is worth 67% of the overall band.
-   Overall = (task1Band * 0.33) + (task2Band * 0.67). Round to nearest 0.5.
+${R2 ? `1. This paper has TWO REPORTS and no essay. Task 2 is a second Task 1-style report (a chart), marked with the Task 1 criteria (Task Achievement). Put the Task Achievement score in the "taskResponse" field for Task 2.
+   Both tasks are worth 50%. Overall = (task1Band * 0.5) + (task2Band * 0.5). Round to nearest 0.5.` : `1. Task 1 is worth 33% and Task 2 is worth 67% of the overall band.
+   Overall = (task1Band * 0.33) + (task2Band * 0.67). Round to nearest 0.5.`}
 2. If a response is off-topic, award maximum Band 3 for Task Achievement/Response.
 3. If a response is under the word limit, reduce Task Achievement/Response by at least 1 band.
 4. If a response is mostly copied from the prompt, award Band 1 for Task Achievement.

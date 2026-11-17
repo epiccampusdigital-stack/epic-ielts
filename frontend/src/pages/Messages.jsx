@@ -197,6 +197,10 @@ const CSS = `
 .mc-row.staff:not(.mine) .mc-bub { background: #fffbef; border-color: #f6ead0; }
 .mc-row:not(.mine).first .mc-bub { border-bottom-left-radius: 6px; } .mc-row:not(.mine).mid .mc-bub { border-top-left-radius: 6px; border-bottom-left-radius: 6px; } .mc-row:not(.mine).last .mc-bub { border-top-left-radius: 6px; }
 .mc-row.mine.first .mc-bub { border-bottom-right-radius: 6px; } .mc-row.mine.mid .mc-bub { border-top-right-radius: 6px; border-bottom-right-radius: 6px; } .mc-row.mine.last .mc-bub { border-top-right-radius: 6px; }
+.mc-tools { display: flex; gap: 6px; flex-wrap: wrap; margin: 5px 0 2px 4px; }
+.mc-tools button { border: 1px solid #dfe3e8; background: #fff; color: #334155; border-radius: 50px; padding: 4px 11px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.mc-tools button:hover { background: #f0f6ff; border-color: #c9dcfb; color: #0048b0; }
+.mc-tools button:disabled { opacity: .5; }
 .mc-bub.cardonly { background: transparent !important; padding: 0; }
 .mc-bub.gone { background: transparent !important; border: 1px solid #e4e6eb; color: #8a8d91 !important; font-style: italic; }
 .mc-meta { display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: #8a8d91; margin: 3px 6px 0; flex-wrap: wrap; }
@@ -270,7 +274,10 @@ export default function Messages() {
   const [sideTab, setSideTab] = useState('chats');
   const [replyTo, setReplyTo] = useState(null); // message being replied to
   const [repliesFor, setRepliesFor] = useState(null);
-  const [viewer, setViewer] = useState(null); // message id whose photo is open full screen
+  const [viewer, setViewer] = useState(null);
+  const [wordPop, setWordPop] = useState(null); // { word, x, y, meaning?, loading }
+  const [speaking, setSpeaking] = useState(null); // message id being read aloud
+  const [quickBusy, setQuickBusy] = useState(null); // message id whose photo is open full screen
   const flash = useCallback(m => { setMsg(m); setTimeout(() => setMsg(''), 3500); }, []);
 
   useEffect(() => { const f = () => setNarrow(window.innerWidth < 820); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
@@ -368,8 +375,46 @@ export default function Messages() {
   const setMsgFields = (id, fields) => setData(d => (d ? { ...d, messages: d.messages.map(m => (m.id === id ? { ...m, ...fields } : m)) } : d));
   // Teacher highlights: select words in a message, pick a colour. Students see it on their next refresh (a few seconds).
   const onFeedMouseUp = () => {
-    if (!staff) return;
-    setTimeout(() => { const at = selectionInMessage(); setHlBar(at); }, 0);
+    if (staff) { setTimeout(() => { const at = selectionInMessage(); setHlBar(at); }, 0); return; }
+    // Students: select (double-tap) a word to see what it means
+    setTimeout(() => {
+      const sel = window.getSelection && window.getSelection();
+      const word = String(sel?.toString() || '').trim().replace(/^[^A-Za-z]+|[^A-Za-z'-]+$/g, '');
+      if (!word || word.length < 2 || word.length > 30 || /\s{2,}/.test(word) || word.split(/\s+/).length > 3 || !/^[A-Za-z][A-Za-z' -]*$/.test(word)) return;
+      const r = sel.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : null;
+      const box = (sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement)?.closest?.('[data-hl-id]');
+      const sentence = box ? box.textContent.slice(0, 300) : '';
+      lookUpWord(word.toLowerCase(), sentence, r ? { x: r.left + r.width / 2, y: r.bottom } : { x: window.innerWidth / 2, y: 200 });
+    }, 0);
+  };
+  const lookUpWord = async (word, sentence, at) => {
+    setWordPop({ word, ...at, loading: true });
+    try {
+      const r = await axios.get(`${API_URL}/api/dictionary`, { ...api(), params: { word, sentence } });
+      setWordPop({ word, ...at, meaning: r.data.meaning, partOfSpeech: r.data.partOfSpeech, phonetic: r.data.phonetic, example: r.data.example });
+    } catch { setWordPop({ word, ...at, meaning: 'No meaning found. Try selecting just one word.' }); }
+  };
+  const speak = (m, text) => {
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) { flash('Your browser cannot read aloud.'); return; }
+      if (speaking === m.id) { synth.cancel(); setSpeaking(null); return; }
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(String(text || '').replace(/https?:\/\/\S+/g, 'link'));
+      u.lang = 'en-GB'; u.rate = 0.9;
+      const v = synth.getVoices().find(x => /en-GB/i.test(x.lang)) || synth.getVoices().find(x => /^en/i.test(x.lang));
+      if (v) u.voice = v;
+      u.onend = () => setSpeaking(null); u.onerror = () => setSpeaking(null);
+      setSpeaking(m.id); synth.speak(u);
+    } catch { setSpeaking(null); }
+  };
+  const quickReply = async (m, text) => {
+    setQuickBusy(`${m.id}:${text}`);
+    try {
+      await axios.post(`${API_URL}/api/chat/groups/${sel}/messages`, { text, replyToId: m.id }, api());
+      await loadMessages(false); scrollDown();
+    } catch (e) { flash(errText(e)); }
+    setQuickBusy(null);
   };
   const saveHighlights = async (id, list) => {
     const before = data?.messages.find(m => m.id === id)?.highlights || [];
@@ -465,6 +510,7 @@ export default function Messages() {
   const pill = (primary) => ({ height: 36, padding: '0 14px', borderRadius: 50, border: primary ? 0 : '1px solid #e4e6eb', background: primary ? T.primary : '#fff', color: primary ? '#fff' : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' });
 
   // Group messages into runs from the same sender (Messenger-style bubbles), with day separators
+  const toolIds = new Set((data?.messages || []).filter(x => x.staff && !x.deleted && (x.text || '').trim()).slice(-5).map(x => x.id));
   const feed = useMemo(() => {
     const ms = data?.messages || [];
     return ms.map((m, i) => {
@@ -475,7 +521,7 @@ export default function Messages() {
       const nextDay = next && new Date(next.createdAt).toDateString() !== new Date(m.createdAt).toDateString();
       const joinNext = next && !nextDay && next.senderId === m.senderId && !gap(m, next);
       const pos = joinPrev && joinNext ? 'mid' : joinPrev ? 'last' : joinNext ? 'first' : 'single';
-      return { m, newDay, pos, showName: !m.mine && !joinPrev, showAvatar: !m.mine && !joinNext, showTime: !joinNext };
+      return { m, newDay, pos, showName: !m.mine && !joinPrev, showAvatar: !m.mine && !joinNext, showTime: !joinNext, tools: !staff && m.staff && !m.deleted && toolIds.has(m.id) };
     });
   }, [data]);
 
@@ -596,6 +642,7 @@ export default function Messages() {
                 <button type="button" className="mc-iconbtn" onClick={() => setShowInfo(v => !v)} aria-label="Group details" title="Group details">{Icon.info}</button>
               </div>
 
+              {!staff && <div style={{ fontSize: 12.5, color: '#65676b', padding: '6px 16px', background: '#f7f9fc', borderBottom: '1px solid #eef0f3', flex: 'none' }}>Tip: double-tap (or select) any word to see its meaning · 🔊 Listen reads the teacher's message aloud</div>}
               <PinBar pin={data.pin} staff={staff} onJump={() => jumpTo(data.pin.id)} onUnpin={() => togglePin({ id: data.pin.id, pinned: true })} />
               <div ref={listRef} className="mc-feed" onMouseUp={onFeedMouseUp} onTouchEnd={onFeedMouseUp}>
                 {data.messages.length === 0 && (
@@ -605,7 +652,7 @@ export default function Messages() {
                     <div style={{ color: '#65676b', fontSize: 14 }}>No messages yet. Say hello.</div>
                   </div>
                 )}
-                {feed.map(({ m, newDay, pos, showName, showAvatar, showTime }) => {
+                {feed.map(({ m, newDay, pos, showName, showAvatar, showTime, tools }) => {
                   const cardOnly = !m.deleted && !m.text && (m.paper || m.lesson || m.imageUrl) && !m.isTask;
                   return (
                     <Fragment key={m.id}>
@@ -655,6 +702,16 @@ export default function Messages() {
                               {!staff && m.isTask && m.status?.done && m.paper && <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓</div>}
                             </>)}
                           </div>
+                          {!staff && m.staff && !m.deleted && (m.text || '').trim() && (
+                            <div className="mc-tools">
+                              <button type="button" onClick={() => speak(m, m.text)}>{speaking === m.id ? '■ Stop' : '🔊 Listen'}</button>
+                              {tools && <>
+                                <button type="button" disabled={!!quickBusy} onClick={() => quickReply(m, '✓ Got it, thank you!')}>✓ Got it</button>
+                                <button type="button" disabled={!!quickBusy} onClick={() => quickReply(m, "🤔 I don't understand. Can you explain again, please?")}>🤔 I don't understand</button>
+                                <button type="button" onClick={() => startReply(m)}>↩ Reply</button>
+                              </>}
+                            </div>
+                          )}
                           {(showTime || m.replies > 0 || (staff && (m.stats || m.answers) && !m.deleted)) && (
                             <div className="mc-meta">
                               {showTime && <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
@@ -776,6 +833,20 @@ export default function Messages() {
         <ImageViewer m={vm} src={imgSrc(vm.imageUrl)} staff={staff} flash={flash} onClose={() => setViewer(null)}
           onSaved={a => setMsgFields(vm.id, { myAnswer: a, status: { ...(vm.status || {}), done: true } })} />
       ) : null; })()}
+      {wordPop && (
+        <div role="dialog" aria-label="Word meaning" onMouseDown={e => e.stopPropagation()}
+          style={{ position: 'fixed', zIndex: 75, left: Math.min(window.innerWidth - 300, Math.max(8, wordPop.x - 140)), top: Math.min(window.innerHeight - 190, wordPop.y + 8), width: 280, background: '#fff', borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,.2)', border: '1px solid #e4e6eb', padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <b style={{ fontSize: 16, color: '#0048b0' }}>{wordPop.word}</b>
+            {wordPop.partOfSpeech && <span style={{ fontSize: 12, color: '#65676b', fontStyle: 'italic' }}>{wordPop.partOfSpeech}</span>}
+            <span style={{ flex: 1 }} />
+            <button type="button" onClick={() => speak({ id: 'w' }, wordPop.word)} aria-label="Say the word" style={{ border: 0, background: '#f0f2f5', borderRadius: 50, width: 28, height: 28, cursor: 'pointer' }}>🔊</button>
+            <button type="button" onClick={() => setWordPop(null)} aria-label="Close" style={{ border: 0, background: 'none', fontSize: 18, cursor: 'pointer', color: '#65676b' }}>×</button>
+          </div>
+          <div style={{ fontSize: 14, lineHeight: 1.5, marginTop: 4, color: '#1c1e21' }}>{wordPop.loading ? 'Looking it up…' : wordPop.meaning}</div>
+          {wordPop.example && <div style={{ fontSize: 13, color: '#65676b', marginTop: 4, fontStyle: 'italic' }}>"{wordPop.example}"</div>}
+        </div>
+      )}
       {staff && <HighlightToolbar at={hlBar} onPick={pickColour} onClear={clearColour} onClose={() => setHlBar(null)} />}
       {answersFor && <AnswersModal messageId={answersFor} flash={flash} onClose={() => setAnswersFor(null)} onChanged={() => loadMessages(false)} />}
       {repliesFor && <RepliesModal messageId={repliesFor} staff={staff} flash={flash} onClose={() => setRepliesFor(null)}

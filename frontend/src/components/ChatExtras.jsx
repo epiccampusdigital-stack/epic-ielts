@@ -109,13 +109,18 @@ export function StateBadge({ state, score }) {
 export function AnswerBox({ m, onSaved, flash, startOpen }) {
   const a = m.myAnswer;
   const [editing, setEditing] = useState(!!startOpen && (!a || (a.checkedAt && a.status !== 'GOOD')));
-  const [text, setText] = useState(a?.text || '');
+  // Unsent answers are kept on this device, so a refresh or closing the app does not lose them
+  const draftKey = `epic-ans-${m.id}`;
+  const readDraft = () => { try { return localStorage.getItem(draftKey) || ''; } catch { return ''; } };
+  const [text, setText] = useState(() => readDraft() || a?.text || '');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (!editing) setText(a?.text || ''); }, [a?.text, editing]);
+  useEffect(() => { if (!editing && !readDraft()) setText(a?.text || ''); }, [a?.text, editing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!editing && !a && readDraft()) setEditing(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const change = v => { setText(v); try { if (v.trim()) localStorage.setItem(draftKey, v); else localStorage.removeItem(draftKey); } catch { /* storage blocked */ } };
   const save = async () => {
     if (!text.trim()) return;
     setBusy(true);
-    try { const r = await axios.post(`${API_URL}/api/chat/messages/${m.id}/answer`, { text }, api()); onSaved(r.data); setEditing(false); flash('Answer sent to your teacher.'); }
+    try { const r = await axios.post(`${API_URL}/api/chat/messages/${m.id}/answer`, { text }, api()); try { localStorage.removeItem(draftKey); } catch { /* blocked */ } onSaved(r.data); setEditing(false); flash('Answer sent to your teacher.'); }
     catch (e) { flash(errText(e)); }
     setBusy(false);
   };
@@ -127,11 +132,11 @@ export function AnswerBox({ m, onSaved, flash, startOpen }) {
     return (
       <div style={box}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#65676b', marginBottom: 6 }}>Your answer (only your teacher sees it)</div>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={Math.min(14, Math.max(6, text.split('\n').length + 1))} autoFocus={!startOpen}
+        <textarea value={text} onChange={e => change(e.target.value)} rows={Math.min(14, Math.max(6, text.split('\n').length + 1))} autoFocus={!startOpen}
           placeholder="Write your answer here…" style={{ width: '100%', border: '1px solid #ccd0d5', borderRadius: 10, padding: '9px 11px', font: 'inherit', fontSize: 16, lineHeight: 1.55, resize: 'vertical', boxSizing: 'border-box', minHeight: 140 }} />
         <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
           <button type="button" onClick={save} disabled={busy || !text.trim()} style={{ height: 36, padding: '0 16px', border: 0, borderRadius: 50, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: busy || !text.trim() ? 0.6 : 1 }}>{busy ? 'Sending…' : a ? 'Send again' : 'Send answer'}</button>
-          <button type="button" onClick={() => { setEditing(false); setText(a?.text || ''); }} style={{ height: 36, padding: '0 14px', border: '1px solid #ccd0d5', borderRadius: 50, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+          <button type="button" onClick={() => { setEditing(false); change(''); setText(a?.text || ''); }} style={{ height: 36, padding: '0 14px', border: '1px solid #ccd0d5', borderRadius: 50, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
           <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#8a8d91' }}>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span>
         </div>
       </div>

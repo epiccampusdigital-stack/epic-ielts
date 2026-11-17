@@ -300,6 +300,24 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 
 // ─── ROUTES ────────────────────────────────────────────────────────────────
 
+// ─── Exam timer setting: can students pause their own timer? (admin switch, stored in AppSetting) ───
+const PAUSE_KEY = 'exam.studentPause';
+async function studentPauseAllowed() {
+  try { const row = await prisma.appSetting.findUnique({ where: { key: PAUSE_KEY } }); return row ? row.value === 'on' : true; } catch { return true; }
+}
+router.get('/exam-settings', auth, async (req, res) => {
+  res.json({ studentPause: await studentPauseAllowed() });
+});
+router.put('/admin/exam-settings', auth, async (req, res) => {
+  const adminEmail = process.env.ADMIN_EMAIL || 'epiccampusdigital@gmail.com';
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'TEACHER' && req.user.email !== adminEmail) return res.status(403).json({ error: 'Admin only' });
+  const value = req.body?.studentPause ? 'on' : 'off';
+  try {
+    await prisma.appSetting.upsert({ where: { key: PAUSE_KEY }, update: { value }, create: { key: PAUSE_KEY, value } });
+    res.json({ studentPause: value === 'on' });
+  } catch (e) { res.status(500).json({ error: 'Could not save the setting.' }); }
+});
+
 router.get('/history/mine', auth, async (req, res) => {
   try {
     // Optional ?track=IELTS|GENERAL keeps band averages from mixing tracks. No param = everything (old behaviour).

@@ -294,6 +294,7 @@ export default function AdminDashboard() {
 
             {/* Teaching Mode Global Control */}
             <TeachingModeControl />
+            <StudentPauseControl />
 
             {/* TABS CONTAINER */}
             <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #dae1ed', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -716,6 +717,32 @@ export default function AdminDashboard() {
                </div>
             </div>
          )}
+      </div>
+   );
+}
+
+// Admin switch: can students pause their own exam timer? Off = the timer always runs.
+function StudentPauseControl() {
+   const [on, setOn] = useState(null);
+   const [busy, setBusy] = useState(false);
+   const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+   useEffect(() => { axios.get(`${API_URL}/api/attempts/exam-settings`, api()).then(r => setOn(r.data.studentPause !== false)).catch(() => setOn(true)); }, []);
+   const toggle = async () => {
+      setBusy(true);
+      try { const r = await axios.put(`${API_URL}/api/attempts/admin/exam-settings`, { studentPause: !on }, api()); setOn(r.data.studentPause); }
+      catch { alert('Could not change the setting. Please try again.'); }
+      setBusy(false);
+   };
+   if (on === null) return null;
+   return (
+      <div style={{ background: on ? '#fff7ed' : '#f0fdf4', border: `2px solid ${on ? '#fb923c' : '#22c55e'}`, borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+         <div>
+            <div style={{ fontWeight: 700, color: on ? '#9a3412' : '#166534' }}>{on ? 'Students CAN pause their own exam timer' : 'Students CANNOT pause the exam timer'}</div>
+            <div style={{ fontSize: 13, color: on ? '#c2410c' : '#15803d', marginTop: 2 }}>{on ? 'They see a Teaching / Exam Mode button in Reading and Writing tests. Turn this off for real exam conditions.' : 'The pause button is hidden. The timer always runs, like the real IELTS exam.'}</div>
+         </div>
+         <button onClick={toggle} disabled={busy} style={{ padding: '10px 18px', borderRadius: 8, border: 0, background: on ? '#16a34a' : '#ea580c', color: '#fff', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            {busy ? 'Saving…' : on ? 'Stop students pausing' : 'Allow students to pause'}
+         </button>
       </div>
    );
 }

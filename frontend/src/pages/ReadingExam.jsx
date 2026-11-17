@@ -33,6 +33,13 @@ export default function ReadingExam() {
    const timerStartedRef = useRef(false);
    const answersRef = useRef({});
    const teachingModeRef = useRef(false);
+   // Admin can switch off the student pause button (Admin dashboard → Exam timer)
+   const [canPause, setCanPause] = useState(false);
+   useEffect(() => {
+      axios.get(`${API_URL}/api/attempts/exam-settings`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+         .then(r => { const ok = r.data?.studentPause !== false; setCanPause(ok); if (!ok) { teachingModeRef.current = false; setTeachingMode(false); } })
+         .catch(() => setCanPause(false));
+   }, []);
 
    useEffect(() => {
       const loadExam = async () => {
@@ -126,6 +133,7 @@ export default function ReadingExam() {
    }, [timeLeft]);
 
    const toggleTeachingMode = () => {
+      if (!canPause && !teachingModeRef.current) return;
       const entering = !teachingMode;
       setTeachingMode(entering);
       teachingModeRef.current = entering;
@@ -1033,7 +1041,8 @@ export default function ReadingExam() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-               <button
+               {canPause && (
+<button
                   onClick={toggleTeachingMode}
                   style={{
                      display: 'flex',
@@ -1058,6 +1067,7 @@ export default function ReadingExam() {
                >
                   {teachingMode ? 'TEACHING' : 'EXAM MODE'}
                </button>
+)}
 
                <div style={{
                   background: timerStyle.bg,

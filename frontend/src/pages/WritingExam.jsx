@@ -328,6 +328,13 @@ export default function WritingExam() {
   const task1Ref = useRef('');
   const task2Ref = useRef('');
   const teachingModeRef = useRef(false);
+  // Admin can switch off the student pause button (Admin dashboard → Exam timer)
+  const [canPause, setCanPause] = useState(false);
+  useEffect(() => {
+     axios.get(`${API_URL}/api/attempts/exam-settings`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+        .then(r => { const ok = r.data?.studentPause !== false; setCanPause(ok); if (!ok) { teachingModeRef.current = false; setTeachingMode(false); } })
+        .catch(() => setCanPause(false));
+  }, []);
 
   useEffect(() => {
     if (!attemptId) return;
@@ -425,6 +432,7 @@ export default function WritingExam() {
     : '#002761';
 
   const toggleTeachingMode = () => {
+      if (!canPause && !teachingModeRef.current) return;
     const entering = !teachingMode;
     setTeachingMode(entering);
     teachingModeRef.current = entering;
@@ -774,7 +782,8 @@ export default function WritingExam() {
             ))}
           </div>
 
-          <button
+          {canPause && (
+<button
             onClick={toggleTeachingMode}
             style={{
               display: 'flex',
@@ -799,6 +808,7 @@ export default function WritingExam() {
           >
             {teachingMode ? 'TEACHING' : 'EXAM MODE'}
           </button>
+)}
 
           {/* Timer */}
           <div style={{

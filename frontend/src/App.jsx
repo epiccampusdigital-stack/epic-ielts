@@ -27,6 +27,7 @@ import LearnPage from './pages/LearnPage';
 import EverydayEnglish from './pages/EverydayEnglish';
 import AILearn from './pages/AILearn';
 import Messages from './pages/Messages';
+import BoardView from './pages/BoardView';
 import LearnModule from './pages/LearnModule';
 import LearnLesson from './pages/LearnLesson';
 import AdminProgram from './pages/AdminProgram';
@@ -118,6 +119,7 @@ function App() {
       <Route path="/everyday" element={
         <RequireStudentAccess><EverydayEnglish /></RequireStudentAccess>
       } />
+      <Route path="/board/:token" element={<BoardView />} />
       <Route path="/messages" element={
         <RequireAuth><Messages /></RequireAuth>
       } />

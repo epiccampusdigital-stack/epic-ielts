@@ -227,6 +227,72 @@ router.post('/photo', auth, (req, res, next) => (isStaff(req) ? next() : res.sta
   });
 });
 
+// ─── View-only link (no login): staff make one secret link that shows every group and all messages ───
+const VIEW_KEY = 'chat.viewToken';
+async function viewToken() { const r = await prisma.appSetting.findUnique({ where: { key: VIEW_KEY } }).catch(() => null); return r?.value || null; }
+router.get('/view-link', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can share the board.' });
+  res.json({ token: await viewToken() });
+}));
+router.post('/view-link', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can share the board.' });
+  let token = await viewToken();
+  if (!token || req.body?.renew) {
+    token = require('crypto').randomBytes(18).toString('base64url');
+    await prisma.appSetting.upsert({ where: { key: VIEW_KEY }, update: { value: token }, create: { key: VIEW_KEY, value: token } });
+  }
+  res.json({ token });
+}));
+router.delete('/view-link', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can share the board.' });
+  await prisma.appSetting.deleteMany({ where: { key: VIEW_KEY } });
+  res.json({ token: null });
+}));
+async function checkView(req, res) {
+  const t = await viewToken();
+  if (!t || String(req.params.token || '') !== t) { res.status(404).json({ error: 'This link is not active. Ask the teacher for a new one.' }); return false; }
+  return true;
+}
+router.get('/view/:token/groups', wrap(async (req, res) => {
+  if (!(await checkView(req, res))) return;
+  const groups = await prisma.chatGroup.findMany({ where: { archived: false }, orderBy: { id: 'asc' }, include: { _count: { select: { members: true, messages: true } }, messages: { where: { deletedAt: null }, orderBy: { id: 'desc' }, take: 1 } } });
+  res.json(groups.map(g => ({ id: g.id, name: g.name, description: g.description, members: g._count.members, messages: g._count.messages,
+    last: g.messages[0] ? { text: (g.messages[0].text || '').slice(0, 80) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[g.messages[0].kind] || '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null })));
+}));
+router.get('/view/:token/groups/:id/messages', wrap(async (req, res) => {
+  if (!(await checkView(req, res))) return;
+  const groupId = parseInt(req.params.id, 10);
+  const group = await prisma.chatGroup.findUnique({ where: { id: groupId } });
+  if (!group || group.archived) return res.status(404).json({ error: 'Group not found' });
+  const before = parseInt(req.query.before, 10) || 0;
+  let rows = await prisma.chatMessage.findMany({ where: { groupId, deletedAt: null, ...(before ? { id: { lt: before } } : {}) }, orderBy: { id: 'desc' }, take: 300 });
+  const more = rows.length === 300;
+  rows = rows.reverse();
+  const papers = await prisma.paper.findMany({ where: { id: { in: [...new Set(rows.filter(r => r.paperId).map(r => r.paperId))] } }, select: { id: true, title: true, testType: true } });
+  const pm = new Map(papers.map(p => [p.id, p]));
+  const lessons = await prisma.learnLesson.findMany({ where: { id: { in: [...new Set(rows.filter(r => r.lessonId).map(r => r.lessonId))] } }, select: { id: true, title: true } });
+  const lm = new Map(lessons.map(l => [l.id, l]));
+  const tracked = rows.filter(m => m.isTask || m.paperId || m.lessonId || HAS_LINK.test(m.text));
+  const stats = await trackStats(groupId, tracked);
+  const asking = rows.filter(m => m.askAnswer).map(m => m.id);
+  const answers = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking } }, select: { messageId: true, checkedAt: true } }) : [];
+  const parents = await prisma.chatMessage.findMany({ where: { id: { in: [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))] } }, select: { id: true, senderName: true, text: true, kind: true } });
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[p.kind] || '' }]));
+  res.json({
+    group: { id: group.id, name: group.name, description: group.description },
+    more,
+    messages: rows.map(m => ({
+      id: m.id, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask, askAnswer: !!m.askAnswer, pinned: !!m.pinned,
+      text: m.text, imageUrl: m.imageUrl || null, fileUrl: m.fileUrl || null, fileName: m.fileName || null,
+      highlights: Array.isArray(m.highlights) ? m.highlights : [],
+      paper: m.paperId ? (pm.get(m.paperId) || { title: 'Paper' }) : null, lesson: m.lessonId ? (lm.get(m.lessonId) || { title: 'Lesson' }) : null,
+      replyTo: m.replyToId ? parentMap.get(m.replyToId) || null : null,
+      stats: stats.get(m.id) || null,
+      answers: m.askAnswer ? { total: answers.filter(a => a.messageId === m.id).length, checked: answers.filter(a => a.messageId === m.id && a.checkedAt).length } : null,
+    })),
+  });
+}));
+
 // Upload a PDF for a chat message (staff). Returns the link and the file name to send with the message.
 router.post('/file', auth, (req, res, next) => (isStaff(req) ? next() : res.status(403).json({ error: 'Only teachers can send files.' })), (req, res) => {
   fileUpload.single('file')(req, res, async err => {

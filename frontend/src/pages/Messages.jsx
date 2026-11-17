@@ -408,6 +408,15 @@ export default function Messages() {
     setReplyTo({ id: m.id, by: m.senderName, text: (m.text || '').slice(0, 160), imageUrl: m.imageUrl });
     setTimeout(() => inputRef.current?.focus(), 50);
   };
+  // A secret link that shows every group and all messages without logging in (view only)
+  const shareBoard = async () => {
+    try {
+      const r = await axios.post(`${API_URL}/api/chat/view-link`, {}, api());
+      const link = `${window.location.origin}/board/${r.data.token}`;
+      try { await navigator.clipboard.writeText(link); flash('View-only link copied. Anyone with it can read the messages, but cannot post.'); }
+      catch { window.prompt('Copy this view-only link:', link); }
+    } catch (e) { flash(errText(e)); }
+  };
   const jumpTo = id => {
     const el = document.getElementById(`msg-${id}`);
     if (!el) { flash('That message is older. Scroll up to find it.'); return; }
@@ -535,6 +544,11 @@ export default function Messages() {
                       style={{ height: 34, padding: '0 14px', borderRadius: 50, border: 0, background: sideTab === k ? '#e7f0fe' : '#f0f2f5', color: sideTab === k ? T.primary : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
                   ))}
                 </div>
+              )}
+              {staff && (
+                <button type="button" onClick={shareBoard} style={{ width: '100%', marginBottom: 10, height: 38, border: '1.5px solid #0866ff', borderRadius: 50, background: '#fff', color: '#0866ff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  🔗 Copy view-only link (no login)
+                </button>
               )}
               {sideTab === 'chats' && <label className="mc-search">{Icon.search}<input value={listQ} onChange={e => setListQ(e.target.value)} placeholder="Search chats" aria-label="Search chats" /></label>}
               {!staff && sideTab === 'chats' && (

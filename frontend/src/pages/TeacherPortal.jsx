@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import API_URL from '../api';
 import { api, P, C, btn, input, card, pretty, prettyDate, errText, readUser, Pill, DayView, Materials, TeacherGuide } from './AdminProgram';
 
 // Teacher portal: a short, clean version of the programme tracker for teachers.
@@ -17,7 +18,7 @@ const SKILL = { READING: ['Reading', '#0056d2', '#e8f0fe'], LISTENING: ['Listeni
 export default function TeacherPortal() {
   const navigate = useNavigate();
   const user = readUser();
-  const [tab, setTab] = useState(() => { try { return sessionStorage.getItem('tp-tab') || 'schedule'; } catch { return 'schedule'; } });
+  const [tab, setTab] = useState(() => { try { return sessionStorage.getItem('tp-tab') || 'home'; } catch { return 'home'; } });
   const [mine, setMine] = useState(null);
   const [programId, setProgramId] = useState(null);
   const [data, setData] = useState(null);
@@ -47,7 +48,7 @@ export default function TeacherPortal() {
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/teacher-login'); }
 
   const first = String(mine?.teacher?.name || user.name || 'Teacher').split(' ')[0];
-  const tabs = [['schedule', 'My schedule'], ['today', "Today's class"], ['papers', 'Papers & answers'], ['books', 'My books']];
+  const tabs = [['home', 'Home'], ['schedule', 'My schedule'], ['today', "Today's class"], ['papers', 'Papers & answers'], ['books', 'My books']];
 
   return (
     <div className="tp" style={{ minHeight: '100vh', background: C.bg, fontFamily: "'Source Sans Pro', 'Source Sans 3', Arial, sans-serif", color: C.text }}>
@@ -99,11 +100,147 @@ export default function TeacherPortal() {
             <div style={{ color: C.muted, marginTop: 4 }}>Ask the admin to link it in the Teachers tab. You can still open the papers and answers.</div>
           </div>
         )}
+        {mine && tab === 'home' && <Home me={mine.teacher} mine={mine.sessions || []} all={all} data={data} programId={programId} go={setTab} />}
         {mine && tab === 'schedule' && <MySchedule me={mine.teacher} mine={mine.sessions || []} all={all} data={data} />}
         {mine && tab === 'today' && (programId && data ? <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={false} onChanged={load} goReminders={() => {}} /> : <p style={{ color: C.muted }}>No programme is running.</p>)}
         {mine && tab === 'papers' && <PaperLibrary flash={flash} />}
         {mine && tab === 'books' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
       </main>
+    </div>
+  );
+}
+
+// ─── Home: the important things at a glance ─────────────────────────────────
+function Home({ me, mine, all, data, programId, go }) {
+  const navigate = useNavigate();
+  const today = todayColombo();
+  const nowHM = new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
+  const [results, setResults] = useState(null);
+  const [unread, setUnread] = useState({ unread: 0 });
+  useEffect(() => {
+    if (programId) axios.get(`${P}/${programId}/results`, api()).then(r => setResults(r.data)).catch(() => setResults({ students: [], attempts: [] }));
+    axios.get(`${API_URL}/api/chat/unread`, api()).then(r => setUnread(r.data)).catch(() => {});
+  }, [programId]);
+
+  const live = mine.filter(s => s.status !== 'CANCELLED' && s.date);
+  const upcoming = live.filter(s => s.date > today || (s.date === today && s.endTime > nowHM)).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+  const next = upcoming[0];
+  const nowClass = next && next.date === today && next.startTime <= nowHM;
+  const wk = mondayOf(today), wkEnd = addDays(wk, 6);
+  const thisWeek = live.filter(s => s.date >= wk && s.date <= wkEnd);
+  const done = live.filter(s => s.status === 'DONE').length;
+  const needNotes = live.filter(s => s.status === 'SCHEDULED' && (s.date < today || (s.date === today && s.endTime <= nowHM))).length;
+  const students = (data?.program?.students || []).filter(x => x.active).length;
+  const dayNo = data?.todayDay?.dayNumber; const total = data?.program?.days?.length || 0;
+  const dateOfDay = new Map((data?.program?.days || []).map(d => [d.dayNumber, d.date]));
+  const todayAll = (all || []).filter(s => s.subject !== 'BREAK' && s.status !== 'CANCELLED' && dateOfDay.get(s.dayNumber) === today).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const recent = (results?.attempts || []).filter(a => a.endedAt).sort((a, b) => new Date(b.endedAt) - new Date(a.endedAt)).slice(0, 6);
+  const weekPcts = (results?.attempts || []).filter(a => a.pct != null && a.endedAt && a.endedAt.slice(0, 10) >= wk).map(a => a.pct);
+  const weekAvg = weekPcts.length ? Math.round(weekPcts.reduce((x, y) => x + y, 0) / weekPcts.length) : null;
+  const untilText = s => {
+    const mins = Math.round((new Date(`${s.date}T${s.startTime}:00+05:30`) - Date.now()) / 60000);
+    if (mins <= 0) return 'Happening now';
+    if (mins < 60) return `Starts in ${mins} min`;
+    if (mins < 24 * 60) return `Starts in ${Math.round(mins / 60)} h`;
+    const d = Math.round((new Date(`${s.date}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) / 86400000);
+    return d === 1 ? 'Tomorrow' : `In ${d} days`;
+  };
+  const tile = (k, v, sub, color, onClick) => (
+    <button type="button" onClick={onClick} disabled={!onClick} style={{ textAlign: 'left', font: 'inherit', cursor: onClick ? 'pointer' : 'default', background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, padding: '14px 16px', borderTop: `4px solid ${color}`, color: C.text }}>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: C.muted }}>{k}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, marginTop: 2 }}>{v}</div>
+      <div style={{ fontSize: 13, color: C.muted }}>{sub}</div>
+    </button>
+  );
+  const pc = v => (v == null ? C.muted : v >= 75 ? '#0e9f6e' : v >= 50 ? '#b45309' : '#dc2626');
+
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ color: C.muted, fontSize: 14.5 }}>{prettyDate(today)}{dayNo ? ` · Day ${dayNo} of ${total} · Week ${Math.ceil(dayNo / 7)}` : ' · No class day today'}{data?.todayDay?.theme ? ` · ${data.todayDay.theme}` : ''}</div>
+
+      <div style={{ background: nowClass ? 'linear-gradient(135deg,#0e9f6e,#047857)' : 'linear-gradient(135deg,#002761,#0056d2)', color: '#fff', borderRadius: 18, padding: '20px 22px', display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.8, letterSpacing: '.05em' }}>{nowClass ? 'YOUR CLASS IS NOW' : 'YOUR NEXT CLASS'}</div>
+          {next ? (
+            <>
+              <div style={{ fontSize: 24, fontWeight: 700, marginTop: 2 }}>{next.date === today ? 'Today' : prettyDate(next.date)} · {pretty(next.startTime)} to {pretty(next.endTime)}</div>
+              <div style={{ fontSize: 16, opacity: 0.92, marginTop: 2 }}>{next.title}</div>
+            </>
+          ) : <div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>{me ? 'No classes scheduled yet' : 'Your login is not linked to a teacher yet'}</div>}
+        </div>
+        {next && <div style={{ background: 'rgba(255,255,255,.16)', borderRadius: 50, padding: '8px 16px', fontWeight: 700, fontSize: 15 }}>{untilText(next)}</div>}
+        {next && next.date === today && <button type="button" onClick={() => go('today')} style={{ height: 42, padding: '0 18px', borderRadius: 50, border: 0, background: '#fff', color: C.navy, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>Take attendance</button>}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+        {tile('This week', thisWeek.length, thisWeek.length === 1 ? 'class for you' : 'classes for you', C.indigo, () => go('schedule'))}
+        {tile('Classes done', done, `of ${live.length} in the programme`, '#0e9f6e', () => go('schedule'))}
+        {tile('Students', students || '-', 'in this batch', '#7c3aed')}
+        {tile('Class average', weekAvg != null ? `${weekAvg}%` : '-', weekPcts.length ? `${weekPcts.length} papers this week` : 'no papers this week yet', pc(weekAvg))}
+        {tile('Messages', unread.unread || 0, unread.unread ? 'unread' : 'all read', '#f59e0b', () => navigate('/messages'))}
+      </div>
+
+      {needNotes > 0 && (
+        <div style={{ ...card, padding: '12px 16px', background: '#fff8eb', borderColor: '#f5d9a8', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 220, color: '#7c4a03' }}><b>{needNotes} finished {needNotes === 1 ? 'class needs' : 'classes need'} attendance or notes.</b> Open the class and press Mark done.</span>
+          <button style={btn()} onClick={() => go('today')}>Open today's class</button>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><b style={{ fontSize: 17 }}>Your upcoming classes</b><button onClick={() => go('schedule')} style={{ border: 0, background: 'none', color: C.indigo, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Full schedule ›</button></div>
+          {!upcoming.length && <p style={{ color: C.muted, margin: '10px 0 0' }}>Nothing coming up yet. The admin will send your timetable.</p>}
+          {upcoming.slice(0, 5).map(s => (
+            <div key={s.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: `1px solid ${C.line}`, marginTop: 8 }}>
+              <div style={{ width: 46, textAlign: 'center', flex: 'none' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.indigo, textTransform: 'uppercase' }}>{s.date === today ? 'Today' : prettyDate(s.date).split(' ')[0]}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{s.date.slice(8).replace(/^0/, '')}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{pretty(s.startTime)} to {pretty(s.endTime)}</div>
+                <div style={{ fontSize: 14, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
+              </div>
+              {recentlyChanged(s) && <span style={chg}>Changed</span>}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ ...card, padding: 18 }}>
+          <b style={{ fontSize: 17 }}>Today at the campus</b>
+          {!todayAll.length && <p style={{ color: C.muted, margin: '10px 0 0' }}>No classes today.</p>}
+          {todayAll.map(s => {
+            const isMe = me && s.teacherId === me.id;
+            const on = s.startTime <= nowHM && nowHM < s.endTime;
+            return (
+              <div key={s.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: `1px solid ${C.line}`, marginTop: 8 }}>
+                <div style={{ width: 92, flex: 'none', fontSize: 13, color: C.muted }}>{slotOf(s.startTime)}<div style={{ color: C.text, fontWeight: 700 }}>{pretty(s.startTime)}</div></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 600 }}>{s.title}</div>
+                  <div style={{ fontSize: 13, color: isMe ? C.indigo : C.muted, fontWeight: isMe ? 700 : 400 }}>{isMe ? 'You' : s.teacher?.name || 'No teacher yet'}</div>
+                </div>
+                {on ? <span style={{ fontSize: 11.5, fontWeight: 800, color: '#047857', background: '#dcfce7', borderRadius: 50, padding: '2px 9px' }}>Now</span> : s.status === 'DONE' ? <span style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>Done ✓</span> : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ ...card, padding: 18 }}>
+          <b style={{ fontSize: 17 }}>Latest papers from students</b>
+          {!results && <p style={{ color: C.muted, margin: '10px 0 0' }}>Loading…</p>}
+          {results && !recent.length && <p style={{ color: C.muted, margin: '10px 0 0' }}>No papers finished yet.</p>}
+          {recent.map(a => (
+            <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 0', borderTop: `1px solid ${C.line}`, marginTop: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5, textTransform: 'capitalize' }}>{String(a.studentName).toLowerCase()}</div>
+                <div style={{ fontSize: 13, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</div>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: pc(a.pct) }}>{a.pct != null ? `${a.pct}%` : a.band != null ? `Band ${a.band}` : a.state === 'marking' ? <span style={{ fontSize: 12.5, color: C.muted, fontWeight: 600 }}>Marking…</span> : '-'}</div>
+            </div>
+          ))}
+        </div>
+
+      </div>
     </div>
   );
 }

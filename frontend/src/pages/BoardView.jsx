@@ -6,6 +6,7 @@ import { HighlightedText, ReplyQuote } from '../components/ChatExtras';
 
 // View-only message board for a shared link (no login). Nothing can be posted or changed here.
 const fileSrc = u => (u && u.startsWith('/') ? `${API_URL}${u}` : u);
+const pdfSrc = (u, n) => (/^https:\/\/res\.cloudinary\.com\/[^/]+\/raw\/upload\//.test(u || '') ? `${API_URL}/api/chat/pdf?u=${encodeURIComponent(u)}&n=${encodeURIComponent(n || 'Document.pdf')}` : fileSrc(u));
 const when = d => new Date(d).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
 export default function BoardView() {
@@ -80,7 +81,7 @@ export default function BoardView() {
                 {m.replyTo && <ReplyQuote reply={m.replyTo} />}
                 {(m.isTask || m.pinned) && <div style={{ marginBottom: 4 }}>{m.isTask && <span className="bv-chip">{m.askAnswer ? 'QUESTION' : 'TASK'}</span>}{m.pinned && <span className="bv-chip" style={{ background: '#fde68a', color: '#713f12' }}>PINNED</span>}</div>}
                 {m.imageUrl && <a href={fileSrc(m.imageUrl)} target="_blank" rel="noreferrer"><img src={fileSrc(m.imageUrl)} alt="Photo" loading="lazy" style={{ display: 'block', maxWidth: '100%', maxHeight: '60vh', borderRadius: 12, marginBottom: m.text ? 8 : 0 }} /></a>}
-                {m.fileUrl && <a href={fileSrc(m.fileUrl)} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', gap: 10, alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', textDecoration: 'none', color: '#050505', border: '1px solid #e4e6eb', marginBottom: m.text ? 8 : 0 }}><span style={{ background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 11, borderRadius: 5, padding: '10px 6px' }}>PDF</span><b>{m.fileName || 'Document.pdf'}</b></a>}
+                {m.fileUrl && <a href={pdfSrc(m.fileUrl, m.fileName)} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', gap: 10, alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', textDecoration: 'none', color: '#050505', border: '1px solid #e4e6eb', marginBottom: m.text ? 8 : 0 }}><span style={{ background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 11, borderRadius: 5, padding: '10px 6px' }}>PDF</span><b>{m.fileName || 'Document.pdf'}</b></a>}
                 {m.paper && <div style={{ background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e4e6eb', marginBottom: m.text ? 8 : 0 }}><b>{m.paper.title}</b> <span style={{ color: '#65676b', fontSize: 13 }}>· {String(m.paper.testType || 'Paper').toLowerCase()}</span></div>}
                 {m.lesson && <div style={{ background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e4e6eb', marginBottom: m.text ? 8 : 0 }}><b>{m.lesson.title}</b> <span style={{ color: '#65676b', fontSize: 13 }}>· lesson</span></div>}
                 {m.text && <HighlightedText id={`bv${m.id}`} text={m.text} highlights={m.highlights} />}

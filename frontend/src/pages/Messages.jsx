@@ -354,6 +354,8 @@ export default function Messages() {
     } catch (e) { setPhoto(null); flash(errText(e)); }
   };
   const imgSrc = u => (u && u.startsWith('/') ? `${API_URL}${u}` : u);
+  // PDFs open through our server (Cloudinary may block direct PDF links)
+  const pdfSrc = (u, n) => (/^https:\/\/res\.cloudinary\.com\/[^/]+\/raw\/upload\//.test(u || '') ? `${API_URL}/api/chat/pdf?u=${encodeURIComponent(u)}&n=${encodeURIComponent(n || 'Document.pdf')}` : imgSrc(u));
   const send = async () => {
     if (!canSend) return;
     setSending(true);
@@ -680,7 +682,7 @@ export default function Messages() {
                               {m.replyTo && <ReplyQuote reply={m.replyTo} mine={m.mine} onClick={() => jumpTo(m.replyTo.id)} />}
                               {(m.isTask || m.pinned) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}</div>}
                               {m.fileUrl && (
-                                <a href={imgSrc(m.fileUrl)} target="_blank" rel="noreferrer" onClick={staff ? undefined : () => track(m.id, 'LINK')}
+                                <a href={pdfSrc(m.fileUrl, m.fileName)} target="_blank" rel="noreferrer" onClick={staff ? undefined : () => track(m.id, 'LINK')}
                                   style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#fff', color: '#050505', textDecoration: 'none', borderRadius: 12, padding: '10px 12px', marginBottom: m.text ? 8 : 0, border: '1px solid #e4e6eb', maxWidth: 420 }}>
                                   <span style={{ width: 40, height: 50, borderRadius: 6, background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>PDF</span>
                                   <span style={{ flex: 1, minWidth: 0 }}>

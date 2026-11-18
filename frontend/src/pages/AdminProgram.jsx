@@ -764,7 +764,19 @@ function TeacherGuide({ paper, onClose }) {
           </div>
         ))}
         {paper.writingTasks.map(t => (
-          <div key={t.number}><H>Task {t.number} · at least {t.minWords} words</H><div style={{ fontSize: 13.5, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{t.prompt}</div>{t.imageUrl && <img src={mediaSrc(t.imageUrl)} alt={t.imageAlt || `Task ${t.number} picture`} style={{ display: 'block', maxWidth: '100%', marginTop: 10, border: '1px solid #e2e8f0', borderRadius: 6 }} />}</div>
+          <div key={t.number}><H>Task {t.number} · at least {t.minWords} words</H><div style={{ fontSize: 13.5, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{t.prompt}</div>{t.imageUrl && <img src={mediaSrc(t.imageUrl)} alt={t.imageAlt || `Task ${t.number} picture`} style={{ display: 'block', maxWidth: '100%', marginTop: 10, border: '1px solid #e2e8f0', borderRadius: 6 }} />}
+            {t.markingTips && t.markingTips.length > 0 && (
+              <div style={{ marginTop: 12, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '8px 12px', fontSize: 13, lineHeight: 1.6, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                <b style={{ color: '#1e3a8a' }}>What to look for when marking</b>
+                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{t.markingTips.map((x, i) => <li key={i}>{x}</li>)}</ul>
+              </div>
+            )}
+            {t.modelAnswer && (
+              <div style={{ marginTop: 12, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '10px 14px', breakInside: 'avoid-page', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                <b style={{ color: '#166534' }}>Model answer (about band 7 · {t.modelWords} words)</b>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: 13.5, lineHeight: 1.75, whiteSpace: 'pre-wrap', marginTop: 6 }}>{t.modelAnswer}</div>
+              </div>
+            )}</div>
         ))}
         {all.length === 0 && paper.writingTasks.length === 0 && <p>No questions in this paper.</p>}
       </div>

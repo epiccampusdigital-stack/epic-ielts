@@ -307,6 +307,30 @@ router.get('/view/:token/groups/:id/messages', wrap(async (req, res) => {
 }));
 
 // Upload a PDF for a chat message (staff). Returns the link and the file name to send with the message.
+// Opens a chat PDF through our server. Cloudinary blocks direct PDF links on many accounts, so we fetch the
+// file ourselves (with a signed download link if the plain one is refused) and show it in the browser.
+// Only files in our chat folder are served; the links are long and random, like the photo links.
+router.get('/pdf', async (req, res) => {
+  const u = String(req.query.u || '');
+  const m = u.match(/^https:\/\/res\.cloudinary\.com\/[^/]+\/raw\/upload\/(?:v\d+\/)?(epic-ielts\/chat-files\/chat_[\w.-]+\.pdf)$/);
+  if (!m) return res.status(404).send('File not found');
+  const name = cleanName(String(req.query.n || 'Document.pdf')).replace(/(\.pdf)?$/i, '.pdf').replace(/["\\]/g, '');
+  try {
+    let r = await fetch(u);
+    if (!r.ok) {
+      const { cloudinary } = require('../config/cloudinary');
+      if (cloudinary) r = await fetch(cloudinary.utils.private_download_url(m[1], '', { resource_type: 'raw', type: 'upload' }));
+    }
+    if (!r.ok) { console.error('[chat] pdf fetch', r.status, m[1]); return res.status(502).send('Could not open the PDF. Please try again.'); }
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'private, max-age=3600', 'Content-Length': buf.length });
+    res.send(buf);
+  } catch (e) {
+    console.error('[chat] pdf', e.message);
+    res.status(502).send('Could not open the PDF. Please try again.');
+  }
+});
+
 router.post('/file', auth, (req, res, next) => (isStaff(req) ? next() : res.status(403).json({ error: 'Only teachers can send files.' })), (req, res) => {
   fileUpload.single('file')(req, res, async err => {
     if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'The PDF is too big (20 MB max).' : 'Could not read the file.' });

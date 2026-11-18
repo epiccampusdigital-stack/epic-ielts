@@ -332,6 +332,7 @@ function PaperLibrary({ flash }) {
   const [lists, setLists] = useState({});
   const [skill, setSkill] = useState('ALL');
   const [q, setQ] = useState('');
+  const [todo, setTodo] = useState(false);
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState(null);
   useEffect(() => { try { localStorage.setItem('tp-track', track); } catch { /* private mode */ } }, [track]);
@@ -346,13 +347,16 @@ function PaperLibrary({ flash }) {
   };
   const list = lists[track];
   const term = q.trim().toLowerCase();
-  const shown = (list || []).filter(p => p.type !== 'SPEAKING' && (skill === 'ALL' || p.type === skill) && (!term || `${p.title} ${p.code} ${p.topic || ''}`.toLowerCase().includes(term)));
+  const notDone = p => p.batch > 0 && p.doneBy === 0;
+  const shown = (list || []).filter(p => p.type !== 'SPEAKING' && (skill === 'ALL' || p.type === skill) && (!todo || notDone(p)) && (!term || `${p.title} ${p.code} ${p.topic || ''}`.toLowerCase().includes(term)));
+  const batch = (list || []).find(p => p.batch)?.batch || 0;
+  const summary = ['READING', 'LISTENING', 'WRITING'].map(t => { const all = (list || []).filter(p => p.type === t); return { t, all: all.length, done: all.filter(p => p.doneBy > 0).length }; }).filter(x => x.all);
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
         <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>Papers and answers</h2>
-        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Open any paper to see the text, the questions and the correct answers. Yellow shows where each answer is. You can print it.</p>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Open any paper to see the text, the questions and the correct answers. Yellow shows where each answer is in the text, with the question number next to it. Writing papers have a model answer. You can print any paper.</p>
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <div className="tp-seg">
@@ -364,6 +368,23 @@ function PaperLibrary({ flash }) {
         </div>
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search a paper" aria-label="Search a paper" style={{ ...input, height: 42, borderRadius: 50, padding: '0 16px', fontSize: 14, flex: '1 1 200px', maxWidth: 320 }} />
       </div>
+      {list && batch > 0 && summary.length > 0 && (
+        <div style={{ ...card, padding: '12px 16px', display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+          <b style={{ fontSize: 14.5 }}>Done by this class ({track === 'IELTS' ? 'IELTS' : 'General English'}):</b>
+          {summary.map(x => {
+            const [label, fg] = SKILL[x.t];
+            return (
+              <span key={x.t} style={{ fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: fg, fontWeight: 700 }}>{label}</span> {x.done} of {x.all}
+                <span style={{ width: 70, height: 7, background: '#e8eef7', borderRadius: 9, overflow: 'hidden', display: 'inline-block' }}><i style={{ display: 'block', height: '100%', width: `${Math.round(100 * x.done / x.all)}%`, background: fg }} /></span>
+              </span>
+            );
+          })}
+          <label style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            <input type="checkbox" checked={todo} onChange={e => setTodo(e.target.checked)} /> Show only papers the class has not done
+          </label>
+        </div>
+      )}
       {!list && <p style={{ color: C.muted }}>Loading…</p>}
       {list && !shown.length && <div style={{ ...card, padding: 18, color: C.muted }}>No papers match.</div>}
       <div className="tp-list">
@@ -376,6 +397,9 @@ function PaperLibrary({ flash }) {
                 <b style={{ display: 'block', fontSize: 15.5 }}>{p.title}</b>
                 <span style={{ fontSize: 13, color: C.muted }}>{p.type === 'WRITING' ? 'Writing tasks' : `${p.questions} questions`}{p.minutes ? ` · ${p.minutes} min` : ''}{p.topic ? ` · ${p.topic}` : ''}{p.status === 'DRAFT' ? ' · hidden from students' : ''}</span>
               </span>
+              {p.batch > 0 && (notDone(p)
+                ? <span style={{ flex: 'none', fontSize: 12, fontWeight: 800, color: '#9a3412', background: '#ffedd5', borderRadius: 50, padding: '3px 10px' }}>Not done yet</span>
+                : <span style={{ flex: 'none', fontSize: 12, fontWeight: 800, color: '#166534', background: '#dcfce7', borderRadius: 50, padding: '3px 10px' }}>Done by {p.doneBy}/{p.batch}</span>)}
               <span style={{ flex: 'none', fontWeight: 700, color: C.indigo, fontSize: 14 }}>{busy === p.id ? 'Opening…' : 'Open with answers ›'}</span>
             </button>
           );

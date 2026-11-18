@@ -354,7 +354,19 @@ router.get('/paper-review', wrap(async (req, res) => {
     select: { id: true, paperCode: true, title: true, testType: true, timeLimitMin: true, order: true, difficulty: true, status: true, topic: true, source: true, _count: { select: { questions: true } } },
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
   });
-  res.json(papers.map(p => ({ id: p.id, code: p.paperCode, title: p.title, type: p.testType, minutes: p.timeLimitMin, questions: p._count.questions, difficulty: p.difficulty, status: p.status, topic: p.topic, generated: p.source === 'GENERATED', track: ielts ? 'IELTS' : 'GENERAL' })));
+  // Who in the running batch has finished each paper, and which question types each paper practises
+  const ids = papers.map(p => p.id);
+  const batch = await prisma.programStudent.findMany({ where: { active: true, studentId: { not: null }, program: { status: 'ACTIVE' } }, select: { studentId: true } });
+  const batchIds = [...new Set(batch.map(b => b.studentId))];
+  const done = new Map();
+  if (ids.length && batchIds.length) {
+    const rows = await prisma.attempt.findMany({ where: { paperId: { in: ids }, studentId: { in: batchIds }, endedAt: { not: null } }, select: { paperId: true, studentId: true } });
+    rows.forEach(r => { if (!done.has(r.paperId)) done.set(r.paperId, new Set()); done.get(r.paperId).add(r.studentId); });
+  }
+  const types = new Map();
+  if (ids.length) (await prisma.question.groupBy({ by: ['paperId', 'questionType'], where: { paperId: { in: ids } } })).forEach(r => { if (!types.has(r.paperId)) types.set(r.paperId, []); types.get(r.paperId).push(r.questionType); });
+  res.json(papers.map(p => ({ id: p.id, code: p.paperCode, title: p.title, type: p.testType, minutes: p.timeLimitMin, questions: p._count.questions, difficulty: p.difficulty, status: p.status, topic: p.topic, generated: p.source === 'GENERATED', track: ielts ? 'IELTS' : 'GENERAL',
+    doneBy: done.get(p.id)?.size || 0, batch: batchIds.length, qtypes: types.get(p.id) || [] })));
 }));
 router.get('/paper-review/:paperId', wrap(async (req, res) => {
   if ((await hiddenLanguage(req)) === 'EN') return res.status(404).json({ error: 'Not found' });
@@ -376,7 +388,8 @@ router.get('/paper-review/:paperId', wrap(async (req, res) => {
     passages: paper.passages.map(p => ({ title: p.title, text: p.text, groups: groups(p.groups) })),
     sections: paper.sections.map(s => ({ number: s.number, description: s.description, audioUrl: s.audioUrl || paper.audioUrl || null, script: scripts[s.number] || scripts[String(s.number)] || null, groups: groups(s.groups) })),
     track: paper.track,
-    writingTasks: paper.writingTasks.map(t => ({ number: t.taskNumber, prompt: t.prompt, minWords: t.minWords, minutes: t.timeMinutes, imageUrl: t.chartImageUrl || null, imageAlt: t.chartDescription || null })),
+    // Model answers live in code (scripts/ielts/modelAnswers.js), never in the paper data students receive
+    writingTasks: paper.writingTasks.map(t => ({ number: t.taskNumber, prompt: t.prompt, minWords: t.minWords, minutes: t.timeMinutes, imageUrl: t.chartImageUrl || null, imageAlt: t.chartDescription || null, ...require('../../scripts/ielts/modelAnswers').forTask(paper.paperCode, t.taskNumber) })),
   });
 }));
 

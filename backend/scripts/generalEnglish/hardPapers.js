@@ -3,6 +3,7 @@
 // inference questions, and longer writing tasks. Stars: 3 = B1, 4 = B1+. All content is original.
 // `ev` lists the exact words in the text that give each answer (stored as Question.evidence).
 
+const P12 = require('./paper12Part2');
 const mc = (content, options, answer, explanation, ev) => ({ type: 'MULTIPLE_CHOICE', content, options, answer, explanation, ev });
 const tf = (content, answer, explanation, ev) => ({ type: 'TRUE_FALSE_NOT_GIVEN', content, answer, explanation, ev });
 const sc = (content, answer, explanation, ev) => ({ type: 'SENTENCE_COMPLETION', content, answer, explanation, ev });
@@ -107,8 +108,8 @@ const T3 = `[A] South Korea is famous for its technology, its music and its fast
 [F] The government is trying several approaches at once. It has increased the number of foreign workers allowed each year, created new visas for skilled workers, and offered money to couples who have children. Few experts believe that any single policy will solve the problem. What seems certain is that foreign workers will play a growing role in South Korea's future, and that learning Korean will remain the first step for anyone hoping to join them.`;
 
 const hard3 = {
-  code: 'GE-C12R', testType: 'READING', title: 'Reading · Why Korea needs foreign workers', timeLimitMin: 25, difficulty: 4, topic: 'Work and society',
-  instructions: 'One text with paragraphs A to F and 14 questions. Read the text, then answer the questions.',
+  code: 'GE-C12R', testType: 'READING', title: 'Reading · Why Korea needs foreign workers', timeLimitMin: P12.NEW_TIME, difficulty: 4, topic: 'Work and society',
+  instructions: P12.NEW_INSTRUCTIONS,
   passages: [{ title: 'A country running out of workers', text: T3, groups: [
     { type: 'MULTIPLE_CHOICE', instruction: MATCH(1, 6, 'F'), questions: [
       mc('Examples of the kinds of work that foreign workers do', PARA6, 'C', 'Paragraph C: "manufacturing, farming, fishing and construction".', ['manufacturing, farming, fishing and construction']),
@@ -132,7 +133,7 @@ const hard3 = {
       sc('Some workers gain skills that help them start ________ when they return home.', 'BUSINESSES', '"help them start businesses when they return"', ['help them start businesses when they return']),
       sc('Human rights groups have asked for better ________ and stronger protection.', 'HOUSING', '"called for better housing and stronger protection"', ['called for better housing and stronger protection']),
     ] },
-  ] }],
+  ] }, P12.PART2],
 };
 
 // ───────────── WRITING ─────────────

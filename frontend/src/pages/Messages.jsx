@@ -570,7 +570,7 @@ export default function Messages() {
       {staff
         ? <div style={{ height: topH, background: T.navy, color: '#fff', padding: '0 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <b style={{ fontSize: 17 }}>EPIC Campus · Messages</b>
-            <button type="button" onClick={() => navigate(user.role === 'PROGRAM_TEACHER' ? '/teacher' : '/admin/dashboard')} style={{ ...pill(false), background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.7)' }}>Back to admin</button>
+            <button type="button" onClick={() => navigate(user.role === 'PROGRAM_TEACHER' ? '/teacher' : '/admin/dashboard')} style={{ ...pill(false), background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.7)' }}>{user.role === 'PROGRAM_TEACHER' ? 'Back to portal' : 'Back to admin'}</button>
           </div>
         : <StudentNav active="messages" />}
       {msg && <div role="status" style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#050505', color: '#fff', padding: '10px 18px', borderRadius: 50, zIndex: 60, fontSize: 14.5 }}>{msg}</div>}

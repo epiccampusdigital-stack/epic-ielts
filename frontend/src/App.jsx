@@ -31,6 +31,8 @@ import BoardView from './pages/BoardView';
 import LearnModule from './pages/LearnModule';
 import LearnLesson from './pages/LearnLesson';
 import AdminProgram from './pages/AdminProgram';
+import TeacherPortal from './pages/TeacherPortal';
+import TeacherLogin from './pages/TeacherLogin';
 import ChooseCourse from './pages/ChooseCourse';
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────
@@ -70,8 +72,13 @@ function isProgramTeacher() {
   return getUser()?.role === 'PROGRAM_TEACHER';
 }
 
-function RequireStaff({ children }) {
-  if (!isLoggedIn()) return <Navigate to="/" replace />;
+// Decided when the page opens (not when the app first loads), so it is right straight after logging in
+function TeacherHome() {
+  return isProgramTeacher() ? <TeacherPortal /> : <AdminProgram />;
+}
+
+function RequireStaff({ children, toLogin = '/' }) {
+  if (!isLoggedIn()) return <Navigate to={toLogin} replace />;
   if (!isAdmin() && !isProgramTeacher()) return <Navigate to="/student/dashboard" replace />;
   return children;
 }
@@ -187,8 +194,9 @@ function App() {
       <Route path="/admin/program" element={
         <RequireAdmin><AdminProgram /></RequireAdmin>
       } />
+      <Route path="/teacher-login" element={<TeacherLogin />} />
       <Route path="/teacher" element={
-        <RequireStaff><AdminProgram /></RequireStaff>
+        <RequireStaff toLogin="/teacher-login"><TeacherHome /></RequireStaff>
       } />
 
       {/* Fallback */}

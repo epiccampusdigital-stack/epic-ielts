@@ -157,6 +157,7 @@ export default function AdminProgram() {
     { id: 'dash', label: 'Dashboard' },
     ...(isAdmin ? [] : [{ id: 'mine', label: 'My sessions' }]),
     { id: 'today', label: 'Today' },
+    ...(isAdmin ? [{ id: 'timetable', label: 'Timetable' }] : []),
     { id: 'schedule', label: 'Schedule' },
     { id: 'batches', label: 'Batches & months' },
     { id: 'materials', label: 'Materials' },
@@ -284,6 +285,7 @@ export default function AdminProgram() {
             {tab === 'review' && <PaperReview flash={flash} />}
             {tab === 'materials' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
             {tab === 'batches' && <BatchesCalendar isAdmin={isAdmin} flash={flash} today={data?.today} openBatch={id => { setProgramId(id); setTab('schedule'); }} onCreated={async id => { await loadList(); setProgramId(id); }} />}
+            {tab === 'timetable' && isAdmin && <WeekPlanner programId={programId} data={data} flash={flash} onChanged={loadProgram} />}
             {tab === 'schedule' && <Schedule programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'teachers' && <Teachers programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
             {tab === 'students' && <Students programId={programId} data={data} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} />}
@@ -707,6 +709,7 @@ function Highlighted({ text, questions }) {
   parts.push(String(text).slice(pos));
   return <>{parts}</>;
 }
+const mediaSrc = u => (u && u.startsWith('/') ? `${String(API_URL || '').replace(/\/$/, '')}${u}` : u);
 function TeacherGuide({ paper, onClose }) {
   const all = [...paper.sections, ...paper.passages].flatMap(x => x.groups.flatMap(g => g.questions));
   const tag = { background: '#dbeafe', color: '#1e3a8a', fontWeight: 700, borderRadius: 4, padding: '1px 8px', fontSize: 12.5, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
@@ -751,6 +754,7 @@ function TeacherGuide({ paper, onClose }) {
         {paper.sections.map(sx => (
           <div key={sx.number}>
             <H>Section {sx.number}{sx.description ? ` · ${sx.description}` : ''}</H>
+            {sx.audioUrl && <audio className="tg-noprint" controls preload="none" src={mediaSrc(sx.audioUrl)} style={{ width: '100%', margin: '0 0 8px' }} />}
             {sx.script && (
               <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 8 }}>
                 {String(sx.script).split('\n').filter(Boolean).map((line, k) => { const m = line.match(/^([A-Za-z ]{2,20}):\s*(.+)$/); return <p key={k} style={{ margin: '0 0 5px' }}>{m ? <><b>{m[1]}:</b> <Highlighted text={m[2]} questions={sx.groups.flatMap(g => g.questions)} /></> : <Highlighted text={line} questions={sx.groups.flatMap(g => g.questions)} />}</p>; })}
@@ -760,7 +764,7 @@ function TeacherGuide({ paper, onClose }) {
           </div>
         ))}
         {paper.writingTasks.map(t => (
-          <div key={t.number}><H>Task {t.number} · at least {t.minWords} words</H><div style={{ fontSize: 13.5, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{t.prompt}</div></div>
+          <div key={t.number}><H>Task {t.number} · at least {t.minWords} words</H><div style={{ fontSize: 13.5, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{t.prompt}</div>{t.imageUrl && <img src={mediaSrc(t.imageUrl)} alt={t.imageAlt || `Task ${t.number} picture`} style={{ display: 'block', maxWidth: '100%', marginTop: 10, border: '1px solid #e2e8f0', borderRadius: 6 }} />}</div>
         ))}
         {all.length === 0 && paper.writingTasks.length === 0 && <p>No questions in this paper.</p>}
       </div>
@@ -1300,7 +1304,7 @@ function Teachers({ programId, data, flash, isAdmin, onChanged }) {
     if (pw === null) return;
     try {
       const r = await axios.post(`${P}/teachers/${t.id}/login`, { email, password: pw || undefined }, api());
-      const text = `Teacher login\nEmail: ${r.data.email}\nPassword: ${r.data.tempPassword}\nSign in at epicielts.live`;
+      const text = `Teacher login\nEmail: ${r.data.email}\nPassword: ${r.data.tempPassword}\nLog in at epicielts.live/teacher-login`;
       try { await navigator.clipboard.writeText(text); } catch { /* clipboard blocked */ }
       window.alert(`${text}\n\n(Copied. Send it to them privately.)`);
       onChanged();
@@ -1941,3 +1945,150 @@ function BatchesCalendar({ isAdmin, flash, today, openBatch, onCreated }) {
     </div>
   );
 }
+
+// ─── Weekly timetable (admin): pick a teacher for each class, save, and teachers see it in their portal ─
+const SLOTS = [
+  { k: 'MORNING', label: 'Morning', start: '09:00', end: '13:00', inSlot: t => t < '13:30' },
+  { k: 'AFTERNOON', label: 'Afternoon', start: '14:30', end: '17:30', inSlot: t => t >= '13:30' && t < '18:00' },
+  { k: 'EVENING', label: 'Evening', start: '18:30', end: '21:30', inSlot: t => t >= '18:00' },
+];
+const wpAdd = (ds, n) => { const d = new Date(`${ds}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const wpMonday = ds => { const d = new Date(`${ds}T00:00:00Z`); return wpAdd(ds, -((d.getUTCDay() + 6) % 7)); };
+const SUBJECT_OF_TEACHER = { ENGLISH: 'ENGLISH', KOREAN: 'KOREAN', IT: 'IT_LAB' };
+const TITLE_OF_TEACHER = { ENGLISH: 'English', KOREAN: 'Korean', IT: 'IT lab' };
+
+function WeekPlanner({ programId, data, flash, onChanged }) {
+  const days = data.program.days;
+  const today = data.today || new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+  const [week, setWeek] = useState(() => wpMonday(today >= days[0]?.date ? today : days[0]?.date || today));
+  const [sessions, setSessions] = useState(null);
+  const [cells, setCells] = useState({});
+  const [times, setTimes] = useState(() => Object.fromEntries(SLOTS.map(s => [s.k, { start: s.start, end: s.end }])));
+  const [busy, setBusy] = useState(false);
+  const teachers = data.teachers.filter(t => t.active);
+  const byDate = useMemo(() => new Map(days.map(d => [d.date, d])), [days]);
+  const dates = Array.from({ length: 7 }, (_, i) => wpAdd(week, i));
+
+  const load = useCallback(async () => {
+    try { setSessions((await axios.get(`${P}/${programId}/sessions`, api())).data); } catch (e) { flash(errText(e)); setSessions([]); }
+  }, [programId, flash]);
+  useEffect(() => { load(); }, [load]);
+
+  // What is in each cell now (from the saved sessions)
+  const inCell = useCallback((dayNumber, slot) => (sessions || []).filter(x => x.dayNumber === dayNumber && x.subject !== 'BREAK' && slot.inSlot(x.startTime))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime)), [sessions]);
+  const savedCell = useCallback((dayNumber, slot) => {
+    const live = inCell(dayNumber, slot).filter(x => x.status !== 'CANCELLED');
+    return { teacherId: live[0]?.teacherId ? String(live[0].teacherId) : '', title: live[0]?.title || '' };
+  }, [inCell]);
+  const key = (ds, k) => `${ds}|${k}`;
+  const cellVal = (ds, slot) => { const d = byDate.get(ds); return cells[key(ds, slot.k)] || (d ? savedCell(d.dayNumber, slot) : { teacherId: '', title: '' }); };
+  const setCell = (ds, slot, patch) => setCells(m => ({ ...m, [key(ds, slot.k)]: { ...cellVal(ds, slot), ...patch } }));
+  const changed = Object.entries(cells).filter(([k, v]) => {
+    const [ds, sk] = k.split('|'); const d = byDate.get(ds); const slot = SLOTS.find(x => x.k === sk);
+    const was = savedCell(d.dayNumber, slot);
+    return was.teacherId !== v.teacherId || (v.teacherId && was.title !== v.title);
+  });
+
+  const save = async () => {
+    const ops = [];
+    for (const [k, v] of changed) {
+      const [ds, sk] = k.split('|'); const d = byDate.get(ds); const slot = SLOTS.find(x => x.k === sk);
+      const t = teachers.find(x => String(x.id) === v.teacherId);
+      const list = inCell(d.dayNumber, slot); const live = list.filter(x => x.status !== 'CANCELLED');
+      const tm = times[sk];
+      if (!t) { live.forEach(x => ops.push({ type: 'cancel_session', sessionId: x.id })); continue; }
+      const title = v.title.trim() || TITLE_OF_TEACHER[t.subject] || 'Class';
+      if (live.length) {
+        live.forEach((x, i) => {
+          const op = { type: 'update_session', sessionId: x.id, teacherId: t.id };
+          if (i === 0 && title !== x.title) op.title = title;
+          ops.push(op);
+        });
+      } else if (list.length) {
+        ops.push({ type: 'update_session', sessionId: list[0].id, teacherId: t.id, title, status: 'SCHEDULED', startTime: tm.start, endTime: tm.end });
+      } else {
+        const subject = SUBJECT_OF_TEACHER[t.subject] || 'ACTIVITY';
+        ops.push({ type: 'add_session', dayNumber: d.dayNumber, startTime: tm.start, endTime: tm.end, subject, title, teacherId: t.id, ...(subject === 'ENGLISH' ? { language: 'EN' } : subject === 'KOREAN' ? { language: 'KR' } : {}) });
+      }
+    }
+    if (!ops.length) return;
+    setBusy(true);
+    try {
+      const r = await axios.post(`${P}/${programId}/operations`, { operations: ops }, api());
+      flash(`Timetable saved. Teachers see it in their portal now.${r.data.notified ? ` ${r.data.notified} teacher${r.data.notified > 1 ? 's' : ''} will get a message.` : ''}`);
+      setCells({}); await load(); onChanged();
+    } catch (e) { flash(errText(e)); }
+    setBusy(false);
+  };
+
+  const inProgram = dates.some(ds => byDate.has(ds));
+  const firstWeek = wpMonday(days[0]?.date || today), lastWeek = wpMonday(days[days.length - 1]?.date || today);
+  const tInput = { ...input, width: 96, padding: '4px 6px', fontSize: 12.5 };
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div>
+        <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>Weekly timetable</h2>
+        <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Pick a teacher for each class and press <b>Save and send</b>. Teachers see it in their portal straight away and get a message about the change. Leave a box empty for no class.</p>
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button style={btn()} disabled={week <= firstWeek} onClick={() => { setCells({}); setWeek(w => wpAdd(w, -7)); }}>‹ Previous</button>
+        <div style={{ fontWeight: 700, fontSize: 16, minWidth: 210, textAlign: 'center' }}>{prettyDate(dates[0])} to {prettyDate(dates[6])}{week === wpMonday(today) && <span style={{ marginLeft: 8, background: C.indigo, color: '#fff', borderRadius: 50, padding: '1px 9px', fontSize: 12 }}>This week</span>}</div>
+        <button style={btn()} disabled={week >= lastWeek} onClick={() => { setCells({}); setWeek(w => wpAdd(w, 7)); }}>Next ›</button>
+        {changed.length > 0 && <span style={{ marginLeft: 'auto', fontSize: 13, color: '#854d0e', background: '#fef9c3', borderRadius: 50, padding: '3px 10px', fontWeight: 700 }}>{changed.length} change{changed.length > 1 ? 's' : ''} not sent yet</span>}
+      </div>
+      {!sessions ? <p style={{ color: C.muted }}>Loading…</p> : !inProgram ? <div style={{ ...card, padding: 18, color: C.muted }}>This week is outside the programme dates.</div> : (
+        <div style={{ ...card, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1040, fontSize: 13.5, tableLayout: 'fixed' }}>
+            <thead>
+              <tr>
+                <th style={{ width: 118, padding: 10, background: '#f7f9fc', borderBottom: `1px solid ${C.line}` }} />
+                {dates.map(ds => (
+                  <th key={ds} style={{ padding: '10px 8px', background: ds === today ? '#e3eeff' : '#f7f9fc', borderBottom: `1px solid ${C.line}`, textAlign: 'left', color: ds === today ? C.indigo : C.text }}>
+                    {prettyDate(ds)}{byDate.get(ds) && <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 400 }}>Day {byDate.get(ds).dayNumber}</div>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {SLOTS.map(slot => (
+                <tr key={slot.k}>
+                  <td style={{ padding: 10, verticalAlign: 'top', borderBottom: `1px solid ${C.line}`, background: '#fbfcfe' }}>
+                    <b>{slot.label}</b>
+                    <div style={{ display: 'grid', gap: 4, marginTop: 6 }}>
+                      <input type="time" aria-label={`${slot.label} start`} style={tInput} value={times[slot.k].start} onChange={e => setTimes(m => ({ ...m, [slot.k]: { ...m[slot.k], start: e.target.value } }))} />
+                      <input type="time" aria-label={`${slot.label} end`} style={tInput} value={times[slot.k].end} onChange={e => setTimes(m => ({ ...m, [slot.k]: { ...m[slot.k], end: e.target.value } }))} />
+                    </div>
+                  </td>
+                  {dates.map(ds => {
+                    const d = byDate.get(ds);
+                    if (!d) return <td key={ds} style={{ padding: 8, borderBottom: `1px solid ${C.line}`, color: C.faint, fontSize: 12.5, verticalAlign: 'top' }}>No class day</td>;
+                    const v = cellVal(ds, slot); const dirty = !!cells[key(ds, slot.k)] && changed.some(([k]) => k === key(ds, slot.k));
+                    const past = ds < today;
+                    return (
+                      <td key={ds} style={{ padding: 8, borderBottom: `1px solid ${C.line}`, verticalAlign: 'top', background: dirty ? '#fffbeb' : v.teacherId ? '#fff' : '#fafbfd', opacity: past ? 0.6 : 1 }}>
+                        <select aria-label={`${slot.label} ${prettyDate(ds)} teacher`} value={v.teacherId} onChange={e => setCell(ds, slot, { teacherId: e.target.value })} style={{ ...input, width: '100%', fontWeight: v.teacherId ? 700 : 400, color: v.teacherId ? C.text : C.muted }}>
+                          <option value="">No class</option>
+                          {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        {v.teacherId && <input aria-label={`${slot.label} ${prettyDate(ds)} topic`} value={v.title} onChange={e => setCell(ds, slot, { title: e.target.value })} placeholder="Topic (optional)" style={{ ...input, width: '100%', marginTop: 6, fontSize: 12.5 }} />}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        {changed.length > 0 && <button style={btn()} onClick={() => setCells({})}>Undo changes</button>}
+        <button style={btn('primary')} disabled={busy || !changed.length} onClick={save}>{busy ? 'Saving…' : `Save and send${changed.length ? ` (${changed.length})` : ''}`}</button>
+      </div>
+      <p style={{ margin: 0, fontSize: 13, color: C.muted }}>Times on the left are used for new classes. To change one class in more detail (times, status, notes), use the Schedule tab.</p>
+    </div>
+  );
+}
+
+// Shared with the teacher portal (TeacherPortal.jsx)
+export { api, P, C, btn, input, card, pretty, prettyDate, errText, readUser, Pill, SUBJECT, DayView, Materials, TeacherGuide };

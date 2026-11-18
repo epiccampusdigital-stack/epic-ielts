@@ -347,17 +347,19 @@ router.get('/materials/file', wrap(async (req, res) => {
 // ─── Paper review (teachers read papers, listen to the audio, see every answer) ─
 router.get('/paper-review', wrap(async (req, res) => {
   if ((await hiddenLanguage(req)) === 'EN') return res.json([]); // Korean teachers do not see the English papers
+  // ?track=IELTS lists the IELTS papers (read only, live ones); default is General English
+  const ielts = req.query.track === 'IELTS';
   const papers = await prisma.paper.findMany({
-    where: { track: 'GENERAL', status: { in: ['ACTIVE', 'DRAFT'] } },
+    where: ielts ? { track: 'IELTS', status: 'ACTIVE' } : { track: 'GENERAL', status: { in: ['ACTIVE', 'DRAFT'] } },
     select: { id: true, paperCode: true, title: true, testType: true, timeLimitMin: true, order: true, difficulty: true, status: true, topic: true, source: true, _count: { select: { questions: true } } },
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
   });
-  res.json(papers.map(p => ({ id: p.id, code: p.paperCode, title: p.title, type: p.testType, minutes: p.timeLimitMin, questions: p._count.questions, difficulty: p.difficulty, status: p.status, topic: p.topic, generated: p.source === 'GENERATED' })));
+  res.json(papers.map(p => ({ id: p.id, code: p.paperCode, title: p.title, type: p.testType, minutes: p.timeLimitMin, questions: p._count.questions, difficulty: p.difficulty, status: p.status, topic: p.topic, generated: p.source === 'GENERATED', track: ielts ? 'IELTS' : 'GENERAL' })));
 }));
 router.get('/paper-review/:paperId', wrap(async (req, res) => {
   if ((await hiddenLanguage(req)) === 'EN') return res.status(404).json({ error: 'Not found' });
   const paper = await prisma.paper.findFirst({
-    where: { id: parseInt(req.params.paperId, 10), track: 'GENERAL' },
+    where: { id: parseInt(req.params.paperId, 10), OR: [{ track: 'GENERAL' }, { track: 'IELTS', status: 'ACTIVE' }] },
     include: {
       passages: { orderBy: { passageNumber: 'asc' }, include: { groups: { orderBy: { order: 'asc' }, include: { questions: { orderBy: { questionNumber: 'asc' } } } } } },
       sections: { orderBy: { number: 'asc' }, include: { groups: { orderBy: { order: 'asc' }, include: { questions: { orderBy: { questionNumber: 'asc' } } } } } },
@@ -373,7 +375,8 @@ router.get('/paper-review/:paperId', wrap(async (req, res) => {
     id: paper.id, code: paper.paperCode, title: paper.title, type: paper.testType, minutes: paper.timeLimitMin, instructions: paper.instructions, difficulty: paper.difficulty, status: paper.status, topic: paper.topic, generated: paper.source === 'GENERATED',
     passages: paper.passages.map(p => ({ title: p.title, text: p.text, groups: groups(p.groups) })),
     sections: paper.sections.map(s => ({ number: s.number, description: s.description, audioUrl: s.audioUrl || paper.audioUrl || null, script: scripts[s.number] || scripts[String(s.number)] || null, groups: groups(s.groups) })),
-    writingTasks: paper.writingTasks.map(t => ({ number: t.taskNumber, prompt: t.prompt, minWords: t.minWords, minutes: t.timeMinutes })),
+    track: paper.track,
+    writingTasks: paper.writingTasks.map(t => ({ number: t.taskNumber, prompt: t.prompt, minWords: t.minWords, minutes: t.timeMinutes, imageUrl: t.chartImageUrl || null, imageAlt: t.chartDescription || null })),
   });
 }));
 

@@ -373,4 +373,4 @@ function startAudioJob(by, paperId) {
   return job;
 }
 
-module.exports = { startJob, startAudioJob, getJob: id => jobs.get(id), ttsReady, LEVELS, _test: { toPaper, repeats, buildPrompt, recordScript, wav } };
+module.exports = { startJob, startAudioJob, recordPaperAudio, getJob: id => jobs.get(id), ttsReady, LEVELS, _test: { toPaper, repeats, buildPrompt, recordScript, wav } };

@@ -121,6 +121,30 @@ However, there are also disadvantages. When large numbers of skilled young peopl
 In conclusion, young people mainly work abroad for higher wages, better opportunities and new experiences. Although losing skilled workers is a real problem, I believe the money, skills and ideas they bring back make this a positive trend overall.`,
     },
   },
+  'IM-HALF-W': {
+    1: {
+      tips: ['Overview: Australia was always the top choice; South Korea and Japan grew the fastest; all four dipped in 2020.', 'Compare the two big countries (Australia, UK) with the two Asian ones; mention the 2020 dip and the 2024 peak.', 'Numbers in thousands; avoid describing every year of every line.'],
+      answer: `The line graph shows how many Sri Lankan students went to study in Australia, the United Kingdom, Japan and South Korea between 2016 and 2026.
+
+Overall, Australia was the most popular destination throughout the period, followed by the UK. However, the numbers going to Japan and South Korea grew much faster, and all four countries saw a small fall in 2020.
+
+In 2016, about 6,000 students went to Australia and 4,500 to the UK, while Japan and South Korea attracted only 1,200 and 400 respectively. After a dip in 2020, numbers for Australia and the UK rose sharply, peaking in 2024 at 11,500 and 8,100. By 2026, however, both had fallen again, to 10,200 and 6,500.
+
+In contrast, the figures for Japan and South Korea increased almost every year. Japan reached 4,600 students in 2026, nearly four times the 2016 figure. South Korea showed the most dramatic growth, rising from just 400 to 3,900, almost ten times as many as at the start of the period.`,
+    },
+    2: {
+      tips: ['Both views in separate paragraphs, then a clear opinion.', 'Real examples (Korean test before a visa, learning faster when surrounded by the language).', 'Linking: on the one hand, on the other hand, however, in my view.'],
+      answer: `More and more young people are moving abroad to study or work, and many wonder when they should learn the local language. Some people think it should be learned before leaving home, while others believe it is easier to learn it in the new country. In my opinion, the best approach is to learn the basics before going and continue learning after arriving.
+
+People who support learning beforehand argue that it makes the first months much easier. Students who can already read signs, ask for directions and understand their teachers feel more confident and are less likely to feel lonely. In addition, many visas and scholarships require a language test. For example, workers going to Korea usually have to pass a Korean language exam before they can be chosen, so they have no choice but to study first.
+
+On the other hand, those who prefer to learn after arriving say that living in a country is the fastest way to improve. People hear the language every day, at the supermarket, on the bus and at work, and they must use it to solve real problems. This constant practice often teaches more natural expressions than a classroom at home, and it costs nothing extra.
+
+In my view, both sides are partly right. A basic level before leaving is essential for safety, daily life and passing the required tests. However, real fluency usually comes from using the language with local people every day. Therefore, young people should prepare as much as they can at home and then make the most of every chance to practise once they arrive.
+
+In conclusion, although living abroad is an excellent way to learn a language, I believe young people should start learning before they go, so that they can settle in quickly and then build on that foundation in the new country.`,
+    },
+  },
 };
 
 const wordCount = s => String(s).trim().split(/\s+/).length;

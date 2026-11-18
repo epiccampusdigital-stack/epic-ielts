@@ -161,6 +161,12 @@ require('./ensureSchema').ensureSchema(prisma)
       console.log('[ielts] five new reading papers:', JSON.stringify(await addNewIeltsReading(prisma)));
       const { addNewIeltsWriting } = require('../scripts/ielts/writingNewFive');
       console.log('[ielts] five new writing papers:', JSON.stringify(await addNewIeltsWriting(prisma)));
+      const { addHalfwayMock } = require('../scripts/ielts/halfwayMock');
+      console.log('[ielts] halfway mock:', JSON.stringify(await addHalfwayMock(prisma)));
+      // Opens the mock for students at its start time, checked every minute
+      const { openHalfwayMock } = require('../scripts/ielts/halfwayMock');
+      const openMock = () => openHalfwayMock(prisma).then(r => { if (r.opened) console.log('[ielts] halfway mock opened for students:', r.opened); }).catch(e => console.error('[ielts] halfway mock open:', e.message));
+      openMock(); setInterval(openMock, 60000);
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');
       console.log('[ielts] new reading paper:', JSON.stringify(await addSleepTreesReading(prisma)));
       const { addParkLifeWriting } = require('../scripts/ielts/writingParkLifeStages');

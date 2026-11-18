@@ -18,14 +18,14 @@ const I = {
 const PARA5 = ['Paragraph A', 'Paragraph B', 'Paragraph C', 'Paragraph D', 'Paragraph E'];
 
 // Adds each paper once (by code). Safe on every start; never touches a paper that is already there.
-async function addIeltsPapers(prisma, papers) {
+async function addIeltsPapers(prisma, papers, opts = {}) {
   const { seedPaperList } = require('../generalEnglish/placement');
   const added = [];
   for (const p of papers) {
     const have = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: p.testType }, select: { id: true } });
     if (have) continue;
     const last = await prisma.paper.findFirst({ where: { track: 'IELTS', testType: p.testType }, orderBy: { order: 'desc' }, select: { order: true } });
-    await seedPaperList(prisma, [p], (last?.order || 0) + 1, { track: 'IELTS' });
+    await seedPaperList(prisma, [p], (last?.order || 0) + 1, { track: 'IELTS', ...(opts.status ? { status: opts.status } : {}) });
     added.push(p.code);
   }
   return added.length ? { added } : { skipped: 'already there' };

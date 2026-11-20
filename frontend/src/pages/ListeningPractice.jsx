@@ -245,24 +245,107 @@ function SetPicker({ sets, value, onChange, count }) {
   );
 }
 
+// ---------- learn first: listen, read the meaning, say it, then test ----------
+const KNOWN_KEY = 'epic-listening-known';
+const Recognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+
+function SayIt({ text }) {
+  const [state, setState] = useState({ status: 'idle', heard: '' });
+  if (!Recognition) return null;
+  function listen() {
+    const r = new Recognition();
+    r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 5;
+    setState({ status: 'listening', heard: '' });
+    r.onresult = e => {
+      const alts = [...e.results[0]].map(a => a.transcript);
+      const want = tokens(text).join(' ');
+      const ok = alts.some(a => tokens(a).join(' ') === want);
+      setState({ status: ok ? 'ok' : 'no', heard: ok ? text : alts[0] || '' });
+    };
+    r.onerror = e => setState({ status: 'error', heard: e.error === 'not-allowed' ? 'Please allow the microphone.' : e.error === 'no-speech' ? 'We did not hear anything. Try again.' : 'The microphone is not working here.' });
+    r.onend = () => setState(st => (st.status === 'listening' ? { status: 'error', heard: 'We did not hear anything. Try again.' } : st));
+    try { r.start(); } catch { setState({ status: 'error', heard: 'The microphone is not working here.' }); }
+  }
+  const colour = state.status === 'ok' ? T.success : state.status === 'idle' || state.status === 'listening' ? T.muted : T.error;
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <button type="button" onClick={listen} disabled={state.status === 'listening'} style={{ ...chip(state.status === 'listening'), height: 32, fontSize: 13 }}>🎤 {state.status === 'listening' ? 'Listening… say it now' : 'Say it'}</button>
+      {state.status !== 'idle' && state.status !== 'listening' && <span style={{ fontSize: 13, color: colour, fontWeight: 700 }}>
+        {state.status === 'ok' ? '✓ Great, clear!' : state.status === 'no' ? `We heard "${state.heard}". Listen and try again.` : state.heard}
+      </span>}
+    </div>
+  );
+}
+
+function LearnList({ items, voices, accent }) {
+  const [known, setKnownRaw] = useState(() => load(KNOWN_KEY, []));
+  const setKnown = fn => setKnownRaw(k => { const n = fn(k); save(KNOWN_KEY, n); return n; });
+  const done = items.filter(i => known.includes(i.text)).length;
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ ...card, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 15 }}>Listen to each one, read the meaning, then say it out loud. Tick it when you know it.{Recognition ? '' : ' (Use Chrome to practise saying it with the microphone.)'}</span>
+        <b style={{ color: T.success }}>{done} of {items.length} learned</b>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 12 }}>
+        {items.map(it => {
+          const k = known.includes(it.text);
+          return (
+            <div key={it.text} style={{ ...card, padding: 16, display: 'grid', gap: 8, alignContent: 'start', borderColor: k ? T.success : T.hairline, background: k ? '#f7fbf6' : '#fff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+                <div style={{ fontSize: it.kind === 'word' ? 24 : 19, fontWeight: 800, lineHeight: 1.2 }}>{it.text}</div>
+                <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 13, color: k ? T.success : T.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" checked={k} onChange={() => setKnown(list => k ? list.filter(x => x !== it.text) : [...list, it.text])} /> I know it
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => speak(voices, it.text, accent, 0.85)} style={{ ...chip(false), height: 32, fontSize: 13 }}>🔊 Listen</button>
+                <button type="button" onClick={() => speak(voices, it.text, accent, 0.55)} style={{ ...chip(false), height: 32, fontSize: 13 }}>🐢 Slowly</button>
+              </div>
+              {it.meaning && <div style={{ fontSize: 15 }}>{it.meaning}</div>}
+              {it.si && <div style={{ fontFamily: SI, color: T.navy, fontSize: 15 }}>{it.si}</div>}
+              {it.tip && <div style={{ fontSize: 13, color: T.muted }}><b>Spelling:</b> {it.tip}</div>}
+              <SayIt text={it.text} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StepSwitch({ step, setStep }) {
+  const opts = [['learn', '1. Learn and say it'], ['test', '2. Dictation test']];
+  return (
+    <div style={{ display: 'inline-flex', background: T.tint, borderRadius: 50, padding: 4, marginBottom: 12, gap: 4 }}>
+      {opts.map(([id, label]) => <button key={id} type="button" onClick={() => setStep(id)} aria-pressed={step === id}
+        style={{ height: 36, padding: '0 16px', borderRadius: 50, border: 0, background: step === id ? '#fff' : 'transparent', color: step === id ? T.primary : T.muted, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', boxShadow: step === id ? '0 1px 3px rgba(0,0,0,.12)' : 'none' }}>{label}</button>)}
+    </div>
+  );
+}
+
 function WordsMode(props) {
   const [setId, setSetId] = useState(WORD_SETS[0].id);
+  const [step, setStep] = useState('learn');
   const set = WORD_SETS.find(s => s.id === setId);
   const items = useMemo(() => set.words.map(([text, meaning, si, tip]) => ({ text, meaning, si, tip, kind: 'word' })), [set]);
   return <>
     <SetPicker sets={WORD_SETS} value={setId} onChange={setSetId} count={s => s.words.length} />
     <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note}</p>
-    <Dictation items={items} setTitle={set.title} {...props} />
+    <StepSwitch step={step} setStep={setStep} />
+    {step === 'learn' ? <LearnList items={items} voices={props.voices} accent={props.accent} /> : <Dictation items={items} setTitle={set.title} {...props} />}
   </>;
 }
 function PhrasesMode(props) {
   const [setId, setSetId] = useState(PHRASE_SETS[0].id);
+  const [step, setStep] = useState('learn');
   const set = PHRASE_SETS.find(s => s.id === setId);
   const items = useMemo(() => set.items.map(([text, meaning, si]) => ({ text, meaning, si, kind: 'phrase' })), [set]);
   return <>
     <SetPicker sets={PHRASE_SETS} value={setId} onChange={setSetId} count={s => s.items.length} />
     <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note}</p>
-    <Dictation items={items} setTitle={set.title} {...props} />
+    <StepSwitch step={step} setStep={setStep} />
+    {step === 'learn' ? <LearnList items={items} voices={props.voices} accent={props.accent} /> : <Dictation items={items} setTitle={set.title} {...props} />}
   </>;
 }
 function SentencesMode(props) {
@@ -419,7 +502,7 @@ export default function ListeningPractice() {
         <div style={{ background: T.navy, color: '#fff', borderRadius: 16, padding: '22px 24px', display: 'grid', gap: 12 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', color: '#b0e5fb' }}>LISTENING PRACTICE</div>
-            <h1 style={{ margin: '4px 0 6px', fontSize: 28 }}>Hear it. Type it. Spell it right.</h1>
+            <h1 style={{ margin: '4px 0 6px', fontSize: 28 }}>Learn it. Say it. Hear it. Type it.</h1>
             <div style={{ fontSize: 15, color: T.navyText, lineHeight: 1.5 }}>
               {totalItems}+ words, phrases and sentences from class, plus sentences from your reading papers. Use headphones.
               {stats.done > 0 && <> You have got <b style={{ color: '#fff' }}>{stats.right}</b> of {stats.done} right so far.</>}

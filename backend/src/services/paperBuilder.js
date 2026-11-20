@@ -243,7 +243,19 @@ const voiceFor = (name, used) => {
   if (/\b(woman|female|mrs|ms|miss|mother|girl|lady)\b/i.test(name)) return FEMALE_VOICE;
   return used.size % 2 === 0 ? MALE_VOICE : FEMALE_VOICE;
 };
-async function ttsCall(model, contents, speechConfig) {
+// Free Google keys allow only a few voice requests a minute: on "429 quota", wait as long as Google says and try again.
+async function ttsCall(model, contents, speechConfig, tries = 0) {
+  try { return await ttsCallOnce(model, contents, speechConfig); }
+  catch (e) {
+    if (e.status !== 429 || tries >= 8 || /per day|PerDay|daily/i.test(e.message)) throw e;
+    const m = e.message.match(/retry in ([\d.]+)s/i);
+    const wait = Math.min(90, Math.ceil(m ? +m[1] : 25) + 2);
+    console.log(`[tts] Google limit reached, waiting ${wait}s`);
+    await new Promise(r => setTimeout(r, wait * 1000));
+    return ttsCall(model, contents, speechConfig, tries + 1);
+  }
+}
+async function ttsCallOnce(model, contents, speechConfig) {
   const key = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
@@ -324,6 +336,7 @@ async function recordScript(script, hints = {}) {
     const turns = speakers.length > 1 ? c.lines.map(l => ({ speaker: l.who.replace(/[^A-Za-z]/g, '') || 'Speaker', text: l.text })) : null;
     try { audio = await geminiTts(say, speakers, turns); }
     catch (e) { // a named voice may not exist for this model: try again with the default voices
+      if (e.status === 429) throw e;
       const plain = speakers.map(sp => { const who = names.find(n => (n.replace(/[^A-Za-z]/g, '') || 'Speaker') === sp.name); return { ...sp, voice: fallbackOf(who) || voiceFor(who || '', new Map()) }; });
       if (plain.length === 2 && plain[0].voice === plain[1].voice) plain[1].voice = plain[0].voice === MALE_VOICE ? FEMALE_VOICE : MALE_VOICE;
       if (JSON.stringify(plain) === JSON.stringify(speakers)) throw e;

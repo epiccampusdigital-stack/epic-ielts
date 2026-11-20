@@ -22,7 +22,11 @@ async function runAudioJobs(prisma) {
       const n = await builder.recordPaperAudio(paper.id, null, j.parts);
       await prisma.appSetting.upsert({ where: { key }, update: { value: new Date().toISOString() }, create: { key, value: new Date().toISOString() } });
       out.push({ id: j.id, recorded: n });
-    } catch (e) { out.push({ id: j.id, failed: e.message }); }
+    } catch (e) { out.push({ id: j.id, failed: e.message.slice(0, 200) }); }
+  }
+  // Google's free limit: try the unfinished jobs again in a few minutes (up to 12 times per server start)
+  if (out.some(o => o.failed) && (runAudioJobs.retries = (runAudioJobs.retries || 0) + 1) <= 12) {
+    setTimeout(() => runAudioJobs(prisma).then(r => console.log('[ielts] audio jobs (retry):', JSON.stringify(r))).catch(() => {}), 5 * 60 * 1000);
   }
   return out;
 }

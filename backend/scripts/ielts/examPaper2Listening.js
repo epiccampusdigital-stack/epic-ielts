@@ -127,7 +127,8 @@ NARRATOR: That is the end of the listening test.`;
 const LISTENING = {
   code: 'EX2-L', testType: 'LISTENING', title: 'Exam Paper 2 · Part 1 of 3 · Listening', timeLimitMin: 35, difficulty: 3, topic: 'Exam Paper 2',
   instructions: 'Exam Paper 2 (halfway mock), Part 1 of 3. Four parts and 40 questions, about 35 minutes. You will hear each recording ONCE only. Read the questions before each part starts. When you submit, Part 2 (Reading) starts.',
-  audioScript: JSON.stringify({ 1: S1, 2: S2, 3: S3, 4: S4 }),
+  // voices: the server records with Gemini; each speaker gets its own voice (falls back to male/female defaults)
+  audioScript: JSON.stringify({ 1: S1, 2: S2, 3: S3, 4: S4, voices: { NARRATOR: 'male:Charon', RECEPTIONIST: 'female:Kore', DILAN: 'male:Puck', 'JI-HO': 'male:Achird', NIMAL: 'male:Iapetus', SARA: 'female:Aoede', LECTURER: 'female:Erinome' } }),
   sections: [
     { number: 1, description: 'Joining a sports centre', groups: [
       { type: 'SENTENCE_COMPLETION', instruction: FORM(1, 10, 'NO MORE THAN TWO WORDS AND/OR A NUMBER') + ' Example: Type of membership: student', wordLimit: 'NO MORE THAN TWO WORDS AND/OR A NUMBER', questions: [
@@ -204,4 +205,21 @@ function checkListening() {
   return errs;
 }
 
-module.exports = { LISTENING, VOICES, checkListening };
+// Adds the listening part once (locked), then records the audio on the server when the Google AI key is set.
+// Records again on a later start if any part still has no audio (for example, the key was added later).
+async function addExam2Listening(prisma) {
+  const errs = checkListening();
+  if (errs.length) return { skipped: 'check failed', errors: errs.slice(0, 5) };
+  const { addIeltsPapers } = require('./kit');
+  const r = await addIeltsPapers(prisma, [LISTENING], { status: 'EXAM_LOCKED' });
+  const lis = await prisma.paper.findFirst({ where: { paperCode: LISTENING.code, testType: 'LISTENING' }, include: { sections: true } });
+  if (lis && lis.sections.some(x => !x.audioUrl)) {
+    const builder = require('../../src/services/paperBuilder');
+    if (!builder.ttsReady()) return { ...r, audio: 'waiting for GOOGLE_AI_API_KEY' };
+    builder.recordPaperAudio(lis.id).then(n => console.log('[ielts] exam paper 2 listening audio recorded, parts:', n)).catch(e => console.error('[ielts] exam paper 2 audio failed:', e.message));
+    return { ...r, audio: 'recording' };
+  }
+  return { ...r, audio: 'ready' };
+}
+
+module.exports = { LISTENING, VOICES, checkListening, addExam2Listening };

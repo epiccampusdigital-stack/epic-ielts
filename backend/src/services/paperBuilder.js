@@ -264,20 +264,32 @@ async function geminiTts(text, speakers) {
   throw lastErr;
 }
 // Narrator lines on their own voice; the rest in one call with up to 2 voices (Gemini allows 2).
-async function recordScript(script) {
+// [PAUSE 30] = 30 seconds of silence. A line with no "Name:" carries on the previous speaker.
+// hints: optional { SPEAKER: 'male' | 'female' } (audioScript JSON key "voices").
+async function recordScript(script, hints = {}) {
+  let prev = 'Narrator';
   const lines = String(script).split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-    const m = l.match(/^([A-Za-z][A-Za-z .']{0,24}):\s*(.+)$/); return m ? { who: m[1].trim(), text: m[2] } : { who: 'Narrator', text: l };
+    const p = l.match(/^\[PAUSE (\d+)\]$/i); if (p) return { pause: Math.min(120, +p[1]) };
+    const m = l.match(/^([A-Za-z][A-Za-z .'-]{0,24}):\s*(.+)$/);
+    if (m) prev = m[1].trim();
+    return m ? { who: m[1].trim(), text: m[2] } : { who: prev, text: l };
   });
   const chunks = [];
   for (const l of lines) {
+    if (l.pause) { chunks.push({ pause: l.pause }); continue; }
     const narr = /narrator/i.test(l.who);
     const last = chunks[chunks.length - 1];
-    if (last && last.narr === narr) last.lines.push(l); else chunks.push({ narr, lines: [l] });
+    if (last && !last.pause && last.narr === narr) last.lines.push(l); else chunks.push({ narr, lines: [l] });
   }
+  // hint 'female' / 'male', or 'female:Kore' = try the Gemini voice Kore, fall back to the female default
+  const hintOf = who => String(hints[who] || hints[String(who).toUpperCase()] || '');
+  const fallbackOf = who => (/^female/i.test(hintOf(who)) ? FEMALE_VOICE : /^male/i.test(hintOf(who)) ? MALE_VOICE : null);
+  const hint = who => { const h = hintOf(who); const named = h.split(':')[1]; return named ? named.trim() : fallbackOf(who); };
   const parts = [silence(1.5)];
   for (const c of chunks) {
+    if (c.pause) { parts.push(silence(c.pause)); continue; }
     const used = new Map();
-    c.lines.forEach(l => { if (!used.has(l.who)) used.set(l.who, voiceFor(l.who, used)); });
+    c.lines.forEach(l => { if (!used.has(l.who)) used.set(l.who, hint(l.who) || voiceFor(l.who, used)); });
     let names = [...used.keys()];
     if (names.length > 2) { // fold extra speakers onto the two voices
       const keep = names.slice(0, 2);
@@ -290,7 +302,16 @@ async function recordScript(script) {
     const say = speakers.length > 1
       ? `Read this conversation aloud in clear, natural British English at a calm exam speed:\n${body}`
       : `Read this aloud in clear, natural British English at a calm exam speed: ${c.lines.map(l => l.text).join(' ')}`;
-    parts.push(await geminiTts(say, speakers), silence(c.narr ? 1 : 0.8));
+    let audio;
+    try { audio = await geminiTts(say, speakers); }
+    catch (e) { // a named voice may not exist for this model: try again with the default voices
+      const plain = speakers.map(sp => { const who = names.find(n => (n.replace(/[^A-Za-z]/g, '') || 'Speaker') === sp.name); return { ...sp, voice: fallbackOf(who) || voiceFor(who || '', new Map()) }; });
+      if (plain.length === 2 && plain[0].voice === plain[1].voice) plain[1].voice = plain[0].voice === MALE_VOICE ? FEMALE_VOICE : MALE_VOICE;
+      if (JSON.stringify(plain) === JSON.stringify(speakers)) throw e;
+      console.warn('[tts] retrying with default voices:', e.message);
+      audio = await geminiTts(say, plain);
+    }
+    parts.push(audio, silence(c.narr ? 1 : 0.8));
   }
   return wav(Buffer.concat(parts));
 }
@@ -318,7 +339,7 @@ async function recordPaperAudio(paperId, job) {
     const script = scripts[s.number] || scripts[String(s.number)];
     if (!script) continue;
     if (job) job.step = `Recording section ${s.number} audio`;
-    const buf = await recordScript(script);
+    const buf = await recordScript(script, scripts.voices || {});
     const url = await storeAudio(buf, `${paper.paperCode.toLowerCase()}-section${s.number}-${Date.now().toString(36)}`);
     await prisma.section.update({ where: { id: s.id }, data: { audioUrl: url } });
     done++;

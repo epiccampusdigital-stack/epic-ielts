@@ -177,6 +177,8 @@ require('./ensureSchema').ensureSchema(prisma)
       if (hm.count) console.log('[ielts] halfway mock moved to the exam tab (locked):', hm.count);
       const { addExamPaper1 } = require('../scripts/ielts/examPaper1');
       console.log('[ielts] exam paper 1:', JSON.stringify(await addExamPaper1(prisma)));
+      const { addExam2Listening } = require('../scripts/ielts/examPaper2Listening');
+      console.log('[ielts] exam paper 2 listening:', JSON.stringify(await addExam2Listening(prisma)));
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');
       console.log('[ielts] new reading paper:', JSON.stringify(await addSleepTreesReading(prisma)));
       const { addParkLifeWriting } = require('../scripts/ielts/writingParkLifeStages');

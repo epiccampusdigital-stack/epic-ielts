@@ -682,6 +682,11 @@ router.get('/:id', auth, async (req, res) => {
     });
 
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+    // Exams with one timer (Exam Paper 2): the clock runs from the start of the first part
+    try {
+      const ot = await require('./exams').oneTimer(prisma, attempt);
+      if (ot) { attempt.startedAt = ot.startedAt; attempt.paper.timeLimitMin = ot.minutes; attempt.examOneTimer = true; }
+    } catch (e) { console.error('[exams] one timer', e.message); }
     // Hide answers from students while the exam is still running
     const isStaff = req.user.role === 'ADMIN' || req.user.role === 'TEACHER';
     if (!isStaff && attempt.status !== 'COMPLETED') {

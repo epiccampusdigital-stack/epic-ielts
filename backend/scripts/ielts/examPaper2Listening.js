@@ -125,10 +125,10 @@ NARRATOR: That is the end of Part 4. You now have half a minute to check your an
 NARRATOR: That is the end of the listening test.`;
 
 const LISTENING = {
-  code: 'EX2-L', testType: 'LISTENING', title: 'Exam Paper 2 · Part 1 of 3 · Listening', timeLimitMin: 35, difficulty: 3, topic: 'Exam Paper 2',
-  instructions: 'Exam Paper 2 (halfway mock), Part 1 of 3. Four parts and 40 questions, about 35 minutes. You will hear each recording ONCE only. Read the questions before each part starts. When you submit, Part 2 (Reading) starts.',
+  code: 'EX2-L', testType: 'LISTENING', title: 'Exam Paper 2 · Part 1 of 3 · Listening', timeLimitMin: 25, difficulty: 3, topic: 'Exam Paper 2',
+  instructions: 'Exam Paper 2 (halfway mock), Part 1 of 3: Listening. Three parts and 30 questions, about 25 minutes. You will hear the recording ONCE only. Use the reading time to look at the questions before each part. One timer runs for the whole exam (2.5 hours): when you submit, Reading opens straight away.',
   // voices: the server records with Gemini; each speaker gets its own voice (falls back to male/female defaults)
-  audioScript: JSON.stringify({ 1: S1, 2: S2, 3: S3, 4: S4, voices: { NARRATOR: 'male:Charon', RECEPTIONIST: 'female:Kore', DILAN: 'male:Puck', 'JI-HO': 'male:Achird', NIMAL: 'male:Iapetus', SARA: 'female:Aoede', LECTURER: 'female:Erinome' } }),
+  audioScript: JSON.stringify({ 1: S1, 2: S2, 3: S3, voices: { NARRATOR: 'male:Charon', RECEPTIONIST: 'female:Kore', DILAN: 'male:Puck', 'JI-HO': 'male:Achird', NIMAL: 'male:Iapetus', SARA: 'female:Aoede', LECTURER: 'female:Erinome' } }),
   sections: [
     { number: 1, description: 'Joining a sports centre', groups: [
       { type: 'SENTENCE_COMPLETION', instruction: FORM(1, 10, 'NO MORE THAN TWO WORDS AND/OR A NUMBER') + ' Example: Type of membership: student', wordLimit: 'NO MORE THAN TWO WORDS AND/OR A NUMBER', questions: [
@@ -176,20 +176,6 @@ const LISTENING = {
         mc('Thanking the canteen manager', ['Nimal', 'Sara', 'Both of them'], 'A', 'Nimal: "I\'ll do that. I see him every morning".', ["I'll do that. I see him every morning at breakfast anyway"]),
       ] },
     ] },
-    { number: 4, description: 'A lecture on urban heat islands', groups: [
-      { type: 'SENTENCE_COMPLETION', instruction: NOTES(31, 40, 'ONE WORD ONLY'), wordLimit: 'ONE WORD ONLY', questions: [
-        sc('Urban heat islands: the difference in temperature is usually greatest at ________.', 'NIGHT', '"it is usually greatest at night, not during the day".', ['it is usually greatest at night, not during the day']),
-        sc('Cause 1: concrete and dark roads ________ heat during the day.', 'ABSORB', '"Concrete and dark roads absorb heat from the sun".', ['Concrete and dark roads absorb heat from the sun during the day']),
-        sc('Cause 2: there is less green ________ in cities.', 'SPACE', '"there is much less green space".', ['there is much less green space']),
-        sc('Cause 3: heat from cars, factories and especially air ________.', 'CONDITIONERS', '"and, especially, air conditioners".', ['and, especially, air conditioners']),
-        sc('Effects: in heatwaves, ________ people are at the greatest risk.', 'OLDER|OLD', '"older people are at the greatest risk".', ['older people are at the greatest risk']),
-        sc('Effects: more demand for ________.', 'ELECTRICITY', '"Heat islands also increase the demand for electricity".', ['Heat islands also increase the demand for electricity']),
-        sc('Solution: paint roofs ________, so they reflect sunlight.', 'WHITE', '"One of the simplest is to paint roofs white".', ['One of the simplest is to paint roofs white']),
-        sc('Green roofs cost more but also reduce ________.', 'FLOODING|FLOODS', '"they also help to reduce flooding".', ['they also help to reduce flooding']),
-        sc('Trees are the most effective solution because they give ________ and cool the air.', 'SHADE', '"because trees provide shade as well as cooling the air".', ['because trees provide shade as well as cooling the air']),
-        sc('Los Angeles: a light grey coating reflected heat onto people who were ________ nearby.', 'WALKING', '"reflected heat onto people walking nearby".', ['this coating reflected heat onto people walking nearby']),
-      ] },
-    ] },
   ],
 };
 
@@ -201,7 +187,7 @@ function checkListening() {
     (q.ev || []).forEach(e => { if (!scripts[s.number].includes(e)) errs.push(`Q${n}: not in script: ${e}`); });
     if (q.options && q.answer.charCodeAt(0) - 65 >= q.options.length) errs.push(`Q${n}: answer outside options`);
   })));
-  if (n !== 40) errs.push(`listening has ${n} questions, not 40`);
+  if (n !== 30) errs.push(`listening has ${n} questions, not 30`);
   return errs;
 }
 
@@ -223,4 +209,4 @@ async function addExam2Listening(prisma, opts = {}) {
   return { ...r, audio: 'ready' };
 }
 
-module.exports = { LISTENING, VOICES, checkListening, addExam2Listening };
+module.exports = { LISTENING, VOICES, S4, checkListening, addExam2Listening };

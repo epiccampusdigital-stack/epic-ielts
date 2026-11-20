@@ -16,6 +16,7 @@ export default function Exams() {
   const [exams, setExams] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
+  const [auto, setAuto] = useState('');
 
   const load = useCallback(() => axios.get(`${API_URL}/api/exams`, api())
     .then(r => { setExams(r.data.exams || []); setError(''); return r.data.exams || []; })
@@ -26,8 +27,10 @@ export default function Exams() {
     load().then(list => {
       const done = Number(params.get('done'));
       const exam = done && list ? list.find(e => e.parts.some(p => p.paperId === done)) : null;
-      const more = exam && exam.parts.some(p => !p.done);
-      if (!more) exitFullscreen();
+      const next = exam && exam.parts.find(p => !p.done);
+      if (!next) { exitFullscreen(); return; }
+      // one-timer exams go straight on to the next part (the clock is already running)
+      if (exam.oneTimer && exam.open) { setAuto(next.testType); startPart(exam, next); }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -48,7 +51,7 @@ export default function Exams() {
       navigate(`/exam/${id}/${part.testType.toLowerCase()}`);
     } catch (e) {
       exitFullscreen();
-      setBusy('');
+      setBusy(''); setAuto('');
       const m = e.response?.data?.message;
       setError(m || 'Could not start the exam. Please try again.');
       load();
@@ -56,6 +59,11 @@ export default function Exams() {
   }
 
   const doneId = Number(params.get('done'));
+  if (auto) return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: T.navy, color: '#fff', fontFamily: T.font, textAlign: 'center', padding: 16 }}>
+      <div><div style={{ fontSize: 15, letterSpacing: '.08em', color: '#b0e5fb', fontWeight: 700 }}>SUBMITTED</div><div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>Opening {SKILL[auto] || 'the next part'}…</div><div style={{ color: T.navyText, marginTop: 6 }}>The timer is still running.</div></div>
+    </div>
+  );
   return (
     <div style={{ minHeight: '100vh', background: '#f6f8fc', fontFamily: T.font, color: T.ink }}>
       <StudentNav active="exams" />
@@ -110,8 +118,17 @@ export default function Exams() {
               </ol>
 
               {!exam.open && !allDone && <div style={{ color: T.muted, fontSize: 15 }}>This exam is locked. It opens when your teacher unlocks it, and this page updates by itself.</div>}
-              {exam.open && !allDone && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>Do the parts in order, one after the other. When you press Start, the exam fills the screen. If you leave full screen by mistake, press the orange "Back to full screen" button at the top. When the time runs out, your answers are sent automatically.</div>}
-              {allDone && <div style={{ color: T.muted, fontSize: 15 }}>Well done. Your teacher will go through the results with you.</div>}
+              {exam.open && !allDone && exam.oneTimer && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>One timer for the whole exam ({exam.totalMinutes} minutes). When you submit a part, the next part opens straight away and the clock keeps running, so there is no break. The exam fills the screen; if you leave full screen by mistake, press the orange "Back to full screen" button at the top.</div>}
+              {exam.open && !allDone && !exam.oneTimer && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>Do the parts in order, one after the other. When you press Start, the exam fills the screen. If you leave full screen by mistake, press the orange "Back to full screen" button at the top. When the time runs out, your answers are sent automatically.</div>}
+              {allDone && <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ color: T.muted, fontSize: 15 }}>Well done, you have finished this exam. You cannot do it again, but you can see your results:</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {exam.parts.filter(p => p.attemptId).map(p => (
+                    <button key={p.paperId} type="button" onClick={() => navigate(p.testType === 'WRITING' ? `/exam/${p.attemptId}/writing-results` : `/exam/${p.attemptId}/results`)}
+                      style={{ height: 42, padding: '0 18px', borderRadius: 50, border: `1.5px solid ${T.primary}`, background: '#fff', color: T.primary, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>{SKILL[p.testType] || p.testType} results ›</button>
+                  ))}
+                </div>
+              </div>}
             </div>
           );
         })}

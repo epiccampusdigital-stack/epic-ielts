@@ -133,6 +133,30 @@ In 2000, food accounted for just over a third of family spending, at 34%, follow
 The remaining categories became less important. Entertainment fell from 9% to 6%, making it the smallest category in 2025, and the share spent on other items declined slightly, from 15% to 12%.`,
     },
   },
+  'EX2-W': {
+    1: {
+      tips: ['Overview: car use fell in Northbridge and Riverside but rose slightly in Easton; Riverside changed the most; walking stayed at 10% everywhere.', 'Group by trend, not by city one by one: falls in car use, rises in train and bicycle, the one exception (Easton), and the figure that never changed.', 'Use percentages with "the proportion of", "doubled", "remained unchanged"; no reasons or opinions.'],
+      answer: `The table compares the percentage of workers in three cities who used five different ways of travelling to work in 2005 and 2025.
+
+Overall, the car was the most common way to get to work in all three cities in 2005, but its share fell in Northbridge and Riverside over the period. Train and bicycle use grew in these two cities, while Easton changed very little, and the proportion of people walking stayed the same everywhere.
+
+In Northbridge, the share of car users dropped from 55% to 45%, and bus use also fell, from 20% to 15%. By contrast, the proportion travelling by train doubled to 20%, and cycling rose from 5% to 10%.
+
+Riverside saw the biggest changes. Car use fell sharply from 35% to just 20%, while the train became the most popular option, rising from 30% to 35%. The share of cyclists doubled, from 10% to 20%.
+
+Easton was the exception: car use rose slightly to 42%, bus use fell marginally to 28%, and the other figures did not change. In all three cities, 10% of workers walked to work in both years.`,
+    },
+    2: {
+      tips: ['Two questions, answer both: WHY people buy and throw away more, and WHAT can be done. One body paragraph for each.', 'Causes: low prices and fast fashion, advertising and social media, products designed to break or go out of date. Solutions: repairs and longer guarantees, laws on brands, second-hand and recycling, education.', 'A clear position in the introduction and conclusion; one specific example in each body paragraph.'],
+      answer: `In many parts of the world, people now buy more clothes, phones and other goods than ever before, and they also throw them away much sooner. This essay will explain why this is happening and suggest some ways of reducing the amount of waste.
+
+The main reason for this trend is that products have become much cheaper. Fast fashion brands sell T-shirts for the price of a cup of coffee, so many shoppers no longer see clothes as something to keep for years. In addition, advertising and social media constantly encourage people to follow new trends; influencers rarely wear the same outfit twice. Finally, many electronic products are designed in a way that makes them difficult to repair, and new models appear every year, so consumers feel that their old phones are out of date even when they still work.
+
+Several measures could reduce this waste. First, governments could require companies to make products easier to repair and to offer longer guarantees, as some European countries have begun to do. Second, brands could be made responsible for collecting and recycling the goods they sell, which would give them a reason to produce items that last longer. Third, buying second-hand could be made more attractive, for example through online platforms and repair cafés. Schools also have a role to play in teaching young people about the true cost of the things they buy.
+
+In conclusion, cheap prices, constant advertising and products that are hard to repair have all encouraged a throwaway culture. I believe that the most effective solution is for governments to make companies responsible for the life of their products, supported by better education for consumers.`,
+    },
+  },
   'IM-HALF-W': {
     1: {
       tips: ['Overview: Australia was always the top choice; South Korea and Japan grew the fastest; all four dipped in 2020.', 'Compare the two big countries (Australia, UK) with the two Asian ones; mention the 2020 dip and the 2024 peak.', 'Numbers in thousands; avoid describing every year of every line.'],

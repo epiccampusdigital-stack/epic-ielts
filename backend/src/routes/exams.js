@@ -6,6 +6,9 @@ const auth = require('../middleware/auth');
 // Each exam is one sitting made of parts done in order.
 const EXAMS = [
   { id: 'paper1', title: 'Exam Paper 1', subtitle: 'IELTS Reading and Writing · 1 hour', codes: ['EX1-R', 'EX1-W'] },
+  // Halfway mock: 25 + 45 + 60 minutes of work, with short breaks between parts (2.5 hours in total)
+  // oneTimer: one clock for the whole paper; each part opens straight after the one before
+  { id: 'paper2', title: 'Exam Paper 2 · Halfway mock', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
 ];
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
 const isStaff = req => STAFF.includes(req.user?.role);
@@ -14,7 +17,7 @@ async function build(prisma, studentId, staff) {
   const codes = EXAMS.flatMap(e => e.codes);
   const papers = await prisma.paper.findMany({
     where: { paperCode: { in: codes }, status: { startsWith: 'EXAM' } },
-    select: { id: true, paperCode: true, testType: true, title: true, timeLimitMin: true, status: true },
+    select: { id: true, paperCode: true, testType: true, title: true, timeLimitMin: true, status: true, sections: { select: { audioUrl: true } } },
   });
   const ids = papers.map(p => p.id);
   const attempts = ids.length ? await prisma.attempt.findMany({
@@ -32,9 +35,11 @@ async function build(prisma, studentId, staff) {
           : { done: !!done, attemptId: (done || going)?.id || null, inProgress: !done && !!going }),
       };
     });
-    if (!parts.length) return null;
+    if (!parts.length || parts.length < e.codes.length) return null;
+    // an exam with listening appears only when every listening part has its recording
+    if (e.needsAudio && papers.some(p => e.codes.includes(p.paperCode) && p.testType === 'LISTENING' && (!p.sections.length || p.sections.some(s => !s.audioUrl)))) return null;
     const open = parts.every(p => papers.find(x => x.id === p.paperId).status === 'EXAM_OPEN');
-    return { id: e.id, title: e.title, subtitle: e.subtitle, open, totalMinutes: parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
+    return { id: e.id, title: e.title, subtitle: e.subtitle, open, oneTimer: !!e.oneTimer, totalMinutes: e.totalMinutes || parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
   }).filter(Boolean);
 }
 
@@ -65,5 +70,17 @@ router.post('/:id/:action', auth, async (req, res) => {
   }
 });
 
+// One timer for the whole exam: every part counts down from the moment the first part started.
+async function oneTimer(prisma, attempt) {
+  const exam = EXAMS.find(e => e.oneTimer && e.codes.includes(attempt?.paper?.paperCode));
+  if (!exam) return null;
+  const first = await prisma.attempt.findFirst({
+    where: { studentId: attempt.studentId, paper: { paperCode: { in: exam.codes }, status: { startsWith: 'EXAM' } } },
+    orderBy: { startedAt: 'asc' }, select: { startedAt: true },
+  });
+  return first ? { startedAt: first.startedAt, minutes: exam.totalMinutes } : null;
+}
+
 module.exports = router;
 module.exports.EXAMS = EXAMS;
+module.exports.oneTimer = oneTimer;

@@ -14,7 +14,6 @@ const VOICES = {
   RECEPTIONIST: 'en-GB, female (e.g. en-GB-Neural2-A)',
   DILAN: 'en-GB, male, young (e.g. en-GB-Neural2-D)',
   'JI-HO': 'en-AU, male (e.g. en-AU-Neural2-B)',
-  TUTOR: 'en-GB, female, older (e.g. en-GB-Neural2-F)',
   NIMAL: 'en-GB, male (e.g. en-GB-Neural2-D)',
   SARA: 'en-US, female (e.g. en-US-Neural2-F)',
   LECTURER: 'en-GB, female (e.g. en-GB-Neural2-C)',
@@ -79,36 +78,33 @@ Our last stop before the market is Woljeong Bridge. It's a beautiful wooden brid
 NARRATOR: That is the end of Part 2. You now have half a minute to check your answers.
 [PAUSE 30]`;
 
-const S3 = `NARRATOR: Part 3. You will hear two students, Nimal and Sara, talking to their tutor about a presentation on food waste. First, you have some time to look at questions 21 to 25.
+const S3 = `NARRATOR: Part 3. You will hear two students, Nimal and Sara, talking about a presentation on food waste that they are preparing. First, you have some time to look at questions 21 to 25.
 [PAUSE 30]
 NARRATOR: Now listen carefully and answer questions 21 to 25.
-TUTOR: Come in, Nimal, Sara. So, how's the presentation on food waste going?
-SARA: Quite well, I think. We've decided to focus on the dormitory canteen, because that's where most students eat.
-TUTOR: Good. Why did you choose the canteen rather than food waste in general?
-NIMAL: At first we wanted to look at supermarkets, but it was hard to get information from them. The canteen manager was very happy to help us, so it was much easier to collect real data.
-TUTOR: That makes sense. And how did you collect the data?
-SARA: We thought about giving students a questionnaire, but people don't always tell the truth about how much food they throw away. So in the end, we weighed the food left on the plates after lunch every day for two weeks.
-TUTOR: Excellent. That's much more reliable. What did you find?
-NIMAL: The amount was bigger than we expected. On average, about a quarter of the food on each plate was thrown away. The worst day was Friday, when it was almost a third.
-TUTOR: Why do you think that was?
-SARA: We thought it might be because the Friday menu is less popular, but the manager told us the menu is the same as on other days. Actually, a lot of students go home on Friday afternoons, so they eat quickly and leave food behind.
-TUTOR: Interesting. And what do you plan to recommend?
-NIMAL: Our main idea is to let students choose a smaller portion. At the moment everyone gets the same amount of rice, even if they're not very hungry.
-TUTOR: I think the canteen would like that. It would save them money too.
+SARA: Hi Nimal. Have you got a few minutes to talk about the presentation? Our tutor wants a plan by Monday.
+NIMAL: Sure. Let's start with the topic. We're focusing on the dormitory canteen, right?
+SARA: Yes. Remember, at first we wanted to look at supermarkets, but it was hard to get information from them. The canteen manager was very happy to help us, so it was much easier to collect real data.
+NIMAL: True. And we should explain how we collected the data.
+SARA: OK. So, we thought about giving students a questionnaire, but people don't always tell the truth about how much food they throw away. So in the end, we weighed the food left on the plates after lunch every day for two weeks.
+NIMAL: That's right. And our main finding was that the amount was bigger than we expected. On average, about a quarter of the food on each plate was thrown away. The worst day was Friday, when it was almost a third.
+SARA: Do you remember why Friday was so bad? I've forgotten.
+NIMAL: We thought it might be because the Friday menu is less popular, but the manager told us the menu is the same as on other days. Actually, a lot of students go home on Friday afternoons, so they eat quickly and leave food behind.
+SARA: Oh yes. And for the recommendations, I still like the portion idea best.
+NIMAL: Me too. Our main idea is to let students choose a smaller portion. At the moment everyone gets the same amount of rice, even if they're not very hungry.
+SARA: And the canteen would save money too.
 NARRATOR: Before you hear the rest of the conversation, you have some time to look at questions 26 to 30.
 [PAUSE 30]
 NARRATOR: Now listen and answer questions 26 to 30.
-TUTOR: So, have you decided who's going to do each part of the presentation?
-SARA: Mostly. I'll do the introduction, because I wrote the first part of the report.
-TUTOR: And the charts?
-NIMAL: I made the charts in the report, so I'll explain them.
-SARA: For the part about our method, the weighing, we'll both do that, because we did it together every day.
-TUTOR: Fine. What about the recommendations?
-NIMAL: Sara had the idea about smaller portions, so she should present that.
-SARA: OK. And the questions at the end, we'll answer those together.
-TUTOR: Good. One more thing: who's going to contact the canteen manager to thank him?
+NIMAL: So, who's going to do each part of the presentation?
+SARA: Well, I'll do the introduction, because I wrote the first part of the report.
+NIMAL: And the charts? I made the charts in the report, so I'll explain them.
+SARA: Good. For the part about our method, the weighing, we'll both do that, because we did it together every day.
+NIMAL: Agreed. What about the recommendations? Sara had the idea about smaller portions, so she should present that. That's you!
+SARA: Ha, OK, I'll do it. And the questions at the end, we'll answer those together.
+NIMAL: Fine. Oh, and someone should contact the canteen manager to thank him.
+SARA: Could you do that?
 NIMAL: I'll do that. I see him every morning at breakfast anyway.
-TUTOR: Perfect. I'm looking forward to it.
+SARA: Perfect. Then I'll send the plan to our tutor tonight.
 NARRATOR: That is the end of Part 3. You now have half a minute to check your answers.
 [PAUSE 30]`;
 
@@ -163,7 +159,7 @@ const LISTENING = {
         mc('Woljeong Bridge', ['Photos are not allowed inside', 'There is a steep walk', 'It is best seen at night', 'Visitors can go inside one of them', 'A free guided tour in English is available', 'It was rebuilt recently', 'Entry is free'], 'F', '"it was rebuilt and opened only a few years ago". (The guide says it looks just as good in daylight, so not C.)', ['in fact it was rebuilt and opened only a few years ago']),
       ] },
     ] },
-    { number: 3, description: 'A presentation on food waste', groups: [
+    { number: 3, description: 'Two students plan a presentation on food waste', groups: [
       { type: 'MULTIPLE_CHOICE', instruction: MC3(21, 25), questions: [
         mc('Why did the students stop studying supermarkets?', ['Supermarkets waste very little food', 'It was difficult to get information from them', 'Their tutor told them to change'], 'B', '"it was hard to get information from them".', ['it was hard to get information from them']),
         mc('How did they collect their data?', ['By giving students a questionnaire', 'By weighing food left on plates', 'By interviewing the canteen staff'], 'B', '"we weighed the food left on the plates after lunch". (They only thought about a questionnaire.)', ['we weighed the food left on the plates after lunch every day for two weeks']),

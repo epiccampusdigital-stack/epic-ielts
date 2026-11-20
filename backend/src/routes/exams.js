@@ -6,9 +6,9 @@ const auth = require('../middleware/auth');
 // Each exam is one sitting made of parts done in order.
 const EXAMS = [
   { id: 'paper1', title: 'Exam Paper 1', subtitle: 'IELTS Reading and Writing · 1 hour', codes: ['EX1-R', 'EX1-W'] },
-  // Halfway mock: 25 + 45 + 60 minutes of work, with short breaks between parts (2.5 hours in total)
+  // Midway final exam: 25 + 45 + 60 minutes of work on one 2.5-hour timer
   // oneTimer: one clock for the whole paper; each part opens straight after the one before
-  { id: 'paper2', title: 'Exam Paper 2 · Halfway mock', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
+  { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
 ];
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
 const isStaff = req => STAFF.includes(req.user?.role);

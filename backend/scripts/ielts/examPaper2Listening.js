@@ -1,4 +1,4 @@
-// EXAM PAPER 2 (halfway mock, Exam tab), Part 1: LISTENING. 4 parts, 40 questions, IELTS style.
+// EXAM PAPER 2 (Midway Final Exam, Exam tab), Part 1: LISTENING. 4 parts, 40 questions, IELTS style.
 // Difficulty about 5.5 out of 10: everyday accents and speed, with the usual IELTS traps (a speaker corrects
 // himself, a plan that changed, a number that is mentioned but is not the answer). Part 1 has the IELTS example.
 // The scripts are written for recording: each line starts with the speaker; [PAUSE n] = n seconds of silence.
@@ -126,7 +126,7 @@ NARRATOR: That is the end of the listening test.`;
 
 const LISTENING = {
   code: 'EX2-L', testType: 'LISTENING', title: 'Exam Paper 2 · Part 1 of 3 · Listening', timeLimitMin: 25, difficulty: 3, topic: 'Exam Paper 2',
-  instructions: 'Exam Paper 2 (halfway mock), Part 1 of 3: Listening. Three parts and 30 questions, about 25 minutes. You will hear the recording ONCE only. Use the reading time to look at the questions before each part. One timer runs for the whole exam (2.5 hours): when you submit, Reading opens straight away.',
+  instructions: 'Exam Paper 2 (Midway Final Exam), Part 1 of 3: Listening. Three parts and 30 questions, about 25 minutes. You will hear the recording ONCE only. Use the reading time to look at the questions before each part. One timer runs for the whole exam (2.5 hours): when you submit, Reading opens straight away.',
   // voices: the server records with Gemini; each speaker gets its own voice (falls back to male/female defaults)
   audioScript: JSON.stringify({ 1: S1, 2: S2, 3: S3, voices: { NARRATOR: 'male:Charon', RECEPTIONIST: 'female:Kore', DILAN: 'male:Puck', 'JI-HO': 'male:Achird', NIMAL: 'male:Iapetus', SARA: 'female:Aoede', LECTURER: 'female:Erinome' } }),
   sections: [

@@ -1,4 +1,4 @@
-// EXAM PAPER 2 (halfway mock, Exam tab): one 2.5-hour timer for three parts done straight after each other (no breaks).
+// EXAM PAPER 2 (Midway Final Exam, Exam tab): one 2.5-hour timer for three parts done straight after each other (no breaks).
 //   Part 1 Listening (examPaper2Listening.js): 3 parts, 30 questions, 25 minutes
 //   Part 2 Reading (below): 2 passages, 26 questions, 45 minutes
 //   Part 3 Writing (below): Task 1 (table) + Task 2 (essay), 60 minutes
@@ -39,7 +39,7 @@ const yn = (content, answer, explanation, ev = []) => ({ type: 'MULTIPLE_CHOICE'
 
 const READING = {
   code: 'EX2-R', testType: 'READING', title: 'Exam Paper 2 · Part 2 of 3 · Reading', timeLimitMin: 45, difficulty: 4, topic: 'Exam Paper 2',
-  instructions: 'Exam Paper 2 (halfway mock), Part 2 of 3: Reading. Two passages and 26 questions. Suggested time: 45 minutes (about 20 minutes for each passage, plus time to check). The exam timer keeps running; when you submit, Writing opens straight away. Passage 1: questions 1 to 13. Passage 2: questions 14 to 26. Read the questions carefully: some answers that look right are not.',
+  instructions: 'Exam Paper 2 (Midway Final Exam), Part 2 of 3: Reading. Two passages and 26 questions. Suggested time: 45 minutes (about 20 minutes for each passage, plus time to check). The exam timer keeps running; when you submit, Writing opens straight away. Passage 1: questions 1 to 13. Passage 2: questions 14 to 26. Read the questions carefully: some answers that look right are not.',
   passages: [
     { title: 'Why we put things off', text: P1, groups: [
       { type: 'MULTIPLE_CHOICE', instruction: I.PARA(1, 5, 'F'), questions: [
@@ -88,7 +88,7 @@ const READING = {
 
 const WRITING = {
   code: 'EX2-W', testType: 'WRITING', title: 'Exam Paper 2 · Part 3 of 3 · Writing', timeLimitMin: 60, difficulty: 4, topic: 'Exam Paper 2',
-  instructions: 'Exam Paper 2 (halfway mock), Part 3 of 3: Writing. Two tasks. Use the rest of your time (at least 60 minutes). Task 1: about 20 minutes, at least 150 words. Task 2: about 40 minutes, at least 250 words. Task 2 carries more marks.',
+  instructions: 'Exam Paper 2 (Midway Final Exam), Part 3 of 3: Writing. Two tasks. Use the rest of your time (at least 60 minutes). Task 1: about 20 minutes, at least 150 words. Task 2: about 40 minutes, at least 250 words. Task 2 carries more marks.',
   tasks: [
     { taskNumber: 1, minWords: 150, timeMinutes: 20, chartImageUrl: '/media/ielts-exam2-table.png', chartDescription: 'How people travelled to work in three cities in 2005 and 2025: car, bus, train, bicycle, walking',
       prompt: 'The table below shows the percentage of workers in three cities who used different ways of travelling to work in 2005 and 2025.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.' },
@@ -135,6 +135,10 @@ async function addExamPaper2(prisma) {
   }
   const { addIeltsPapers } = require('./kit');
   out.papers = await addIeltsPapers(prisma, [LISTENING, READING, WRITING], { status: 'EXAM_LOCKED' });
+  // keep titles and instructions in step with this file (e.g. the rename to "Midway Final Exam")
+  for (const p of [LISTENING, READING, WRITING]) {
+    await prisma.paper.updateMany({ where: { paperCode: p.code, testType: p.testType }, data: { title: p.title, instructions: p.instructions } });
+  }
   // attach the recorded parts
   const fs = require('fs'); const path = require('path');
   const lis = await prisma.paper.findFirst({ where: { paperCode: 'EX2-L', testType: 'LISTENING' }, include: { sections: true } });

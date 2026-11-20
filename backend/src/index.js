@@ -178,6 +178,8 @@ require('./ensureSchema').ensureSchema(prisma)
       const { addExamPaper1 } = require('../scripts/ielts/examPaper1');
       console.log('[ielts] exam paper 1:', JSON.stringify(await addExamPaper1(prisma)));
       // Exam Paper 2 (scripts/ielts/examPaper2Listening.js) is added later, once its audio is ready.
+      // Listening audio jobs (record or re-record single parts) run in the background
+      require('../scripts/ielts/audioJobs').runAudioJobs(prisma).then(r => console.log('[ielts] audio jobs:', JSON.stringify(r))).catch(e => console.error('[ielts] audio jobs:', e.message));
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');
       console.log('[ielts] new reading paper:', JSON.stringify(await addSleepTreesReading(prisma)));
       const { addParkLifeWriting } = require('../scripts/ielts/writingParkLifeStages');

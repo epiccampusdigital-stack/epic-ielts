@@ -331,11 +331,13 @@ async function storeAudio(buf, name) {
 }
 const ttsReady = () => !!(process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY);
 
-async function recordPaperAudio(paperId, job) {
+// onlyParts: e.g. [3] records Part 3 only and leaves the other parts' audio as it is
+async function recordPaperAudio(paperId, job, onlyParts) {
   const paper = await prisma.paper.findUnique({ where: { id: paperId }, include: { sections: { orderBy: { number: 'asc' } } } });
   let scripts = {}; try { scripts = JSON.parse(paper.audioScript || '{}'); } catch { /* none */ }
   let done = 0;
   for (const s of paper.sections) {
+    if (Array.isArray(onlyParts) && onlyParts.length && !onlyParts.includes(s.number)) continue;
     const script = scripts[s.number] || scripts[String(s.number)];
     if (!script) continue;
     if (job) job.step = `Recording section ${s.number} audio`;

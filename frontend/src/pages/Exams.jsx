@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -17,6 +17,8 @@ export default function Exams() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [auto, setAuto] = useState('');
+  const [countdown, setCountdown] = useState(0);
+  const pending = useRef(null);
 
   const load = useCallback(() => axios.get(`${API_URL}/api/exams`, api())
     .then(r => { setExams(r.data.exams || []); setError(''); return r.data.exams || []; })
@@ -30,7 +32,8 @@ export default function Exams() {
       const next = exam && exam.parts.find(p => !p.done);
       if (!next) { exitFullscreen(); return; }
       // one-timer exams go straight on to the next part (the clock is already running)
-      if (exam.oneTimer && exam.open) { setAuto(next.testType); startPart(exam, next); }
+      // one-timer exams: a 10-second pause on screen, then the next part opens by itself
+      if (exam.oneTimer && exam.open) { pending.current = { exam, next }; setAuto(next.testType); setCountdown(10); }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -59,9 +62,24 @@ export default function Exams() {
   }
 
   const doneId = Number(params.get('done'));
+  useEffect(() => {
+    if (!auto || countdown <= 0) return undefined;
+    const t = setTimeout(() => {
+      if (countdown === 1 && pending.current) { const { exam, next } = pending.current; pending.current = null; startPart(exam, next); }
+      setCountdown(c => c - 1);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [auto, countdown]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (auto) return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: T.navy, color: '#fff', fontFamily: T.font, textAlign: 'center', padding: 16 }}>
-      <div><div style={{ fontSize: 15, letterSpacing: '.08em', color: '#b0e5fb', fontWeight: 700 }}>SUBMITTED</div><div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>Opening {SKILL[auto] || 'the next part'}…</div><div style={{ color: T.navyText, marginTop: 6 }}>The timer is still running.</div></div>
+      <div style={{ display: 'grid', gap: 10, justifyItems: 'center' }}>
+        <div style={{ fontSize: 15, letterSpacing: '.08em', color: '#b0e5fb', fontWeight: 700 }}>PART SUBMITTED</div>
+        <div style={{ fontSize: 28, fontWeight: 800 }}>{SKILL[auto] || 'The next part'} starts automatically in</div>
+        <div aria-live="polite" style={{ fontSize: 120, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{countdown > 0 ? countdown : '…'}</div>
+        <div style={{ color: T.navyText, fontSize: 16 }}>{countdown > 0 ? 'seconds. Take a breath and get ready.' : 'Opening now…'}</div>
+        <div style={{ color: T.navyText, fontSize: 14 }}>The exam timer keeps running.</div>
+      </div>
     </div>
   );
   return (

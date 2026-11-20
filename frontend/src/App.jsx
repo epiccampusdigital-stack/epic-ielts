@@ -25,6 +25,7 @@ import LevelPaymentSuccess from './pages/LevelPaymentSuccess';
 import PracticePapers from './pages/PracticePapers';
 import LearnPage from './pages/LearnPage';
 import EverydayEnglish from './pages/EverydayEnglish';
+import ListeningPractice from './pages/ListeningPractice';
 import AILearn from './pages/AILearn';
 import Messages from './pages/Messages';
 import BoardView from './pages/BoardView';
@@ -122,6 +123,9 @@ function App() {
       } />
       <Route path="/practice" element={
         <RequireStudentAccess><PracticePapers /></RequireStudentAccess>
+      } />
+      <Route path="/listening-practice" element={
+        <RequireStudentAccess><ListeningPractice /></RequireStudentAccess>
       } />
       <Route path="/everyday" element={
         <RequireStudentAccess><EverydayEnglish /></RequireStudentAccess>

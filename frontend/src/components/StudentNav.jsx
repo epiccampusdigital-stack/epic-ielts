@@ -18,6 +18,7 @@ const NAV = [
   { key: 'dashboard', label: 'Dashboard', href: '/student/dashboard', active: 'dashboard' },
   { key: 'practice', label: 'Practice', href: '/practice', active: 'practice' },
   { key: 'learn', label: 'Learn', href: '/learn', active: 'learn' },
+  { key: 'listening', label: 'Listening practice', href: '/listening-practice', active: 'listening' },
   { key: 'everyday', label: 'Day to day English', href: '/everyday', active: 'everyday', generalOnly: true },
   { key: 'ailearn', label: 'AI Learn', href: '/ai-learn', active: 'ailearn', generalOnly: true },
   { key: 'messages', label: 'Messages', href: '/messages', active: 'messages', badge: true },

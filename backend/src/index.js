@@ -82,6 +82,7 @@ app.use('/api/agent', require('./routes/agent'));
 app.use('/api/ai-learn', require('./routes/aiLearn'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/program', require('./routes/program'));
+app.use('/api/listening', require('./routes/listening'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'EPIC IELTS API running' });

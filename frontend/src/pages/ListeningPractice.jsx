@@ -106,7 +106,7 @@ function shuffle(list) { const a = list.slice(); for (let k = a.length - 1; k > 
 
 // ---------- the dictation box used by every typing mode ----------
 // item: { text, meaning?, si?, tip?, kind: 'word'|'phrase'|'sentence', source }
-function Dictation({ items, voices, accent, setTitle, onMistake, onRight }) {
+function Dictation({ items, voices, accent, setTitle, onMistake, onRight, onFinish }) {
   const [order, setOrder] = useState(() => items.map((_, k) => k));
   const [pos, setPos] = useState(0);
   const [typed, setTyped] = useState('');
@@ -149,6 +149,7 @@ function Dictation({ items, voices, accent, setTitle, onMistake, onRight }) {
   function next() {
     setTyped(''); setResult(null); startTime.current = null;
     if (pos < order.length - 1) setPos(pos + 1);
+    else if (onFinish) onFinish();
     else { setOrder(shuffle(items.map((_, k) => k))); setPos(0); }
   }
   function onKey(e) {
@@ -235,14 +236,58 @@ function Dictation({ items, voices, accent, setTitle, onMistake, onRight }) {
   );
 }
 
-function SetPicker({ sets, value, onChange, count }) {
+function SetPicker({ sets, value, onChange, count, progress }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-      {sets.map(s => (
-        <button key={s.id} type="button" style={chip(value === s.id)} onClick={() => onChange(s.id)}>{s.title} <span style={{ opacity: .7, fontWeight: 400 }}>({count(s)})</span></button>
-      ))}
+      {sets.map(s => {
+        const p = progress ? progress(s) : null;
+        const full = p && p.done >= p.total;
+        return (
+          <button key={s.id} type="button" style={{ ...chip(value === s.id), ...(full && value !== s.id ? { borderColor: T.success, color: T.success } : {}) }} onClick={() => onChange(s.id)}>
+            {full ? '✓ ' : ''}{s.title} <span style={{ opacity: .7, fontWeight: 400 }}>({p ? `${p.done}/${p.total}` : count(s)})</span>
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+// One topic at a time: only words the student has not done yet, then on to the next set. Nothing repeats.
+function SetPractice({ sets, toItems, withLearn, extraNote = '', progress: prog, ...props }) {
+  const { done, ready, markUndone } = prog;
+  const left = set => toItems(set).filter(i => !done.has(i.text));
+  const firstOpen = () => (sets.find(x => !x.classDone && left(x).length) || sets.find(x => left(x).length) || sets[0]).id;
+  const [setId, setSetId] = useState(null);
+  const [step, setStep] = useState(withLearn ? 'learn' : 'test');
+  const [round, setRound] = useState(0);
+  const [finished, setFinished] = useState(false);
+  useEffect(() => { if (ready && !setId) setSetId(firstOpen()); }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = sets.find(x => x.id === setId) || sets[0];
+  const all = useMemo(() => toItems(set), [set]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the queue is fixed when a set starts, so ticking items off does not reshuffle it
+  const queue = useMemo(() => shuffle(left(set)), [setId, round, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!ready || !setId) return <div style={card}>Loading your progress…</div>;
+  const nextSet = sets.find(x => x.id !== set.id && !x.classDone && left(x).length) || sets.find(x => x.id !== set.id && left(x).length);
+  const go = id => { setSetId(id); setRound(r => r + 1); setFinished(false); };
+  const progressOf = x => ({ done: toItems(x).filter(i => done.has(i.text)).length, total: toItems(x).length });
+  const over = finished || !queue.length;
+  return <>
+    <SetPicker sets={sets} value={set.id} onChange={go} progress={progressOf} />
+    <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note}{extraNote}</p>
+    {withLearn && <StepSwitch step={step} setStep={setStep} />}
+    {withLearn && step === 'learn' ? <LearnList items={all} voices={props.voices} accent={props.accent} />
+      : over ? (
+        <div style={{ ...card, display: 'grid', gap: 12, borderColor: T.success, borderWidth: 2 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: T.success }}>✓ You have finished "{set.title}"</div>
+          <div style={{ color: T.muted, fontSize: 15 }}>You have done all {all.length} in this set. Anything you got wrong is in My mistakes.</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {nextSet && <button type="button" style={btn(true)} onClick={() => { go(nextSet.id); if (withLearn) setStep('learn'); }}>Next set: {nextSet.title} ›</button>}
+            <button type="button" style={btn(false)} onClick={() => { markUndone(all.map(i => i.text)); setFinished(false); setRound(r => r + 1); }}>Do this set again</button>
+          </div>
+          {!nextSet && <div style={{ fontWeight: 700 }}>You have finished every set here. Well done!</div>}
+        </div>
+      ) : <Dictation key={`${set.id}-${round}`} items={queue} setTitle={`${set.title} · ${progressOf(set).done} of ${all.length} done`} onFinish={() => setFinished(true)} {...props} />}
+  </>;
 }
 
 // ---------- learn first: listen, read the meaning, say it, then test ----------
@@ -324,40 +369,12 @@ function StepSwitch({ step, setStep }) {
   );
 }
 
-function WordsMode(props) {
-  const [setId, setSetId] = useState(WORD_SETS[0].id);
-  const [step, setStep] = useState('learn');
-  const set = WORD_SETS.find(s => s.id === setId);
-  const items = useMemo(() => set.words.map(([text, meaning, si, tip]) => ({ text, meaning, si, tip, kind: 'word' })), [set]);
-  return <>
-    <SetPicker sets={WORD_SETS} value={setId} onChange={setSetId} count={s => s.words.length} />
-    <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note}</p>
-    <StepSwitch step={step} setStep={setStep} />
-    {step === 'learn' ? <LearnList items={items} voices={props.voices} accent={props.accent} /> : <Dictation items={items} setTitle={set.title} {...props} />}
-  </>;
-}
-function PhrasesMode(props) {
-  const [setId, setSetId] = useState(PHRASE_SETS[0].id);
-  const [step, setStep] = useState('learn');
-  const set = PHRASE_SETS.find(s => s.id === setId);
-  const items = useMemo(() => set.items.map(([text, meaning, si]) => ({ text, meaning, si, kind: 'phrase' })), [set]);
-  return <>
-    <SetPicker sets={PHRASE_SETS} value={setId} onChange={setSetId} count={s => s.items.length} />
-    <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note}</p>
-    <StepSwitch step={step} setStep={setStep} />
-    {step === 'learn' ? <LearnList items={items} voices={props.voices} accent={props.accent} /> : <Dictation items={items} setTitle={set.title} {...props} />}
-  </>;
-}
-function SentencesMode(props) {
-  const [setId, setSetId] = useState(SENTENCE_SETS[0].id);
-  const set = SENTENCE_SETS.find(s => s.id === setId);
-  const items = useMemo(() => set.items.map(([text, tip]) => ({ text, tip, kind: 'sentence' })), [set]);
-  return <>
-    <SetPicker sets={SENTENCE_SETS} value={setId} onChange={setSetId} count={s => s.items.length} />
-    <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note} Capitals and full stops do not count.</p>
-    <Dictation items={items} setTitle={set.title} {...props} />
-  </>;
-}
+const wordItems = set => set.words.map(([text, meaning, si, tip]) => ({ text, meaning, si, tip, kind: 'word' }));
+const phraseItems = set => set.items.map(([text, meaning, si]) => ({ text, meaning, si, kind: 'phrase' }));
+const sentenceItems = set => set.items.map(([text, tip]) => ({ text, tip, kind: 'sentence' }));
+function WordsMode(props) { return <SetPractice sets={WORD_SETS} toItems={wordItems} withLearn {...props} />; }
+function PhrasesMode(props) { return <SetPractice sets={PHRASE_SETS} toItems={phraseItems} withLearn {...props} />; }
+function SentencesMode(props) { return <SetPractice sets={SENTENCE_SETS} toItems={sentenceItems} extraNote=" Capitals and full stops do not count." {...props} />; }
 
 function ReadingMode(props) {
   const [state, setState] = useState({ loading: true, papers: [], error: '' });
@@ -479,7 +496,40 @@ export default function ListeningPractice() {
   useEffect(() => save('epic-listening-accent', accent), [accent]);
   const setMistakes = v => { setMistakesRaw(v); save(MISTAKES_KEY, v); };
 
+  // What this student has already done (saved on the server, so it follows them to any computer)
+  const uid = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').id || 'me'; } catch { return 'me'; } })();
+  const DONE_KEY = `epic-listening-done-${uid}`;
+  const [done, setDone] = useState(() => new Set(load(DONE_KEY, [])));
+  const [ready, setReady] = useState(false);
+  const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+  useEffect(() => {
+    axios.get(`${API_URL}/api/listening/progress`, auth())
+      .then(r => {
+        const server = new Set(r.data.done || []);
+        const local = load(DONE_KEY, []);
+        const missing = local.filter(t => !server.has(t));
+        if (missing.length) axios.post(`${API_URL}/api/listening/progress`, { add: missing.slice(0, 200) }, auth()).catch(() => {});
+        const all = new Set([...server, ...local]);
+        setDone(all); save(DONE_KEY, [...all]);
+      })
+      .catch(() => { /* offline: use what this computer remembers */ })
+      .finally(() => setReady(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const markDone = text => setDone(prev => {
+    if (prev.has(text)) return prev;
+    const n = new Set(prev); n.add(text); save(DONE_KEY, [...n]);
+    axios.post(`${API_URL}/api/listening/progress`, { add: [text] }, auth()).catch(() => {});
+    return n;
+  });
+  const markUndone = texts => setDone(prev => {
+    const n = new Set(prev); texts.forEach(t => n.delete(t)); save(DONE_KEY, [...n]);
+    axios.post(`${API_URL}/api/listening/progress`, { remove: texts }, auth()).catch(() => {});
+    return n;
+  });
+  const progress = { done, ready, markUndone };
+
   const onMistake = item => {
+    markDone(item.text);
     setStats(s => { const n = { right: s.right, done: s.done + 1 }; save(STATS_KEY, n); return n; });
     setMistakesRaw(list => {
       if (list.some(m => m.text === item.text)) return list;
@@ -488,6 +538,7 @@ export default function ListeningPractice() {
     });
   };
   const onRight = item => {
+    markDone(item.text);
     setStats(s => { const n = { right: s.right + 1, done: s.done + 1 }; save(STATS_KEY, n); return n; });
     if (tab === 'mistakes') setMistakesRaw(list => { const n = list.filter(m => m.text !== item.text); save(MISTAKES_KEY, n); return n; });
   };
@@ -524,9 +575,9 @@ export default function ListeningPractice() {
             </button>
           ))}
         </div>
-        {tab === 'words' && <WordsMode {...common} />}
-        {tab === 'phrases' && <PhrasesMode {...common} />}
-        {tab === 'sentences' && <SentencesMode {...common} />}
+        {tab === 'words' && <WordsMode {...common} progress={progress} />}
+        {tab === 'phrases' && <PhrasesMode {...common} progress={progress} />}
+        {tab === 'sentences' && <SentencesMode {...common} progress={progress} />}
         {tab === 'reading' && <ReadingMode {...common} />}
         {tab === 'similar' && <SimilarMode voices={voices} accent={accent} />}
         {tab === 'accents' && <AccentsMode voices={voices} />}

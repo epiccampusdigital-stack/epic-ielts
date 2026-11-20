@@ -53,5 +53,37 @@ router.get('/reading-sentences', auth, async (req, res) => {
   }
 });
 
+
+// Dictation progress: which words, phrases and sentences a student has already done (so they never repeat).
+// Kept in AppSetting "listening.done.<studentId>" as a JSON list of the texts.
+const doneKey = id => `listening.done.${id}`;
+async function readDone(prisma, id) {
+  const row = await prisma.appSetting.findUnique({ where: { key: doneKey(id) } });
+  try { return row ? JSON.parse(row.value) : []; } catch { return []; }
+}
+async function writeDone(prisma, id, list) {
+  const value = JSON.stringify(list.slice(-5000));
+  await prisma.appSetting.upsert({ where: { key: doneKey(id) }, update: { value }, create: { key: doneKey(id), value } });
+}
+router.get('/progress', auth, async (req, res) => {
+  try {
+    const { prisma } = require('../services/programService');
+    res.json({ done: await readDone(prisma, req.user.id) });
+  } catch (err) { console.error('[listening] progress', err.message); res.status(500).json({ error: 'Could not load progress' }); }
+});
+router.post('/progress', auth, async (req, res) => {
+  try {
+    const { prisma } = require('../services/programService');
+    const add = (Array.isArray(req.body?.add) ? req.body.add : []).map(String).filter(t => t && t.length <= 300).slice(0, 200);
+    const remove = new Set((Array.isArray(req.body?.remove) ? req.body.remove : []).map(String));
+    let list = await readDone(prisma, req.user.id);
+    if (remove.size) list = list.filter(t => !remove.has(t));
+    const have = new Set(list);
+    add.forEach(t => { if (!have.has(t)) { have.add(t); list.push(t); } });
+    await writeDone(prisma, req.user.id, list);
+    res.json({ done: list.length });
+  } catch (err) { console.error('[listening] save progress', err.message); res.status(500).json({ error: 'Could not save progress' }); }
+});
+
 module.exports = router;
 module.exports.sentencesOf = sentencesOf;

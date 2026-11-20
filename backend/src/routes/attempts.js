@@ -803,7 +803,10 @@ router.post('/:id/end', auth, async (req, res) => {
       const finalAnswers = await prisma.answer.findMany({ where: { attemptId } });
       correctCount = finalAnswers.filter(a => a.isCorrect).length;
       // General English quizzes are scored, not banded, so they don't skew IELTS averages
-      bandEstimate = attempt.paper.track === 'GENERAL' ? null : calculateBand(correctCount);
+      // Papers with fewer than 40 questions (e.g. exam papers with 26 or 30) are scaled to 40 before banding
+      const totalQs = attempt.paper.questions?.length || 40;
+      const scaled = totalQs > 0 && totalQs < 40 ? Math.round(correctCount * 40 / totalQs) : correctCount;
+      bandEstimate = attempt.paper.track === 'GENERAL' ? null : calculateBand(scaled);
     }
 
     await prisma.result.deleteMany({ where: { attemptId } });
@@ -1437,3 +1440,4 @@ router.get('/admin/teaching-mode-status', auth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.calculateBand = calculateBand;

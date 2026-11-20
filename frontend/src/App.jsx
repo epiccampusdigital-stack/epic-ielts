@@ -27,6 +27,7 @@ import LearnPage from './pages/LearnPage';
 import EverydayEnglish from './pages/EverydayEnglish';
 import ListeningPractice from './pages/ListeningPractice';
 import Exams from './pages/Exams';
+import ExamResults from './pages/ExamResults';
 import AILearn from './pages/AILearn';
 import Messages from './pages/Messages';
 import BoardView from './pages/BoardView';
@@ -124,6 +125,9 @@ function App() {
       } />
       <Route path="/practice" element={
         <RequireStudentAccess><PracticePapers /></RequireStudentAccess>
+      } />
+      <Route path="/exams/:examId/results" element={
+        <RequireStudentAccess><ExamResults /></RequireStudentAccess>
       } />
       <Route path="/exams" element={
         <RequireStudentAccess><Exams /></RequireStudentAccess>

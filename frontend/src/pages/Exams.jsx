@@ -123,6 +123,8 @@ export default function Exams() {
               {allDone && <div style={{ display: 'grid', gap: 8 }}>
                 <div style={{ color: T.muted, fontSize: 15 }}>Well done, you have finished this exam. You cannot do it again, but you can see your results:</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => navigate(`/exams/${exam.id}/results`)}
+                    style={{ height: 42, padding: '0 20px', borderRadius: 50, border: 0, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>See all results and answers ›</button>
                   {exam.parts.filter(p => p.attemptId).map(p => (
                     <button key={p.paperId} type="button" onClick={() => navigate(p.testType === 'WRITING' ? `/exam/${p.attemptId}/writing-results` : `/exam/${p.attemptId}/results`)}
                       style={{ height: 42, padding: '0 18px', borderRadius: 50, border: `1.5px solid ${T.primary}`, background: '#fff', color: T.primary, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>{SKILL[p.testType] || p.testType} results ›</button>

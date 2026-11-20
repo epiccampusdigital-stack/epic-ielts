@@ -70,6 +70,65 @@ router.post('/:id/:action', auth, async (req, res) => {
   }
 });
 
+
+// One results sheet for a whole exam: every part's score, band and answers, plus an overall band.
+function overallBand(bands) {
+  const avg = bands.reduce((a, b) => a + b, 0) / bands.length;
+  const frac = avg - Math.floor(avg);
+  return frac < 0.25 ? Math.floor(avg) : frac < 0.75 ? Math.floor(avg) + 0.5 : Math.ceil(avg); // IELTS rounding
+}
+const firstAnswer = a => String(a || '').split('|')[0];
+router.get('/:id/results', auth, async (req, res) => {
+  try {
+    const { prisma } = require('../services/programService');
+    const exam = EXAMS.find(e => e.id === req.params.id);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    const studentId = isStaff(req) && req.query.studentId ? parseInt(req.query.studentId, 10) : req.user.id;
+    const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } }).catch(() => null);
+    const parts = [];
+    for (const code of exam.codes) {
+      const paper = await prisma.paper.findFirst({ where: { paperCode: code, status: { startsWith: 'EXAM' } }, select: { id: true, testType: true, title: true } });
+      if (!paper) continue;
+      const attempt = await prisma.attempt.findFirst({
+        where: { studentId, paperId: paper.id, status: 'COMPLETED' }, orderBy: { id: 'desc' },
+        include: { result: true, writingSubmission: true, answers: true, paper: { include: { questions: { orderBy: { questionNumber: 'asc' } }, writingTasks: { orderBy: { taskNumber: 'asc' } } } } },
+      });
+      if (!attempt) { parts.push({ testType: paper.testType, title: paper.title, done: false }); continue; }
+      if (paper.testType === 'WRITING') {
+        const w = attempt.writingSubmission || {};
+        let fb = {}; try { fb = JSON.parse(w.aiFeedback || '{}'); } catch { /* none */ }
+        parts.push({
+          testType: 'WRITING', title: paper.title, done: true, attemptId: attempt.id, marking: w.markingStatus || 'PENDING',
+          band: w.overallBand ?? null, task1Band: w.task1Band ?? null, task2Band: w.task2Band ?? null,
+          tasks: attempt.paper.writingTasks.map(t => ({ taskNumber: t.taskNumber, prompt: t.prompt, words: t.taskNumber === 1 ? w.task1WordCount : w.task2WordCount, feedback: (t.taskNumber === 1 ? fb.task1 : fb.task2)?.feedback || null })),
+          strengths: fb.strengths || [], improvements: fb.improvements || [],
+        });
+        continue;
+      }
+      const byQ = new Map(attempt.answers.map(a => [a.questionId, a]));
+      const questions = attempt.paper.questions.map(q => {
+        const a = byQ.get(q.id);
+        const opts = Array.isArray(q.options) ? q.options : null;
+        const show = v => { const t = firstAnswer(v); if (opts && /^[A-H]$/i.test(t)) { const o = opts.find(x => String(x).toUpperCase().startsWith(t.toUpperCase() + '.')); return o || t; } return t; };
+        return { n: q.questionNumber, question: q.content, yours: a?.studentAnswer ? show(a.studentAnswer) : '', correct: show(q.correctAnswer), isCorrect: !!a?.isCorrect, why: q.explanation || null };
+      });
+      const score = questions.filter(q => q.isCorrect).length;
+      parts.push({ testType: paper.testType, title: paper.title, done: true, attemptId: attempt.id, score, total: questions.length, band: attempt.result?.bandEstimate ?? null, questions });
+    }
+    const bands = parts.filter(p => p.done && p.band != null).map(p => Number(p.band));
+    const waiting = parts.some(p => !p.done) || parts.some(p => p.testType === 'WRITING' && p.done && p.band == null);
+    res.json({
+      exam: { id: exam.id, title: exam.title }, student: student?.name || '',
+      overall: bands.length ? { band: overallBand(bands), from: bands.length, complete: !waiting } : null,
+      totalScore: parts.filter(p => p.total).reduce((a, p) => a + p.score, 0), totalQuestions: parts.filter(p => p.total).reduce((a, p) => a + p.total, 0),
+      parts,
+    });
+  } catch (err) {
+    console.error('[exams] results', err.message);
+    res.status(500).json({ error: 'Could not load the results' });
+  }
+});
+
 // One timer for the whole exam: every part counts down from the moment the first part started.
 async function oneTimer(prisma, attempt) {
   const exam = EXAMS.find(e => e.oneTimer && e.codes.includes(attempt?.paper?.paperCode));
@@ -84,3 +143,4 @@ async function oneTimer(prisma, attempt) {
 module.exports = router;
 module.exports.EXAMS = EXAMS;
 module.exports.oneTimer = oneTimer;
+module.exports.overallBand = overallBand;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ExamControl from '../components/ExamControl';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -161,6 +162,7 @@ export default function AdminProgram() {
     { id: 'schedule', label: 'Schedule' },
     { id: 'batches', label: 'Batches & months' },
     { id: 'materials', label: 'Materials' },
+    { id: 'exams', label: 'Exams' },
     { id: 'review', label: 'Review papers' },
     { id: 'messages', label: 'Messages' },
     ...(isAdmin ? [{ id: 'teachers', label: 'Teachers' }] : []),
@@ -282,6 +284,7 @@ export default function AdminProgram() {
             {tab === 'papers' && <Papers programId={programId} flash={flash} />}
             {tab === 'mine' && <MySessions flash={flash} />}
             {tab === 'today' && <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={isAdmin} onChanged={loadProgram} goReminders={() => setTab('reminders')} />}
+            {tab === 'exams' && <ExamControl flash={flash} />}
             {tab === 'review' && <PaperReview flash={flash} />}
             {tab === 'materials' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
             {tab === 'batches' && <BatchesCalendar isAdmin={isAdmin} flash={flash} today={data?.today} openBatch={id => { setProgramId(id); setTab('schedule'); }} onCreated={async id => { await loadList(); setProgramId(id); }} />}

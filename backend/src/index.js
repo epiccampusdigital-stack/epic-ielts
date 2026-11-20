@@ -83,6 +83,7 @@ app.use('/api/ai-learn', require('./routes/aiLearn'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/program', require('./routes/program'));
 app.use('/api/listening', require('./routes/listening'));
+app.use('/api/exams', require('./routes/exams'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'EPIC IELTS API running' });
@@ -171,9 +172,11 @@ require('./ensureSchema').ensureSchema(prisma)
       const { addHalfwayMock } = require('../scripts/ielts/halfwayMock');
       console.log('[ielts] halfway mock:', JSON.stringify(await addHalfwayMock(prisma)));
       // Opens the mock for students at its start time, checked every minute
-      const { openHalfwayMock } = require('../scripts/ielts/halfwayMock');
-      const openMock = () => openHalfwayMock(prisma).then(r => { if (r.opened) console.log('[ielts] halfway mock opened for students:', r.opened); }).catch(e => console.error('[ielts] halfway mock open:', e.message));
-      openMock(); setInterval(openMock, 60000);
+      // The halfway mock moves to the Exam tab (rebuilt as Exam Paper 2): it no longer opens by itself on Saturday.
+      const hm = await prisma.paper.updateMany({ where: { paperCode: { in: ['IM-HALF-L', 'IM-HALF-R', 'IM-HALF-W'] }, status: 'DRAFT' }, data: { status: 'EXAM_LOCKED' } });
+      if (hm.count) console.log('[ielts] halfway mock moved to the exam tab (locked):', hm.count);
+      const { addExamPaper1 } = require('../scripts/ielts/examPaper1');
+      console.log('[ielts] exam paper 1:', JSON.stringify(await addExamPaper1(prisma)));
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');
       console.log('[ielts] new reading paper:', JSON.stringify(await addSleepTreesReading(prisma)));
       const { addParkLifeWriting } = require('../scripts/ielts/writingParkLifeStages');

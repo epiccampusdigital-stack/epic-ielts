@@ -1,4 +1,5 @@
 import EndTestConfirm from '../components/EndTestConfirm';
+import { isExamPaper, afterExamSubmit, FullscreenGuard } from '../utils/examMode';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -349,6 +350,7 @@ export default function WritingExam() {
   const task2Ref = useRef('');
   const task3Ref = useRef('');
   const teachingModeRef = useRef(false);
+  const examRef = useRef(null); // set for Exam tab papers
   // Admin can switch off the student pause button (Admin dashboard → Exam timer)
   const [canPause, setCanPause] = useState(false);
   useEffect(() => {
@@ -364,6 +366,7 @@ export default function WritingExam() {
       .then(r => {
         setAttempt(r.data);
         setPaper(r.data.paper);
+        examRef.current = isExamPaper(r.data.paper) ? r.data.paper : null;
         // Bring back essays typed before the student left the page
         let local = null;
         try { local = JSON.parse(localStorage.getItem(`epic-essays-${attemptId}`) || 'null'); } catch { local = null; }
@@ -454,6 +457,7 @@ export default function WritingExam() {
     : '#002761';
 
   const toggleTeachingMode = () => {
+    if (examRef.current) return;
       if (!canPause && !teachingModeRef.current) return;
     const entering = !teachingMode;
     setTeachingMode(entering);
@@ -462,7 +466,9 @@ export default function WritingExam() {
 
   // Task order on screen. With three tasks: Task 1 = taskNumber 1, Task 2 = taskNumber 3 (second report), Task 3 = taskNumber 2 (essay)
   const hasTask3 = (paper?.writingTasks || []).some(t => t.taskNumber === 3);
-  const hasTask2 = !hasTask3 || (paper?.writingTasks || []).some(t => t.taskNumber === 2);
+  const wTasks = paper?.writingTasks || [];
+  // Task 2 shows unless the paper's tasks are known and none is the essay (Task 1 only, or two reports)
+  const hasTask2 = wTasks.some(t => t.taskNumber === 2) || (!hasTask3 && !wTasks.length);
   // Only the tasks this paper has (a paper with taskNumber 1 and 3 and no essay shows two tasks)
   const ORDER = (hasTask3 ? [1, 3, 2] : [1, 2]).filter(n => n !== 2 || hasTask2);
   const shownNo = n => ORDER.indexOf(n) + 1;
@@ -486,11 +492,11 @@ export default function WritingExam() {
         { task1Response: finalTask1, ...(hasTask2 ? { task2Response: finalTask2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
         api()
       );
-      navigate(`/exam/${attemptId}/writing-results`);
+      navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/writing-results`);
     } catch (err) {
       console.error('Auto-submit error:', err);
       // Still navigate - backend will mark with whatever was saved
-      navigate(`/exam/${attemptId}/writing-results`);
+      navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/writing-results`);
     }
   };
 
@@ -504,7 +510,7 @@ export default function WritingExam() {
         { task1Response: task1Ref.current || task1, ...(hasTask2 ? { task2Response: task2Ref.current || task2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
         api()
       );
-      navigate(`/exam/${attemptId}/writing-results`);
+      navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/writing-results`);
     } catch (err) {
       console.error('Submit error:', err);
       const msg = err.response?.data?.message || err.response?.data?.error || 'Unknown error';
@@ -829,7 +835,7 @@ export default function WritingExam() {
             ))}
           </div>
 
-          {canPause && (
+          {canPause && !examRef.current && (
 <button
             onClick={toggleTeachingMode}
             style={{
@@ -1222,6 +1228,7 @@ export default function WritingExam() {
       })()}
 
       {/* Confirm before ending */}
+      <FullscreenGuard active={!!examRef.current} />
       <EndTestConfirm
         open={showConfirm}
         unit="tasks"

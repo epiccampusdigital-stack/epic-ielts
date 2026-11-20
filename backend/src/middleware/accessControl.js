@@ -46,6 +46,12 @@ async function requirePaidOrFirstExam(req, res, next) {
     });
     if (!paper) return res.status(404).json({ error: 'Paper not found' });
 
+    // Exam tab papers: free for every student, but only once a teacher has unlocked them
+    if (String(paper.status || '').startsWith('EXAM')) {
+      if (paper.status === 'EXAM_OPEN') return next();
+      return res.status(403).json({ error: 'EXAM_LOCKED', message: 'This exam is locked. Please wait for your teacher to open it.' });
+    }
+
     // Rule 2: paper code 001 is always free (placement test)
     if (paper.track !== 'GENERAL' && paper.paperCode === '001') return next();
 

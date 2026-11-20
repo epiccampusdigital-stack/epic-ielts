@@ -1,4 +1,5 @@
 import EndTestConfirm from '../components/EndTestConfirm';
+import { isExamPaper, afterExamSubmit, FullscreenGuard } from '../utils/examMode';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -30,6 +31,7 @@ export default function ReadingExam() {
 
    const navigate = useNavigate();
    const timerRef = useRef(null);
+   const examRef = useRef(null); // set for Exam tab papers
    const timerStartedRef = useRef(false);
    const answersRef = useRef({});
    const teachingModeRef = useRef(false);
@@ -82,6 +84,7 @@ export default function ReadingExam() {
             }
 
             setPaper(loadedPaper);
+            examRef.current = isExamPaper(loadedPaper) ? loadedPaper : null;
             setQuestions(loadedQuestions);
             const existingAnswers = {};
             (res.data.answers || []).forEach((a) => {
@@ -133,6 +136,7 @@ export default function ReadingExam() {
    }, [timeLeft]);
 
    const toggleTeachingMode = () => {
+      if (examRef.current) return;
       if (!canPause && !teachingModeRef.current) return;
       const entering = !teachingMode;
       setTeachingMode(entering);
@@ -375,10 +379,10 @@ export default function ReadingExam() {
             } catch(e) {}
          }
 
-         navigate(`/exam/${attemptId}/results`);
+         navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/results`);
       } catch (err) {
          console.error('Submit error:', err);
-         navigate(`/exam/${attemptId}/results`);
+         navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/results`);
       }
    };
 
@@ -715,6 +719,7 @@ export default function ReadingExam() {
    };
 
    const handleWordClick = async (e) => {
+      if (examRef.current) return; // no word meanings in exams
       const hit = lookupAt(e.clientX, e.clientY);
       if (!hit || !hit.word) return;
       const clean = hit.word.toLowerCase().replace(/['\u2019]s$/, '').replace(/[^a-z\s-]/g, '').replace(/\s+/g, ' ').trim();
@@ -1041,7 +1046,7 @@ export default function ReadingExam() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-               {canPause && (
+               {canPause && !examRef.current && (
 <button
                   onClick={toggleTeachingMode}
                   style={{
@@ -1451,6 +1456,7 @@ export default function ReadingExam() {
             </>
          )}
 
+         <FullscreenGuard active={!!examRef.current} />
          <EndTestConfirm
             open={showConfirm}
             answered={questions.filter((q) => String(answers[q.id] ?? '').trim() !== '').length}

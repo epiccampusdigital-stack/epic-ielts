@@ -121,6 +121,18 @@ However, there are also disadvantages. When large numbers of skilled young peopl
 In conclusion, young people mainly work abroad for higher wages, better opportunities and new experiences. Although losing skilled workers is a real problem, I believe the money, skills and ideas they bring back make this a positive trend overall.`,
     },
   },
+  'EX1-W': {
+    1: {
+      tips: ['Overview: food was the biggest share in 2000, but housing took first place by 2025; housing, transport and education rose while food, entertainment and other fell.', 'Group the risers (housing +9, transport +4, education +3) and the fallers (food -10, entertainment -3, other -3). Do not describe all six slices one by one.', 'Use "the proportion of", "a quarter", "almost a third", "rose from... to...". No opinions or reasons: Task 1 only reports.'],
+      answer: `The pie charts compare how the average family in one country divided its spending among six categories in 2000 and 2025.
+
+Overall, food was the largest expense in 2000, but by 2025 it had been overtaken by housing. Spending on housing, transport and education took a bigger share over the period, while the proportions spent on food, entertainment and other items all fell.
+
+In 2000, food accounted for just over a third of family spending, at 34%, followed by housing at 22%. By 2025, however, the figure for food had dropped by ten percentage points to 24%, whereas housing had risen to 31%, almost a third of the total. Transport also grew, from 12% to 16%, and the share spent on education increased from 8% to 11%.
+
+The remaining categories became less important. Entertainment fell from 9% to 6%, making it the smallest category in 2025, and the share spent on other items declined slightly, from 15% to 12%.`,
+    },
+  },
   'IM-HALF-W': {
     1: {
       tips: ['Overview: Australia was always the top choice; South Korea and Japan grew the fastest; all four dipped in 2020.', 'Compare the two big countries (Australia, UK) with the two Asian ones; mention the 2020 dip and the 2024 peak.', 'Numbers in thousands; avoid describing every year of every line.'],

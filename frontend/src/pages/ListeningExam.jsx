@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 import EndTestConfirm from '../components/EndTestConfirm';
+import { isExamPaper, afterExamSubmit, FullscreenGuard } from '../utils/examMode';
 import useAnswerAutosave, { localAnswers } from '../utils/useAnswerAutosave';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
@@ -26,6 +27,7 @@ export default function ListeningExam() {
   }, []);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
+  const examRef = useRef(null); // set for Exam tab papers
   const autosaveRef = useRef(null);
   const timerStartedRef = useRef(false);
   const answersRef = useRef({});
@@ -58,6 +60,7 @@ export default function ListeningExam() {
     axios.get(`${API_URL}/api/attempts/${attemptId}`, api())
       .then(r => {
         setPaper(r.data.paper);
+        examRef.current = isExamPaper(r.data.paper) ? r.data.paper : null;
         const existingAnswers = {};
         (r.data.answers || []).forEach(a => { existingAnswers[a.questionId] = a.studentAnswer; });
         // answers typed just before a refresh may not have reached the server yet
@@ -135,10 +138,10 @@ export default function ListeningExam() {
           );
         } catch(e) {}
       }
-      navigate(`/exam/${attemptId}/results`);
+      navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/results`);
     } catch (err) {
       console.error('Submit error:', err);
-      navigate(`/exam/${attemptId}/results`);
+      navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/results`);
     }
   };
 
@@ -507,6 +510,7 @@ export default function ListeningExam() {
           );
         })}
       </div>
+      <FullscreenGuard active={!!examRef.current} />
       {(() => {
         const allQs = sections.flatMap((s, si) => (s.groups || []).flatMap(g => (g.questions || []).map(q => ({ ...q, si }))));
         const blank = q => String(answers[q.id] ?? '').trim() === '';

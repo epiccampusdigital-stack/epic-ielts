@@ -143,6 +143,7 @@ Return ONLY JSON:
 async function gradeWritingAttempt(task1Response, task1Prompt, task2Response, task2Prompt, studentName, expectedBand, opts = {}) {
   // opts.secondReport: Task 2 is a second report (Task 1 style, opts.task2Min words), both tasks count equally
   const R2 = !!(opts && opts.secondReport); const t2Min = (opts && opts.task2Min) || (R2 ? 150 : 250);
+  const ONLY1 = !!(opts && opts.onlyReport); // Task 1 only: no essay to mark
   try {
     console.log('gradeWritingAttempt called for:', studentName);
 
@@ -230,7 +231,7 @@ ${task2Words < 5 ? '[NO RESPONSE — Student left Task 2 blank]' : (task2Respons
 ═══════════════════════════════════
 
 MARKING RULES YOU MUST FOLLOW:
-${R2 ? `1. This paper has TWO REPORTS and no essay. Task 2 is a second Task 1-style report (a chart), marked with the Task 1 criteria (Task Achievement). Put the Task Achievement score in the "taskResponse" field for Task 2.
+${ONLY1 ? `1. This paper has ONLY TASK 1. There is no Task 2: ignore the Task 2 section above. Overall = task1Band. Put null for task2Band and for every number in "task2".` : R2 ? `1. This paper has TWO REPORTS and no essay. Task 2 is a second Task 1-style report (a chart), marked with the Task 1 criteria (Task Achievement). Put the Task Achievement score in the "taskResponse" field for Task 2.
    Both tasks are worth 50%. Overall = (task1Band * 0.5) + (task2Band * 0.5). Round to nearest 0.5.` : `1. Task 1 is worth 33% and Task 2 is worth 67% of the overall band.
    Overall = (task1Band * 0.33) + (task2Band * 0.67). Round to nearest 0.5.`}
 2. If a response is off-topic, award maximum Band 3 for Task Achievement/Response.
@@ -292,6 +293,7 @@ Do not add any fields not shown above.`;
         markingStatus: 'PARTIAL'
       };
     }
+    if (ONLY1) { parsed.overallBand = parsed.task1Band ?? parsed.task1?.band ?? parsed.overallBand; parsed.task2Band = null; parsed.task2 = { band: null, feedback: 'This paper has Task 1 only.' }; }
     console.log('Writing grade complete. Overall band:', parsed.overallBand);
     return parsed;
   } catch (e) {

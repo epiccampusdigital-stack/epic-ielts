@@ -185,7 +185,8 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       sub.task1Response, task1Prompt,
       sub.task2Response, task2Prompt,
       studentName, undefined,
-      twoReports(attempt.paper?.writingTasks) ? { secondReport: true, task2Min: (attempt.paper.writingTasks.find(t => t.taskNumber === 3)?.minWords) || 150 } : undefined
+      twoReports(attempt.paper?.writingTasks) ? { secondReport: true, task2Min: (attempt.paper.writingTasks.find(t => t.taskNumber === 3)?.minWords) || 150 }
+        : onlyReport(attempt.paper?.writingTasks) ? { onlyReport: true } : undefined
     );
   } else {
     const answerReview = savedAnswers.map((a) => ({
@@ -226,7 +227,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     if (testType === 'WRITING') {
       const result = aiFeedback;
       const task1Band = parseFloat(result.task1?.band || result.task1Band) || 5.0;
-      const task2Band = parseFloat(result.task2?.band || result.task2Band) || 5.0;
+      const task2Band = onlyReport(attempt.paper?.writingTasks) ? null : (parseFloat(result.task2?.band || result.task2Band) || 5.0);
       const overallBand = parseFloat(result.overallBand) || 5.0;
 
       await prisma.writingSubmission.update({
@@ -302,6 +303,10 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 // ─── ROUTES ────────────────────────────────────────────────────────────────
 
 // Two reports and no essay (taskNumber 1 and 3, no taskNumber 2): the second report is stored and marked as Task 2.
+// A paper with Task 1 only (e.g. the writing part of Exam Paper 1)
+function onlyReport(tasks) {
+  return (tasks || []).length > 0 && (tasks || []).every(t => t.taskNumber === 1);
+}
 function twoReports(tasks) {
   const nums = (tasks || []).map(t => t.taskNumber);
   return nums.includes(3) && !nums.includes(2);
@@ -469,9 +474,16 @@ router.post('/', auth, requirePaidOrFirstExam, async (req, res) => {
 
     const paper = await prisma.paper.findUnique({
       where: { id: pid },
-      select: { id: true, testType: true, track: true }
+      select: { id: true, testType: true, track: true, status: true }
     });
     if (!paper) return res.status(404).json({ message: 'Paper not found' });
+
+    // Exam tab papers can be done once
+    const isStaffUser = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'].includes(req.user.role);
+    if (!isStaffUser && String(paper.status || '').startsWith('EXAM')) {
+      const done = await prisma.attempt.findFirst({ where: { studentId: req.user.id, paperId: pid, status: 'COMPLETED' }, select: { id: true } });
+      if (done) return res.status(409).json({ error: 'EXAM_DONE', message: 'You have already submitted this part of the exam.', attemptId: done.id });
+    }
 
     const studentId = req.user.id;
     const wantsPlacement = bodyIsPlacement === true;

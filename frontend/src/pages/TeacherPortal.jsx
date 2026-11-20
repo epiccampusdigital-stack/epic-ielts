@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ExamControl from '../components/ExamControl';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
@@ -48,7 +49,7 @@ export default function TeacherPortal() {
   function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/teacher-login'); }
 
   const first = String(mine?.teacher?.name || user.name || 'Teacher').split(' ')[0];
-  const tabs = [['home', 'Home'], ['schedule', 'My schedule'], ['today', "Today's class"], ['papers', 'Papers & answers'], ['books', 'My books']];
+  const tabs = [['home', 'Home'], ['schedule', 'My schedule'], ['today', "Today's class"], ['exams', 'Exams'], ['papers', 'Papers & answers'], ['books', 'My books']];
 
   return (
     <div className="tp" style={{ minHeight: '100vh', background: C.bg, fontFamily: "'Source Sans Pro', 'Source Sans 3', Arial, sans-serif", color: C.text }}>
@@ -103,6 +104,7 @@ export default function TeacherPortal() {
         {mine && tab === 'home' && <Home me={mine.teacher} mine={mine.sessions || []} all={all} data={data} programId={programId} go={setTab} />}
         {mine && tab === 'schedule' && <MySchedule me={mine.teacher} mine={mine.sessions || []} all={all} data={data} />}
         {mine && tab === 'today' && (programId && data ? <DayView programId={programId} data={data} dayNumber={data.todayDay?.dayNumber} flash={flash} isAdmin={false} onChanged={load} goReminders={() => {}} /> : <p style={{ color: C.muted }}>No programme is running.</p>)}
+        {mine && tab === 'exams' && <ExamControl flash={flash} />}
         {mine && tab === 'papers' && <PaperLibrary flash={flash} />}
         {mine && tab === 'books' && <Materials flash={flash} currentWeek={data?.todayDay ? Math.ceil(data.todayDay.dayNumber / 7) : 1} />}
       </main>

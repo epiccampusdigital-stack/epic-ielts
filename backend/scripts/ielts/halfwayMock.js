@@ -180,7 +180,8 @@ async function addHalfwayMock(prisma) {
   const { addIeltsPapers } = require('./kit');
   const r = await addIeltsPapers(prisma, PAPERS, { status: 'DRAFT' }); // hidden until it opens (openHalfwayMock)
   const lis = await prisma.paper.findFirst({ where: { paperCode: LIS.code, testType: 'LISTENING' }, include: { sections: true } });
-  if (lis && lis.sections.some(s => !s.audioUrl)) {
+  // Not recorded while it sits locked in the Exam tab (it is being rebuilt as Exam Paper 2)
+  if (lis && lis.status !== 'EXAM_LOCKED' && lis.sections.some(s => !s.audioUrl)) {
     const builder = require('../../src/services/paperBuilder');
     if (builder.ttsReady()) {
       builder.recordPaperAudio(lis.id).then(n => console.log('[ielts] halfway mock audio recorded:', n)).catch(e => console.error('[ielts] halfway mock audio failed:', e.message));

@@ -243,27 +243,45 @@ const voiceFor = (name, used) => {
   if (/\b(woman|female|mrs|ms|miss|mother|girl|lady)\b/i.test(name)) return FEMALE_VOICE;
   return used.size % 2 === 0 ? MALE_VOICE : FEMALE_VOICE;
 };
-async function geminiTts(text, speakers) {
+async function ttsCall(model, contents, speechConfig) {
   const key = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
-  const speechConfig = speakers.length > 1
-    ? { multiSpeakerVoiceConfig: { speakerVoiceConfigs: speakers.map(s => ({ speaker: s.name, voiceConfig: { prebuiltVoiceConfig: { voiceName: s.voice } } })) } }
-    : { voiceConfig: { prebuiltVoiceConfig: { voiceName: speakers[0].voice } } };
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({ contents, generationConfig: { responseModalities: ['AUDIO'], speechConfig } }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(`Google TTS error ${r.status}: ${(j.error && j.error.message) || 'unknown'}`); e.status = r.status; throw e; }
+  const part = (j.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
+  if (!part) throw new Error('Google TTS returned no audio.');
+  return Buffer.from(part.inlineData.data, 'base64');
+}
+// turns: [{ speaker, text }] for a conversation (2 voices). Newer models want each line as its own part
+// with the speaker named; older ones take one text block. If neither works, each line is recorded on its own.
+async function geminiTts(text, speakers, turns) {
+  const single = { voiceConfig: { prebuiltVoiceConfig: { voiceName: speakers[0].voice } } };
+  const multi = { multiSpeakerVoiceConfig: { speakerVoiceConfigs: speakers.map(s => ({ speaker: s.name, voiceConfig: { prebuiltVoiceConfig: { voiceName: s.voice } } })) } };
   let lastErr;
   for (const model of TTS_MODELS) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig } }),
-    });
-    if (r.status === 404) { lastErr = new Error(`TTS model ${model} not found`); continue; }
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(`Google TTS error ${r.status}: ${(j.error && j.error.message) || 'unknown'}`);
-    const part = (j.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
-    if (!part) throw new Error('Google TTS returned no audio.');
-    return Buffer.from(part.inlineData.data, 'base64');
+    try {
+      if (speakers.length < 2) return await ttsCall(model, [{ parts: [{ text }] }], single);
+      try { return await ttsCall(model, [{ parts: [{ text }] }], multi); }
+      catch (e) {
+        if (!/speech_metadata|speechMetadata|speaker/i.test(e.message) || !turns) throw e;
+        return await ttsCall(model, [{ parts: turns.map(t => ({ text: t.text, speechMetadata: { speaker: t.speaker } })) }], multi);
+      }
+    } catch (e) { lastErr = e; if (e.status === 404 || e.status === 400) continue; throw e; }
+  }
+  if (speakers.length > 1 && turns) { // last resort: one line at a time, each in its speaker's voice
+    console.warn('[tts] two-voice request failed, recording line by line:', lastErr && lastErr.message);
+    const bufs = [];
+    for (const t of turns) {
+      const v = (speakers.find(s => s.name === t.speaker) || speakers[0]).voice;
+      bufs.push(await geminiTts(`Read this aloud in clear, natural English at a calm exam speed: ${t.text}`, [{ name: t.speaker, voice: v }]), silence(0.35));
+    }
+    return Buffer.concat(bufs);
   }
   throw lastErr;
 }
-// Narrator lines on their own voice; the rest in one call with up to 2 voices (Gemini allows 2).
 // [PAUSE 30] = 30 seconds of silence. A line with no "Name:" carries on the previous speaker.
 // hints: optional { SPEAKER: 'male' | 'female' } (audioScript JSON key "voices").
 async function recordScript(script, hints = {}) {
@@ -303,13 +321,14 @@ async function recordScript(script, hints = {}) {
       ? `Read this conversation aloud in clear, natural British English at a calm exam speed:\n${body}`
       : `Read this aloud in clear, natural British English at a calm exam speed: ${c.lines.map(l => l.text).join(' ')}`;
     let audio;
-    try { audio = await geminiTts(say, speakers); }
+    const turns = speakers.length > 1 ? c.lines.map(l => ({ speaker: l.who.replace(/[^A-Za-z]/g, '') || 'Speaker', text: l.text })) : null;
+    try { audio = await geminiTts(say, speakers, turns); }
     catch (e) { // a named voice may not exist for this model: try again with the default voices
       const plain = speakers.map(sp => { const who = names.find(n => (n.replace(/[^A-Za-z]/g, '') || 'Speaker') === sp.name); return { ...sp, voice: fallbackOf(who) || voiceFor(who || '', new Map()) }; });
       if (plain.length === 2 && plain[0].voice === plain[1].voice) plain[1].voice = plain[0].voice === MALE_VOICE ? FEMALE_VOICE : MALE_VOICE;
       if (JSON.stringify(plain) === JSON.stringify(speakers)) throw e;
       console.warn('[tts] retrying with default voices:', e.message);
-      audio = await geminiTts(say, plain);
+      audio = await geminiTts(say, plain, turns);
     }
     parts.push(audio, silence(c.narr ? 1 : 0.8));
   }

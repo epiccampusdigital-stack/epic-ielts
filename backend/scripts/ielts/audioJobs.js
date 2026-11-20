@@ -4,6 +4,7 @@
 // Needs GOOGLE_AI_API_KEY on Render; until it is set, jobs wait and run on a later start.
 const JOBS = [
   // { id: 'ex2-l-all-v1', code: 'EX2-L', parts: [1, 2, 3, 4], refresh: () => require('./examPaper2Listening').LISTENING.audioScript },
+  { id: 'ex2-l-part1-v1', code: 'EX2-L', parts: [1], refresh: () => require('./examPaper2Listening').LISTENING.audioScript },
 ];
 
 async function runAudioJobs(prisma) {

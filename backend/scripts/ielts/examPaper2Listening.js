@@ -207,12 +207,13 @@ function checkListening() {
 
 // Adds the listening part once (locked), then records the audio on the server when the Google AI key is set.
 // Records again on a later start if any part still has no audio (for example, the key was added later).
-async function addExam2Listening(prisma) {
+async function addExam2Listening(prisma, opts = {}) {
   const errs = checkListening();
   if (errs.length) return { skipped: 'check failed', errors: errs.slice(0, 5) };
   const { addIeltsPapers } = require('./kit');
   const r = await addIeltsPapers(prisma, [LISTENING], { status: 'EXAM_LOCKED' });
   const lis = await prisma.paper.findFirst({ where: { paperCode: LISTENING.code, testType: 'LISTENING' }, include: { sections: true } });
+  if (opts.record === false) return { ...r, audio: 'recorded part by part (audio jobs)' };
   if (lis && lis.sections.some(x => !x.audioUrl)) {
     const builder = require('../../src/services/paperBuilder');
     if (!builder.ttsReady()) return { ...r, audio: 'waiting for GOOGLE_AI_API_KEY' };

@@ -350,7 +350,7 @@ router.get('/paper-review', wrap(async (req, res) => {
   // ?track=IELTS lists the IELTS papers (read only, live ones); default is General English
   const ielts = req.query.track === 'IELTS';
   const papers = await prisma.paper.findMany({
-    where: ielts ? { track: 'IELTS', OR: [{ status: 'ACTIVE' }, { paperCode: { startsWith: 'IM-' } }, { paperCode: { startsWith: 'EX1-' } }] } : { track: 'GENERAL', status: { in: ['ACTIVE', 'DRAFT'] } },
+    where: ielts ? { track: 'IELTS', OR: [{ status: 'ACTIVE' }, { paperCode: { startsWith: 'IM-' } }, { paperCode: { startsWith: 'EX1-' } }, { paperCode: { startsWith: 'EX2-' } }] } : { track: 'GENERAL', status: { in: ['ACTIVE', 'DRAFT'] } },
     select: { id: true, paperCode: true, title: true, testType: true, timeLimitMin: true, order: true, difficulty: true, status: true, topic: true, source: true, _count: { select: { questions: true } } },
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
   });
@@ -371,7 +371,7 @@ router.get('/paper-review', wrap(async (req, res) => {
 router.get('/paper-review/:paperId', wrap(async (req, res) => {
   if ((await hiddenLanguage(req)) === 'EN') return res.status(404).json({ error: 'Not found' });
   const paper = await prisma.paper.findFirst({
-    where: { id: parseInt(req.params.paperId, 10), OR: [{ track: 'GENERAL' }, { track: 'IELTS', status: 'ACTIVE' }, { track: 'IELTS', paperCode: { startsWith: 'IM-' } }, { track: 'IELTS', paperCode: { startsWith: 'EX1-' } }] },
+    where: { id: parseInt(req.params.paperId, 10), OR: [{ track: 'GENERAL' }, { track: 'IELTS', status: 'ACTIVE' }, { track: 'IELTS', paperCode: { startsWith: 'IM-' } }, { track: 'IELTS', paperCode: { startsWith: 'EX1-' } }, { track: 'IELTS', paperCode: { startsWith: 'EX2-' } }] },
     include: {
       passages: { orderBy: { passageNumber: 'asc' }, include: { groups: { orderBy: { order: 'asc' }, include: { questions: { orderBy: { questionNumber: 'asc' } } } } } },
       sections: { orderBy: { number: 'asc' }, include: { groups: { orderBy: { order: 'asc' }, include: { questions: { orderBy: { questionNumber: 'asc' } } } } } },

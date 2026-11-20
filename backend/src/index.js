@@ -177,7 +177,10 @@ require('./ensureSchema').ensureSchema(prisma)
       if (hm.count) console.log('[ielts] halfway mock moved to the exam tab (locked):', hm.count);
       const { addExamPaper1 } = require('../scripts/ielts/examPaper1');
       console.log('[ielts] exam paper 1:', JSON.stringify(await addExamPaper1(prisma)));
-      // Exam Paper 2 (scripts/ielts/examPaper2Listening.js) is added later, once its audio is ready.
+      // Exam Paper 2 listening: saved hidden (locked and not in the Exam tab) so its audio can be recorded part by part
+      // by audio jobs; teachers can listen in the teacher portal. It goes into the Exam tab later.
+      const { addExam2Listening } = require('../scripts/ielts/examPaper2Listening');
+      console.log('[ielts] exam paper 2 listening (hidden):', JSON.stringify(await addExam2Listening(prisma, { record: false })));
       // Listening audio jobs (record or re-record single parts) run in the background
       require('../scripts/ielts/audioJobs').runAudioJobs(prisma).then(r => console.log('[ielts] audio jobs:', JSON.stringify(r))).catch(e => console.error('[ielts] audio jobs:', e.message));
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');

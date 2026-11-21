@@ -1,6 +1,7 @@
 // Teachers open and lock the Exam tab papers here. Students see an exam only after it is opened.
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import API_URL from '../api';
 import { T } from '../theme';
 
@@ -8,6 +9,7 @@ const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('t
 const SKILL = { READING: 'Reading', WRITING: 'Writing', LISTENING: 'Listening' };
 
 export default function ExamControl({ flash = () => {} }) {
+  const navigate = useNavigate();
   const [exams, setExams] = useState(null);
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -60,6 +62,7 @@ export default function ExamControl({ flash = () => {} }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: e.released ? T.successSoft : '#fff8e6', borderRadius: 10, padding: '10px 12px' }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: e.released ? T.success : '#8a5a00' }}>{e.released ? '👁 Results released: students can see their scores and answers' : '🙈 Results hidden: students only see "your teacher will share the results"'}</span>
             <button type="button" disabled={busy === `r-${e.id}`} onClick={() => results(e)} style={{ marginLeft: 'auto', height: 36, padding: '0 16px', borderRadius: 50, border: `1.5px solid ${e.released ? T.muted : T.success}`, background: '#fff', color: e.released ? T.muted : T.success, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{busy === `r-${e.id}` ? 'Saving…' : e.released ? 'Hide results' : 'Release results'}</button>
+            <button type="button" onClick={() => navigate(`/teacher/exams/${e.id}/sheets`)} style={{ height: 36, padding: '0 16px', borderRadius: 50, border: 0, background: T.navy, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>📄 Results sheets (PDF)</button>
           </div>
           {confirm === e.id ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

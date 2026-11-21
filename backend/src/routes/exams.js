@@ -103,13 +103,8 @@ function overallBand(bands) {
   return frac < 0.25 ? Math.floor(avg) : frac < 0.75 ? Math.floor(avg) + 0.5 : Math.ceil(avg); // IELTS rounding
 }
 const firstAnswer = a => String(a || '').split('|')[0];
-router.get('/:id/results', auth, async (req, res) => {
-  try {
-    const { prisma } = require('../services/programService');
-    const exam = EXAMS.find(e => e.id === req.params.id);
-    if (!exam) return res.status(404).json({ error: 'Exam not found' });
-    if (!isStaff(req) && (await heldExamIds()).has(exam.id)) return res.status(403).json({ error: 'RESULTS_HELD', message: 'Your teacher will share the results soon.' });
-    const studentId = isStaff(req) && req.query.studentId ? parseInt(req.query.studentId, 10) : req.user.id;
+// One student's full results sheet for an exam (used by the student page and the teacher PDF)
+async function sheetFor(prisma, exam, studentId) {
     const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } }).catch(() => null);
     const parts = [];
     for (const code of exam.codes) {
@@ -143,12 +138,41 @@ router.get('/:id/results', auth, async (req, res) => {
     }
     const bands = parts.filter(p => p.done && p.band != null).map(p => Number(p.band));
     const waiting = parts.some(p => !p.done) || parts.some(p => p.testType === 'WRITING' && p.done && p.band == null);
-    res.json({
+    return {
       exam: { id: exam.id, title: exam.title }, student: student?.name || '',
       overall: bands.length ? { band: overallBand(bands), from: bands.length, complete: !waiting } : null,
       totalScore: parts.filter(p => p.total).reduce((a, p) => a + p.score, 0), totalQuestions: parts.filter(p => p.total).reduce((a, p) => a + p.total, 0),
       parts,
-    });
+    };
+}
+
+// Teachers: every student's results sheet for one exam, for the class summary and the PDF
+router.get('/:id/class', auth, async (req, res) => {
+  try {
+    if (!isStaff(req)) return res.status(403).json({ error: 'Teachers only' });
+    const { prisma } = require('../services/programService');
+    const exam = EXAMS.find(e => e.id === req.params.id);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    const papers = await prisma.paper.findMany({ where: { paperCode: { in: exam.codes }, status: { startsWith: 'EXAM' } }, select: { id: true } });
+    const done = await prisma.attempt.findMany({ where: { paperId: { in: papers.map(p => p.id) }, status: 'COMPLETED', student: { role: 'STUDENT' } }, select: { studentId: true }, distinct: ['studentId'] });
+    const sheets = [];
+    for (const d of done) sheets.push({ studentId: d.studentId, ...(await sheetFor(prisma, exam, d.studentId)) });
+    sheets.sort((a, b) => (b.overall?.band ?? -1) - (a.overall?.band ?? -1) || a.student.localeCompare(b.student));
+    res.json({ exam: { id: exam.id, title: exam.title, codes: exam.codes }, released: !(await heldExamIds()).has(exam.id), sheets });
+  } catch (err) {
+    console.error('[exams] class', err.message);
+    res.status(500).json({ error: 'Could not load the class results' });
+  }
+});
+
+router.get('/:id/results', auth, async (req, res) => {
+  try {
+    const { prisma } = require('../services/programService');
+    const exam = EXAMS.find(e => e.id === req.params.id);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    if (!isStaff(req) && (await heldExamIds()).has(exam.id)) return res.status(403).json({ error: 'RESULTS_HELD', message: 'Your teacher will share the results soon.' });
+    const studentId = isStaff(req) && req.query.studentId ? parseInt(req.query.studentId, 10) : req.user.id;
+    res.json(await sheetFor(prisma, exam, studentId));
   } catch (err) {
     console.error('[exams] results', err.message);
     res.status(500).json({ error: 'Could not load the results' });

@@ -27,6 +27,7 @@ import LearnPage from './pages/LearnPage';
 import EverydayEnglish from './pages/EverydayEnglish';
 import ListeningPractice from './pages/ListeningPractice';
 import Games from './pages/Games';
+import ExamClassResults from './pages/ExamClassResults';
 import Exams from './pages/Exams';
 import ExamResults from './pages/ExamResults';
 import AILearn from './pages/AILearn';
@@ -211,6 +212,9 @@ function App() {
         <RequireAdmin><AdminProgram /></RequireAdmin>
       } />
       <Route path="/teacher-login" element={<TeacherLogin />} />
+      <Route path="/teacher/exams/:examId/sheets" element={
+        <RequireStaff><ExamClassResults /></RequireStaff>
+      } />
       <Route path="/teacher" element={
         <RequireStaff toLogin="/teacher-login"><TeacherHome /></RequireStaff>
       } />

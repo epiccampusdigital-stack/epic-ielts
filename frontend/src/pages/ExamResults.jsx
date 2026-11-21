@@ -30,10 +30,14 @@ export default function ExamResults() {
   }, [examId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f6f8fc', fontFamily: T.font, color: T.ink }}>
-      <StudentNav active="exams" />
+    <div className="root" style={{ minHeight: '100vh', background: '#f6f8fc', fontFamily: T.font, color: T.ink }}>
+      <style>{'@page { size: A4; margin: 12mm; } @media print { .noprint, nav, .sn-row, .sn-mobile { display: none !important; } body, .root { background: #fff !important; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } tr { break-inside: avoid; } }'}</style>
+      <div className="noprint"><StudentNav active="exams" /></div>
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 16px 64px', display: 'grid', gap: 16 }}>
-        <button type="button" onClick={() => navigate('/exams')} style={{ justifySelf: 'start', background: 'none', border: 0, color: T.primary, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>‹ Back to exams</button>
+        <div className="noprint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <button type="button" onClick={() => navigate('/exams')} style={{ background: 'none', border: 0, color: T.primary, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>‹ Back to exams</button>
+          {data && <button type="button" onClick={() => window.print()} style={{ height: 38, padding: '0 16px', borderRadius: 50, border: 0, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>📄 Download PDF</button>}
+        </div>
         {error && <div style={{ ...card, background: T.errorSoft, color: T.error }}>{error}</div>}
         {!data && !error && <div style={card}>Loading your results…</div>}
         {data && <>

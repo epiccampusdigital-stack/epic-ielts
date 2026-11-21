@@ -12,6 +12,24 @@ const { gradeAttempt } = require('../services/claudeMarking');
 
 const router = express.Router();
 
+// Exam results on hold (see exams.js): students cannot open a finished exam part's score, answers or feedback
+const STAFF_ROLES = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
+const heldCodes = () => require('./exams').heldPaperCodes();
+async function holdGuard(req, res, next) {
+  try {
+    if (STAFF_ROLES.includes(req.user?.role)) return next();
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || String(id) !== req.params.id) return next();
+    const a = await prisma.attempt.findUnique({ where: { id }, select: { status: true, paper: { select: { paperCode: true, status: true } } } });
+    if (a && a.status === 'COMPLETED' && a.paper?.status?.startsWith('EXAM') && (await heldCodes()).has(a.paper.paperCode)) {
+      return res.status(403).json({ error: 'RESULTS_HELD', message: 'Your teacher will share the results soon.' });
+    }
+    next();
+  } catch { next(); }
+}
+router.get(['/:id', '/:id/result', '/:id/ai-feedback', '/:id/writing/feedback', '/:id/writing/result', '/:id/speaking/result', '/:id/speaking/feedback'], auth, holdGuard);
+const hideHeld = async list => { const codes = await heldCodes(); return codes.size ? list.filter(a => !(a.paper?.status?.startsWith?.('EXAM') && codes.has(a.paper?.paperCode))) : list; };
+
 // Students can only open their own attempts. Admins and teachers can open any.
 router.use('/:id', (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
@@ -349,7 +367,7 @@ router.get('/history/mine', auth, async (req, res) => {
     const attempts = await prisma.attempt.findMany({
       where,
       include: {
-        paper: { select: { title: true, testType: true, paperCode: true, track: true, _count: { select: { questions: true } } } },
+        paper: { select: { title: true, testType: true, paperCode: true, status: true, track: true, _count: { select: { questions: true } } } },
         result: true,
         writingSubmission: {
           select: { markingStatus: true, overallBand: true, task1Band: true, task2Band: true, modelAnswers: true }
@@ -357,7 +375,7 @@ router.get('/history/mine', auth, async (req, res) => {
       },
       orderBy: { id: 'desc' }
     });
-    res.json(attempts);
+    res.json(await hideHeld(attempts));
   } catch (error) {
     console.error('History error:', error);
     res.status(500).json({ message: 'Error fetching history', details: error.message });
@@ -366,11 +384,11 @@ router.get('/history/mine', auth, async (req, res) => {
 
 router.get('/dashboard/summary', auth, async (req, res) => {
   try {
-    const attempts = await prisma.attempt.findMany({
+    const attempts = await hideHeld(await prisma.attempt.findMany({
       where: { studentId: req.user.id, status: 'COMPLETED' },
       include: { paper: true, result: true },
       orderBy: { id: 'desc' }
-    });
+    }));
 
     const bySubject = {};
     attempts.forEach(a => {

@@ -8,9 +8,26 @@ const EXAMS = [
   { id: 'paper1', title: 'Exam Paper 1', subtitle: 'IELTS Reading and Writing · 1 hour', codes: ['EX1-R', 'EX1-W'] },
   // Midway final exam: 25 + 45 + 60 minutes of work on one 2.5-hour timer
   // oneTimer: one clock for the whole paper; each part opens straight after the one before
-  { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
+  // holdResults: students see no score or answers until a teacher presses "Release results"
+  { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150, holdResults: true },
 ];
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
+
+// ─── Results on hold: AppSetting exam.results.<id> = 'released' | 'held' (default from holdResults) ──
+const resultsKey = id => `exam.results.${id}`;
+let heldCache = { at: 0, ids: null };
+async function heldExamIds() {
+  if (heldCache.ids && Date.now() - heldCache.at < 20000) return heldCache.ids;
+  const { prisma } = require('../services/programService');
+  const rows = await prisma.appSetting.findMany({ where: { key: { in: EXAMS.map(e => resultsKey(e.id)) } } });
+  const ids = new Set(EXAMS.filter(e => { const v = rows.find(r => r.key === resultsKey(e.id))?.value; return v ? v === 'held' : !!e.holdResults; }).map(e => e.id));
+  heldCache = { at: Date.now(), ids };
+  return ids;
+}
+async function heldPaperCodes() {
+  const ids = await heldExamIds();
+  return new Set(EXAMS.filter(e => ids.has(e.id)).flatMap(e => e.codes));
+}
 const isStaff = req => STAFF.includes(req.user?.role);
 
 async function build(prisma, studentId, staff) {
@@ -24,6 +41,7 @@ async function build(prisma, studentId, staff) {
     where: staff ? { paperId: { in: ids }, status: 'COMPLETED' } : { paperId: { in: ids }, studentId },
     select: { id: true, paperId: true, status: true, studentId: true }, orderBy: { id: 'desc' },
   }) : [];
+  const held = await heldExamIds();
   return EXAMS.map(e => {
     const parts = e.codes.map(c => papers.find(p => p.paperCode === c)).filter(Boolean).map(p => {
       const mine = attempts.filter(a => a.paperId === p.id);
@@ -39,7 +57,7 @@ async function build(prisma, studentId, staff) {
     // an exam with listening appears only when every listening part has its recording
     if (e.needsAudio && papers.some(p => e.codes.includes(p.paperCode) && p.testType === 'LISTENING' && (!p.sections.length || p.sections.some(s => !s.audioUrl)))) return null;
     const open = parts.every(p => papers.find(x => x.id === p.paperId).status === 'EXAM_OPEN');
-    return { id: e.id, title: e.title, subtitle: e.subtitle, open, oneTimer: !!e.oneTimer, totalMinutes: e.totalMinutes || parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
+    return { id: e.id, title: e.title, subtitle: e.subtitle, open, released: !held.has(e.id), oneTimer: !!e.oneTimer, totalMinutes: e.totalMinutes || parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
   }).filter(Boolean);
 }
 
@@ -55,11 +73,18 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/:id/:action', auth, async (req, res) => {
   try {
-    if (!['open', 'lock'].includes(req.params.action)) return res.status(404).json({ error: 'Unknown action' });
-    if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can open or lock an exam' });
+    if (!['open', 'lock', 'release', 'hold'].includes(req.params.action)) return res.status(404).json({ error: 'Unknown action' });
+    if (!isStaff(req)) return res.status(403).json({ error: 'Only teachers can change an exam' });
     const exam = EXAMS.find(e => e.id === req.params.id);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
     const { prisma } = require('../services/programService');
+    if (req.params.action === 'release' || req.params.action === 'hold') {
+      const value = req.params.action === 'release' ? 'released' : 'held';
+      await prisma.appSetting.upsert({ where: { key: resultsKey(exam.id) }, update: { value }, create: { key: resultsKey(exam.id), value } });
+      heldCache = { at: 0, ids: null };
+      console.log(`[exams] ${exam.id} results ${value} by ${req.user.id}`);
+      return res.json({ ok: true, released: value === 'released' });
+    }
     const status = req.params.action === 'open' ? 'EXAM_OPEN' : 'EXAM_LOCKED';
     const r = await prisma.paper.updateMany({ where: { paperCode: { in: exam.codes }, status: { startsWith: 'EXAM' } }, data: { status } });
     console.log(`[exams] ${exam.id} ${req.params.action} by ${req.user.id}: ${r.count} papers`);
@@ -83,6 +108,7 @@ router.get('/:id/results', auth, async (req, res) => {
     const { prisma } = require('../services/programService');
     const exam = EXAMS.find(e => e.id === req.params.id);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    if (!isStaff(req) && (await heldExamIds()).has(exam.id)) return res.status(403).json({ error: 'RESULTS_HELD', message: 'Your teacher will share the results soon.' });
     const studentId = isStaff(req) && req.query.studentId ? parseInt(req.query.studentId, 10) : req.user.id;
     const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } }).catch(() => null);
     const parts = [];
@@ -144,3 +170,4 @@ module.exports = router;
 module.exports.EXAMS = EXAMS;
 module.exports.oneTimer = oneTimer;
 module.exports.overallBand = overallBand;
+module.exports.heldPaperCodes = heldPaperCodes;

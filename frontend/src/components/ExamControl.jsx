@@ -25,6 +25,17 @@ export default function ExamControl({ flash = () => {} }) {
     setBusy('');
   }
 
+  async function results(exam) {
+    const action = exam.released ? 'hold' : 'release';
+    setBusy(`r-${exam.id}`);
+    try {
+      await axios.post(`${API_URL}/api/exams/${exam.id}/${action}`, {}, api());
+      flash(action === 'release' ? `Results released. Students can now see their scores and answers for ${exam.title}.` : `Results hidden. Students cannot see ${exam.title} scores or answers.`);
+      await load();
+    } catch (e) { flash(e.response?.data?.error || 'Could not change the results setting.'); }
+    setBusy('');
+  }
+
   if (!exams) return <p style={{ color: T.muted }}>Loading exams…</p>;
   if (!exams.length) return <p style={{ color: T.muted }}>No exams yet.</p>;
   return (
@@ -45,6 +56,10 @@ export default function ExamControl({ flash = () => {} }) {
                 Part {k + 1}: {SKILL[p.testType] || p.testType}, {p.timeLimitMin} min · <b>{p.finishedBy || 0}</b> submitted
               </span>
             ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: e.released ? T.successSoft : '#fff8e6', borderRadius: 10, padding: '10px 12px' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: e.released ? T.success : '#8a5a00' }}>{e.released ? '👁 Results released: students can see their scores and answers' : '🙈 Results hidden: students only see "your teacher will share the results"'}</span>
+            <button type="button" disabled={busy === `r-${e.id}`} onClick={() => results(e)} style={{ marginLeft: 'auto', height: 36, padding: '0 16px', borderRadius: 50, border: `1.5px solid ${e.released ? T.muted : T.success}`, background: '#fff', color: e.released ? T.muted : T.success, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{busy === `r-${e.id}` ? 'Saving…' : e.released ? 'Hide results' : 'Release results'}</button>
           </div>
           {confirm === e.id ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

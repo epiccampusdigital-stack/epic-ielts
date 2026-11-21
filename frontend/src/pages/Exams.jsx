@@ -138,7 +138,10 @@ export default function Exams() {
               {!exam.open && !allDone && <div style={{ color: T.muted, fontSize: 15 }}>This exam is locked. It opens when your teacher unlocks it, and this page updates by itself.</div>}
               {exam.open && !allDone && exam.oneTimer && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>One timer for the whole exam ({exam.totalMinutes} minutes). When you submit a part, the next part opens straight away and the clock keeps running, so there is no break. The exam fills the screen; if you leave full screen by mistake, press the orange "Back to full screen" button at the top.</div>}
               {exam.open && !allDone && !exam.oneTimer && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>Do the parts in order, one after the other. When you press Start, the exam fills the screen. If you leave full screen by mistake, press the orange "Back to full screen" button at the top. When the time runs out, your answers are sent automatically.</div>}
-              {allDone && <div style={{ display: 'grid', gap: 8 }}>
+              {allDone && exam.released === false && <div style={{ background: T.primaryXSoft, borderRadius: 12, padding: '14px 16px', color: T.ink, fontSize: 15, lineHeight: 1.5 }}>
+                <b>Well done, you have finished this exam.</b> Your results are being marked. Your teacher will share your scores and answers in class.
+              </div>}
+              {allDone && exam.released !== false && <div style={{ display: 'grid', gap: 8 }}>
                 <div style={{ color: T.muted, fontSize: 15 }}>Well done, you have finished this exam. You cannot do it again, but you can see your results:</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" onClick={() => navigate(`/exams/${exam.id}/results`)}

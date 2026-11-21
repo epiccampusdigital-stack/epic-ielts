@@ -22,7 +22,7 @@ export default function ExamResults() {
     let stop = false;
     const load = () => axios.get(`${API_URL}/api/exams/${examId}/results`, api())
       .then(r => { if (!stop) setData(r.data); })
-      .catch(() => { if (!stop) setError('Could not load your results. Please refresh the page.'); });
+      .catch(e => { if (!stop) setError(e.response?.data?.error === 'RESULTS_HELD' ? 'Your results are not ready to see yet. Your teacher will share your scores and answers in class.' : 'Could not load your results. Please refresh the page.'); });
     load();
     // writing is marked by the computer a minute or two after submitting: check again until it is ready
     const t = setInterval(() => { if (!data || data.parts.some(p => p.testType === 'WRITING' && p.done && p.band == null)) load(); }, 20000);

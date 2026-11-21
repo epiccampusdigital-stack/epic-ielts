@@ -15,6 +15,8 @@ export default function ListeningExam() {
   const [answers, setAnswers] = useState({});
   const [activeSIdx, setActiveSIdx] = useState(0);
   const [playedSections, setPlayedSections] = useState({});
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const MAX_PLAYS = 2;
   const [showInstructions, setShowInstructions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -147,12 +149,16 @@ export default function ListeningExam() {
 
   const startAudio = () => {
     const section = paper.sections[activeSIdx];
-    if (playedSections[section.id] && !paper.practiceMode) return;
+    // Each recording can be played twice (once more after it ends), unless Practice Mode gives free controls.
+    if ((playedSections[section.id] || 0) >= MAX_PLAYS && !paper.practiceMode) return;
+    if (audioPlaying) return;
     if (audioRef.current) {
       const audioUrl = section.audioUrl || paper.audioUrl || null;
-      if (audioUrl) audioRef.current.src = getFullUrl(audioUrl);
+      if (audioUrl && audioRef.current.src !== getFullUrl(audioUrl)) audioRef.current.src = getFullUrl(audioUrl);
+      audioRef.current.currentTime = 0;
       audioRef.current.play();
-      setPlayedSections(prev => ({ ...prev, [section.id]: true }));
+      setAudioPlaying(true);
+      setPlayedSections(prev => ({ ...prev, [section.id]: (prev[section.id] || 0) + 1 }));
     }
   };
 
@@ -312,7 +318,7 @@ export default function ListeningExam() {
             <h2 style={{ fontSize: 32, fontWeight: 700, color: '#0f1114', marginBottom: 16 }}>IELTS Listening Test</h2>
             <div style={{ textAlign: 'left', background: '#e8eef7', padding: 24, borderRadius: 16, marginBottom: 32 }}>
               <ul style={{ margin: 0, paddingLeft: 20, fontSize: 15, color: '#5b6780', lineHeight: 1.8 }}>
-                <li>There are 4 sections. Audio plays <b>ONCE ONLY</b> (unless Practice Mode).</li>
+                <li>You can play the recording for each part <b>TWICE</b>. Read the questions before you press play.</li>
                 <li>Answer questions as you listen.</li>
                 <li>10 minutes transfer time included in the total timer.</li>
               </ul>
@@ -377,12 +383,14 @@ export default function ListeningExam() {
                 if (!audioUrl) return <div style={{ fontSize: 12, color: '#8495b0' }}>No audio file attached</div>;
                 return (
                   <>
-                    <audio ref={audioRef} src={getFullUrl(audioUrl)} onEnded={() => {}} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
+                    <audio ref={audioRef} src={getFullUrl(audioUrl)} onEnded={() => setAudioPlaying(false)} onPause={() => setAudioPlaying(false)} onEmptied={() => setAudioPlaying(false)} controls={paper.practiceMode} style={{ width: '100%', marginBottom: 12 }} />
                     {!paper.practiceMode && (
-                      playedSections[currentSection.id] ? (
-                        <div style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>✅ Played Once</div>
+                      audioPlaying ? (
+                        <div style={{ fontSize: 12, color: '#0056d2', fontWeight: 700 }}>Playing... (play {playedSections[currentSection.id] || 1} of {MAX_PLAYS})</div>
+                      ) : (playedSections[currentSection.id] || 0) >= MAX_PLAYS ? (
+                        <div style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>✅ Played twice</div>
                       ) : (
-                        <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#0056d2', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Play Audio</button>
+                        <button onClick={startAudio} style={{ width: '100%', padding: '14px', background: '#0056d2', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>{playedSections[currentSection.id] ? '▶ Play again (2 of 2)' : '▶ Play Audio (1 of 2)'}</button>
                       )
                     )}
                   </>

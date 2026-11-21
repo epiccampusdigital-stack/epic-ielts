@@ -269,6 +269,7 @@ const { listening4 } = require('./listeningC4');
 const { NEW_PAPERS } = require('./newPapers');
 const { HARD_PAPERS } = require('./hardPapers');
 const { MAP_PAPERS } = require('./mapPaper');
-const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4, listening4, ...NEW_PAPERS, ...HARD_PAPERS, ...MAP_PAPERS];
+const { TRAP_PAPERS } = require('./trapPaper');
+const COURSE_PAPERS = [reading1, writing1, reading2, writing2, reading3, writing3, reading4, listening4, ...NEW_PAPERS, ...HARD_PAPERS, ...MAP_PAPERS, ...TRAP_PAPERS];
 
 module.exports = { COURSE_PAPERS };

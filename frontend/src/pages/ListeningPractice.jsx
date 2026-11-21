@@ -3,7 +3,15 @@ import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
-import { WORD_SETS, PHRASE_SETS, SENTENCE_SETS, SIMILAR, ACCENT_LESSONS } from '../content/listeningBank';
+import { WORD_SETS as CLASS_WORD_SETS, PHRASE_SETS, SENTENCE_SETS, SIMILAR, ACCENT_LESSONS } from '../content/listeningBank';
+import { BIG_SETS } from '../content/listeningBankBig';
+import { VIDEOS } from '../content/listeningVideos';
+
+// Every word once (the same word can be in two topics); "All words" is the default, shuffled
+const ALL_WORDS = (() => { const seen = new Set(); const out = [];
+  [...CLASS_WORD_SETS, ...BIG_SETS].forEach(st => st.words.forEach(w => { const k = w[0].toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(w); } }));
+  return out; })();
+const WORD_SETS = [{ id: 'all', title: 'All words (mixed)', note: `${ALL_WORDS.length} words from every topic, in a new order every time.`, words: ALL_WORDS }, ...BIG_SETS, ...CLASS_WORD_SETS];
 
 const TABS = [
   { id: 'words', label: 'Words' },
@@ -11,7 +19,7 @@ const TABS = [
   { id: 'sentences', label: 'Sentences' },
   { id: 'reading', label: 'From your reading papers' },
   { id: 'similar', label: 'Similar words' },
-  { id: 'accents', label: 'Accents' },
+  { id: 'accents', label: 'Videos and accents' },
   { id: 'mistakes', label: 'My mistakes' },
 ];
 const ACCENTS = [
@@ -106,7 +114,7 @@ function shuffle(list) { const a = list.slice(); for (let k = a.length - 1; k > 
 
 // ---------- the dictation box used by every typing mode ----------
 // item: { text, meaning?, si?, tip?, kind: 'word'|'phrase'|'sentence', source }
-function Dictation({ items, voices, accent, setTitle, onMistake, onRight, onFinish }) {
+function Dictation({ items, voices, accent, setTitle, onMistake, onRight, onFinish, onShow }) {
   const [order, setOrder] = useState(() => items.map((_, k) => k));
   const [pos, setPos] = useState(0);
   const [typed, setTyped] = useState('');
@@ -118,6 +126,7 @@ function Dictation({ items, voices, accent, setTitle, onMistake, onRight, onFini
   const startTime = useRef(null);
   const input = useRef(null);
   const item = items[order[pos]];
+  useEffect(() => { if (item && onShow) onShow([item.text]); }, [item?.text]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setOrder(items.map((_, k) => k)); setPos(0); setTyped(''); setResult(null); setScore({ right: 0, done: 0, streak: 0 }); }, [items]);
 
@@ -254,8 +263,9 @@ function SetPicker({ sets, value, onChange, count, progress }) {
 
 // One topic at a time: only words the student has not done yet, then on to the next set. Nothing repeats.
 function SetPractice({ sets, toItems, withLearn, extraNote = '', progress: prog, ...props }) {
-  const { done, ready, markUndone } = prog;
+  const { done, ready, markUndone, seen, markSeen } = prog;
   const left = set => toItems(set).filter(i => !done.has(i.text));
+  const fresh = set => left(set).filter(i => !seen.has(i.text)); // not done, and not shown yet today
   const firstOpen = () => (sets.find(x => !x.classDone && left(x).length) || sets.find(x => left(x).length) || sets[0]).id;
   const [setId, setSetId] = useState(null);
   const [step, setStep] = useState(withLearn ? 'learn' : 'test');
@@ -265,18 +275,30 @@ function SetPractice({ sets, toItems, withLearn, extraNote = '', progress: prog,
   const set = sets.find(x => x.id === setId) || sets[0];
   const all = useMemo(() => toItems(set), [set]); // eslint-disable-line react-hooks/exhaustive-deps
   // the queue is fixed when a set starts, so ticking items off does not reshuffle it
-  const queue = useMemo(() => shuffle(left(set)), [setId, round, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  const queue = useMemo(() => shuffle(fresh(set)), [setId, round, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Learn and say it: 12 new words at a time, never the same word twice in one session
+  const [batchRound, setBatchRound] = useState(0);
+  const batch = useMemo(() => (ready && setId ? shuffle(fresh(set)).slice(0, 12) : []), [setId, batchRound, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (batch.length) markSeen(batch.map(i => i.text)); }, [batch]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!ready || !setId) return <div style={card}>Loading your progress…</div>;
   const nextSet = sets.find(x => x.id !== set.id && !x.classDone && left(x).length) || sets.find(x => x.id !== set.id && left(x).length);
-  const go = id => { setSetId(id); setRound(r => r + 1); setFinished(false); };
+  const go = id => { setSetId(id); setRound(r => r + 1); setBatchRound(r => r + 1); setFinished(false); };
   const progressOf = x => ({ done: toItems(x).filter(i => done.has(i.text)).length, total: toItems(x).length });
   const over = finished || !queue.length;
   return <>
     <SetPicker sets={sets} value={set.id} onChange={go} progress={progressOf} />
     <p style={{ margin: '0 0 12px', color: T.muted }}>{set.note}{extraNote}</p>
     {withLearn && <StepSwitch step={step} setStep={setStep} />}
-    {withLearn && step === 'learn' ? <LearnList items={all} voices={props.voices} accent={props.accent} />
-      : over ? (
+    {withLearn && step === 'learn' ? (batch.length
+      ? <LearnList items={batch} voices={props.voices} accent={props.accent} more={fresh(set).length} onMore={() => setBatchRound(r => r + 1)} />
+      : <div style={card}><b>You have seen every word in "{set.title}" today.</b><div style={{ color: T.muted, marginTop: 6 }}>Pick another set, or do the dictation test.</div></div>)
+      : over && !finished && left(set).length ? (
+        <div style={{ ...card, display: 'grid', gap: 10 }}>
+          <b>No new words left in "{set.title}" for today.</b>
+          <div style={{ color: T.muted }}>The rest of this set came up in "Learn and say it" today, and words never repeat in the same session. Try another set.</div>
+          {nextSet && <div><button type="button" style={btn(true)} onClick={() => go(nextSet.id)}>Next set: {nextSet.title} ›</button></div>}
+        </div>
+      ) : over ? (
         <div style={{ ...card, display: 'grid', gap: 12, borderColor: T.success, borderWidth: 2 }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: T.success }}>✓ You have finished "{set.title}"</div>
           <div style={{ color: T.muted, fontSize: 15 }}>You have done all {all.length} in this set. Anything you got wrong is in My mistakes.</div>
@@ -286,7 +308,7 @@ function SetPractice({ sets, toItems, withLearn, extraNote = '', progress: prog,
           </div>
           {!nextSet && <div style={{ fontWeight: 700 }}>You have finished every set here. Well done!</div>}
         </div>
-      ) : <Dictation key={`${set.id}-${round}`} items={queue} setTitle={`${set.title} · ${progressOf(set).done} of ${all.length} done`} onFinish={() => setFinished(true)} {...props} />}
+      ) : <Dictation key={`${set.id}-${round}`} items={queue} setTitle={`${set.title} · ${progressOf(set).done} of ${all.length} done`} onFinish={() => setFinished(true)} onShow={markSeen} {...props} />}
   </>;
 }
 
@@ -322,7 +344,7 @@ function SayIt({ text }) {
   );
 }
 
-function LearnList({ items, voices, accent }) {
+function LearnList({ items, voices, accent, more, onMore }) {
   const [known, setKnownRaw] = useState(() => load(KNOWN_KEY, []));
   const setKnown = fn => setKnownRaw(k => { const n = fn(k); save(KNOWN_KEY, n); return n; });
   const done = items.filter(i => known.includes(i.text)).length;
@@ -332,6 +354,10 @@ function LearnList({ items, voices, accent }) {
         <span style={{ fontSize: 15 }}>Listen to each one, read the meaning, then say it out loud. Tick it when you know it.{Recognition ? '' : ' (Use Chrome to practise saying it with the microphone.)'}</span>
         <b style={{ color: T.success }}>{done} of {items.length} learned</b>
       </div>
+      {onMore && <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button type="button" style={btn(true)} onClick={onMore} disabled={more <= items.length}>Next {Math.min(12, Math.max(0, more - items.length))} new words ›</button>
+        <span style={{ color: T.muted, fontSize: 14 }}>{Math.max(0, more - items.length)} new words left in this set today. Words you see here will not come up again today.</span>
+      </div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 12 }}>
         {items.map(it => {
           const k = known.includes(it.text);
@@ -433,40 +459,124 @@ function SimilarMode({ voices, accent }) {
   );
 }
 
-function AccentsMode({ voices }) {
+// YouTube player that tells us when the video has finished (YouTube IFrame API)
+let ytReady = null;
+function loadYouTube() {
+  if (ytReady) return ytReady;
+  ytReady = new Promise(resolve => {
+    if (window.YT && window.YT.Player) return resolve(window.YT);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(window.YT); };
+    const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
+  });
+  return ytReady;
+}
+function VideoPlayer({ id, title, onEnd }) {
+  const box = useRef(null);
+  const endRef = useRef(onEnd); endRef.current = onEnd;
+  useEffect(() => {
+    let player = null; let stop = false;
+    loadYouTube().then(YT => {
+      if (stop || !box.current) return;
+      player = new YT.Player(box.current, {
+        host: 'https://www.youtube-nocookie.com', videoId: id, width: '100%', height: '100%',
+        playerVars: { rel: 0, modestbranding: 1 },
+        events: { onStateChange: e => { if (e.data === 0) endRef.current?.(); } },
+      });
+    }).catch(() => {});
+    return () => { stop = true; try { player && player.destroy(); } catch { /* gone */ } };
+  }, [id]);
+  return (
+    <div style={{ position: 'relative', width: '100%', maxWidth: 760, aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+      <div ref={box} title={title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+    </div>
+  );
+}
+
+function AccentTable({ L, say }) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15, minWidth: 560 }}>
+        <thead><tr style={{ textAlign: 'left', color: T.muted, fontSize: 13 }}>
+          <th style={{ padding: 8 }}>Word</th><th style={{ padding: 8 }}>British</th><th style={{ padding: 8 }}>American</th>{L.rows[0].au && <th style={{ padding: 8 }}>Australian</th>}<th style={{ padding: 8 }}>Sinhala letters</th>
+        </tr></thead>
+        <tbody>{L.rows.map(r => (
+          <tr key={r.word} style={{ borderTop: `1px solid ${T.hairline}`, verticalAlign: 'top' }}>
+            <td style={{ padding: 8, fontWeight: 800, fontSize: 17 }}>{r.word}{r.tip && <div style={{ fontWeight: 400, fontSize: 13, color: T.muted, maxWidth: 220 }}>{r.tip}</div>}</td>
+            {[['uk', 'en-GB'], ['us', 'en-US'], ...(r.au ? [['au', 'en-AU']] : [])].map(([k, l]) => (
+              <td key={k} style={{ padding: 8 }}>{r[k]}<div><button type="button" onClick={() => say(r.word, l)} style={{ ...chip(false), height: 30, marginTop: 4, fontSize: 13 }}>🔊 Listen</button></div></td>
+            ))}
+            <td style={{ padding: 8, fontFamily: SI }}>{r.si}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
+// Videos: one at a time. When it ends (or is marked watched) it goes to the bottom and the next one comes up.
+function VideosMode({ voices, progress }) {
   const say = (t, l) => speak(voices, t, l, 0.85);
   const missing = ['en-GB', 'en-US', 'en-AU'].filter(l => !pickVoice(voices, l));
+  const { done, ready, markDone, markUndone } = progress;
+  const key = v => `video:${v.id}`;
+  const toWatch = VIDEOS.filter(v => !done.has(key(v)));
+  const watched = VIDEOS.filter(v => done.has(key(v)));
+  const [skipped, setSkipped] = useState([]);
+  const queue = [...toWatch.filter(v => !skipped.includes(v.id)), ...toWatch.filter(v => skipped.includes(v.id))];
+  const now = queue[0];
+  const lesson = now?.lesson ? ACCENT_LESSONS.find(l => l.id === now.lesson) : null;
+  if (!ready) return <div style={card}>Loading…</div>;
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       {voices.length > 0 && missing.length > 0 && <div style={{ ...card, background: T.warningSoft, borderColor: T.warningSoft, fontSize: 14 }}>This computer does not have a voice for: {missing.map(m => ACCENTS.find(a => a.id === m).label).join(', ')}. Those buttons will use another voice. Chrome usually has all of them.</div>}
-      {ACCENT_LESSONS.map(L => (
-        <div key={L.id} style={{ ...card, display: 'grid', gap: 14 }}>
-          <div>
-            <h2 style={{ fontSize: 22, margin: '0 0 4px', color: T.navy }}>{L.title}</h2>
-            <div style={{ color: T.muted, fontSize: 15 }}>{L.note} Video: {L.by}.</div>
+      {now ? (
+        <div style={{ ...card, display: 'grid', gap: 14, borderColor: T.primary, borderWidth: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'start' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.primary, letterSpacing: '.06em' }}>NOW WATCHING · {watched.length + 1} of {VIDEOS.length}</div>
+              <h2 style={{ fontSize: 22, margin: '2px 0 2px', color: T.navy }}>{now.title}</h2>
+              <div style={{ color: T.muted, fontSize: 14 }}>{now.by}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" style={btn(true)} onClick={() => markDone(key(now))}>✓ I've watched it</button>
+              {queue.length > 1 && <button type="button" style={btn(false)} onClick={() => setSkipped(x => [...x.filter(i => i !== now.id), now.id])}>Skip for now</button>}
+            </div>
           </div>
-          <div style={{ position: 'relative', width: '100%', maxWidth: 720, aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#000' }}>
-            <iframe src={`https://www.youtube-nocookie.com/embed/${L.video}?rel=0`} title={L.title} loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowFullScreen
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15, minWidth: 560 }}>
-              <thead><tr style={{ textAlign: 'left', color: T.muted, fontSize: 13 }}>
-                <th style={{ padding: 8 }}>Word</th><th style={{ padding: 8 }}>British</th><th style={{ padding: 8 }}>American</th>{L.rows[0].au && <th style={{ padding: 8 }}>Australian</th>}<th style={{ padding: 8 }}>Sinhala letters</th>
-              </tr></thead>
-              <tbody>{L.rows.map(r => (
-                <tr key={r.word} style={{ borderTop: `1px solid ${T.hairline}`, verticalAlign: 'top' }}>
-                  <td style={{ padding: 8, fontWeight: 800, fontSize: 17 }}>{r.word}{r.tip && <div style={{ fontWeight: 400, fontSize: 13, color: T.muted, maxWidth: 220 }}>{r.tip}</div>}</td>
-                  {[['uk', 'en-GB'], ['us', 'en-US'], ...(r.au ? [['au', 'en-AU']] : [])].map(([k, l]) => (
-                    <td key={k} style={{ padding: 8 }}>{r[k]}<div><button type="button" onClick={() => say(r.word, l)} style={{ ...chip(false), height: 30, marginTop: 4, fontSize: 13 }}>🔊 Listen</button></div></td>
-                  ))}
-                  <td style={{ padding: 8, fontFamily: SI }}>{r.si}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <VideoPlayer key={now.id} id={now.id} title={now.title} onEnd={() => markDone(key(now))} />
+          {now.listen && <div style={{ background: T.primaryXSoft, borderRadius: 10, padding: '10px 14px', fontSize: 15 }}>
+            <b>Listen for:</b><ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>{now.listen.map(x => <li key={x}>{x}</li>)}</ul>
+          </div>}
+          {lesson && <><div style={{ fontWeight: 700 }}>{lesson.note}</div><AccentTable L={lesson} say={say} /></>}
+          <div style={{ color: T.muted, fontSize: 13 }}>When the video ends it moves to "Watched" and the next one comes up by itself.</div>
         </div>
-      ))}
+      ) : (
+        <div style={{ ...card, borderColor: T.success, borderWidth: 2 }}><b style={{ color: T.success, fontSize: 18 }}>✓ You have watched every video.</b><div style={{ color: T.muted, marginTop: 4 }}>New videos will be added. You can watch any of them again below.</div></div>
+      )}
+      {queue.length > 1 && (
+        <div style={{ ...card, display: 'grid', gap: 8 }}>
+          <b>Up next</b>
+          {queue.slice(1).map((v, k) => (
+            <div key={v.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderRadius: 10, background: '#f6f8fc' }}>
+              <span style={{ fontWeight: 800, color: T.muted, width: 22 }}>{k + 2}</span>
+              <img src={`https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`} alt="" width="96" height="54" style={{ borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}><div style={{ fontWeight: 700 }}>{v.title}</div><div style={{ color: T.muted, fontSize: 13 }}>{v.by}</div></div>
+            </div>
+          ))}
+        </div>
+      )}
+      {watched.length > 0 && (
+        <div style={{ ...card, display: 'grid', gap: 8 }}>
+          <b>Watched ({watched.length})</b>
+          {watched.map(v => (
+            <div key={v.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 10px', borderRadius: 10, background: T.successSoft, flexWrap: 'wrap' }}>
+              <span style={{ color: T.success, fontWeight: 800 }}>✓</span>
+              <div style={{ flex: 1, minWidth: 160 }}>{v.title}</div>
+              <button type="button" style={{ ...chip(false), height: 32, fontSize: 13 }} onClick={() => markUndone([key(v)])}>Watch again</button>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ ...card, fontSize: 15, lineHeight: 1.6 }}>
         <b>Practise with different accents:</b> choose American, Australian or "Mix them" at the top of the page, then do any Words, Phrases or Sentences practice. In IELTS Listening you will hear British, American, Australian and other accents. All of them are correct.
       </div>
@@ -526,7 +636,16 @@ export default function ListeningPractice() {
     axios.post(`${API_URL}/api/listening/progress`, { remove: texts }, auth()).catch(() => {});
     return n;
   });
-  const progress = { done, ready, markUndone };
+  // words already shown in this session (Learn or Dictation): never shown again until the browser tab is closed
+  const SEEN_KEY = `epic-listening-seen-${uid}`;
+  const [seen, setSeen] = useState(() => { try { return new Set(JSON.parse(sessionStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); } });
+  const markSeen = texts => setSeen(prev => {
+    if (texts.every(t => prev.has(t))) return prev;
+    const n = new Set(prev); texts.forEach(t => n.add(t));
+    try { sessionStorage.setItem(SEEN_KEY, JSON.stringify([...n])); } catch { /* blocked */ }
+    return n;
+  });
+  const progress = { done, ready, markUndone, seen, markSeen, markDone };
 
   const onMistake = item => {
     markDone(item.text);
@@ -544,7 +663,7 @@ export default function ListeningPractice() {
   };
   const noSpeech = typeof window !== 'undefined' && !('speechSynthesis' in window);
   const common = { voices, accent, onMistake, onRight };
-  const totalItems = WORD_SETS.reduce((a, s) => a + s.words.length, 0) + PHRASE_SETS.reduce((a, s) => a + s.items.length, 0) + SENTENCE_SETS.reduce((a, s) => a + s.items.length, 0);
+  const totalItems = ALL_WORDS.length + PHRASE_SETS.reduce((a, s) => a + s.items.length, 0) + SENTENCE_SETS.reduce((a, s) => a + s.items.length, 0);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f6f8fc', fontFamily: T.font, color: T.ink }}>
@@ -555,7 +674,7 @@ export default function ListeningPractice() {
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', color: '#b0e5fb' }}>LISTENING PRACTICE</div>
             <h1 style={{ margin: '4px 0 6px', fontSize: 28 }}>Learn it. Say it. Hear it. Type it.</h1>
             <div style={{ fontSize: 15, color: T.navyText, lineHeight: 1.5 }}>
-              {totalItems}+ words, phrases and sentences from class, plus sentences from your reading papers. Use headphones.
+              {totalItems} words, phrases and sentences, plus sentences from your reading papers and videos to watch. Use headphones.
               {stats.done > 0 && <> You have got <b style={{ color: '#fff' }}>{stats.right}</b> of {stats.done} right so far.</>}
             </div>
           </div>
@@ -580,7 +699,7 @@ export default function ListeningPractice() {
         {tab === 'sentences' && <SentencesMode {...common} progress={progress} />}
         {tab === 'reading' && <ReadingMode {...common} />}
         {tab === 'similar' && <SimilarMode voices={voices} accent={accent} />}
-        {tab === 'accents' && <AccentsMode voices={voices} />}
+        {tab === 'accents' && <VideosMode voices={voices} progress={progress} />}
         {tab === 'mistakes' && <MistakesMode mistakes={mistakes} setMistakes={setMistakes} {...common} />}
       </div>
     </div>

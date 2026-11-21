@@ -263,7 +263,7 @@ export function AnswersModal({ messageId, onClose, flash, onChanged }) {
 }
 
 // Student: tasks from all my groups with what I still need to do
-export function MyTasks({ onOpen }) {
+export function MyTasks({ onOpen, pinned = [], onPin }) {
   const [rows, setRows] = useState(null);
   useEffect(() => { axios.get(`${API_URL}/api/chat/my-tasks`, api()).then(r => setRows(Array.isArray(r.data) ? r.data : [])).catch(() => setRows([])); }, []);
   if (rows == null) return <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>Loading…</div>;
@@ -273,7 +273,8 @@ export function MyTasks({ onOpen }) {
     <div style={{ display: 'grid', gap: 6 }}>
       <div style={{ fontSize: 13.5, color: '#65676b', padding: '2px 6px 4px' }}>{todo ? `${todo} task${todo === 1 ? '' : 's'} to do` : 'All done. Well done!'}</div>
       {rows.map(r => (
-        <button key={r.id} type="button" onClick={() => onOpen(r)} className="mc-item" style={{ alignItems: 'flex-start', border: '1px solid #e4e6eb', background: '#fff' }}>
+        <div key={r.id} style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}>
+        <button type="button" onClick={() => onOpen(r)} className="mc-item" style={{ flex: 1, minWidth: 0, alignItems: 'flex-start', border: '1px solid #e4e6eb', background: '#fff' }}>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontWeight: 700, fontSize: 14.5, lineHeight: 1.35 }}>{r.title}</span>
             <span style={{ display: 'block', fontSize: 12.5, color: '#65676b', marginTop: 2 }}>{r.group} · {r.from} · {new Date(r.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
@@ -281,6 +282,9 @@ export function MyTasks({ onOpen }) {
           </span>
           <StateBadge state={r.state} score={r.score} />
         </button>
+        {onPin && <button type="button" onClick={() => onPin(r.id)} title={pinned.includes(r.id) ? 'Unpin' : 'Pin to the top of your list'} aria-label={pinned.includes(r.id) ? 'Unpin this task' : 'Pin this task'}
+          style={{ flex: 'none', width: 40, border: '1px solid #e4e6eb', borderRadius: 10, background: pinned.includes(r.id) ? '#fff4c2' : '#fff', cursor: 'pointer', fontSize: 16, opacity: pinned.includes(r.id) ? 1 : 0.55 }}>📌</button>}
+        </div>
       ))}
     </div>
   );
@@ -401,6 +405,31 @@ export function RepliesModal({ messageId, staff, flash, onClose, onReply }) {
           <button type="button" onClick={() => { onReply(); onClose(); }} style={{ width: '100%', height: 42, border: 0, borderRadius: 50, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>Write a reply</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// A student's own pinned messages and tasks (up to 5)
+export function MyPins({ pins, max, onOpen, onUnpin }) {
+  if (pins == null) return <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>Loading…</div>;
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      <div style={{ fontSize: 13.5, color: '#65676b', padding: '2px 6px 4px', lineHeight: 1.5 }}>
+        {pins.length ? `${pins.length} of ${max} pinned. Pin the messages and tasks you need to remember.` : `Nothing pinned yet. Tap 📌 Pin on any message or task to keep it here (up to ${max}).`}
+      </div>
+      {pins.map(p => (
+        <div key={p.id} style={{ display: 'flex', gap: 4, alignItems: 'stretch', animation: 'mcPinIn .25s' }}>
+          <button type="button" onClick={() => onOpen(p)} className="mc-item" style={{ flex: 1, minWidth: 0, alignItems: 'flex-start', border: '1px solid #f5e3a3', background: '#fffbea' }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {(p.isTask || p.askAnswer) && <span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', color: '#8a5a00', background: '#fde68a', borderRadius: 4, padding: '1px 6px', marginBottom: 3 }}>{p.askAnswer ? 'QUESTION' : 'TASK'}</span>}
+              <span style={{ display: 'block', fontWeight: 700, fontSize: 14.5, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.title}</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: '#65676b', marginTop: 2 }}>{p.group} · {p.from} · {new Date(p.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
+            </span>
+          </button>
+          <button type="button" onClick={() => onUnpin(p.id)} title="Unpin" aria-label="Unpin" style={{ flex: 'none', width: 40, border: '1px solid #f5e3a3', borderRadius: 10, background: '#fff', color: '#8a5a00', cursor: 'pointer', fontSize: 18, fontWeight: 700 }}>×</button>
+        </div>
+      ))}
+      <style>{'@keyframes mcPinIn { from { transform: translateY(-6px); opacity: 0 } to { transform: none; opacity: 1 } }'}</style>
     </div>
   );
 }

@@ -553,6 +553,51 @@ router.get('/my-tasks', auth, wrap(async (req, res) => {
 
 
 
+// ─── My pins: each student can pin up to 5 messages or tasks for themselves ──────
+// Stored per student in AppSetting (additive, no schema change).
+const MAX_MY_PINS = 5;
+const myPinsKey = id => `chat.mypins.${id}`;
+async function readMyPins(studentId) {
+  const row = await prisma.appSetting.findUnique({ where: { key: myPinsKey(studentId) } });
+  try { const v = JSON.parse(row?.value || '[]'); return Array.isArray(v) ? v.filter(Number.isInteger) : []; } catch { return []; }
+}
+async function writeMyPins(studentId, ids) {
+  const value = JSON.stringify(ids);
+  await prisma.appSetting.upsert({ where: { key: myPinsKey(studentId) }, update: { value }, create: { key: myPinsKey(studentId), value } });
+}
+router.get('/my-pins', auth, wrap(async (req, res) => {
+  const ids = await readMyPins(req.user.id);
+  if (!ids.length) return res.json({ max: MAX_MY_PINS, pins: [] });
+  const groups = await prisma.chatMember.findMany({ where: { studentId: req.user.id }, select: { groupId: true, group: { select: { name: true } } } });
+  const gname = new Map(groups.map(g => [g.groupId, g.group.name]));
+  const msgs = await prisma.chatMessage.findMany({ where: { id: { in: ids }, deletedAt: null, groupId: { in: [...gname.keys()] } } });
+  const papers = msgs.some(m => m.paperId) ? await prisma.paper.findMany({ where: { id: { in: msgs.filter(m => m.paperId).map(m => m.paperId) } }, select: { id: true, title: true } }) : [];
+  const pins = ids.map(id => msgs.find(m => m.id === id)).filter(Boolean).map(m => ({
+    id: m.id, groupId: m.groupId, group: gname.get(m.groupId), from: m.senderName, createdAt: m.createdAt, isTask: !!m.isTask, askAnswer: !!m.askAnswer,
+    title: m.paperId ? (papers.find(p => p.id === m.paperId)?.title || 'A paper') : (m.text || (m.imageUrl ? 'A photo' : m.fileName || 'A message')).split('\n')[0].slice(0, 140),
+  }));
+  if (pins.length !== ids.length) await writeMyPins(req.user.id, pins.map(p => p.id)); // drop unsent / left-group pins
+  res.json({ max: MAX_MY_PINS, pins });
+}));
+router.post('/my-pins', auth, wrap(async (req, res) => {
+  const id = parseInt(req.body?.messageId, 10);
+  const m = Number.isInteger(id) ? await prisma.chatMessage.findUnique({ where: { id } }) : null;
+  if (!m || m.deletedAt) return res.status(404).json({ error: 'Message not found' });
+  const member = await prisma.chatMember.findFirst({ where: { studentId: req.user.id, groupId: m.groupId } });
+  if (!member) return res.status(403).json({ error: 'You are not in this chat.' });
+  const ids = await readMyPins(req.user.id);
+  if (ids.includes(id)) return res.json({ pinned: true, count: ids.length });
+  if (ids.length >= MAX_MY_PINS) return res.status(409).json({ error: `You can pin up to ${MAX_MY_PINS}. Unpin one first.` });
+  await writeMyPins(req.user.id, [id, ...ids]);
+  res.json({ pinned: true, count: ids.length + 1 });
+}));
+router.delete('/my-pins/:id', auth, wrap(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const ids = (await readMyPins(req.user.id)).filter(x => x !== id);
+  await writeMyPins(req.user.id, ids);
+  res.json({ pinned: false, count: ids.length });
+}));
+
 // ─── Tracking: who saw a message, who opened its link / paper, who did the task ──
 const HAS_LINK = /https?:\/\/\S+/;
 async function studentMembers(groupId) {

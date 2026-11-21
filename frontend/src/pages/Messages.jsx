@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
-import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, PinBar, ImageViewer, ReplyQuote, RepliesModal } from '../components/ChatExtras';
+import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, MyPins, PinBar, ImageViewer, ReplyQuote, RepliesModal } from '../components/ChatExtras';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
@@ -276,6 +276,8 @@ export default function Messages() {
   const [answersFor, setAnswersFor] = useState(null);
   const [hlBar, setHlBar] = useState(null);
   const [sideTab, setSideTab] = useState('chats');
+  const [myPins, setMyPins] = useState(null);
+  const [pinMax, setPinMax] = useState(5);
   const [replyTo, setReplyTo] = useState(null); // message being replied to
   const [repliesFor, setRepliesFor] = useState(null);
   const [viewer, setViewer] = useState(null);
@@ -471,6 +473,20 @@ export default function Messages() {
       catch { window.prompt('Copy this view-only link:', link); }
     } catch (e) { flash(errText(e)); }
   };
+  // Student's own pins (up to 5 messages or tasks)
+  const loadPins = useCallback(() => {
+    if (staff) return;
+    axios.get(`${API_URL}/api/chat/my-pins`, api()).then(r => { setMyPins(r.data?.pins || []); setPinMax(r.data?.max || 5); }).catch(() => setMyPins([]));
+  }, [staff]);
+  useEffect(() => { loadPins(); }, [loadPins]);
+  const pinnedIds = (myPins || []).map(p => p.id);
+  const toggleMine = async id => {
+    try {
+      if (pinnedIds.includes(id)) { await axios.delete(`${API_URL}/api/chat/my-pins/${id}`, api()); flash('Unpinned.'); }
+      else { await axios.post(`${API_URL}/api/chat/my-pins`, { messageId: id }, api()); flash('Pinned. Find it under 📌 Pinned.'); }
+      loadPins();
+    } catch (e) { flash(e.response?.data?.error || 'Could not pin that.'); }
+  };
   const jumpTo = id => {
     const el = document.getElementById(`msg-${id}`);
     if (!el) { flash('That message is older. Scroll up to find it.'); return; }
@@ -521,7 +537,7 @@ export default function Messages() {
   // Group messages into runs from the same sender (Messenger-style bubbles), with day separators
   const toolIds = new Set((data?.messages || []).filter(x => x.staff && !x.deleted && (x.text || '').trim()).slice(-5).map(x => x.id));
   const feed = useMemo(() => {
-    const ms = data?.messages || [];
+    const ms = (data?.messages || []).filter(m => !m.deleted); // unsent messages are hidden, not shown as 'unsent'
     return ms.map((m, i) => {
       const prev = ms[i - 1]; const next = ms[i + 1];
       const gap = (a, b) => Math.abs(new Date(b.createdAt) - new Date(a.createdAt)) > 5 * 60000;
@@ -594,7 +610,7 @@ export default function Messages() {
               )}
               {!staff && (
                 <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  {[['chats', 'Chats'], ['tasks', 'My tasks']].map(([k, label]) => (
+                  {[['chats', 'Chats'], ['tasks', 'My tasks'], ['pins', `📌 Pinned${myPins?.length ? ` ${myPins.length}/${pinMax}` : ''}`]].map(([k, label]) => (
                     <button key={k} type="button" role="tab" aria-selected={sideTab === k} onClick={() => setSideTab(k)}
                       style={{ height: 34, padding: '0 14px', borderRadius: 50, border: 0, background: sideTab === k ? '#e7f0fe' : '#f0f2f5', color: sideTab === k ? T.primary : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{label}{k === 'tasks' && toAnswer > 0 && <span className="mc-qdot" title={`${toAnswer} question${toAnswer === 1 ? '' : 's'} to answer`}>{toAnswer}</span>}</button>
                   ))}
@@ -614,9 +630,12 @@ export default function Messages() {
               )}
             </div>
             {sideTab === 'tasks' && !staff && (
-              <div className="mc-list"><MyTasks onOpen={r => { setSideTab('chats'); setSel(r.groupId); setTimeout(() => jumpTo(r.id), 900); }} /></div>
+              <div className="mc-list"><MyTasks pinned={pinnedIds} onPin={toggleMine} onOpen={r => { setSideTab('chats'); setSel(r.groupId); setTimeout(() => jumpTo(r.id), 900); }} /></div>
             )}
-            <div className="mc-list" style={{ display: sideTab === 'tasks' && !staff ? 'none' : undefined }}>
+            {sideTab === 'pins' && !staff && (
+              <div className="mc-list"><MyPins pins={myPins} max={pinMax} onUnpin={toggleMine} onOpen={p => { setSideTab('chats'); setSel(p.groupId); setTimeout(() => jumpTo(p.id), 900); }} /></div>
+            )}
+            <div className="mc-list" style={{ display: (sideTab === 'tasks' || sideTab === 'pins') && !staff ? 'none' : undefined }}>
               {groups == null && <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>Loading…</div>}
               {groups && groups.length === 0 && <div style={{ color: '#65676b', fontSize: 14, lineHeight: 1.5, padding: 10 }}>{staff ? 'No groups yet. Create one, then share its code with your students.' : 'You are not in a group yet. Ask your teacher for the group code and type it above.'}</div>}
               {shownGroups.map(g => (
@@ -680,7 +699,7 @@ export default function Messages() {
                           <div className={`mc-bub${m.deleted ? ' gone' : ''}${cardOnly ? ' cardonly' : ''}`}>
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
                               {m.replyTo && <ReplyQuote reply={m.replyTo} mine={m.mine} onClick={() => jumpTo(m.replyTo.id)} />}
-                              {(m.isTask || m.pinned) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}</div>}
+                              {(m.isTask || m.pinned || (!staff && pinnedIds.includes(m.id))) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}{!staff && pinnedIds.includes(m.id) && !m.pinned && <div className="mc-task" style={{ background: '#fff4c2', color: '#8a5a00' }}>📌 MY PIN</div>}</div>}
                               {m.fileUrl && (
                                 <a href={pdfSrc(m.fileUrl, m.fileName)} target="_blank" rel="noreferrer" onClick={staff ? undefined : () => track(m.id, 'LINK')}
                                   style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#fff', color: '#050505', textDecoration: 'none', borderRadius: 12, padding: '10px 12px', marginBottom: m.text ? 8 : 0, border: '1px solid #e4e6eb', maxWidth: 420 }}>
@@ -717,6 +736,7 @@ export default function Messages() {
                           {!staff && m.staff && !m.deleted && (m.text || '').trim() && (
                             <div className="mc-tools">
                               <button type="button" onClick={() => speak(m, m.text)}>{speaking === m.id ? '■ Stop' : '🔊 Listen'}</button>
+                              <button type="button" onClick={() => toggleMine(m.id)} style={pinnedIds.includes(m.id) ? { background: '#fff4c2', borderColor: '#f5d36b', color: '#8a5a00' } : undefined}>{pinnedIds.includes(m.id) ? '📌 Pinned' : '📌 Pin'}</button>
                               {tools && <>
                                 <button type="button" disabled={!!quickBusy} onClick={() => quickReply(m, '✓ Got it, thank you!')}>✓ Got it</button>
                                 <button type="button" disabled={!!quickBusy} onClick={() => quickReply(m, "🤔 I don't understand. Can you explain again, please?")}>🤔 I don't understand</button>
@@ -741,7 +761,10 @@ export default function Messages() {
                             </div>
                           )}
                         </div>
-                        {!m.mine && !staff && !m.deleted && <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>}
+                        {!m.mine && !staff && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
+                          <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>
+                          <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => toggleMine(m.id)} title={pinnedIds.includes(m.id) ? 'Unpin' : `Pin it for yourself (up to ${pinMax})`}>{pinnedIds.includes(m.id) ? 'Unpin' : '📌 Pin'}</button>
+                        </span>)}
                         {!m.mine && staff && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
                           <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>
                           <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>

@@ -5,6 +5,7 @@ import API_URL from '../api';
 import { trackParam, getTrack } from '../utils/track';
 import GeneralDashboard from './GeneralDashboard';
 import SuggestedPapers from '../components/SuggestedPapers';
+import PlacementProgress from '../components/PlacementProgress';
 import StudentNav from '../components/StudentNav';
 import AgentWidget from '../components/AgentWidget';
 
@@ -946,6 +947,7 @@ function IeltsDashboard() {
         className="dash-page-inner"
         style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 48px' }}
       >
+        <PlacementProgress />
         {/* Hero */}
         <div
           className="dash-hero"

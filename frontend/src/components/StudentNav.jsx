@@ -14,17 +14,20 @@ export function readUser() {
   }
 }
 
+// Practice is a dropdown: everything students practise with lives inside it.
+const PRACTICE = [
+  { key: 'learn', label: 'Learn', href: '/learn', active: 'learn', desc: 'Lessons for every skill' },
+  { key: 'listening', label: 'Listening practice', href: '/listening-practice', active: 'listening', desc: 'Words, dictation and videos' },
+  { key: 'games', label: 'Games', href: '/games', active: 'games', desc: 'Fun spelling and word games' },
+  { key: 'everyday', label: 'Day to day English', href: '/everyday', active: 'everyday', generalOnly: true, desc: 'English for daily life' },
+  { key: 'ailearn', label: 'AI Learn', href: '/ai-learn', active: 'ailearn', generalOnly: true, desc: 'Practise with the AI tutor' },
+];
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', href: '/student/dashboard', active: 'dashboard' },
-  { key: 'practice', label: 'Practice', href: '/practice', active: 'practice' },
-  { key: 'learn', label: 'Learn', href: '/learn', active: 'learn' },
-  { key: 'listening', label: 'Listening practice', href: '/listening-practice', active: 'listening' },
+  { key: 'papers', label: 'Papers', href: '/practice', active: 'practice' },
+  { key: 'practicemenu', label: 'Practice', menu: true },
   { key: 'exams', label: 'Exam', href: '/exams', active: 'exams' },
-  { key: 'everyday', label: 'Day to day English', href: '/everyday', active: 'everyday', generalOnly: true },
-  { key: 'ailearn', label: 'AI Learn', href: '/ai-learn', active: 'ailearn', generalOnly: true },
-  { key: 'messages', label: 'Messages', href: '/messages', active: 'messages', badge: true },
   { key: 'levels', label: 'Levels', href: '/levels', active: 'levels', ieltsOnly: true },
-  { key: 'placement', label: 'Placement test', href: '/placement-test', active: 'placement' },
 ];
 
 // Saves the course on the account too, so it is remembered on other devices
@@ -37,7 +40,7 @@ export function saveCourse(course) {
   axios.post(`${API_URL}/api/auth/course`, { course }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).catch(() => {});
 }
 
-/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'levels' | 'placement' | 'everyday' | 'ailearn' | 'messages' | null }} props */
+/** @param {{ active?: 'dashboard' | 'practice' | 'learn' | 'listening' | 'games' | 'exams' | 'levels' | 'placement' | 'everyday' | 'ailearn' | 'messages' | null }} props */
 export default function StudentNav({ active = null }) {
   const navigate = useNavigate();
   const user = readUser();
@@ -46,6 +49,8 @@ export default function StudentNav({ active = null }) {
   const emailStr = typeof user.email === 'string' ? user.email : '';
 
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const practiceRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const avatarRef = useRef(null);
   const [unread, setUnread] = useState(0);
@@ -58,13 +63,6 @@ export default function StudentNav({ active = null }) {
     window.addEventListener('epic-chat-refresh', load);
     return () => { alive = false; clearInterval(id); window.removeEventListener('epic-chat-refresh', load); };
   }, []);
-  // Blue count = unread messages; red dot = teacher questions not answered yet
-  const badge = item => (item.badge && (unread > 0 || toAnswer > 0)
-    ? <>
-      {unread > 0 && <span style={{ marginLeft: 6, background: '#0866ff', color: '#fff', borderRadius: 50, fontSize: 11, fontWeight: 700, padding: '1px 7px', verticalAlign: 'middle' }}>{unread > 99 ? '99+' : unread}</span>}
-      {toAnswer > 0 && <span title={`${toAnswer} question${toAnswer === 1 ? '' : 's'} from your teacher to answer`} aria-label={`${toAnswer} questions to answer`} style={{ display: 'inline-block', marginLeft: 6, width: 10, height: 10, borderRadius: '50%', background: '#d30a28', boxShadow: '0 0 0 2px #fff', verticalAlign: 'middle' }} />}
-    </>
-    : null);
   const mobileBtnRef = useRef(null);
   const mobilePanelRef = useRef(null);
 
@@ -72,11 +70,12 @@ export default function StudentNav({ active = null }) {
     function onDocMouseDown(ev) {
       const t = /** @type {Node} */ (ev.target);
       if (avatarRef.current && !avatarRef.current.contains(t)) setAvatarOpen(false);
+      if (practiceRef.current && !practiceRef.current.contains(t)) setPracticeOpen(false);
       const inMobile = (mobileBtnRef.current && mobileBtnRef.current.contains(t)) || (mobilePanelRef.current && mobilePanelRef.current.contains(t));
       if (!inMobile) setMobileOpen(false);
     }
     function onKey(ev) {
-      if (ev.key === 'Escape') { setAvatarOpen(false); setMobileOpen(false); }
+      if (ev.key === 'Escape') { setAvatarOpen(false); setMobileOpen(false); setPracticeOpen(false); }
     }
     document.addEventListener('mousedown', onDocMouseDown);
     document.addEventListener('keydown', onKey);
@@ -87,7 +86,10 @@ export default function StudentNav({ active = null }) {
   }, []);
 
   const track = getTrack();
-  const links = NAV.filter(n => !(n.ieltsOnly && track === 'GENERAL') && !(n.generalOnly && track !== 'GENERAL'));
+  const fit = n => !(n.ieltsOnly && track === 'GENERAL') && !(n.generalOnly && track !== 'GENERAL');
+  const links = NAV.filter(fit);
+  const practiceLinks = PRACTICE.filter(fit);
+  const practiceActive = practiceLinks.some(p => p.active === active);
   const switchTrack = next => {
     if (next === track) return;
     saveCourse(next);
@@ -99,6 +101,7 @@ export default function StudentNav({ active = null }) {
     navigate(href);
     setAvatarOpen(false);
     setMobileOpen(false);
+    setPracticeOpen(false);
   };
 
   const signOut = () => {
@@ -118,6 +121,13 @@ export default function StudentNav({ active = null }) {
         .sn-link[aria-current="page"] { color: ${T.primary}; }
         .sn-link[aria-current="page"]::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: ${T.primary}; }
         .sn-burger { display: none; }
+        .sn-dm { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 12px; border-radius: 999px; border: 0; cursor: pointer; font: inherit; font-size: 14px; font-weight: 700; color: #fff; background: linear-gradient(135deg, ${T.primary}, #6a3df0); box-shadow: 0 2px 8px rgba(0,86,210,.3); transition: transform .12s, box-shadow .12s; }
+        .sn-dm:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,86,210,.4); }
+        .sn-dm[aria-current="page"] { outline: 2px solid ${T.navy}; outline-offset: 2px; }
+        .sn-dm-count { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #ff3040; color: #fff; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; animation: sn-bump .4s; }
+        .sn-dm-dot { position: absolute; top: -3px; right: -3px; width: 12px; height: 12px; border-radius: 50%; background: #ff3040; box-shadow: 0 0 0 2px #fff; }
+        @keyframes sn-bump { 0% { transform: scale(.4) } 70% { transform: scale(1.2) } 100% { transform: scale(1) } }
+        @media (max-width: 900px) { .sn-dm { padding: 0; width: 40px; justify-content: center; } .sn-dm-label { display: none; } }
         .sn-mobile { display: none; }
         .sn-item { display: block; width: 100%; padding: 10px 16px; font: inherit; font-size: 14px; color: ${T.ink}; background: none; border: 0; cursor: pointer; text-align: left; }
         .sn-item:hover { background: ${T.primaryXSoft}; }
@@ -145,14 +155,36 @@ export default function StudentNav({ active = null }) {
         <div className="sn-track-desktop"><TrackToggle track={track} onChange={switchTrack} /></div>
 
         <nav className="sn-links" aria-label="Main">
-          {links.map(item => (
-            <button key={item.key} type="button" className="sn-link" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}>
-              {item.label}{badge(item)}
+          {links.map(item => (item.menu
+            ? <div key={item.key} ref={practiceRef} style={{ position: 'relative', display: 'flex' }}>
+              <button type="button" className="sn-link" aria-haspopup="menu" aria-expanded={practiceOpen} aria-current={practiceActive ? 'page' : undefined} onClick={() => setPracticeOpen(o => !o)}>
+                {item.label}
+                <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true" style={{ marginLeft: 6, transform: practiceOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.6" fill="none" /></svg>
+              </button>
+              {practiceOpen && (
+                <div role="menu" className="sn-drop" style={{ position: 'absolute', top: 'calc(100% - 4px)', left: 0, minWidth: 260, background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 10, boxShadow: '0 0 4px rgba(15,17,20,0.1), 0 2px 12px 2px rgba(15,17,20,0.1)', padding: 6, zIndex: 200 }}>
+                  {practiceLinks.map(p => (
+                    <button key={p.key} type="button" role="menuitem" className="sn-item" onClick={() => go(p.href)} style={{ borderRadius: 8, color: active === p.active ? T.primary : T.ink }}>
+                      <div style={{ fontWeight: 600, fontSize: 15 }}>{p.label}</div>
+                      <div style={{ fontSize: 13, color: T.muted }}>{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            : <button key={item.key} type="button" className="sn-link" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}>
+              {item.label}
             </button>
           ))}
         </nav>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" className="sn-dm" aria-label={`Messages${unread ? `, ${unread} unread` : ''}`} aria-current={active === 'messages' ? 'page' : undefined} title="Messages" onClick={() => go('/messages')}>
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3L10.5 13.5M22 3l-7 18-4.5-7.5L3 9z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /></svg>
+            <span className="sn-dm-label">Messages</span>
+            {unread > 0 && <span className="sn-dm-count">{unread > 99 ? '99+' : unread}</span>}
+            {unread === 0 && toAnswer > 0 && <span className="sn-dm-dot" title={`${toAnswer} question${toAnswer === 1 ? '' : 's'} from your teacher to answer`} />}
+          </button>
           <button ref={mobileBtnRef} type="button" className="sn-burger" aria-label="Open menu" aria-expanded={mobileOpen} onClick={() => setMobileOpen(o => !o)}
             style={{ border: `1px solid ${T.hairline}`, background: '#fff', borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true"><path d="M0 1h18M0 7h18M0 13h18" stroke={T.ink} strokeWidth="2" /></svg>
@@ -185,10 +217,17 @@ export default function StudentNav({ active = null }) {
       <div ref={mobilePanelRef} className={`sn-mobile ${mobileOpen ? 'open' : ''}`}>
         <div style={{ padding: '4px 16px 12px' }}><TrackToggle track={track} onChange={switchTrack} /></div>
         <nav aria-label="Mobile main">
-          {links.map(item => (
-            <button key={item.key} type="button" className="sn-item" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}
+          {links.map(item => (item.menu
+            ? <div key={item.key}>
+              <div style={{ padding: '10px 16px 4px', fontSize: 12, fontWeight: 700, letterSpacing: '.06em', color: T.mid }}>PRACTICE</div>
+              {practiceLinks.map(p => (
+                <button key={p.key} type="button" className="sn-item" aria-current={active === p.active ? 'page' : undefined} onClick={() => go(p.href)}
+                  style={{ fontSize: 16, fontWeight: 600, paddingLeft: 28, color: active === p.active ? T.primary : T.ink }}>{p.label}</button>
+              ))}
+            </div>
+            : <button key={item.key} type="button" className="sn-item" aria-current={active === item.active ? 'page' : undefined} onClick={() => go(item.href)}
               style={{ fontSize: 16, fontWeight: 600, color: active === item.active ? T.primary : T.ink }}>
-              {item.label}{badge(item)}
+              {item.label}
             </button>
           ))}
         </nav>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import PlacementProgress from '../components/PlacementProgress';
 import StudentNav from '../components/StudentNav';
 import AgentWidget from '../components/AgentWidget';
 import SuggestedPapers from '../components/SuggestedPapers';
@@ -153,6 +154,7 @@ export default function GeneralDashboard() {
           <h1 style={{ margin: '2px 0 0', fontSize: 30, fontWeight: 700 }}>Hi {firstName}</h1>
           <p style={{ margin: '4px 0 0', color: T.muted, fontSize: 16 }}>This page is yours. It shows your scores, how you are improving and what to do next.</p>
         </header>
+        <div style={{ marginTop: 16 }}><PlacementProgress /></div>
 
         {!loading && !placementDone && (
           <section style={{ background: T.navy, color: '#fff', borderRadius: 16, padding: '22px 24px', display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>

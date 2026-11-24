@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skimming and Scanning</title>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--ink:#0f1114;--muted:#5b6780;--line:#dae1ed;--accent:#0056d2;--navy:#002761;--ok:#276a1a;--okbg:#e9f5e6;--bad:#c0262d;--badbg:#fdecee;--warn:#a35b00;--warnbg:#fff4e0;--field:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'Source Sans 3','Source Sans Pro',system-ui,Arial,sans-serif;padding:16px 16px 60px}
+.wrap{max-width:900px;margin:0 auto;display:grid;gap:16px}
+header h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+nav button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:50px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer}
+nav button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav .sc{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:none;gap:14px}
+section.on{display:grid}
+h2{margin:0;font-size:22px;color:var(--navy)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px}
+.timer{font:800 26px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;min-width:86px}
+.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.tip{background:var(--warnbg);color:var(--ink);border-left:4px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:15px}
+.text{font:17px/1.75 Georgia,'Times New Roman',serif;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-line}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}.qn{font-weight:800;color:var(--accent)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertical}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.opts label{border:1.5px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600}
+.opts input{margin-right:6px}
+.right{background:var(--okbg)!important;border-color:var(--ok)!important}
+.wrong{background:var(--badbg)!important;border-color:var(--bad)!important}
+.fb{font-size:14px;margin-top:4px;color:var(--muted)}.fb b{color:var(--ok)}
+.score{font-weight:800;font-size:18px}
+.play{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 12px;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+.wc{font-size:14px;color:var(--muted)}
+.model{display:none;background:var(--okbg);border-radius:12px;padding:12px 14px;white-space:pre-line}
+.model.show{display:block}
+table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.hlist{margin:0;padding-left:22px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Skimming and Scanning</h1><p>Read fast and find answers fast: the two skills that save the most time in IELTS Reading. <b>Skimming</b> = read quickly for the main idea. <b>Scanning</b> = look quickly for one fact (a number, a name, a key word). In some drills the text appears only when you press <b>Start</b>. Each answer locks once you give it.</p></header>
+<nav id="nav"></nav>
+<div id="secs"></div>
+</div>
+<script>
+const PAGE_KEY = 'drills6-';
+const P = (k, t) => `<b>${k}</b>  ${t}`;
+const SECS = [
+ { id:'k1', name:'Main idea', title:'Drill 1 · Skim for the main idea', min:3, type:'mcq', hide:true,
+   tip:'Skimming: read the FIRST sentence of each paragraph carefully, then let your eyes run over the rest. Do not stop at words you do not know. You have 3 minutes for everything.',
+   text:[P('A','Ten years ago, most students used a phone only to call and send messages. Today, many use it to study. They watch short lessons, practise vocabulary with apps and join online classes from the bus or the canteen. For some students, the phone has become their main classroom.'),
+     P('B','Teachers have mixed feelings about this. Some say phones help shy students, who can practise alone without fear. Others worry that students spend more time on games and social media than on lessons. One teacher said, "The phone is a good servant but a bad master."'),
+     P('C','Many teachers also notice a problem with attention. When a message arrives, a student looks at it "for one second", but then it takes several minutes to concentrate again. Students who keep their phones on silent, or in another room, often finish their work faster.'),
+     P('D','So what is the best advice? Most teachers agree on a few simple rules: turn off notifications while you study, use one app at a time, and take a short break every 25 to 30 minutes. In this way, the phone can be a useful tool, not a distraction.')].join('\n\n'),
+   items:[
+    ['Paragraph A is mainly about…',['how students use phones to learn today','the history of mobile phones','why learning apps are expensive'],0,'The first sentences compare then and now: phones are now used to study.'],
+    ['Paragraph B is mainly about…',['shy students','teachers\' different opinions','computer games'],1,'"Mixed feelings" = different opinions. Shy students and games are only examples.'],
+    ['Paragraph C is mainly about…',['phones in other rooms','how messages break concentration','fast students'],1,'The key idea is attention / concentration.'],
+    ['Paragraph D is mainly about…',['why teachers dislike phones','how long a lesson should be','simple tips for studying with a phone'],2,'"What is the best advice?" = tips.'],
+    ['The best title for the whole text is…',['The end of the classroom','Phones: a good tool if you use them well','Why teachers hate phones'],1,'The last sentence gives the whole message: a useful tool, not a distraction.'] ],
+   fb:'The main idea is usually in the first sentence. Examples (shy students, games) are details, not the main idea.' },
+ { id:'k2', name:'Headings', title:'Drill 2 · Match the headings (skimming)', min:5, type:'select', hide:true,
+   tip:'IELTS heading questions test skimming. Read the headings first. Then skim each paragraph and ask: "What is this paragraph about in 3 words?" There are two extra headings you do not need.',
+   list:['A cheap way to start a business','Problems for local people','How to enjoy a visit','When the city wakes up at night','Tasty food at small prices','The history of markets in Europe','Why prices are rising'],
+   text:[P('A','In many Asian cities, the streets change when the sun goes down. Car parks and quiet roads fill with small stalls, bright lights and crowds of people. These night markets are often open until midnight, and some stay busy until early morning.'),
+     P('B','Food is the main reason most people visit. A visitor can try grilled meat, noodles, fried snacks and fresh fruit juice, all for a low price. Because each stall usually sells only one or two dishes, the cooks become very good at them.'),
+     P('C','Night markets are also important for small businesses. Renting a stall costs much less than renting a shop, so young people can test a business idea without a lot of money. Some popular stalls later open their own restaurants.'),
+     P('D','However, not everyone is happy. People who live nearby sometimes complain about noise, rubbish and traffic. In some cities, the local government has moved markets to new places or limited their opening hours.'),
+     P('E','For tourists, the best advice is to go early, bring cash in small notes, and walk around once before buying anything. That way, you can see everything before you choose, and you will not be too full to try the best food.')].join('\n\n'),
+   items:[['Paragraph A',3],['Paragraph B',4],['Paragraph C',0],['Paragraph D',1],['Paragraph E',2]],
+   fb:'"However" at the start of D tells you the paragraph turns to problems. "The best advice" in E = how to enjoy a visit. Nothing in the text is about Europe or rising prices.' },
+ { id:'k3', name:'Scan a table', title:'Drill 3 · Scan a table (2 minutes)', min:2, type:'text', hide:true,
+   tip:'Scanning: read the question, pick ONE key word (IELTS, Saturday, Korean), then move your eyes down the table to find it. Do not read every cell.',
+   text:'<b>City Language School · Courses and fees</b>\n<table class="g" style="margin-top:6px"><tr><th>Course</th><th>Days</th><th>Time</th><th>Weeks</th><th>Fee</th></tr><tr><td>General English</td><td>Mon to Fri</td><td>9:00 to 12:00</td><td>4</td><td>£380</td></tr><tr><td>IELTS Preparation</td><td>Mon to Thu</td><td>13:30 to 16:30</td><td>6</td><td>£520</td></tr><tr><td>Business English</td><td>Tue and Thu</td><td>18:00 to 20:00</td><td>8</td><td>£290</td></tr><tr><td>Conversation Club</td><td>Sat</td><td>10:00 to 12:00</td><td>10</td><td>£120</td></tr><tr><td>Korean for Beginners</td><td>Wed</td><td>18:30 to 20:30</td><td>12</td><td>£200</td></tr></table>',
+   items:[
+    ['How much is IELTS Preparation (£)',['520','£520','520pounds'],'Key word: IELTS → Fee column.'],
+    ['How many weeks is Korean for Beginners',['12','twelve'],'Key word: Korean → Weeks column.'],
+    ['What time does Conversation Club start',['10:00','10','10am','10.00','10:00am'],'Key word: Conversation → Time.'],
+    ['Which course is on Saturdays',['conversationclub','conversation'],'Key word: Sat → Days column.'],
+    ['How many weeks is General English',['4','four'],'Key word: General → Weeks.'],
+    ['Which day is the Korean course',['wednesday','wed'],'Key word: Korean → Days.'] ],
+   fb:'In a table, find the ROW (the course) and the COLUMN (what the question asks: price, time, weeks). The answer is where they meet.' },
+ { id:'k4', name:'Numbers and names', title:'Drill 4 · Scan for numbers, dates and names', min:3, type:'text', hide:true,
+   tip:'Numbers, dates and names are easy to scan for because they look different: digits and Capital Letters jump out. Write numbers as digits.',
+   text:'<b>The Riverside Science Festival</b>\n\nThe Riverside Science Festival started in 2009 with just 12 events in one school hall. This year it will have more than 140 events in 18 places across the city, and the organisers expect about 35,000 visitors.\n\nThe festival runs for nine days, from 14 to 22 June. Most events are free, but the popular night-sky tours at the hilltop observatory cost £8 and must be booked online. Families should not miss the robot workshop on the first Saturday, run by engineering students from the city university.\n\nThis year\'s guest speaker is Dr Maria Okafor, a marine biologist who studies coral reefs. Her talk, "Cities under the sea", is on the final evening at the Town Hall. Tickets for the talk are free but limited to 600 people.\n\nThe main information tent is in Victoria Park, next to the lake. Volunteers in green T-shirts can answer questions in five languages.',
+   items:[
+    ['Year the festival started',['2009'],'"started in 2009".'],
+    ['Number of events this year (more than…)',['140','morethan140'],'"more than 140 events". Not 12 (that was the first year) and not 18 (places).'],
+    ['Number of visitors expected',['35000','about35000'],'"about 35,000 visitors".'],
+    ['Price of a night-sky tour (£)',['8','£8','8pounds'],'"cost £8".'],
+    ['Surname of the guest speaker',['okafor'],'Dr Maria Okafor. Capital letters help you find names.'],
+    ['Number of people who can go to the talk',['600'],'"limited to 600 people".'],
+    ['Where the information tent is',['victoriapark','invictoriapark'],'"in Victoria Park, next to the lake".'],
+    ['Colour of the volunteers\' T-shirts',['green'],'"Volunteers in green T-shirts".'] ],
+   fb:'Careful with numbers that are close together: 12 events (first year) vs 140 events (this year). Read the words around the number.' },
+ { id:'k5', name:'Which paragraph?', title:'Drill 5 · Which paragraph has this information?', min:5, type:'mc', hide:true, opts:['A','B','C','D','E'],
+   tip:'The question uses DIFFERENT words from the text (a paraphrase). "Cost more" may be "more expensive" in the text. Scan for the IDEA, not the same word. A paragraph can be used more than once.',
+   text:'<b>Bees and our food</b>\n\n'+[P('A','When people think of bees, they usually think of honey. But honey is only a small part of the story. As bees fly from flower to flower to collect food, they carry pollen, and this helps plants make fruit and seeds.'),
+     P('B','Many of the foods we eat every day depend on this work. Apples, strawberries, coffee and many vegetables need insects to carry their pollen. Without bees, these foods would become much harder to grow and much more expensive to buy.'),
+     P('C','In recent years, farmers and scientists in many countries have reported that some types of bees are becoming less common. There are several possible reasons, including the loss of wild flowers, some farm chemicals and changes in the weather.'),
+     P('D','Some farmers now plant strips of wild flowers along the edges of their fields. Others rent hives from beekeepers during the flowering season, and pay them to bring the bees to their farms for a few weeks.'),
+     P('E','Ordinary people can help too. Even a small balcony with a few flowering plants gives bees food. Gardeners are also advised not to cut every plant in the garden, because a little "mess" can give insects a place to live.')].join('\n\n'),
+   items:[
+    ['a reason why some foods could cost more',1,'B: "much more expensive to buy" = cost more.'],
+    ['people who are paid to move insects',3,'D: "pay them to bring the bees".'],
+    ['how homes with very little space can help',4,'E: "a small balcony".'],
+    ['the main way bees help plants',0,'A: they carry pollen, which helps plants make fruit and seeds.'],
+    ['possible causes of a fall in bee numbers',2,'C: "becoming less common" = a fall in numbers; "several possible reasons".'],
+    ['the idea that a very tidy garden is not the best',4,'E: "not to cut every plant… a little mess".'] ],
+   fb:'Paraphrase pairs from this drill: cost more = more expensive · paid = pay · little space = small balcony · fall in numbers = less common · causes = reasons.' },
+ { id:'k6', name:'Short answers', title:'Drill 6 · Short answers: NO MORE THAN TWO WORDS', min:4, type:'text', hide:true,
+   tip:'Short-answer questions go in the same order as the text. Scan for the key word, then copy the exact words from the text. Two words maximum, or the answer is wrong.',
+   text:'<b>From leaf to cup</b>\n\nOn a tea estate in the hill country, the working day starts early. Pickers move along the green rows and pick two leaves and a bud from the top of each bush. The leaves are carried to the factory in large baskets.\n\nAt the factory, the fresh leaves are first spread out on long troughs, where warm air blows through them for many hours. This step, called withering, makes the leaves soft. Next, machines roll the leaves to break them and release their juice. The leaves then turn brown as they react with the air. This is called oxidation, and it gives black tea its dark colour and strong taste.\n\nAfter that, the leaves go into hot dryers, which stop the oxidation and remove most of the water. Finally, the dry tea is sorted by size into different grades. The largest leaves are often sold as whole-leaf tea, while the smallest pieces, called dust, are used in tea bags.\n\nVisitors to the factory can watch every step and finish with a free cup of tea in the tasting room.',
+   items:[
+    ['How many leaves are picked with each bud',['two','2','twoleaves','2leaves'],'"two leaves and a bud".'],
+    ['What is the first step at the factory called',['withering'],'"This step, called withering".'],
+    ['How does withering make the leaves',['soft'],'"makes the leaves soft".'],
+    ['What do machines do to the leaves',['roll','rollthem','rolling'],'"machines roll the leaves".'],
+    ['What gives black tea its colour',['oxidation'],'"oxidation… gives black tea its dark colour".'],
+    ['What stops the oxidation',['hotdryers','dryers'],'"hot dryers, which stop the oxidation".'],
+    ['What are the smallest pieces called',['dust'],'"the smallest pieces, called dust".'],
+    ['Where can visitors get a free cup',['tastingroom'],'"in the tasting room". Write "tasting room": "the tasting room" is three words, which breaks the limit.'] ],
+   fb:'Copy the words exactly from the text, spelled correctly. If the limit is two words, "the tasting room" is risky: "tasting room" is safe.' },
+];
+</script>
+<script src="drill-engine.js"></script>
+</body>
+</html>

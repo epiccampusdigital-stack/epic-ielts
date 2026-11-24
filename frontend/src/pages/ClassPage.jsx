@@ -23,6 +23,9 @@ const ACTIVITIES = [
   { id: 'drills5-24nov', title: 'IELTS Timed Drills 5 · Writing', date: 'Tuesday 24 November', tag: 'Numbers · Comparing · Question types · Paraphrase · Formal words',
     desc: 'Write numbers as words, compare data, recognise the five Task 2 question types, paraphrase the question and use formal words.',
     src: '/drills5.html' },
+  { id: 'drills6-25nov', title: 'Skimming and Scanning', date: 'Wednesday 25 November', tag: 'Reading speed · 6 timed drills',
+    desc: 'Read fast for the main idea, match headings, scan a table, find numbers and names, find paraphrased ideas, and short answers with a word limit. The text only appears when you press Start, so the clock is real.',
+    src: '/drills6.html' },
 ];
 
 export default function ClassPage() {

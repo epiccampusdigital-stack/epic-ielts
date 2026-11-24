@@ -1,5 +1,7 @@
 // Shared engine for the Class drill pages: each page sets SECS and PAGE_KEY, then loads this file.
 const $ = (s, el = document) => el.querySelector(s);
+// phones: one scrolling row of drill tabs instead of a tall sticky block
+document.head.insertAdjacentHTML('beforeend', '<style>@media (max-width:640px){nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}nav button{flex:none}}</style>');
 // ---- answers lock as soon as they are given; no Check button; the drill is marked when every question is answered or time is up ----
 function lockAnswers(sec, finish) {
   const qs = [...sec.querySelectorAll('.q')];
@@ -38,7 +40,7 @@ for (const S of SECS) {
     if (S.type === 'gap') body = esc(it[0]).replace('________', `<select data-i="${i}"><option value="">________</option>${S.words.map((o, k) => `<option value="${k}">${o}</option>`).join('')}</select>`);
     qs += `<div class="q"><div class="qn">${i + 1}</div><div>${body}<div class="fb"></div></div></div>`;
   });
-  html += `<section id="${S.id}" data-min="${S.min}"><h2>${S.title}</h2><div class="tip">${S.tip}</div><div class="tip" style="border-color:var(--accent)">Each answer locks as soon as you give it (typed answers lock when you press Enter or move on), so think before you choose. </div>${(S.type === 'listen' || S.type === 'listenmc') && !('speechSynthesis' in window) ? '<div class="tip" style="border-color:var(--bad)"><b>Sound is not available in this browser.</b> Please use Google Chrome or Microsoft Edge.</div>' : ''}${S.text ? `<div class="text">${S.text}</div>` : ''}<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>${S.type === 'select' ? `<div class="tip" style="border-color:var(--accent)"><b>Phrases in the text:</b> ${S.list.map((o, k) => `${L[k]}. ${esc(o)}`).join(' · ')}</div>` : ''}<div class="qs">${qs}</div>${S.fb ? `<div class="fb fbend" style="display:none"><b>Tip:</b> ${S.fb}</div>` : ''}</section>`;
+  html += `<section id="${S.id}" data-min="${S.min}"><h2>${S.title}</h2><div class="tip">${S.tip}</div><div class="tip" style="border-color:var(--accent)">Each answer locks as soon as you give it (typed answers lock when you press Enter or move on), so think before you choose. </div>${(S.type === 'listen' || S.type === 'listenmc') && !('speechSynthesis' in window) ? '<div class="tip" style="border-color:var(--bad)"><b>Sound is not available in this browser.</b> Please use Google Chrome or Microsoft Edge.</div>' : ''}${S.text ? (S.hide ? `<div class="text hidetext" style="text-align:center;color:var(--muted);font-family:inherit">The text appears when you press <b>Start</b>. The clock starts at the same time.</div><div class="text realtext" hidden>${S.text}</div>` : `<div class="text">${S.text}</div>`) : ''}<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>${S.type === 'select' ? `<div class="tip" style="border-color:var(--accent)"><b>Phrases in the text:</b> ${S.list.map((o, k) => `${L[k]}. ${esc(o)}`).join(' · ')}</div>` : ''}<div class="qs">${qs}</div>${S.fb ? `<div class="fb fbend" style="display:none"><b>Tip:</b> ${S.fb}</div>` : ''}</section>`;
 }
 $('#secs').innerHTML = html;
 const nav = $('#nav');
@@ -76,7 +78,7 @@ SECS.forEach(S => {
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   t.textContent = fmt(left);
   const finish = () => { if (done) return; done = true; clearInterval(iv); start.disabled = true; check.disabled = true; t.textContent = "Time's up"; mark(S); sec.querySelectorAll('input,select').forEach(x => { x.disabled = true; }); };
-  start.onclick = () => { if (iv || done) return; start.textContent = 'Running…'; start.disabled = true; iv = setInterval(() => { left--; t.textContent = fmt(left); t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000); };
+  start.onclick = () => { if (iv || done) return; start.textContent = 'Running…'; start.disabled = true; { const ht = $('.hidetext', sec), rt = $('.realtext', sec); if (ht) ht.remove(); if (rt) rt.hidden = false; } iv = setInterval(() => { left--; t.textContent = fmt(left); t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000); };
   check.style.display = 'none';
   lockAnswers(sec, finish);
 });

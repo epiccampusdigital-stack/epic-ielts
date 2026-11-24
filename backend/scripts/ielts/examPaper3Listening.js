@@ -58,14 +58,15 @@ Now, about cleaning. Each room has a cleaning rota, and the cleaners only clean 
 Some of you have asked about cooking. You can't cook in your bedroom, because of the fire risk. But there's a shared kitchen on each floor, and it's open from six in the morning until midnight.
 Visitors are welcome, but only until nine in the evening, and they must sign in at the security desk. Your friends can't stay overnight, I'm afraid.
 Finally, the internet. The Wi-Fi is free, and it's quite fast. But if you want to play online games or watch films, you'll get a better connection with a cable. You can borrow one from the security desk.
-NARRATOR: Before you hear the rest of the talk, you have some time to look at questions 16 to 20.
+NARRATOR: Before you hear the rest of the talk, you have some time to look at the map for questions 16 to 20.
 [PAUSE 30]
 NARRATOR: Now listen and answer questions 16 to 20.
-MANAGER: Now let me tell you about the facilities in the building. In the basement, there's a laundry room. The washing machines are free, but the dryers cost five hundred won. You'll need coins for those.
-On the ground floor, there's a study room. It's always quiet, and it's the only room that is open all night, so it's popular during exams.
-Next to it is the common room. It has a big TV and a piano, and it's where we hold our welcome party on Friday. Everyone is invited, and the food is free.
-On the top floor, there's a small gym. It's free to use, but you have to book a time online, because it only has space for six people.
-And finally, outside the building, there's a bicycle shelter. It's covered, so your bike won't get wet. But please note that it isn't locked, so bring your own lock.
+MANAGER: Now, please look at the map of the ground floor and the area around the building. We're standing at the main entrance, at the bottom of the map. The security desk is just inside the entrance, on your right.
+Walk straight in until you reach the corridor that goes from left to right. If you turn left and walk to the end of that corridor, the laundry room is the last room on your right. The washing machines are free, but the dryers cost five hundred won.
+Opposite the laundry room, on the other side of the corridor, is the study room. It's always quiet, and it's open all night, so it's popular during exams.
+If you don't turn at the corridor, and you go straight on past the lifts, you'll come to the big room at the very back of the building. That's the common room. It has a big TV and a piano, and that's where we'll have the welcome party on Friday.
+Now, the gym. Go back to the corridor and turn right. The gym is the first room on your right. Please don't go into the room opposite it, on the left. That's a storeroom, and it's locked. The gym is free, but you have to book a time online.
+And finally, the bicycle shelter. Last year it was at the side of the building, next to the car park, but it's been moved. Now it's behind the building, next to the garden. It's covered, so your bike won't get wet, but it isn't locked, so bring your own lock.
 NARRATOR: That is the end of Part 2. You now have half a minute to check your answers.
 [PAUSE 30]`;
 
@@ -116,6 +117,11 @@ NARRATOR: That is the end of Part 4. You now have half a minute to check your an
 [PAUSE 30]
 NARRATOR: That is the end of the listening test.`;
 
+// Q16-20: map labelling. Fixed layout (see the map prompt): A front-left room, B back-left corner, C big room at the back centre,
+// D back-right room (storeroom), E front-right room, F outside behind the building by the garden, G outside at the side by the car park, H outside in front, left of the entrance path.
+const MAP_IMG = '/media/ielts-exam3-map.png';
+const MAP_OPTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const MAP_INSTR = 'Questions 16 to 20. Label the map below. Choose the correct letter, A to H, for each place.';
 const PLACES_OPTS = ['It is open all night', 'It costs money to use part of it', 'You must book a time', 'A party will be held there', 'It is not locked', 'It is closed at weekends', 'Staff will clean it for you'];
 const DECIDE = ['Keep it as it is', 'Change it', 'Take it out'];
 
@@ -146,12 +152,12 @@ const LISTENING = {
         mc('What is the rule about visitors?', ['They must leave by 9 p.m.', 'They can stay one night', 'They must show an ID card'], 'A', '"only until nine in the evening". They must sign in, but an ID card is not mentioned.', ['only until nine in the evening']),
         mc('What does Mr Choi say about the internet?', ['The Wi-Fi costs extra', 'A cable gives a better connection', 'Online games are not allowed'], 'B', '"you\'ll get a better connection with a cable".', ["you'll get a better connection with a cable"]),
       ] },
-      { type: 'MULTIPLE_CHOICE', instruction: 'Questions 16 to 20. What does Mr Choi say about each place? Choose FIVE answers from the list, A to G.', questions: [
-        mc('Laundry room', PLACES_OPTS, 'B', 'The washing machines are free but "the dryers cost five hundred won".', ['the dryers cost five hundred won']),
-        mc('Study room', PLACES_OPTS, 'A', '"it\'s the only room that is open all night".', ["it's the only room that is open all night"]),
-        mc('Common room', PLACES_OPTS, 'D', '"it\'s where we hold our welcome party on Friday".', ["it's where we hold our welcome party on Friday"]),
-        mc('Gym', PLACES_OPTS, 'C', '"you have to book a time online".', ['you have to book a time online']),
-        mc('Bicycle shelter', PLACES_OPTS, 'E', '"it isn\'t locked, so bring your own lock".', ["it isn't locked, so bring your own lock"]),
+      { type: 'MULTIPLE_CHOICE', imageUrl: MAP_IMG, instruction: MAP_INSTR, questions: [
+        mc('Laundry room', MAP_OPTS, 'B', 'Turn left at the corridor, walk to the end: "the last room on your right". A is on the left side, opposite.', ['the laundry room is the last room on your right']),
+        mc('Study room', MAP_OPTS, 'A', '"Opposite the laundry room, on the other side of the corridor".', ['Opposite the laundry room, on the other side of the corridor, is the study room']),
+        mc('Common room', MAP_OPTS, 'C', 'Straight on past the lifts: "the big room at the very back of the building".', ['the big room at the very back of the building']),
+        mc('Gym', MAP_OPTS, 'E', 'Turn right: "the first room on your right". D, opposite on the left, is the locked storeroom.', ['The gym is the first room on your right']),
+        mc('Bicycle shelter', MAP_OPTS, 'F', 'It moved: "Now it\'s behind the building, next to the garden". G (beside the car park) was last year.', ["Now it's behind the building, next to the garden"]),
       ] },
     ] },
     { number: 3, description: 'Planning a survey on part-time jobs', groups: [
@@ -199,4 +205,4 @@ function checkListening() {
   return errs;
 }
 
-module.exports = { LISTENING, checkListening, SCRIPTS: { 1: S1, 2: S2, 3: S3, 4: S4 } };
+module.exports = { MAP_IMG, MAP_OPTS, MAP_INSTR, LISTENING, checkListening, SCRIPTS: { 1: S1, 2: S2, 3: S3, 4: S4 } };

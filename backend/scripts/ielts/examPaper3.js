@@ -158,6 +158,26 @@ function checkExam3() {
 
 // Adds the Final Exam (all locked). The exam shows in the Exam tab only once every listening part has audio.
 const AUDIO = { 1: 'ielts-exam3-listening-part1.mp3', 2: 'ielts-exam3-listening-part2.mp3', 3: 'ielts-exam3-listening-part3.mp3', 4: 'ielts-exam3-listening-part4.mp3' };
+// Listening Q16-20 became a map question after the paper was first added. Bring the saved copy up to date
+// (only those 5 questions and their group; nothing else is touched). Safe to run on every start.
+async function syncMapQuestions(prisma) {
+  const { LISTENING, MAP_IMG, MAP_OPTS, MAP_INSTR } = require('./examPaper3Listening');
+  const lis = await prisma.paper.findFirst({ where: { paperCode: 'EX3-L', testType: 'LISTENING' }, select: { id: true } });
+  if (!lis) return 'no paper';
+  const want = LISTENING.sections[1].groups[1].questions; // Q16-20 in the code
+  const rows = await prisma.question.findMany({ where: { paperId: lis.id, questionNumber: { gte: 16, lte: 20 } }, orderBy: { questionNumber: 'asc' } });
+  if (rows.length !== 5) return 'questions not found';
+  const done = rows.every((r, i) => r.correctAnswer === want[i].answer && JSON.stringify(r.options) === JSON.stringify(MAP_OPTS));
+  const g = rows[0].groupId ? await prisma.questionGroup.findUnique({ where: { id: rows[0].groupId } }) : null;
+  if (done && g && g.imageUrl === MAP_IMG && g.instruction === MAP_INSTR) return 'up to date';
+  if (g) await prisma.questionGroup.update({ where: { id: g.id }, data: { instruction: MAP_INSTR, imageUrl: MAP_IMG } });
+  for (let i = 0; i < 5; i++) {
+    const q = want[i];
+    await prisma.question.update({ where: { id: rows[i].id }, data: { content: q.content, options: MAP_OPTS, correctAnswer: q.answer, explanation: q.explanation || null, evidence: (q.ev || []).join('|') || null, groupInstruction: MAP_INSTR } });
+  }
+  return 'updated to the map';
+}
+
 async function addExamPaper3(prisma) {
   const errs = checkExam3();
   if (errs.length) return { skipped: 'check failed', errors: errs.slice(0, 5) };
@@ -168,6 +188,7 @@ async function addExamPaper3(prisma) {
     await prisma.paper.updateMany({ where: { paperCode: p.code, testType: p.testType }, data: { title: p.title, instructions: p.instructions, timeLimitMin: p.timeLimitMin } });
   }
   const fs = require('fs'); const path = require('path');
+  out.map = await syncMapQuestions(prisma);
   const lis = await prisma.paper.findFirst({ where: { paperCode: 'EX3-L', testType: 'LISTENING' }, include: { sections: true } });
   let attached = 0;
   for (const s of lis ? lis.sections : []) {

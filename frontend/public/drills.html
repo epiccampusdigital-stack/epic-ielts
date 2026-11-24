@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IELTS Timed Drills</title>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--ink:#0f1114;--muted:#5b6780;--line:#dae1ed;--accent:#0056d2;--navy:#002761;--ok:#276a1a;--okbg:#e9f5e6;--bad:#c0262d;--badbg:#fdecee;--warn:#a35b00;--warnbg:#fff4e0;--field:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'Source Sans 3','Source Sans Pro',system-ui,Arial,sans-serif;padding:16px 16px 60px}
+.wrap{max-width:900px;margin:0 auto;display:grid;gap:16px}
+header h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+nav button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:50px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer}
+nav button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav .sc{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:none;gap:14px}
+section.on{display:grid}
+h2{margin:0;font-size:22px;color:var(--navy)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px}
+.timer{font:800 26px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;min-width:86px}
+.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.tip{background:var(--warnbg);color:var(--ink);border-left:4px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:15px}
+.text{font:17px/1.75 Georgia,'Times New Roman',serif;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-line}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}.qn{font-weight:800;color:var(--accent)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertical}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.opts label{border:1.5px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600}
+.opts input{margin-right:6px}
+.right{background:var(--okbg)!important;border-color:var(--ok)!important}
+.wrong{background:var(--badbg)!important;border-color:var(--bad)!important}
+.fb{font-size:14px;margin-top:4px;color:var(--muted)}.fb b{color:var(--ok)}
+.score{font-weight:800;font-size:18px}
+.play{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 12px;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+.wc{font-size:14px;color:var(--muted)}
+.model{display:none;background:var(--okbg);border-radius:12px;padding:12px 14px;white-space:pre-line}
+.model.show{display:block}
+table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.hlist{margin:0;padding-left:22px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>IELTS Timed Drills</h1><p>Six short drills for Sunday's Final Exam. Press <b>Start</b>: the timer runs and your answers are marked when time is up (or press Check). Use headphones for Drill 1.</p></header>
+<nav id="nav"></nav>
+
+<!-- 1 LISTENING -->
+<section id="d1" data-min="12">
+<h2>Drill 1 · Listening traps</h2>
+<div class="tip">In IELTS, speakers often change their answer: "sorry", "no, wait", "actually", "it's changed". Write ONLY the final answer. Each line can be played twice.</div>
+<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>
+<div class="qs"></div>
+</section>
+
+<!-- 2 TFNG -->
+<section id="d2" data-min="12">
+<h2>Drill 2 · Reading: TRUE / FALSE / NOT GIVEN</h2>
+<div class="tip"><b>TRUE</b> = the text says the same thing in other words. <b>FALSE</b> = the text says the opposite. <b>NOT GIVEN</b> = the text does not say. Do not use your own knowledge.</div>
+<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>
+<div class="text">Northport started a bike-sharing scheme in 2018. At first there were 500 bikes at 40 stations, but the scheme was so popular that the number of bikes had doubled within two years. Users pay 1,000 won for the first hour, and students pay half price.
+
+Not everyone was pleased. Some shop owners complained that the stations took up parking spaces outside their shops. The city responded by moving several stations to side streets. Today, the busiest station is outside the central railway station, where most trips are made between 7 and 9 in the morning.
+
+The city now plans to add electric bikes next year. These will cost more to use, but they will make it easier to ride up the steep hills in the north of the city. A survey found that 70 percent of users would like electric bikes, although only a third said they would pay more for them.</div>
+<div class="qs"></div>
+</section>
+
+<!-- 3 HEADINGS -->
+<section id="d3" data-min="8">
+<h2>Drill 3 · Reading: matching headings</h2>
+<div class="tip">Read the FIRST and LAST sentence of each paragraph. Look for the main idea, not one word that matches. There are two extra headings.</div>
+<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>
+<div class="text"><b>A</b>  Many people believe that eating late at night causes weight gain. However, scientists say that the total amount of food matters more than the time it is eaten. A large meal at 7 p.m. has the same energy as the same meal at 10 p.m.
+
+<b>B</b>  Even so, late meals can affect sleep. When the stomach is full, the body has to work hard to digest food, and people often wake up during the night. Doctors recommend finishing dinner at least two hours before going to bed.
+
+<b>C</b>  Breakfast habits vary widely around the world. In Korea, many families eat rice and soup in the morning, while in Britain cereal or toast is more common. In Sri Lanka, hoppers or string hoppers are popular.
+
+<b>D</b>  Some companies now help their workers eat better. They offer free fruit, healthy lunches and even cooking classes. Managers say that staff who eat well are more energetic and take fewer days off.</div>
+<p style="margin:0"><b>List of headings</b></p>
+<ol class="hlist" type="i" id="hl"></ol>
+<div class="qs"></div>
+</section>
+
+<!-- 4 GRAPH LANGUAGE -->
+<section id="d4" data-min="10">
+<h2>Drill 4 · Writing Task 1: graph language</h2>
+<div class="tip">Choose the best words for each sentence. Look at the numbers carefully: "doubled", "a slight fall" and "remained stable" all mean different things.</div>
+<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>
+<p style="margin:0"><b>Number of visitors to three museums (thousands per year)</b></p>
+<div style="overflow-x:auto"><table class="g"><tr><th></th><th>2005</th><th>2010</th><th>2015</th><th>2020</th><th>2025</th></tr>
+<tr><th>Science Museum</th><td>20</td><td>30</td><td>40</td><td>40</td><td>60</td></tr>
+<tr><th>Art Gallery</th><td>50</td><td>45</td><td>40</td><td>35</td><td>30</td></tr>
+<tr><th>History Museum</th><td>25</td><td>25</td><td>26</td><td>25</td><td>25</td></tr></table></div>
+<div class="qs"></div>
+</section>
+
+<!-- 5 OVERVIEW -->
+<section id="d5" data-min="8">
+<h2>Drill 5 · Writing Task 1: write the overview</h2>
+<div class="tip">The overview is the most important paragraph in Task 1. Write 2 sentences about the BIG trends only, with no numbers. Start with "Overall, ...". Use the table in Drill 4.</div>
+<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Show model</button></div>
+<textarea id="t5" placeholder="Overall, ..."></textarea><div class="wc" id="w5">0 words</div>
+<div class="model" id="m5"><b>Model overview</b>
+Overall, the Science Museum became much more popular and was the most visited museum by 2025, while visitor numbers at the Art Gallery fell steadily. The History Museum's figures remained almost unchanged throughout the period.
+
+<b>Check yours:</b> Did you start with "Overall"? Did you mention all three museums? Did you avoid numbers?</div>
+</section>
+
+<!-- 6 TASK 2 -->
+<section id="d6" data-min="15">
+<h2>Drill 6 · Writing Task 2: plan and introduction</h2>
+<div class="text" style="font-family:inherit">Some people think that students should be allowed to use mobile phones in class. Others believe phones should be banned in schools.
+
+Discuss both views and give your own opinion.</div>
+<div class="tip">5 minutes to plan, 10 minutes to write the introduction. Introduction = 1. say the topic in your own words, 2. "This essay will discuss both views", 3. your opinion.</div>
+<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Show model</button></div>
+<div style="display:grid;gap:8px">
+<label>View 1 (allow phones), main reason: <input type="text" style="width:100%"></label>
+<label>View 2 (ban phones), main reason: <input type="text" style="width:100%"></label>
+<label>My opinion: <input type="text" style="width:100%"></label>
+</div>
+<textarea id="t6" placeholder="Write your introduction (40 to 60 words)"></textarea><div class="wc" id="w6">0 words</div>
+<div class="model" id="m6"><b>Model plan</b>
+View 1: phones help learning: dictionaries, research, apps.
+View 2: phones distract students: games, social media, cheating.
+My opinion: allow them only when the teacher says so.
+
+<b>Model introduction (52 words)</b>
+Mobile phones have become part of everyday life, and many people now disagree about whether students should use them in class. This essay will discuss the arguments for allowing and banning phones in schools. In my opinion, phones can be useful learning tools, but only when teachers control how they are used.</div>
+</section>
+</div>
+
+<script>
+// ---------- data ----------
+const D = {
+  d1: [
+    ['Surname: ________', "My name's Sara Wilson. Oh, sorry, it's Wilkinson. W, I, L, K, I, N, S, O, N.", ['wilkinson'], 'She corrects it to Wilkinson.'],
+    ['Meeting time: ________', 'The meeting was going to be at three fifteen, but it has been moved to a quarter to four.', ['3:45', '3.45', '345', 'quarter to four', 'a quarter to four', '15:45'], 'It moved to a quarter to four, 3:45.'],
+    ['Phone: 077 845 ________', "My number is 077 845 2190. No, wait, the last part is 2109.", ['2109'], 'The last part is 2109, not 2190.'],
+    ['Student price: ________ dollars', 'The course costs three hundred dollars, but students only pay two hundred and fifty.', ['250', 'two hundred and fifty'], 'Students pay 250. 300 is the normal price.'],
+    ['They travelled by ________', 'We wanted to go by bus, but in the end we took the train.', ['train', 'the train'], '"in the end we took the train".'],
+    ['The library is next to the ________', "The library is on the second floor, next to the cafe. Oh no, sorry, it's next to the computer room.", ['computer room', 'the computer room'], 'She corrects it: next to the computer room.'],
+    ['Bring a pen and your ________', "Please bring a pen and your ID card. You don't need a calculator.", ['id card', 'id', 'identity card'], 'A calculator is NOT needed.'],
+    ['Postcode: ________', 'The postcode is B, H, 7, 4, Q, N.', ['bh74qn', 'bh7 4qn'], 'BH7 4QN. Check every letter.'],
+    ['Classes: Mondays and ________', 'Classes are on Mondays and Wednesdays. Actually, Wednesday has changed to Thursday this term.', ['thursday', 'thursdays'], 'Wednesday changed to Thursday.'],
+    ['Distance: ________ km', "It's about thirteen. No, sorry, thirty kilometres from the city centre.", ['30', 'thirty'], 'Thirteen and thirty sound similar. The final answer is thirty.'],
+  ],
+  d2: [
+    ['The scheme began in 2018.', 'T', '"Northport started a bike-sharing scheme in 2018."'],
+    ['There were 1,000 bikes two years after the start.', 'T', '500 bikes, "doubled within two years" = 1,000.'],
+    ['Students pay 1,000 won for the first hour.', 'F', 'Students pay half price, so 500 won.'],
+    ['Most users of the scheme are students.', 'NG', 'The text does not say who most users are.'],
+    ['All the stations near shops were closed.', 'F', 'Several stations were MOVED to side streets, not closed.'],
+    ['The busiest station is near the railway station.', 'T', '"outside the central railway station".'],
+    ['Electric bikes will be cheaper to use.', 'F', 'They "will cost more to use".'],
+    ['Most users would pay more for electric bikes.', 'F', 'Only a third would pay more. 70% would LIKE them; that is the trap.'],
+  ],
+  d3h: ['Different morning meals in different countries', 'How late eating can affect sleep', 'Why people skip breakfast', 'The amount of food is more important than the time', 'Employers who encourage healthy eating', 'The best food for a good night\'s sleep'],
+  d3: [['Paragraph A', 3, 'Total amount "matters more than the time".'], ['Paragraph B', 1, '"late meals can affect sleep".'], ['Paragraph C', 0, 'Breakfast in Korea, Britain and Sri Lanka.'], ['Paragraph D', 4, 'Companies "help their workers eat better".']],
+  d4: [
+    ['Between 2005 and 2025, visitors to the Science Museum ________.', ['tripled', 'doubled', 'fell slightly'], 0, '20 to 60 = three times.'],
+    ['Visitors to the Science Museum ________ between 2015 and 2020.', ['rose sharply', 'remained stable', 'fell'], 1, '40 and 40: no change.'],
+    ['The Art Gallery saw a ________ decline over the period.', ['steady', 'sudden', 'small'], 0, 'It fell by 5 every five years: steady.'],
+    ['In 2005, the Art Gallery was ________ museum.', ['the least popular', 'the most popular', 'as popular as the Science'], 1, '50 was the highest in 2005.'],
+    ['The History Museum\'s figures ________ at about 25,000.', ['peaked', 'stayed the same', 'doubled'], 1, '25, 25, 26, 25, 25.'],
+    ['In 2015, the Science Museum and the Art Gallery had ________ number of visitors.', ['the same', 'a higher', 'half the'], 0, 'Both had 40.'],
+    ['By 2025, the Art Gallery had ________ visitors than in 2005.', ['20,000 fewer', '20,000 more', '30,000 fewer'], 0, '50 to 30 = 20,000 fewer.'],
+    ['The Science Museum ________ the Art Gallery after 2015.', ['overtook', 'fell behind', 'equalled'], 0, 'After 2015 it had more visitors.'],
+  ],
+};
+// ---------- helpers ----------
+const $ = (s, el = document) => el.querySelector(s);
+const norm = s => String(s).toLowerCase().replace(/[^a-z0-9:.]/g, '');
+const store = { get(k) { try { return JSON.parse(localStorage.getItem('drills-' + k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem('drills-' + k, JSON.stringify(v)); } catch { /* blocked */ } } };
+const scores = {};
+const NAMES = { d1: 'Listening', d2: 'T/F/NG', d3: 'Headings', d4: 'Graph words', d5: 'Overview', d6: 'Task 2' };
+
+// nav
+const nav = $('#nav');
+Object.keys(NAMES).forEach((id, i) => {
+  const b = document.createElement('button'); b.dataset.id = id; b.innerHTML = `${i + 1}. ${NAMES[id]} <span class="sc"></span>`;
+  b.onclick = () => show(id); nav.appendChild(b);
+});
+function show(id) { document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === id)); nav.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id)); store.set('tab', id); }
+function setScore(id, got, of) { scores[id] = [got, of]; $(`#${id} .score`).textContent = `${got} / ${of}`; nav.querySelector(`[data-id=${id}] .sc`).textContent = `${got}/${of}`; }
+
+// ---------- build questions ----------
+let voice = null;
+function pickVoice() { const v = speechSynthesis.getVoices(); voice = v.find(x => x.lang === 'en-GB' && /google|natural/i.test(x.name)) || v.find(x => x.lang === 'en-GB') || v.find(x => /^en/.test(x.lang)) || null; }
+if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+const plays = {};
+$('#d1 .qs').innerHTML = D.d1.map((q, i) => `<div class="q"><div class="qn">${i + 1}</div><div><button class="play" data-i="${i}">▶ Play (2 left)</button>${q[0].replace('________', `<input type="text" data-i="${i}" aria-label="Answer ${i + 1}">`)}<div class="fb"></div></div></div>`).join('');
+$('#d1').addEventListener('click', e => {
+  const b = e.target.closest('.play'); if (!b) return;
+  const i = b.dataset.i; plays[i] = (plays[i] || 0) + 1;
+  const u = new SpeechSynthesisUtterance(D.d1[i][1]); u.lang = 'en-GB'; u.rate = 0.92; if (voice) u.voice = voice;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+  const left = 2 - plays[i]; b.textContent = left > 0 ? `▶ Play (${left} left)` : 'Played twice'; if (left <= 0) b.disabled = true;
+});
+const tfOpt = ['T', 'F', 'NG'], tfLab = { T: 'TRUE', F: 'FALSE', NG: 'NOT GIVEN' };
+$('#d2 .qs').innerHTML = D.d2.map((q, i) => `<div class="q"><div class="qn">${i + 1}</div><div>${q[0]}<div class="opts">${tfOpt.map(o => `<label><input type="radio" name="tf${i}" value="${o}">${tfLab[o]}</label>`).join('')}</div><div class="fb"></div></div></div>`).join('');
+$('#hl').innerHTML = D.d3h.map(h => `<li>${h}</li>`).join('');
+const roman = ['i', 'ii', 'iii', 'iv', 'v', 'vi'];
+$('#d3 .qs').innerHTML = D.d3.map((q, i) => `<div class="q"><div class="qn">${i + 1}</div><div>${q[0]}: <select data-i="${i}"><option value="">Choose…</option>${D.d3h.map((h, k) => `<option value="${k}">${roman[k]}. ${h}</option>`).join('')}</select><div class="fb"></div></div></div>`).join('');
+$('#d4 .qs').innerHTML = D.d4.map((q, i) => `<div class="q"><div class="qn">${i + 1}</div><div>${q[0].replace('________', `<select data-i="${i}"><option value="">________</option>${q[1].map((o, k) => `<option value="${k}">${o}</option>`).join('')}</select>`)}<div class="fb"></div></div></div>`).join('');
+
+// ---------- marking ----------
+const mark = {
+  d1() { let g = 0; document.querySelectorAll('#d1 input').forEach(inp => { const q = D.d1[inp.dataset.i]; const ok = q[2].some(a => norm(a) === norm(inp.value)); if (ok) g++; inp.classList.add(ok ? 'right' : 'wrong'); inp.closest('div').querySelector('.fb').innerHTML = `<b>Answer: ${q[2][0].toUpperCase()}</b> · ${q[3]}`; }); setScore('d1', g, D.d1.length); },
+  d2() { let g = 0; D.d2.forEach((q, i) => { const c = document.querySelector(`input[name=tf${i}]:checked`); const ok = c && c.value === q[1]; if (ok) g++; document.querySelectorAll(`input[name=tf${i}]`).forEach(r => { r.parentElement.classList.toggle('right', r.value === q[1]); if (r.checked && !ok) r.parentElement.classList.add('wrong'); }); document.querySelectorAll('#d2 .fb')[i].innerHTML = `<b>${tfLab[q[1]]}</b> · ${q[2]}`; }); setScore('d2', g, D.d2.length); },
+  d3() { let g = 0; document.querySelectorAll('#d3 select').forEach(s => { const q = D.d3[s.dataset.i]; const ok = s.value === String(q[1]); if (ok) g++; s.classList.add(ok ? 'right' : 'wrong'); s.parentElement.querySelector('.fb').innerHTML = `<b>${roman[q[1]]}. ${D.d3h[q[1]]}</b> · ${q[2]}`; }); setScore('d3', g, D.d3.length); },
+  d4() { let g = 0; document.querySelectorAll('#d4 select').forEach(s => { const q = D.d4[s.dataset.i]; const ok = s.value === String(q[2]); if (ok) g++; s.classList.add(ok ? 'right' : 'wrong'); s.parentElement.querySelector('.fb').innerHTML = `<b>${q[1][q[2]]}</b> · ${q[3]}`; }); setScore('d4', g, D.d4.length); },
+  d5() { $('#m5').classList.add('show'); },
+  d6() { $('#m6').classList.add('show'); },
+};
+// ---------- timers ----------
+document.querySelectorAll('section').forEach(sec => {
+  const id = sec.id, min = +sec.dataset.min, t = $('.timer', sec), start = $('.start', sec), check = $('.check', sec);
+  let left = min * 60, iv = null, done = false;
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  t.textContent = fmt(left);
+  const finish = () => { if (done) return; done = true; clearInterval(iv); start.disabled = true; check.disabled = true; t.textContent = "Time's up"; mark[id](); sec.querySelectorAll('input,select,textarea').forEach(x => { x.disabled = true; }); };
+  start.onclick = () => { if (iv || done) return; start.textContent = 'Running…'; start.disabled = true; iv = setInterval(() => { left--; t.textContent = fmt(left); t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000); };
+  check.onclick = () => { if (id === 'd5' || id === 'd6') { mark[id](); return; } finish(); };
+});
+// word counts
+[['t5', 'w5'], ['t6', 'w6']].forEach(([a, b]) => { const el = $('#' + a); el.addEventListener('input', () => { const n = el.value.trim() ? el.value.trim().split(/\s+/).length : 0; $('#' + b).textContent = `${n} words`; }); });
+show(store.get('tab') || 'd1');
+</script>
+</body>
+</html>

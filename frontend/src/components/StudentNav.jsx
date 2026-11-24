@@ -24,6 +24,7 @@ const PRACTICE = [
 ];
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', href: '/student/dashboard', active: 'dashboard' },
+  { key: 'class', label: 'Class', href: '/class', active: 'class' },
   { key: 'papers', label: 'Papers', href: '/practice', active: 'practice' },
   { key: 'practicemenu', label: 'Practice', menu: true },
   { key: 'exams', label: 'Exam', href: '/exams', active: 'exams' },

@@ -198,12 +198,13 @@ let voice = null;
 function pickVoice() { const v = speechSynthesis.getVoices(); voice = v.find(x => x.lang === 'en-GB' && /google|natural/i.test(x.name)) || v.find(x => x.lang === 'en-GB') || v.find(x => /^en/.test(x.lang)) || null; }
 if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 const plays = {};
+if (!('speechSynthesis' in window)) $('#d1 .tip').insertAdjacentHTML('afterend', '<div class="tip" style="border-color:var(--bad)"><b>Sound is not available in this browser.</b> Please use Google Chrome or Microsoft Edge.</div>');
 $('#d1 .qs').innerHTML = D.d1.map((q, i) => `<div class="q"><div class="qn">${i + 1}</div><div><button class="play" data-i="${i}">▶ Play (2 left)</button>${q[0].replace('________', `<input type="text" data-i="${i}" aria-label="Answer ${i + 1}">`)}<div class="fb"></div></div></div>`).join('');
 $('#d1').addEventListener('click', e => {
   const b = e.target.closest('.play'); if (!b) return;
   const i = b.dataset.i; plays[i] = (plays[i] || 0) + 1;
   const u = new SpeechSynthesisUtterance(D.d1[i][1]); u.lang = 'en-GB'; u.rate = 0.92; if (voice) u.voice = voice;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
+  speechSynthesis.cancel(); setTimeout(() => speechSynthesis.speak(u), 120);
   const left = 2 - plays[i]; b.textContent = left > 0 ? `▶ Play (${left} left)` : 'Played twice'; if (left <= 0) b.disabled = true;
 });
 const tfOpt = ['T', 'F', 'NG'], tfLab = { T: 'TRUE', F: 'FALSE', NG: 'NOT GIVEN' };

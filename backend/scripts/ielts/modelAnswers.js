@@ -181,6 +181,30 @@ In my view, both sides are partly right. A basic level before leaving is essenti
 In conclusion, although living abroad is an excellent way to learn a language, I believe young people should start learning before they go, so that they can settle in quickly and then build on that foundation in the new country.`,
     },
   },
+  'EX3-W': {
+    1: {
+      tips: ['Overview: social media rose the most and became the top activity; studying alone fell; sport fell slightly; part-time work rose, mostly after 2020.', 'Group the lines: two that went up (social media, part-time work) and two that went down (studying alone, sport).', 'Use the numbers with units: "from 4 to 17 hours a week". Mention where lines cross: social media passed studying alone between 2015 and 2020, and part-time work passed it by 2025.'],
+      answer: `The line graph shows the average number of hours per week that students at one university spent on four activities between 2010 and 2025.
+
+Overall, time spent on social media rose dramatically and it became the most common activity by the end of the period. Part-time work also increased, while studying alone and sport and exercise both declined.
+
+In 2010, students spent the most time studying alone, at 12 hours a week, compared with only 4 hours on social media. However, social media use grew rapidly, overtaking studying alone before 2020 and reaching 17 hours a week in 2025, more than four times the 2010 figure. Meanwhile, studying alone fell to 8 hours in 2020 before recovering slightly to 9 hours.
+
+Time spent on part-time work stayed fairly stable at 6 to 7 hours until 2020, but then rose to 10 hours in 2025, just above studying alone. In contrast, sport and exercise was the least popular activity throughout, falling gradually from 5 hours to 3 hours, where it remained after 2020.`,
+    },
+    2: {
+      tips: ['Discuss BOTH views in separate paragraphs, then give a clear opinion (in the introduction and the conclusion).', 'Home: cheaper, family support, no language barrier, degree known by local employers. Abroad: independence, a new language, international contacts, often better facilities.', 'Use examples from their own lives: scholarships to Korea, learning Korean, living in a dormitory.'],
+      answer: `Choosing where to study is one of the biggest decisions a young person makes. Some people believe it is wiser to attend university in one's own country, while others argue that studying abroad offers greater benefits. This essay will discuss both views before explaining why I believe studying abroad is more valuable for many students.
+
+On the one hand, studying at home has clear advantages. It is usually much cheaper, because students can live with their families and avoid high fees and living costs. They also have the support of family and friends, which can help them cope with stress during exams. In addition, they study in their own language, so they can focus on the subject itself, and local employers often know and trust the universities in their own country.
+
+On the other hand, studying abroad can change a young person's life. Living in a new country forces students to become independent: they have to manage their money, cook for themselves and solve problems alone. They also learn a new language and culture, which is a great advantage in today's global job market. For example, a Sri Lankan student who studies in Korea on a scholarship not only earns a degree but also learns Korean and builds international contacts.
+
+In my opinion, although studying at home is easier and cheaper, studying abroad is more valuable for students who have the chance, especially when scholarships reduce the cost. The skills and confidence they gain last a lifetime.
+
+In conclusion, both options have their merits, but I believe the experience of studying abroad outweighs its difficulties.`,
+    },
+  },
 };
 
 const wordCount = s => String(s).trim().split(/\s+/).length;

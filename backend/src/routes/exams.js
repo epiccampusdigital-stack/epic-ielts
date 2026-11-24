@@ -10,6 +10,9 @@ const EXAMS = [
   // oneTimer: one clock for the whole paper; each part opens straight after the one before
   // holdResults: students see no score or answers until a teacher presses "Release results"
   { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150, holdResults: true },
+  // Final exam: each part keeps its OWN timer; when a part ends (time up or submitted), a 10-second countdown
+  // shows and the next part opens by itself (autoNext). Results stay hidden until a teacher releases them.
+  { id: 'final', title: 'Final Exam', subtitle: 'IELTS Listening (40 min), Reading (60 min) and Writing (60 min) · each part has its own timer', codes: ['EX3-L', 'EX3-R', 'EX3-W'], needsAudio: true, autoNext: true, holdResults: true },
 ];
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
 
@@ -57,7 +60,7 @@ async function build(prisma, studentId, staff) {
     // an exam with listening appears only when every listening part has its recording
     if (e.needsAudio && papers.some(p => e.codes.includes(p.paperCode) && p.testType === 'LISTENING' && (!p.sections.length || p.sections.some(s => !s.audioUrl)))) return null;
     const open = parts.every(p => papers.find(x => x.id === p.paperId).status === 'EXAM_OPEN');
-    return { id: e.id, title: e.title, subtitle: e.subtitle, open, released: !held.has(e.id), oneTimer: !!e.oneTimer, totalMinutes: e.totalMinutes || parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
+    return { id: e.id, title: e.title, subtitle: e.subtitle, open, released: !held.has(e.id), oneTimer: !!e.oneTimer, autoNext: !!(e.oneTimer || e.autoNext), totalMinutes: e.totalMinutes || parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
   }).filter(Boolean);
 }
 

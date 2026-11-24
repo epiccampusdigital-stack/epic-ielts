@@ -18,6 +18,7 @@ export default function Exams() {
   const [busy, setBusy] = useState('');
   const [auto, setAuto] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [oneClock, setOneClock] = useState(true);
   const pending = useRef(null);
 
   const load = useCallback(() => axios.get(`${API_URL}/api/exams`, api())
@@ -33,7 +34,7 @@ export default function Exams() {
       if (!next) { exitFullscreen(); return; }
       // one-timer exams go straight on to the next part (the clock is already running)
       // one-timer exams: a 10-second pause on screen, then the next part opens by itself
-      if (exam.oneTimer && exam.open) { pending.current = { exam, next }; setAuto(next.testType); setCountdown(10); }
+      if ((exam.oneTimer || exam.autoNext) && exam.open) { pending.current = { exam, next }; setAuto(next.testType); setOneClock(!!exam.oneTimer); setCountdown(10); }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -74,11 +75,11 @@ export default function Exams() {
   if (auto) return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: T.navy, color: '#fff', fontFamily: T.font, textAlign: 'center', padding: 16 }}>
       <div style={{ display: 'grid', gap: 10, justifyItems: 'center' }}>
-        <div style={{ fontSize: 15, letterSpacing: '.08em', color: '#b0e5fb', fontWeight: 700 }}>PART SUBMITTED</div>
+        <div style={{ fontSize: 15, letterSpacing: '.08em', color: '#b0e5fb', fontWeight: 700 }}>{oneClock ? 'PART SUBMITTED' : 'THIS PART IS FINISHED'}</div>
         <div style={{ fontSize: 28, fontWeight: 800 }}>{SKILL[auto] || 'The next part'} starts automatically in</div>
         <div aria-live="polite" style={{ fontSize: 120, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{countdown > 0 ? countdown : '…'}</div>
         <div style={{ color: T.navyText, fontSize: 16 }}>{countdown > 0 ? 'seconds. Take a breath and get ready.' : 'Opening now…'}</div>
-        <div style={{ color: T.navyText, fontSize: 14 }}>The exam timer keeps running.</div>
+        <div style={{ color: T.navyText, fontSize: 14 }}>{oneClock ? 'The exam timer keeps running.' : 'The next part has its own timer. It starts when the part opens.'}</div>
       </div>
     </div>
   );
@@ -137,7 +138,8 @@ export default function Exams() {
 
               {!exam.open && !allDone && <div style={{ color: T.muted, fontSize: 15 }}>This exam is locked. It opens when your teacher unlocks it, and this page updates by itself.</div>}
               {exam.open && !allDone && exam.oneTimer && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>One timer for the whole exam ({exam.totalMinutes} minutes). When you submit a part, the next part opens straight away and the clock keeps running, so there is no break. The exam fills the screen; if you leave full screen by mistake, press the orange "Back to full screen" button at the top.</div>}
-              {exam.open && !allDone && !exam.oneTimer && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>Do the parts in order, one after the other. When you press Start, the exam fills the screen. If you leave full screen by mistake, press the orange "Back to full screen" button at the top. When the time runs out, your answers are sent automatically.</div>}
+              {exam.open && !allDone && !exam.oneTimer && exam.autoNext && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>Each part has its own timer ({exam.parts.map(p => `${SKILL[p.testType] || p.testType} ${p.timeLimitMin} min`).join(', ')}). When a part's time is up, or when you submit it, your answers are sent, a 10-second countdown shows, and the next part opens by itself. The exam fills the screen; if you leave full screen by mistake, press the orange "Back to full screen" button at the top.</div>}
+              {exam.open && !allDone && !exam.oneTimer && !exam.autoNext && <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>Do the parts in order, one after the other. When you press Start, the exam fills the screen. If you leave full screen by mistake, press the orange "Back to full screen" button at the top. When the time runs out, your answers are sent automatically.</div>}
               {allDone && exam.released === false && <div style={{ background: T.primaryXSoft, borderRadius: 12, padding: '14px 16px', color: T.ink, fontSize: 15, lineHeight: 1.5 }}>
                 <b>Well done, you have finished this exam.</b> Your results are being marked. Your teacher will share your scores and answers in class.
               </div>}

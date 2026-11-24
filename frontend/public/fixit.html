@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fix It and Write It</title>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--ink:#0f1114;--muted:#5b6780;--line:#dae1ed;--accent:#0056d2;--navy:#002761;--ok:#276a1a;--okbg:#e9f5e6;--bad:#c0262d;--badbg:#fdecee;--warn:#a35b00;--warnbg:#fff4e0;--field:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'Source Sans 3','Source Sans Pro',system-ui,Arial,sans-serif;padding:16px 16px 60px}
+.wrap{max-width:900px;margin:0 auto;display:grid;gap:16px}
+header h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+nav button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:50px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer}
+nav button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav .sc{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:none;gap:14px}
+section.on{display:grid}
+h2{margin:0;font-size:22px;color:var(--navy)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px}
+.timer{font:800 26px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;min-width:86px}
+.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.tip{background:var(--warnbg);color:var(--ink);border-left:4px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:15px}
+.text{font:17px/1.75 Georgia,'Times New Roman',serif;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-line}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}.qn{font-weight:800;color:var(--accent)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertical}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.opts label{border:1.5px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600}
+.opts input{margin-right:6px}
+.right{background:var(--okbg)!important;border-color:var(--ok)!important}
+.wrong{background:var(--badbg)!important;border-color:var(--bad)!important}
+.fb{font-size:14px;margin-top:4px;color:var(--muted)}.fb b{color:var(--ok)}
+.score{font-weight:800;font-size:18px}
+.play{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 12px;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+.wc{font-size:14px;color:var(--muted)}
+.model{display:none;background:var(--okbg);border-radius:12px;padding:12px 14px;white-space:pre-line}
+.model.show{display:block}
+table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.hlist{margin:0;padding-left:22px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.item{display:none;gap:10px}.item.on{display:grid}
+.wrongs{font:19px/1.5 Georgia,serif;background:var(--badbg);border-radius:10px;padding:12px 14px}
+.wrongs s{text-decoration-color:var(--bad)}
+.inp{width:100%;font-size:18px;padding:10px 12px}
+.prog{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.prog div{height:100%;background:var(--accent);transition:width .3s}
+.round{font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.msg{border-radius:10px;padding:10px 12px;font-size:15px}.msg.ok{background:var(--okbg)}.msg.no{background:var(--badbg)}.msg.hint{background:var(--warnbg)}
+.big{font-size:44px;font-weight:800;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Fix It and Write It</h1><p>30 minutes · everything we practised: spelling, grammar, graph language and Task 2 sentences. Each sentence has ONE mistake. Type the whole sentence again, correctly. Wrong? You get a hint and a second try. Still wrong? Copy the correct sentence so your hand learns it.</p></header>
+<div class="bar"><span class="timer">30:00</span><button class="btn" id="start">Start</button><span class="score" id="score">0 points</span><span style="flex:1"></span><span id="count" style="color:var(--muted);font-weight:600"></span></div>
+<div class="prog"><div id="bar" style="width:0%"></div></div>
+<section class="on" id="game"><div id="items"><p style="margin:0">Press <b>Start</b> to begin. Work alone or with a partner: one types, the other checks.</p></div></section>
+<section id="done"></section>
+</div>
+<script>
+const ROUNDS = ['Round 1 · Spelling', 'Round 2 · Grammar', 'Round 3 · Describing a graph', 'Round 4 · Task 2 sentences'];
+const TABLE = '<div style="overflow-x:auto"><table class="g"><tr><th></th><th>2005</th><th>2015</th><th>2025</th></tr><tr><th>Science Museum</th><td>20,000</td><td>40,000</td><td>60,000</td></tr><tr><th>Art Gallery</th><td>50,000</td><td>40,000</td><td>30,000</td></tr><tr><th>History Museum</th><td>25,000</td><td>26,000</td><td>25,000</td></tr></table></div>';
+// [round, wrong sentence, [correct versions], hint, why]
+const ITEMS = [
+ [0, 'The acommodation near the university is cheap.', ['The accommodation near the university is cheap.'], 'One word is spelled wrong. It has double c AND double m.', 'accommodation: double c, double m.'],
+ [0, 'We must protect the enviroment.', ['We must protect the environment.'], 'Say it slowly: en-VI-ron-ment. A letter is missing.', 'environment has an n before the m.'],
+ [0, 'The class is on wensday.', ['The class is on Wednesday.'], 'Days start with a capital letter, and this one has a silent letter.', 'Wednesday: capital W and a silent d.'],
+ [0, 'I recomend this restaurant to visitors.', ['I recommend this restaurant to visitors.'], 'Double letter: c or m?', 'recommend: one c, double m.'],
+ [0, 'It is a great oportunity for students.', ['It is a great opportunity for students.'], 'Double letter after the o.', 'opportunity: double p.'],
+ [1, 'The number of student increased.', ['The number of students increased.'], 'The number of ... + a PLURAL noun.', '"The number of" + plural noun (students) + singular verb.'],
+ [1, 'Many people thinks that phones are useful.', ['Many people think that phones are useful.'], '"people" is plural. Look at the verb.', 'people think (not thinks).'],
+ [1, 'There is many advantages to studying abroad.', ['There are many advantages to studying abroad.'], 'advantages is plural.', 'There are + plural noun.'],
+ [1, 'In conclusion, I am agree with this view.', ['In conclusion, I agree with this view.'], '"agree" is already a verb.', 'I agree (never "I am agree").'],
+ [1, 'In 2010, sales rise to 50 million.', ['In 2010, sales rose to 50 million.'], '2010 is in the past.', 'Past year = past tense: rose.'],
+ [2, 'Visitors to the Science Museum doubled from 20,000 to 60,000.', ['Visitors to the Science Museum tripled from 20,000 to 60,000.', 'Visitors to the Science Museum trebled from 20,000 to 60,000.'], '20,000 → 60,000. How many times bigger?', '3 times bigger = tripled.'],
+ [2, "The Art Gallery's visitors rose steadily.", ["The Art Gallery's visitors fell steadily.", "The Art Gallery's visitors decreased steadily.", "The Art Gallery's visitors declined steadily.", "The Art Gallery's visitors dropped steadily."], 'Look at the Art Gallery: 50,000 → 30,000.', 'The numbers went down: fell / decreased steadily.'],
+ [2, "The History Museum's figures changed a lot.", ["The History Museum's figures remained stable.", "The History Museum's figures stayed the same.", "The History Museum's figures remained almost unchanged.", "The History Museum's figures stayed stable.", "The History Museum's figures remained the same."], '25,000 → 26,000 → 25,000. Did they change a lot?', 'Almost no change: remained stable / stayed the same.'],
+ [2, 'Overall, the Science Museum became less popular.', ['Overall, the Science Museum became more popular.', 'Overall, the Science Museum became much more popular.'], 'The Science Museum went from 20,000 to 60,000.', 'More visitors = more popular.'],
+ [2, 'In 2005, the Art Gallery was the least popular museum.', ['In 2005, the Art Gallery was the most popular museum.'], 'Which museum had the MOST visitors in 2005?', '50,000 was the highest in 2005: the most popular.'],
+ [3, 'Phones can distract students. However, some schools ban them.', ['Phones can distract students. Therefore, some schools ban them.', 'Phones can distract students. As a result, some schools ban them.', 'Phones can distract students. For this reason, some schools ban them.'], 'The second sentence is a RESULT of the first.', 'A result: Therefore / As a result.'],
+ [3, 'Studying abroad is expensive. Therefore, many families still pay for it.', ['Studying abroad is expensive. However, many families still pay for it.', 'Studying abroad is expensive. Nevertheless, many families still pay for it.'], 'Expensive ... but they still pay. That is a contrast.', 'A contrast: However.'],
+ [3, 'Although the course was difficult, but most students passed.', ['Although the course was difficult, most students passed.', 'The course was difficult, but most students passed.'], 'Although and but do the same job. Use only one.', 'Never use "although" and "but" together.'],
+ [3, 'Studying abroad is more expensive than study at home.', ['Studying abroad is more expensive than studying at home.'], 'Compare the same forms: studying ... ?', 'studying ... than studying.'],
+ [3, 'This essay will discuss both view.', ['This essay will discuss both views.'], '"both" means two.', 'both + plural: both views.'],
+];
+const norm = s => String(s).toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9', ]/g, ' ').replace(/\s+/g, ' ').trim();
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+let idx = 0, tries = 0, copying = false, pts = 0, firstTry = 0, missed = [], left = 1800, iv = null, over = false;
+function render() {
+  const it = ITEMS[idx];
+  $('#count').textContent = `Sentence ${idx + 1} of ${ITEMS.length}`;
+  $('#bar').style.width = `${(idx / ITEMS.length) * 100}%`;
+  $('#items').innerHTML = `<div class="item on"><div class="round">${ROUNDS[it[0]]}</div>${it[0] === 2 ? TABLE : ''}
+   <div class="wrongs">${esc(it[1])}</div>
+   <label for="inp" style="font-weight:700">${copying ? 'Copy the correct sentence exactly:' : 'Write the sentence again, correctly:'}</label>
+   ${copying ? `<div class="msg ok"><b>${esc(it[2][0])}</b><br><span style="color:var(--muted)">${esc(it[4])}</span></div>` : ''}
+   <input id="inp" class="inp" type="text" autocomplete="off" spellcheck="false">
+   <div style="display:flex;gap:8px"><button class="btn" id="go">Check</button>${!copying ? '<button class="btn sec" id="skip">Show me</button>' : ''}</div>
+   <div id="msg"></div></div>`;
+  const inp = $('#inp'); inp.focus();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+  $('#go').onclick = check;
+  const sk = $('#skip'); if (sk) sk.onclick = () => { copying = true; missed.push(idx); render(); };
+}
+function check() {
+  if (over) return;
+  const it = ITEMS[idx], v = norm($('#inp').value);
+  if (!v) return;
+  // names and days keep their capital letter (Wednesday, not wednesday)
+  const caps = a => a.split(/\s+/).slice(1).map(w => w.replace(/[^A-Za-z']/g, '')).filter(w => /^[A-Z]/.test(w));
+  const raw = $('#inp').value;
+  const ok = it[2].some(a => norm(a) === v && caps(a).every(w => raw.includes(w)));
+  if (copying) {
+    if (ok) next(); else { $('#msg').innerHTML = '<div class="msg no">Not quite the same. Look carefully and copy it again.</div>'; $('#inp').classList.add('wrong'); }
+    return;
+  }
+  if (ok) {
+    const p = tries === 0 ? 2 : 1; pts += p; if (tries === 0) firstTry++;
+    $('#score').textContent = `${pts} points`;
+    $('#msg').innerHTML = `<div class="msg ok"><b>Correct! +${p}</b> · ${esc(it[4])}</div>`;
+    $('#inp').classList.add('right'); $('#go').disabled = true; const sk = $('#skip'); if (sk) sk.disabled = true;
+    setTimeout(next, 1400);
+    return;
+  }
+  tries++;
+  $('#inp').classList.add('wrong');
+  if (tries === 1) $('#msg').innerHTML = `<div class="msg hint"><b>Not yet.</b> Hint: ${esc(it[3])} Try again.</div>`;
+  else { missed.push(idx); copying = true; render(); }
+}
+function next() {
+  idx++; tries = 0; copying = false;
+  if (idx >= ITEMS.length) return finish();
+  render();
+}
+function finish() {
+  over = true; clearInterval(iv); $('#bar').style.width = '100%';
+  $('#game').classList.remove('on'); const d = $('#done'); d.classList.add('on');
+  const miss = [...new Set(missed)];
+  d.innerHTML = `<h2>Finished!</h2><div class="big">${pts} / ${ITEMS.length * 2}</div><p style="margin:0">${firstTry} of ${ITEMS.length} right the first time${idx < ITEMS.length ? ` · you reached sentence ${idx + 1}` : ''}.</p>
+   ${miss.length ? `<p style="margin:0"><b>Practise these again before Sunday:</b></p><ol>${miss.map(i => `<li><s>${esc(ITEMS[i][1])}</s><br><b>${esc(ITEMS[i][2][0])}</b> <span style="color:var(--muted)">· ${esc(ITEMS[i][4])}</span></li>`).join('')}</ol>` : '<p>Perfect: no mistakes to practise!</p>'}
+   <button class="btn" onclick="location.reload()">Do it again</button>`;
+}
+$('#start').onclick = () => {
+  if (iv) return; $('#start').disabled = true; $('#start').textContent = 'Running…'; render();
+  const t = document.querySelector('.timer');
+  iv = setInterval(() => { left--; t.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000);
+};
+</script>
+</body>
+</html>

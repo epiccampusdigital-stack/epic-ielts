@@ -4,6 +4,9 @@ import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
 
 const ACTIVITIES = [
+  { id: 'fixit-24nov', title: 'Fix It and Write It', date: 'Tuesday 24 November', tag: '30 minutes · review of everything',
+    desc: 'Twenty sentences, each with one mistake: spelling, grammar, graph language and Task 2 sentences. Rewrite each one correctly. A wrong answer gets a hint and a second try, then you copy the correct sentence so you remember it.',
+    src: '/fixit.html' },
   { id: 'drills2-24nov', title: 'IELTS Timed Drills 2', date: 'Tuesday 24 November', tag: 'Spelling · Numbers · Reading · Writing',
     desc: 'Six drills on the small things that cost the most marks: spelling, numbers and dates, the word limit, paraphrasing, common grammar mistakes and linking words. Use headphones for Drills 1 and 2.',
     src: '/drills2.html' },

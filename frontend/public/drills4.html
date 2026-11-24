@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IELTS Timed Drills 4</title>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--ink:#0f1114;--muted:#5b6780;--line:#dae1ed;--accent:#0056d2;--navy:#002761;--ok:#276a1a;--okbg:#e9f5e6;--bad:#c0262d;--badbg:#fdecee;--warn:#a35b00;--warnbg:#fff4e0;--field:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'Source Sans 3','Source Sans Pro',system-ui,Arial,sans-serif;padding:16px 16px 60px}
+.wrap{max-width:900px;margin:0 auto;display:grid;gap:16px}
+header h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+nav button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:50px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer}
+nav button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav .sc{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:none;gap:14px}
+section.on{display:grid}
+h2{margin:0;font-size:22px;color:var(--navy)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px}
+.timer{font:800 26px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;min-width:86px}
+.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.tip{background:var(--warnbg);color:var(--ink);border-left:4px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:15px}
+.text{font:17px/1.75 Georgia,'Times New Roman',serif;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-line}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}.qn{font-weight:800;color:var(--accent)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertical}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.opts label{border:1.5px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600}
+.opts input{margin-right:6px}
+.right{background:var(--okbg)!important;border-color:var(--ok)!important}
+.wrong{background:var(--badbg)!important;border-color:var(--bad)!important}
+.fb{font-size:14px;margin-top:4px;color:var(--muted)}.fb b{color:var(--ok)}
+.score{font-weight:800;font-size:18px}
+.play{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 12px;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+.wc{font-size:14px;color:var(--muted)}
+.model{display:none;background:var(--okbg);border-radius:12px;padding:12px 14px;white-space:pre-line}
+.model.show{display:block}
+table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.hlist{margin:0;padding-left:22px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>IELTS Timed Drills 4</h1><p>Reading skills: skimming for the main idea, scanning for facts, summary completion, YES/NO/NOT GIVEN and sentence endings. Press <b>Start</b>: answers are marked when time is up (or press Check).</p></header>
+<nav id="nav"></nav>
+<div id="secs"></div>
+</div>
+<script>
+const PAGE_KEY = 'drills4-';
+
+const TXT = `Many cities are now turning old railway lines into parks. The most famous example is the High Line in New York, which opened in 2009 on a railway that had not been used since 1980. It is about 2.3 kilometres long and attracts millions of visitors every year.
+
+The idea was not new. Paris opened a similar park, the Promenade Plantee, in 1993, sixteen years before New York. Seoul followed in 2017 with Seoullo 7017, built on an old road bridge rather than a railway.
+
+Supporters say these parks bring nature into crowded cities and help local shops. However, critics point out that house prices near the High Line rose sharply, so some long-term residents could no longer afford to live there. In my view, cities should build these parks, but they must also protect cheap housing nearby.`;
+const SECS = [
+ { id:'b1', name:'Skimming', title:'Drill 1 · Skimming for the main idea', min:4, type:'select',
+   tip:'Skimming = reading FAST for the main idea. Read only the first sentence of each paragraph. Do not stop at difficult words.',
+   text:`<b>1.</b> Coffee was first drunk in Ethiopia and Yemen. From there, it spread to Turkey, Europe and the rest of the world.
+<b>2.</b> Too much coffee can cause poor sleep and a fast heartbeat. Doctors suggest no more than four cups a day.
+<b>3.</b> Coffee shops have become places to work, study and meet friends, not only places to drink coffee.
+<b>4.</b> Coffee farmers are often paid very little. Fair trade schemes try to give them a better price.`,
+   list:['The history of coffee','Health risks of drinking coffee','Coffee shops as social places','How coffee farmers are paid','How to make good coffee'],
+   items:[['Paragraph 1',0],['Paragraph 2',1],['Paragraph 3',2],['Paragraph 4',3]],
+   fb:'One heading (How to make good coffee) was not used. Extra headings are normal in IELTS.' },
+ { id:'b2', name:'Scanning', title:'Drill 2 · Scanning for facts', min:5, type:'text',
+   tip:'Scanning = looking for ONE fact (a number, a name, a year) without reading everything. Move your eyes fast and stop only at numbers and capital letters.',
+   text:TXT.replace(/\n/g,'<br>'),
+   items:[
+    ['Year the High Line opened',['2009'],'"opened in 2009".'],
+    ['Length of the High Line (km)',['2.3'],'"about 2.3 kilometres long".'],
+    ['City with the first park of this kind',['paris'],'Paris, 1993, sixteen years before New York.'],
+    ['Seoul\'s park was built on an old ________',['road bridge','bridge'],'"built on an old road bridge rather than a railway".'],
+    ['Year the New York railway stopped being used',['1980'],'"had not been used since 1980".'] ],
+   fb:'Questions follow the order of the text in most IELTS tasks (not in headings or matching).' },
+ { id:'b3', name:'Summary', title:'Drill 3 · Summary completion with a word list', min:5, type:'gap',
+   tip:'Use the same text (Drill 2). Read the words around each gap first: do you need a noun, verb or adjective? There are more words than gaps.',
+   text:TXT.replace(/\n/g,'<br>'),
+   words:['railway','prices','shops','residents','nature','tourists','cheaper','rose'],
+   items:[
+    ['The High Line was built on an unused ________.',0,'"on a railway that had not been used".'],
+    ['Supporters say the parks bring ________ into cities.',4,'"bring nature into crowded cities".'],
+    ['They also help local ________.',2,'"help local shops".'],
+    ['But house ________ near the High Line went up.',1,'"house prices near the High Line rose sharply".'],
+    ['Some long-term ________ had to move away.',3,'"some long-term residents could no longer afford to live there".'] ],
+   fb:'"rose" and "cheaper" fit the topic but not the grammar of any gap. Always check the grammar.' },
+ { id:'b4', name:'Y/N/NG', title:'Drill 4 · YES / NO / NOT GIVEN', min:5, type:'mc', opts:['YES','NO','NOT GIVEN'],
+   tip:'YES/NO/NOT GIVEN is about the WRITER\'S OPINION (TRUE/FALSE/NOT GIVEN is about facts). Look for opinion words: "In my view", "should", "must". Same text as Drill 2.',
+   text:TXT.replace(/\n/g,'<br>'),
+   items:[
+    ['Cities should build parks on old railways.',0,'"In my view, cities should build these parks".'],
+    ['Cities do not need to think about housing near the parks.',1,'"they must also protect cheap housing nearby".'],
+    ['The High Line is the best park in the world.',2,'The writer never says this.'],
+    ['Seoullo 7017 is more popular than the High Line.',2,'No comparison of popularity.'] ],
+   fb:'"famous" is not the same as "best", and a fact is not an opinion.' },
+ { id:'b5', name:'Endings', title:'Drill 5 · Matching sentence endings', min:5, type:'select',
+   tip:'Each beginning has ONE ending that is true AND grammatically correct. Read the beginning, guess the ending, then find it. Same text as Drill 2.',
+   text:TXT.replace(/\n/g,'<br>'),
+   list:['because house prices went up.','sixteen years after Paris.','on a road bridge.','millions of visitors a year.','because it was too expensive.'],
+   items:[['The High Line opened',1],['The High Line attracts',3],['Seoul built its park',2],['Some residents left the area',0]],
+   fb:'Ending E is a trap: nothing says a park was too expensive.' },
+];
+</script>
+<script src="drill-engine.js"></script>
+</body>
+</html>

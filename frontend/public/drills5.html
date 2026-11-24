@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IELTS Timed Drills 5</title>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--ink:#0f1114;--muted:#5b6780;--line:#dae1ed;--accent:#0056d2;--navy:#002761;--ok:#276a1a;--okbg:#e9f5e6;--bad:#c0262d;--badbg:#fdecee;--warn:#a35b00;--warnbg:#fff4e0;--field:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'Source Sans 3','Source Sans Pro',system-ui,Arial,sans-serif;padding:16px 16px 60px}
+.wrap{max-width:900px;margin:0 auto;display:grid;gap:16px}
+header h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+nav button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:50px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer}
+nav button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav .sc{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:none;gap:14px}
+section.on{display:grid}
+h2{margin:0;font-size:22px;color:var(--navy)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px}
+.timer{font:800 26px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;min-width:86px}
+.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.tip{background:var(--warnbg);color:var(--ink);border-left:4px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:15px}
+.text{font:17px/1.75 Georgia,'Times New Roman',serif;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-line}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}.qn{font-weight:800;color:var(--accent)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertical}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.opts label{border:1.5px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600}
+.opts input{margin-right:6px}
+.right{background:var(--okbg)!important;border-color:var(--ok)!important}
+.wrong{background:var(--badbg)!important;border-color:var(--bad)!important}
+.fb{font-size:14px;margin-top:4px;color:var(--muted)}.fb b{color:var(--ok)}
+.score{font-weight:800;font-size:18px}
+.play{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 12px;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+.wc{font-size:14px;color:var(--muted)}
+.model{display:none;background:var(--okbg);border-radius:12px;padding:12px 14px;white-space:pre-line}
+.model.show{display:block}
+table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.hlist{margin:0;padding-left:22px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>IELTS Timed Drills 5</h1><p>Writing skills: numbers as words, comparing data, Task 2 question types, paraphrasing the question and formal words. Press <b>Start</b>: answers are marked when time is up (or press Check).</p></header>
+<nav id="nav"></nav>
+<div id="secs"></div>
+</div>
+<script>
+const PAGE_KEY = 'drills5-';
+
+const SECS = [
+ { id:'c1', name:'Numbers', title:'Drill 1 · Writing numbers in words (Task 1)', min:5, type:'select',
+   tip:'Good Task 1 answers change numbers into words: 50% = half, 25% = a quarter. It shows a wider vocabulary.',
+   list:['a quarter','a third','half','two thirds','three quarters','the majority','a small minority'],
+   items:[['25%',0],['33%',1],['50%',2],['66%',3],['75%',4],['about 60 to 80%',5],['3%',6]],
+   fb:'You can also say "just over half" (52%) or "nearly a third" (31%).' },
+ { id:'c2', name:'Comparing', title:'Drill 2 · Comparing data (Task 1)', min:6, type:'gap',
+   tip:'Task 1 always asks you to "make comparisons". Use comparatives, superlatives and "as ... as".',
+   text:'<b>Weekly hours spent online:</b> Teenagers 30 · Adults 20 · Older people 10',
+   words:['more','the most','twice as','less','the least','as much as','three times as'],
+   items:[
+    ['Teenagers spent ________ time online of the three groups.',1,'The highest = the most.'],
+    ['Older people spent ________ time online.',4,'The lowest = the least.'],
+    ['Adults spent ________ time online than teenagers.',3,'20 is less than 30.'],
+    ['Adults spent ________ much time online as older people.',2,'20 = 2 x 10: twice as much as.'],
+    ['Teenagers spent ________ much time online as older people.',6,'30 = 3 x 10: three times as much as.'],
+    ['Teenagers spent ________ time online than adults.',0,'30 is more than 20.'] ],
+   fb:'"twice as much AS" and "three times as much AS": never "than" after "as much".' },
+ { id:'c3', name:'Question types', title:'Drill 3 · Know the Task 2 question type', min:6, type:'select',
+   tip:'Every Task 2 question asks for something different. If you answer the wrong question, your band falls. Find the type first.',
+   list:['Opinion (agree or disagree)','Discuss both views + your opinion','Problem and solution','Advantages and disadvantages','Two-part question'],
+   items:[
+    ['Some people think university should be free for everyone. To what extent do you agree or disagree?',0],
+    ['Many cities have traffic problems. What causes this, and how can it be solved?',2],
+    ['Some say children should start school at 4; others say 7 is better. Discuss both views and give your opinion.',1],
+    ['More people now work from home. What are the advantages and disadvantages of this?',3],
+    ['Why do many young people want to study abroad? Is this a positive or negative development?',4] ],
+   fb:'Opinion: say if you agree. Discuss: both sides then your view. Problem/solution: causes then solutions. Adv/disadv: both. Two-part: answer BOTH questions.' },
+ { id:'c4', name:'Paraphrase', title:'Drill 4 · Paraphrasing the question', min:6, type:'mcq',
+   tip:'Your introduction must NOT copy the question. Change the words but keep the meaning.',
+   items:[
+    ['Question: "Many people believe that children spend too much time on screens."',['Many people believe that children spend too much time on screens.','It is often said that young people use phones and computers for too many hours.','Children like screens.'],1,'Same meaning, new words. A copies; C changes the meaning.'],
+    ['Question: "The number of cars in cities is increasing."',['More and more vehicles are appearing on city roads.','There are no cars in cities.','The number of cars in cities is increasing very much.'],0,'cars → vehicles, increasing → more and more.'],
+    ['Question: "Some people think that tourism harms local culture."',['Tourism is good for everyone.','Some people think that tourism harms local culture today.','It is sometimes argued that visitors from abroad damage traditional ways of life.'],2,'tourism → visitors from abroad; harms → damage; culture → traditional ways of life.'],
+    ['Question: "Governments should spend more money on public transport."',['Governments should spend more money on public transport.','It has been suggested that the state ought to invest more in buses and trains.','Buses are cheap.'],1,'spend money → invest; public transport → buses and trains.'] ],
+   fb:'Change: nouns (cars → vehicles), verbs (spend → invest) and the sentence start ("It is often said that...").' },
+ { id:'c5', name:'Formal words', title:'Drill 5 · Formal words for Task 2', min:5, type:'gap',
+   tip:'IELTS essays need a formal style. Replace everyday words with formal ones.',
+   words:['children','a large number of','obtain','However','do not','extremely','reduce'],
+   items:[
+    ['Kids learn faster than adults. → ________ learn faster than adults.',0,'kids → children'],
+    ['Lots of people work from home. → ________ people work from home.',1,'lots of → a large number of'],
+    ['Students can get a scholarship. → Students can ________ a scholarship.',2,'get → obtain'],
+    ['But this is not always true. → ________, this is not always true.',3,'But (at the start) → However,'],
+    ['Many people don\'t agree. → Many people ________ agree.',4,'No short forms: don\'t → do not'],
+    ['This is really important. → This is ________ important.',5,'really → extremely'],
+    ['We must cut pollution. → We must ________ pollution.',6,'cut → reduce'] ],
+   fb:'Avoid: kids, lots of, get, really, don\'t, starting a sentence with But or And.' },
+];
+</script>
+<script src="drill-engine.js"></script>
+</body>
+</html>

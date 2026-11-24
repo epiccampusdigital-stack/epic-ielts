@@ -3,16 +3,26 @@ import { useState } from 'react';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
 
+// In the order they are done in class
 const ACTIVITIES = [
-  { id: 'fixit-24nov', title: 'Fix It and Write It', date: 'Tuesday 24 November', tag: '30 minutes · review of everything',
-    desc: 'Twenty sentences, each with one mistake: spelling, grammar, graph language and Task 2 sentences. Rewrite each one correctly. A wrong answer gets a hint and a second try, then you copy the correct sentence so you remember it.',
-    src: '/fixit.html' },
+  { id: 'drills-24nov', title: 'IELTS Timed Drills 1', date: 'Tuesday 24 November', tag: 'Listening · Reading · Writing',
+    desc: 'Six timed drills for the Final Exam: listening traps, True/False/Not Given, headings, graph language, a Task 1 overview and a Task 2 introduction. Use headphones for Drill 1.',
+    src: '/drills.html' },
   { id: 'drills2-24nov', title: 'IELTS Timed Drills 2', date: 'Tuesday 24 November', tag: 'Spelling · Numbers · Reading · Writing',
     desc: 'Six drills on the small things that cost the most marks: spelling, numbers and dates, the word limit, paraphrasing, common grammar mistakes and linking words. Use headphones for Drills 1 and 2.',
     src: '/drills2.html' },
-  { id: 'drills-24nov', title: 'IELTS Timed Drills', date: 'Tuesday 24 November', tag: 'Listening · Reading · Writing',
-    desc: 'Six timed drills for the Final Exam: listening traps, True/False/Not Given, headings, graph language, a Task 1 overview and a Task 2 introduction. Use headphones for Drill 1.',
-    src: '/drills.html' },
+  { id: 'fixit-24nov', title: 'Fix It and Write It', date: 'Tuesday 24 November', tag: '30 minutes · review of everything',
+    desc: 'Twenty sentences, each with one mistake: spelling, grammar, graph language and Task 2 sentences. Rewrite each one correctly. A wrong answer gets a hint and a second try, then you copy the correct sentence so you remember it.',
+    src: '/fixit.html' },
+  { id: 'drills3-24nov', title: 'IELTS Timed Drills 3 · Listening', date: 'Tuesday 24 November', tag: 'Maps · Letters · Choices · Signposts · Word forms',
+    desc: 'Directions on a map, spelled names, choosing between similar options, signpost words in lectures, and plurals in gap answers. Use headphones.',
+    src: '/drills3.html' },
+  { id: 'drills4-24nov', title: 'IELTS Timed Drills 4 · Reading', date: 'Tuesday 24 November', tag: 'Skimming · Scanning · Summary · Y/N/NG · Endings',
+    desc: 'Skim for the main idea, scan for facts, complete a summary from a word list, YES/NO/NOT GIVEN (the writer\'s views) and matching sentence endings.',
+    src: '/drills4.html' },
+  { id: 'drills5-24nov', title: 'IELTS Timed Drills 5 · Writing', date: 'Tuesday 24 November', tag: 'Numbers · Comparing · Question types · Paraphrase · Formal words',
+    desc: 'Write numbers as words, compare data, recognise the five Task 2 question types, paraphrase the question and use formal words.',
+    src: '/drills5.html' },
 ];
 
 export default function ClassPage() {
@@ -26,13 +36,13 @@ export default function ClassPage() {
           <div style={{ background: T.navy, color: '#fff', borderRadius: 16, padding: '22px 24px' }}>
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', color: '#b0e5fb' }}>CLASS</div>
             <h1 style={{ margin: '4px 0 6px', fontSize: 28 }}>Today's class activities</h1>
-            <div style={{ fontSize: 15, color: T.navyText, lineHeight: 1.5 }}>Open the activity your teacher tells you to. Newest first.</div>
+            <div style={{ fontSize: 15, color: T.navyText, lineHeight: 1.5 }}>Do the activities in order, or open the one your teacher tells you to.</div>
           </div>
           {ACTIVITIES.map((x, i) => (
             <button key={x.id} type="button" onClick={() => setOpen(x.id)}
               style={{ textAlign: 'left', background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 16, padding: 20, cursor: 'pointer', fontFamily: T.font, display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.primary, background: T.primarySoft, borderRadius: 20, padding: '3px 10px' }}>{i === 0 ? 'Activity 1 · newest' : `Activity ${i + 1}`}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: T.primary, background: T.primarySoft, borderRadius: 20, padding: '3px 10px' }}>{`Activity ${i + 1}`}</span>
                 <span style={{ fontSize: 13, color: T.mid }}>{x.date} · {x.tag}</span>
               </div>
               <div style={{ fontSize: 21, fontWeight: 700 }}>{x.title}</div>

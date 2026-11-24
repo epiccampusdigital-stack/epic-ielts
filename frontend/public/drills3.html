@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IELTS Timed Drills 3</title>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--ink:#0f1114;--muted:#5b6780;--line:#dae1ed;--accent:#0056d2;--navy:#002761;--ok:#276a1a;--okbg:#e9f5e6;--bad:#c0262d;--badbg:#fdecee;--warn:#a35b00;--warnbg:#fff4e0;--field:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151c;--card:#1a2029;--ink:#e8ecf2;--muted:#9aa6ba;--line:#2c3441;--accent:#6aa7ff;--navy:#c9d6ec;--ok:#7ed37a;--okbg:#1d2e1f;--bad:#ff8a8f;--badbg:#3a1d20;--warn:#ffc46b;--warnbg:#3a2c12;--field:#11151c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 'Source Sans 3','Source Sans Pro',system-ui,Arial,sans-serif;padding:16px 16px 60px}
+.wrap{max-width:900px;margin:0 auto;display:grid;gap:16px}
+header h1{margin:0;font-size:28px}header p{margin:4px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+nav button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:50px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer}
+nav button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav .sc{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:none;gap:14px}
+section.on{display:grid}
+h2{margin:0;font-size:22px;color:var(--navy)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px}
+.timer{font:800 26px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;min-width:86px}
+.timer.low{color:var(--bad)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.tip{background:var(--warnbg);color:var(--ink);border-left:4px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:15px}
+.text{font:17px/1.75 Georgia,'Times New Roman',serif;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-line}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}.qn{font-weight:800;color:var(--accent)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertical}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.opts label{border:1.5px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600}
+.opts input{margin-right:6px}
+.right{background:var(--okbg)!important;border-color:var(--ok)!important}
+.wrong{background:var(--badbg)!important;border-color:var(--bad)!important}
+.fb{font-size:14px;margin-top:4px;color:var(--muted)}.fb b{color:var(--ok)}
+.score{font-weight:800;font-size:18px}
+.play{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 12px;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+.wc{font-size:14px;color:var(--muted)}
+.model{display:none;background:var(--okbg);border-radius:12px;padding:12px 14px;white-space:pre-line}
+.model.show{display:block}
+table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.hlist{margin:0;padding-left:22px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>IELTS Timed Drills 3</h1><p>Listening skills: directions on a map, letters in names, choosing between similar options, signpost words and word forms. Headphones on. Each recording can be played twice. Press <b>Start</b>: answers are marked when time is up (or press Check).</p></header>
+<nav id="nav"></nav>
+<div id="secs"></div>
+</div>
+<script>
+const PAGE_KEY = 'drills3-';
+
+const SECS = [
+ { id:'a1', name:'Map words', title:'Drill 1 · Directions and places on a map', min:7, type:'listenmc',
+   tip:'Map questions use these words: opposite (across from), next to, between, behind, in front of, on the corner of, at the end of. Listen for the LAST place the speaker says.',
+   items:[
+    ['Where is the cafe?','The cafe is opposite the bank, across the road.',['Next to the bank','Opposite the bank','Behind the bank'],1,'"opposite" = across the road.'],
+    ['Where is the library?','Go past the post office. The library is between the post office and the park.',['Before the post office','Between the post office and the park','Inside the park'],1,'"between" = in the middle of two places.'],
+    ['Where is the car park?','The car park is behind the sports centre, not in front of it.',['In front of the sports centre','Behind the sports centre','Next to the sports centre'],1,'Trap: "not in front of it".'],
+    ['Where is the information desk?','When you come in through the main door, the information desk is immediately on your left.',['On the right of the main door','On the left of the main door','At the end of the hall'],1,'"immediately on your left".'],
+    ['Where is the toilet?','The toilets are at the end of the corridor, past the lifts.',['Next to the lifts','At the end of the corridor','Before the lifts'],1,'"past the lifts" = after them, at the end.'],
+    ['Where is the bus stop?','There used to be a bus stop outside the school, but it has moved to the corner of King Street.',['Outside the school','On the corner of King Street','Opposite King Street'],1,'"used to be" = old place. The new place is the answer.'] ],
+   fb:'Learn: opposite · between · behind · in front of · next to · on the corner of · at the end of · past.' },
+ { id:'a2', name:'Letters', title:'Drill 2 · Spelled names and letters', min:6, type:'listen',
+   tip:'Students mix up these letters: A / E / I, G / J, B / P / V, M / N. Listen to each letter. Write the name with a capital letter.',
+   items:[
+    ['Name','My surname is spelled G, A, R, C, I, A. Garcia.',['garcia']],
+    ['Street','The street is H, A, Y, E, S. Hayes Street.',['hayes','hayes street']],
+    ['Name','My first name is J, E, N, N, Y. Jenny.',['jenny']],
+    ['Town','The town is spelled B, R, I, G, H, T, O, N. Brighton.',['brighton']],
+    ['Teacher','My teacher is Mr V, A, U, G, H, A, N. Vaughan.',['vaughan']],
+    ['Code','The code is P, E, M, double N.',['pemnn']] ],
+   fb:'E sounds like "ee", I sounds like "eye", A sounds like "ay". G = "jee", J = "jay". "Double N" = NN.' },
+ { id:'a3', name:'Similar options', title:'Drill 3 · Choosing between similar options', min:8, type:'listenmc',
+   tip:'In multiple choice, you will often hear ALL three options. Only one answers the question. Listen for "but", "actually", "in the end" and "not".',
+   items:[
+    ['What did Sam finally choose to study?','I thought about medicine, and my parents wanted me to do law, but in the end I chose engineering.',['Medicine','Law','Engineering'],2,'"in the end" = the final choice.'],
+    ['Why is the museum closed?','The museum is closed today. It is not because of the holiday, and the staff are not on strike. It is closed because the roof is being repaired.',['A holiday','A staff strike','Repairs'],2,'Two options are mentioned with "not".'],
+    ['How will the students travel?','We usually go by bus, and some wanted to cycle, but this time we are taking the train because it is faster.',['By bus','By bike','By train'],2,'"this time" = this trip.'],
+    ['What does the woman want to buy?','I was looking at the jackets, and the boots were nice too, but what I really need is a warm hat.',['A jacket','Boots','A hat'],2,'"what I really need".'],
+    ['When is the deadline?','The deadline was Friday, but the teacher has given us until Monday.',['Friday','Monday','Wednesday'],1,'The deadline changed.'],
+    ['What is the biggest problem with the flat?','The kitchen is small and the street is a bit noisy, but the worst thing is that it is very cold in winter.',['The small kitchen','The noise','The cold'],2,'"the worst thing" = the biggest problem.'] ],
+   fb:'The first option you hear is usually NOT the answer. Wait for the end of the sentence.' },
+ { id:'a4', name:'Signposts', title:'Drill 4 · Signpost words in a lecture', min:5, type:'mcq',
+   tip:'In Part 4, the speaker uses signpost words to show what comes next. If you know them, you know where the answer is coming.',
+   items:[
+    ['"However, ..." means the speaker will...',['give an example','say something different or opposite','finish the talk'],1,'However = contrast.'],
+    ['"For instance, ..." means the speaker will...',['give an example','give a reason','change the topic'],0,'For instance = for example.'],
+    ['"The main reason is ..." means the speaker will...',['explain why','give a date','repeat the question'],0,'reason = why.'],
+    ['"Moving on to ..." means the speaker will...',['give an example','start a new topic','disagree'],1,'Moving on = next topic, so the next question starts.'],
+    ['"To sum up, ..." means the speaker will...',['add a new idea','give a short summary at the end','give the first point'],1,'To sum up = summary at the end.'],
+    ['"As a result, ..." means the speaker will...',['say what happened because of it','compare two things','give a definition'],0,'As a result = the effect.'] ] },
+ { id:'a5', name:'Word forms', title:'Drill 5 · Plurals and word forms', min:6, type:'listen',
+   tip:'Your answer must fit the sentence. Listen for plural -s and the right word form (noun, verb or adjective). A missing -s is a wrong answer.',
+   items:[
+    ['Bring two ________ to the exam','Please bring two pencils to the exam.',['pencils']],
+    ['The tour includes a visit to the ________','The tour includes a visit to the gardens.',['gardens']],
+    ['Students need good ________ skills','Students need good communication skills.',['communication']],
+    ['The main problem is ________','The main problem is pollution in the city.',['pollution']],
+    ['Classes are on ________','Classes are on Tuesdays and Thursdays. Write the first day.',['tuesdays','tuesday']],
+    ['The course gives advice on ________','The course gives advice on nutrition and diet. Write the first word.',['nutrition']] ],
+   fb:'Before you listen, read the gap: does it need a plural? a noun? Then you know what to listen for.' },
+];
+</script>
+<script src="drill-engine.js"></script>
+</body>
+</html>

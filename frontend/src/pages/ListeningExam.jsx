@@ -14,6 +14,9 @@ export default function ListeningExam() {
   const [paper, setPaper] = useState(null);
   const [answers, setAnswers] = useState({});
   const [activeSIdx, setActiveSIdx] = useState(0);
+  const bodyRef = useRef(null);
+  const mainRef = useRef(null);
+  useEffect(() => { [bodyRef.current, mainRef.current].forEach(el => { if (el) el.scrollTop = 0; }); }, [activeSIdx]);
   const [playedSections, setPlayedSections] = useState({});
   const [audioPlaying, setAudioPlaying] = useState(false);
   const MAX_PLAYS = 2;
@@ -304,8 +307,37 @@ export default function ListeningExam() {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Source Sans Pro, sans-serif', background: '#f7f9fc', overflow: 'hidden' }}>
+    <div className="lx-root" style={{ display: 'flex', flexDirection: 'column', fontFamily: 'Source Sans Pro, sans-serif', background: '#f7f9fc', overflow: 'hidden' }}>
       <style>{`
+        .lx-root { height: 100vh; height: 100dvh; }
+        .lx-head { padding: 0 32px; height: 72px; }
+        .lx-body { flex: 1; display: flex; overflow: hidden; }
+        .lx-side { width: 380px; border-right: 1px solid #dae1ed; }
+        .lx-side-in { padding: 32px; flex: 1; }
+        .lx-audio { margin-top: 40px; }
+        .lx-main { padding: 48px 64px; }
+        .lx-foot { height: 64px; }
+        @media (max-width: 899px) {
+          .lx-head { padding: 8px 12px; height: auto; gap: 8px; }
+          .lx-head .lx-logo { height: 24px !important; }
+          .lx-head .lx-code { font-size: 14px !important; }
+          .lx-head .lx-timer { padding: 6px 10px !important; }
+          .lx-head .lx-timer-label { display: none; }
+          .lx-head .lx-timer-val { font-size: 18px !important; }
+          .lx-head .lx-end { padding: 10px 14px !important; }
+          .lx-head .lx-right { gap: 8px !important; }
+          .lx-body { flex-direction: column; overflow-y: auto; }
+          .lx-side { width: auto; border-right: 0; border-bottom: 1px solid #dae1ed; flex-shrink: 0; }
+          .lx-side-in { padding: 12px 16px; }
+          .lx-sections { display: none; }
+          .lx-audio { margin-top: 0 !important; padding: 12px !important; border-radius: 14px !important; }
+          .lx-main { padding: 20px 16px 32px; overflow-y: visible !important; flex: none !important; }
+          .lx-main h1 { font-size: 22px !important; }
+          .lx-q { gap: 10px !important; }
+          .lx-foot { height: auto; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); gap: 6px !important; }
+          .lx-foot button { flex: 1; padding: 8px 4px !important; font-size: 12px !important; line-height: 1.2; }
+          .lx-foot button span { display: block; margin-left: 0 !important; }
+        }
         .listen-input { width: 100%; border: none; border-bottom: 2px solid #c3cddd; padding: 6px 2px; font-size: 14px; color: #0f1114; background: transparent; outline: none; transition: border-color 0.2s; }
         .listen-input:focus { border-bottom-color: #0056d2; }
         .choice-btn { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1.5px solid #dae1ed; border-radius: 12px; background: #fff; cursor: pointer; margin-bottom: 8px; width: 100%; text-align: left; }
@@ -329,26 +361,27 @@ export default function ListeningExam() {
       )}
 
       {/* Header */}
-      <div style={{ background: '#fff', padding: '0 32px', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #dae1ed' }}>
+      <div className="lx-head" style={{ background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #dae1ed' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <img src="/logo.png" style={{ height: 32 }} alt="EPIC" />
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#0f1114' }}>{paper.paperCode}</div>
+          <img className="lx-logo" src="/logo.png" style={{ height: 32 }} alt="EPIC" />
+          <div className="lx-code" style={{ fontSize: 18, fontWeight: 700, color: '#0f1114' }}>{paper.paperCode}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ background: '#f7f9fc', border: '1px solid #dae1ed', padding: '8px 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#5b6780' }}>TIME LEFT</span>
-            <span style={{ fontSize: 24, fontWeight: 700, color: timeLeft < 300 ? '#ef4444' : '#0f1114', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
+        <div className="lx-right" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div className="lx-timer" style={{ background: '#f7f9fc', border: '1px solid #dae1ed', padding: '8px 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="lx-timer-label" style={{ fontSize: 12, fontWeight: 700, color: '#5b6780' }}>TIME LEFT</span>
+            <span className="lx-timer-val" style={{ fontSize: 24, fontWeight: 700, color: timeLeft < 300 ? '#ef4444' : '#0f1114', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
           </div>
-          <button onClick={() => handleEnd(false)} disabled={submitting} style={{ padding: '12px 28px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>
+          <button className="lx-end" onClick={() => handleEnd(false)} disabled={submitting} style={{ padding: '12px 28px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>
             {submitting ? 'Submitting...' : 'Finish Test'}
           </button>
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="lx-body" ref={bodyRef}>
         {/* Sidebar */}
-        <div style={{ width: '380px', borderRight: '1px solid #dae1ed', background: '#fff', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: 32, flex: 1 }}>
+        <div className="lx-side" style={{ background: '#fff', display: 'flex', flexDirection: 'column' }}>
+          <div className="lx-side-in">
+            <div className="lx-sections">
             <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f1114', marginBottom: 24 }}>Sections</h3>
             <div style={{ display: 'grid', gap: 12 }}>
               {sections.map((s, idx) => {
@@ -366,8 +399,9 @@ export default function ListeningExam() {
                 );
               })}
             </div>
+            </div>
 
-            <div style={{ marginTop: 40, background: '#e8eef7', borderRadius: 20, padding: 24, textAlign: 'center' }}>
+            <div className="lx-audio" style={{ background: '#e8eef7', borderRadius: 20, padding: 24, textAlign: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#5b6780', marginBottom: 12 }}>AUDIO CONTROL</div>
               {(() => {
                 const audioUrl = currentSection.audioUrl || paper.audioUrl || null;
@@ -401,7 +435,7 @@ export default function ListeningExam() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '48px 64px', background: '#fff' }}>
+        <div className="lx-main" ref={mainRef} style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: '#0f1114', marginBottom: 8 }}>
               Section {currentSection.number}
@@ -437,7 +471,7 @@ export default function ListeningExam() {
                     if (inTable) return null;
 
                     return (
-                      <div key={q.id} style={{ display: 'flex', gap: 16 }}>
+                      <div key={q.id} className="lx-q" style={{ display: 'flex', gap: 16 }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: answers[q.id] ? '#0056d2' : '#e8eef7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: answers[q.id] ? '#fff' : '#5b6780', flexShrink: 0, transition: 'all 0.2s' }}>
                           {q.questionNumber}
                         </div>
@@ -505,7 +539,7 @@ export default function ListeningExam() {
       </div>
 
       {/* Navigator Footer */}
-      <div style={{ height: 64, background: '#fff', borderTop: '1px solid #dae1ed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <div className="lx-foot" style={{ background: '#fff', borderTop: '1px solid #dae1ed', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         {sections.map((s, idx) => {
           const sQs = (s.groups || []).flatMap(g => g.questions || []);
           const sMin = sQs.length ? Math.min(...sQs.map(q => q.questionNumber || 0)) : '?';

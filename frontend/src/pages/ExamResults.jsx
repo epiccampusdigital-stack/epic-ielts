@@ -11,6 +11,16 @@ const card = { background: '#fff', border: `1px solid ${T.hairline}`, borderRadi
 const band = b => (b == null ? '—' : Number(b).toFixed(1));
 
 // One sheet for a whole exam: overall band, each part's score and band, and every answer.
+// Phones: each question becomes a small card (no sideways scrolling); the printed PDF keeps the table
+const RES_CSS = `
+@media screen and (max-width: 640px) {
+  .res-table thead { display: none; }
+  .res-table, .res-table tbody, .res-table tr, .res-table td { display: block; width: 100%; box-sizing: border-box; }
+  .res-table tr { padding: 10px 4px; }
+  .res-table td { padding: 2px 4px !important; }
+  .res-table td[data-label]::before { content: attr(data-label) ": "; color: #5b6780; font-weight: 600; font-size: 13px; }
+}`;
+
 export default function ExamResults() {
   const { examId } = useParams();
   const navigate = useNavigate();
@@ -31,7 +41,7 @@ export default function ExamResults() {
 
   return (
     <div className="root" style={{ minHeight: '100vh', background: '#f6f8fc', fontFamily: T.font, color: T.ink }}>
-      <style>{'@page { size: A4; margin: 12mm; } @media print { .noprint, nav, .sn-row, .sn-mobile { display: none !important; } body, .root { background: #fff !important; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } tr { break-inside: avoid; } }'}</style>
+      <style>{'@page { size: A4; margin: 12mm; } @media print { .noprint, nav, .sn-row, .sn-mobile { display: none !important; } body, .root { background: #fff !important; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } tr { break-inside: avoid; } }' + RES_CSS}</style>
       <div className="noprint"><StudentNav active="exams" /></div>
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 16px 64px', display: 'grid', gap: 16 }}>
         <div className="noprint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -74,8 +84,8 @@ export default function ExamResults() {
             <div key={p.testType} style={{ ...card, display: 'grid', gap: 12 }}>
               <h2 style={{ margin: 0, fontSize: 22, color: T.navy }}>{SKILL[p.testType]} {p.total ? <span style={{ fontSize: 16, color: T.muted, fontWeight: 600 }}>· {p.score} / {p.total} · band {band(p.band)}</span> : null}</h2>
               {p.questions && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15, minWidth: 560 }}>
+                <div className="res-wrap" style={{ overflowX: 'auto' }}>
+                  <table className="res-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
                     <thead><tr style={{ textAlign: 'left', color: T.muted, fontSize: 13 }}>
                       <th style={{ padding: 8, width: 44 }}>Q</th><th style={{ padding: 8 }}>Question</th><th style={{ padding: 8 }}>Your answer</th><th style={{ padding: 8 }}>Correct answer</th>
                     </tr></thead>
@@ -83,12 +93,12 @@ export default function ExamResults() {
                       {p.questions.filter(q => !onlyWrong || !q.isCorrect).map(q => (
                         <tr key={q.n} style={{ borderTop: `1px solid ${T.hairline}`, verticalAlign: 'top', background: q.isCorrect ? 'transparent' : '#fff8f8' }}>
                           <td style={{ padding: 8, fontWeight: 800 }}>{q.isCorrect ? <span style={{ color: T.success }}>✓ {q.n}</span> : <span style={{ color: T.error }}>✗ {q.n}</span>}</td>
-                          <td style={{ padding: 8 }}>{q.question}{(!q.isCorrect || q.clip) && q.why && <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{q.why}</div>}</td>
-                          <td style={{ padding: 8, color: q.isCorrect ? T.success : T.error, fontWeight: 600 }}>{q.yours || <i style={{ color: T.mid }}>(no answer)</i>}</td>
-                          <td style={{ padding: 8, fontWeight: 700 }}>{q.correct}
+                          <td className="rt-q" style={{ padding: 8 }}>{q.question}{(!q.isCorrect || q.clip) && q.why && <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{q.why}</div>}</td>
+                          <td data-label="Your answer" style={{ padding: 8, color: q.isCorrect ? T.success : T.error, fontWeight: 600 }}>{q.yours || <i style={{ color: T.mid }}>(no answer)</i>}</td>
+                          <td data-label="Correct answer" style={{ padding: 8, fontWeight: 700 }}>{q.correct}
                             {q.clip && <div className="noprint" style={{ marginTop: 6, fontWeight: 400 }}>
                               <div style={{ fontSize: 12, color: T.muted, marginBottom: 2 }}>▶ Hear where the answer is</div>
-                              <audio controls preload="none" src={API_URL + q.clip} style={{ width: 220, height: 34 }} />
+                              <audio controls preload="none" src={API_URL + q.clip} style={{ width: 220, maxWidth: '100%', height: 34 }} />
                             </div>}
                           </td>
                         </tr>

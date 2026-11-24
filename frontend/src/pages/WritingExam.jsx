@@ -312,6 +312,9 @@ export default function WritingExam() {
   const [attempt, setAttempt] = useState(null);
   const [paper, setPaper] = useState(null);
   const [task, setTask] = useState(1);
+  // Phones: one pane at a time (task question or writing box), switched with the tabs under the header
+  const [mobileView, setMobileView] = useState('task');
+  useEffect(() => { setMobileView('task'); }, [task]);
   const [task1, setTask1] = useState('');
   const [task2, setTask2] = useState('');
   const [task3, setTask3] = useState(''); // three-task papers: the second report (taskNumber 3)
@@ -705,8 +708,23 @@ export default function WritingExam() {
   );
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Source Sans Pro, sans-serif', background: '#f0f6ff', overflow: 'hidden' }}>
+    <div className="exam-root" style={{ display: 'flex', flexDirection: 'column', fontFamily: 'Source Sans Pro, sans-serif', background: '#f0f6ff', overflow: 'hidden' }}>
       <style>{`
+        .exam-root { height: 100vh; height: 100dvh; }
+        .mobile-tabs { display: flex; background: #fff; border-bottom: 1px solid #dae1ed; flex-shrink: 0; }
+        .mobile-tabs button { flex: 1; padding: 12px 8px; border: 0; background: none; font: 700 15px 'Source Sans Pro', sans-serif; color: #5b6780; border-bottom: 3px solid transparent; cursor: pointer; }
+        .mobile-tabs button.on { color: #0056d2; border-bottom-color: #0056d2; }
+        .eh-title { display: none; }
+        @media (max-width: 1023px) {
+          .exam-layout > .passage-section, .exam-layout > .questions-section { flex: 1; min-height: 0 !important; border-right: 0 !important; }
+          .exam-layout[data-view="task"] > .questions-section { display: none !important; }
+          .exam-layout[data-view="write"] > .passage-section { display: none !important; }
+          .questions-section { padding: 12px !important; }
+          .writing-area { min-height: 240px; font-size: 16px; }
+          .wa-head { flex-wrap: wrap; gap: 6px; }
+        }
+        @media (min-width: 1024px) { .mobile-tabs { display: none; } }
+        @media (min-width: 600px) { .eh-title { display: block; } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .writing-area {
@@ -721,6 +739,7 @@ export default function WritingExam() {
           border-radius: 10px;
           resize: none;
           outline: none;
+          box-sizing: border-box;
           background: #f7f9fc;
           transition: border-color 0.2s;
         }
@@ -772,21 +791,18 @@ export default function WritingExam() {
 
         .exam-header {
           background: linear-gradient(135deg, #002761, #0048b0);
-          padding: 12px 16px;
-          height: auto;
-          min-height: 60px;
+          padding: 8px 12px;
+          min-height: 52px;
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           align-items: center;
-          justify-content: center;
-          gap: 12px;
+          justify-content: space-between;
+          gap: 8px;
           flex-shrink: 0;
         }
 
         @media (min-width: 768px) {
           .exam-header {
-            flex-direction: row;
-            justify-content: space-between;
             height: 60px;
             padding: 0 24px;
             gap: 0;
@@ -812,10 +828,10 @@ export default function WritingExam() {
 
       {/* Header */}
       <div className="exam-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <img src="/logo.png" alt="EPIC" style={{ height: 28, filter: 'brightness(0) invert(1)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          <img src="/logo.png" alt="EPIC" style={{ height: 24, filter: 'brightness(0) invert(1)' }} />
           <div className="mobile-hide" style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)' }} />
-          <div>
+          <div className="eh-title">
             <div style={{ color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
               EPIC IELTS — Writing {paper.paperCode}
             </div>
@@ -823,7 +839,7 @@ export default function WritingExam() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Task tabs */}
           <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 4 }}>
             {ORDER.map(t => (
@@ -891,8 +907,13 @@ export default function WritingExam() {
         </div>
       </div>
 
+      <div className="mobile-tabs">
+        <button type="button" className={mobileView === 'task' ? 'on' : ''} onClick={() => setMobileView('task')}>Task {shownNo(task)} question</button>
+        <button type="button" className={mobileView === 'write' ? 'on' : ''} onClick={() => setMobileView('write')}>Your answer ({wc} words)</button>
+      </div>
+
       {/* Body */}
-      <div className="exam-layout">
+      <div className="exam-layout" data-view={mobileView}>
 
         {/* Left — Task prompt */}
         <div className="passage-section" style={{ background: '#f7f9fc', borderRight: '1px solid #e3eeff', overflowY: 'auto' }}>
@@ -1084,7 +1105,7 @@ export default function WritingExam() {
             </div>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div className="wa-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: '#002761', margin: 0 }}>
               Your Answer — Task {shownNo(task)}
             </h3>

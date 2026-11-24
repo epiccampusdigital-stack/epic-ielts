@@ -28,6 +28,9 @@ export default function ReadingExam() {
    const [wordPopup, setWordPopup] = useState(null);
    const [wordLoading, setWordLoading] = useState(false);
    const [teachingMode, setTeachingMode] = useState(false);
+   // Phones: one pane at a time (passage or questions), switched with the tabs under the header
+   const [mobileView, setMobileView] = useState('passage');
+   const qPaneRef = useRef(null);
 
    const navigate = useNavigate();
    const timerRef = useRef(null);
@@ -37,6 +40,9 @@ export default function ReadingExam() {
    const teachingModeRef = useRef(false);
    // Admin can switch off the student pause button (Admin dashboard → Exam timer)
    const [canPause, setCanPause] = useState(false);
+   const passPaneRef = useRef(null);
+   useEffect(() => { if (qPaneRef.current) qPaneRef.current.scrollTop = 0; }, [questionPage, currentPassage]);
+   useEffect(() => { if (passPaneRef.current) passPaneRef.current.scrollTop = 0; }, [currentPassage]);
    useEffect(() => {
       axios.get(`${API_URL}/api/attempts/exam-settings`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
          .then(r => { const ok = r.data?.studentPause !== false; setCanPause(ok); if (!ok) { teachingModeRef.current = false; setTeachingMode(false); } })
@@ -740,8 +746,7 @@ export default function ReadingExam() {
    };
 
    return (
-      <div style={{
-         height: '100vh',
+      <div className="exam-root" style={{
          display: 'flex',
          flexDirection: 'column',
          fontFamily: "Source Sans Pro, sans-serif",
@@ -963,31 +968,49 @@ export default function ReadingExam() {
           }
         }
 
+        .exam-root { height: 100vh; height: 100dvh; }
         .exam-header {
           background: #002761;
-          padding: 0 16px;
-          height: auto;
-          min-height: 60px;
+          padding: 8px 12px;
+          min-height: 52px;
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           align-items: center;
-          justify-content: center;
-          gap: 12px;
-          padding-top: 12px;
-          padding-bottom: 12px;
+          justify-content: space-between;
+          gap: 8px;
           flex-shrink: 0;
         }
-
-        @media (min-width: 768px) {
-          .exam-header {
-            flex-direction: row;
-            justify-content: space-between;
-            height: 60px;
-            padding: 0 24px;
-            padding-top: 0;
-            padding-bottom: 0;
-          }
+        .exam-header .eh-timer { padding: 6px 12px !important; font-size: 16px !important; min-width: 70px !important; }
+        .exam-header .eh-logo { height: 22px !important; }
+        .mobile-tabs { display: flex; background: #fff; border-bottom: 1px solid #dae1ed; flex-shrink: 0; }
+        .mobile-tabs button { flex: 1; padding: 12px 8px; border: 0; background: none; font: 700 15px 'Source Sans Pro', sans-serif; color: #5b6780; border-bottom: 3px solid transparent; cursor: pointer; }
+        .mobile-tabs button.on { color: #0056d2; border-bottom-color: #0056d2; }
+        .exam-footer { background: #fff; border-top: 1px solid #dae1ed; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
+        .exam-footer .ef-mid { display: flex; gap: 6px; align-items: center; order: -1; width: 100%; }
+        .exam-footer .ef-mid .nav-btn { flex: 1; }
+        .eh-dots { display: none; }
+        .exam-footer .nav-btn { padding: 8px 10px; white-space: nowrap; }
+        .exam-footer .ef-end { min-width: 0 !important; }
+        .passage-body { line-height: 1.75 !important; text-align: left !important; }
+        @media (max-width: 1023px) {
+          .exam-layout > .passage-section, .exam-layout > .questions-section { flex: 1; min-height: 0 !important; border-right: 0; }
+          .exam-layout[data-view="passage"] > .questions-section { display: none; }
+          .exam-layout[data-view="questions"] > .passage-section { display: none; }
         }
+        @media (min-width: 1024px) {
+          .mobile-tabs { display: none; }
+          .exam-header { padding: 0 24px; height: 60px; }
+          .exam-header .eh-timer { padding: 8px 20px !important; font-size: 18px !important; min-width: 90px !important; }
+          .exam-header .eh-logo { height: 28px !important; }
+          .exam-footer { padding: 12px 24px; flex-wrap: nowrap; }
+          .exam-footer .ef-mid { order: 0; width: auto; }
+          .exam-footer .ef-mid .nav-btn { flex: none; }
+          .eh-dots { display: flex; gap: 8px; align-items: center; }
+          .exam-footer .nav-btn { padding: 9px 20px; }
+          .exam-footer .ef-end { min-width: 120px !important; }
+          .passage-body { line-height: 2 !important; text-align: justify !important; }
+        }
+
       `}</style>
 
          {showWarning && (
@@ -1018,8 +1041,8 @@ export default function ReadingExam() {
          )}
 
          <div className="exam-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-               <img src="/logo.png" alt="EPIC" style={{ height: '28px', filter: 'brightness(0) invert(1)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+               <img className="eh-logo" src="/logo.png" alt="EPIC" style={{ height: '28px', filter: 'brightness(0) invert(1)' }} />
                <div className="mobile-hide" style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)' }} />
                <div>
                   <div style={{ color: '#ffffff', fontSize: '13px', fontWeight: '600' }}>
@@ -1031,7 +1054,7 @@ export default function ReadingExam() {
                </div>
             </div>
 
-            <div className="mobile-hide" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="eh-dots">
                {safePassages.map((p) => (
                   <div
                      key={p}
@@ -1074,7 +1097,7 @@ export default function ReadingExam() {
                </button>
 )}
 
-               <div style={{
+               <div className="eh-timer" style={{
                   background: timerStyle.bg,
                   color: teachingMode ? '#f59e0b' : (timeLeft < 300 ? '#ef4444' : '#ffffff'),
                   padding: '8px 20px',
@@ -1104,8 +1127,13 @@ export default function ReadingExam() {
             </div>
          </div>
 
-         <div className="exam-layout">
-            <div className="passage-section">
+         <div className="mobile-tabs">
+            <button type="button" className={mobileView === 'passage' ? 'on' : ''} onClick={() => setMobileView('passage')}>Passage {currentPassage}</button>
+            <button type="button" className={mobileView === 'questions' ? 'on' : ''} onClick={() => setMobileView('questions')}>Questions ({answeredCount}/{questions.length})</button>
+         </div>
+
+         <div className="exam-layout" data-view={mobileView}>
+            <div className="passage-section" ref={passPaneRef}>
                <div style={{
                   borderLeft: '4px solid #0056d2',
                   paddingLeft: '20px',
@@ -1136,6 +1164,7 @@ export default function ReadingExam() {
                </div>
 
                <div
+                  className="passage-body"
                   style={{
                      fontFamily: "Georgia, 'Times New Roman', serif",
                      fontSize: '16px',
@@ -1172,7 +1201,7 @@ export default function ReadingExam() {
                </div>
             </div>
 
-            <div className="questions-section">
+            <div className="questions-section" ref={qPaneRef}>
                {teachingMode && (
                   <div style={{
                      background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
@@ -1314,20 +1343,12 @@ export default function ReadingExam() {
             </div>
          </div>
 
-         <div style={{
-            background: '#ffffff',
-            borderTop: '1px solid #dae1ed',
-            padding: '12px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexShrink: 0
-         }}>
-            <span style={{ fontSize: '12px', color: '#5b6780' }}>
+         <div className="exam-footer">
+            <span className="ef-count" style={{ fontSize: '12px', color: '#5b6780' }}>
                {answeredCount} of {questions.length} answered
             </span>
 
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="ef-mid">
                {safePassages.map((p) => (
                   <button
                      key={p}
@@ -1350,7 +1371,7 @@ export default function ReadingExam() {
                   ← Prev
                </button>
 
-               <span style={{ fontSize: '12px', color: '#8495b0', padding: '0 4px' }}>
+               <span className="mobile-hide" style={{ fontSize: '12px', color: '#8495b0', padding: '0 4px' }}>
                   {questionPage + 1}/{totalPages}
                </span>
 
@@ -1375,7 +1396,7 @@ export default function ReadingExam() {
             </div>
 
             <button
-               className="nav-btn danger"
+               className="nav-btn danger ef-end"
                onClick={handleEndClick}
                disabled={submitting}
                style={{ minWidth: '120px' }}

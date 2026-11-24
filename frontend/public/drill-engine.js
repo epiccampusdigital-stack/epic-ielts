@@ -1,5 +1,15 @@
 // Shared engine for the Class drill pages: each page sets SECS and PAGE_KEY, then loads this file.
 const $ = (s, el = document) => el.querySelector(s);
+// ---- answers lock as soon as they are given; no Check button; the drill is marked when every question is answered or time is up ----
+function lockAnswers(sec, finish) {
+  const qs = [...sec.querySelectorAll('.q')];
+  const answered = q => [...q.querySelectorAll('input,select')].some(x => x.dataset.locked === '1');
+  const lock = (q) => { q.querySelectorAll('input,select').forEach(x => { x.dataset.locked = '1'; if (x.type === 'text') x.readOnly = true; else x.disabled = true; }); q.querySelectorAll('.play').forEach(b => { b.disabled = true; }); if (qs.every(answered)) setTimeout(finish, 400); };
+  sec.addEventListener('change', e => { const q = e.target.closest('.q'); if (!q || e.target.type === 'text') return; if (e.target.tagName === 'SELECT' && !e.target.value) return; lock(q); });
+  sec.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.type === 'text' && e.target.value.trim()) { const q = e.target.closest('.q'); if (q) lock(q); } });
+  sec.addEventListener('focusout', e => { if (e.target.type === 'text' && e.target.value.trim() && !e.target.readOnly) { const q = e.target.closest('.q'); if (q && !(e.relatedTarget && q.contains(e.relatedTarget))) lock(q); } });
+}
+
 // ---- progress: a finished drill shows ✓ on its tab, and the Class page shows how many are done ----
 const PKEY = 'class-progress', PAGE = location.pathname.split('/').pop() || 'page';
 function progGet() { try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; } }
@@ -28,7 +38,7 @@ for (const S of SECS) {
     if (S.type === 'gap') body = esc(it[0]).replace('________', `<select data-i="${i}"><option value="">________</option>${S.words.map((o, k) => `<option value="${k}">${o}</option>`).join('')}</select>`);
     qs += `<div class="q"><div class="qn">${i + 1}</div><div>${body}<div class="fb"></div></div></div>`;
   });
-  html += `<section id="${S.id}" data-min="${S.min}"><h2>${S.title}</h2><div class="tip">${S.tip}</div>${(S.type === 'listen' || S.type === 'listenmc') && !('speechSynthesis' in window) ? '<div class="tip" style="border-color:var(--bad)"><b>Sound is not available in this browser.</b> Please use Google Chrome or Microsoft Edge.</div>' : ''}${S.text ? `<div class="text">${S.text}</div>` : ''}<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>${S.type === 'select' ? `<div class="tip" style="border-color:var(--accent)"><b>Phrases in the text:</b> ${S.list.map((o, k) => `${L[k]}. ${esc(o)}`).join(' · ')}</div>` : ''}<div class="qs">${qs}</div>${S.fb ? `<div class="fb fbend" style="display:none"><b>Tip:</b> ${S.fb}</div>` : ''}</section>`;
+  html += `<section id="${S.id}" data-min="${S.min}"><h2>${S.title}</h2><div class="tip">${S.tip}</div><div class="tip" style="border-color:var(--accent)">Each answer locks as soon as you give it (typed answers lock when you press Enter or move on), so think before you choose. </div>${(S.type === 'listen' || S.type === 'listenmc') && !('speechSynthesis' in window) ? '<div class="tip" style="border-color:var(--bad)"><b>Sound is not available in this browser.</b> Please use Google Chrome or Microsoft Edge.</div>' : ''}${S.text ? `<div class="text">${S.text}</div>` : ''}<div class="bar"><span class="timer">--:--</span><button class="btn start">Start</button><button class="btn sec check">Check</button><span class="score"></span></div>${S.type === 'select' ? `<div class="tip" style="border-color:var(--accent)"><b>Phrases in the text:</b> ${S.list.map((o, k) => `${L[k]}. ${esc(o)}`).join(' · ')}</div>` : ''}<div class="qs">${qs}</div>${S.fb ? `<div class="fb fbend" style="display:none"><b>Tip:</b> ${S.fb}</div>` : ''}</section>`;
 }
 $('#secs').innerHTML = html;
 const nav = $('#nav');
@@ -67,7 +77,8 @@ SECS.forEach(S => {
   t.textContent = fmt(left);
   const finish = () => { if (done) return; done = true; clearInterval(iv); start.disabled = true; check.disabled = true; t.textContent = "Time's up"; mark(S); sec.querySelectorAll('input,select').forEach(x => { x.disabled = true; }); };
   start.onclick = () => { if (iv || done) return; start.textContent = 'Running…'; start.disabled = true; iv = setInterval(() => { left--; t.textContent = fmt(left); t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000); };
-  check.onclick = finish;
+  check.style.display = 'none';
+  lockAnswers(sec, finish);
 });
 { const mine = progGet()[PAGE] || {}; SECS.forEach(S => { if (mine[S.id]) tabDone(S.id, mine[S.id][0], mine[S.id][1]); }); }
 show(store.get('tab') || SECS[0].id);

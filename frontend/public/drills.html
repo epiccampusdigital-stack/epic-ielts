@@ -50,7 +50,7 @@ nav button.done{border-color:var(--ok);color:var(--ok);background:var(--okbg)}
 </head>
 <body>
 <div class="wrap">
-<header><h1>IELTS Timed Drills</h1><p>Six short drills for Sunday's Final Exam. Press <b>Start</b>: the timer runs and your answers are marked when time is up (or press Check). Use headphones for Drill 1.</p></header>
+<header><h1>IELTS Timed Drills</h1><p>Six short drills for Sunday's Final Exam. Press <b>Start</b>: the timer runs. Each answer locks as soon as you give it (typed answers lock when you press Enter or move on), so think before you choose. The drill is marked when you have answered every question or when time is up. Use headphones for Drill 1.</p></header>
 <nav id="nav"></nav>
 
 <!-- 1 LISTENING -->
@@ -180,6 +180,16 @@ const D = {
 };
 // ---------- helpers ----------
 const $ = (s, el = document) => el.querySelector(s);
+// ---- answers lock as soon as they are given; no Check button; the drill is marked when every question is answered or time is up ----
+function lockAnswers(sec, finish) {
+  const qs = [...sec.querySelectorAll('.q')];
+  const answered = q => [...q.querySelectorAll('input,select')].some(x => x.dataset.locked === '1');
+  const lock = (q) => { q.querySelectorAll('input,select').forEach(x => { x.dataset.locked = '1'; if (x.type === 'text') x.readOnly = true; else x.disabled = true; }); q.querySelectorAll('.play').forEach(b => { b.disabled = true; }); if (qs.every(answered)) setTimeout(finish, 400); };
+  sec.addEventListener('change', e => { const q = e.target.closest('.q'); if (!q || e.target.type === 'text') return; if (e.target.tagName === 'SELECT' && !e.target.value) return; lock(q); });
+  sec.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.type === 'text' && e.target.value.trim()) { const q = e.target.closest('.q'); if (q) lock(q); } });
+  sec.addEventListener('focusout', e => { if (e.target.type === 'text' && e.target.value.trim() && !e.target.readOnly) { const q = e.target.closest('.q'); if (q && !(e.relatedTarget && q.contains(e.relatedTarget))) lock(q); } });
+}
+
 // ---- progress: a finished drill shows ✓ on its tab, and the Class page shows how many are done ----
 const PKEY = 'class-progress', PAGE = location.pathname.split('/').pop() || 'page';
 function progGet() { try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; } }
@@ -238,7 +248,8 @@ document.querySelectorAll('section').forEach(sec => {
   t.textContent = fmt(left);
   const finish = () => { if (done) return; done = true; clearInterval(iv); start.disabled = true; check.disabled = true; t.textContent = "Time's up"; mark[id](); sec.querySelectorAll('input,select,textarea').forEach(x => { x.disabled = true; }); };
   start.onclick = () => { if (iv || done) return; start.textContent = 'Running…'; start.disabled = true; iv = setInterval(() => { left--; t.textContent = fmt(left); t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000); };
-  check.onclick = () => { if (id === 'd5' || id === 'd6') { mark[id](); return; } finish(); };
+  if (id === 'd5' || id === 'd6') check.onclick = () => { mark[id](); };
+  else { check.style.display = 'none'; lockAnswers(sec, finish); }
 });
 // word counts
 [['t5', 'w5'], ['t6', 'w6']].forEach(([a, b]) => { const el = $('#' + a); el.addEventListener('input', () => { const n = el.value.trim() ? el.value.trim().split(/\s+/).length : 0; $('#' + b).textContent = `${n} words`; }); });

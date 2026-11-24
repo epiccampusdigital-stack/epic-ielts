@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
-import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, MyPins, PinBar, ImageViewer, ReplyQuote, RepliesModal } from '../components/ChatExtras';
+import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, MyPins, MyNotes, PinBar, ImageViewer, ReplyQuote, RepliesModal } from '../components/ChatExtras';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
@@ -278,6 +278,8 @@ export default function Messages() {
   const [sideTab, setSideTab] = useState('chats');
   const [myPins, setMyPins] = useState(null);
   const [pinMax, setPinMax] = useState(5);
+  const [notes, setNotes] = useState(null);
+  const [savedIds, setSavedIds] = useState([]);
   const [replyTo, setReplyTo] = useState(null); // message being replied to
   const [repliesFor, setRepliesFor] = useState(null);
   const [viewer, setViewer] = useState(null);
@@ -480,6 +482,17 @@ export default function Messages() {
   }, [staff]);
   useEffect(() => { loadPins(); }, [loadPins]);
   const pinnedIds = (myPins || []).map(p => p.id);
+  // Student's own notes (any message saved as a note, or their own text)
+  const loadNotes = useCallback(() => {
+    if (staff) return;
+    axios.get(`${API_URL}/api/chat/notes`, api()).then(r => { setNotes(r.data?.notes || []); setSavedIds(r.data?.savedIds || []); }).catch(() => setNotes([]));
+  }, [staff]);
+  useEffect(() => { loadNotes(); }, [loadNotes]);
+  const saveNote = async id => {
+    if (savedIds.includes(id)) { flash('Already in your notes. Find it under 📝 Notes.'); return; }
+    try { await axios.post(`${API_URL}/api/chat/notes`, { messageId: id }, api()); flash('Saved to 📝 Notes.'); loadNotes(); }
+    catch (e) { flash(e.response?.data?.error || 'Could not save that.'); }
+  };
   const toggleMine = async id => {
     try {
       if (pinnedIds.includes(id)) { await axios.delete(`${API_URL}/api/chat/my-pins/${id}`, api()); flash('Unpinned.'); }
@@ -609,8 +622,8 @@ export default function Messages() {
                 </div>
               )}
               {!staff && (
-                <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  {[['chats', 'Chats'], ['tasks', 'My tasks'], ['pins', `📌 Pinned${myPins?.length ? ` ${myPins.length}/${pinMax}` : ''}`]].map(([k, label]) => (
+                <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {[['chats', 'Chats'], ['tasks', 'My tasks'], ['pins', `📌 Pinned${myPins?.length ? ` ${myPins.length}/${pinMax}` : ''}`], ['notes', `📝 Notes${notes?.length ? ` ${notes.length}` : ''}`]].map(([k, label]) => (
                     <button key={k} type="button" role="tab" aria-selected={sideTab === k} onClick={() => setSideTab(k)}
                       style={{ height: 34, padding: '0 14px', borderRadius: 50, border: 0, background: sideTab === k ? '#e7f0fe' : '#f0f2f5', color: sideTab === k ? T.primary : '#050505', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{label}{k === 'tasks' && toAnswer > 0 && <span className="mc-qdot" title={`${toAnswer} question${toAnswer === 1 ? '' : 's'} to answer`}>{toAnswer}</span>}</button>
                   ))}
@@ -635,7 +648,10 @@ export default function Messages() {
             {sideTab === 'pins' && !staff && (
               <div className="mc-list"><MyPins pins={myPins} max={pinMax} onUnpin={toggleMine} onOpen={p => { setSideTab('chats'); setSel(p.groupId); setTimeout(() => jumpTo(p.id), 900); }} /></div>
             )}
-            <div className="mc-list" style={{ display: (sideTab === 'tasks' || sideTab === 'pins') && !staff ? 'none' : undefined }}>
+            {sideTab === 'notes' && !staff && (
+              <div className="mc-list"><MyNotes notes={notes} reload={loadNotes} flash={flash} imgSrc={imgSrc} pdfSrc={pdfSrc} onOpen={n => { setSideTab('chats'); setSel(n.groupId); setTimeout(() => jumpTo(n.messageId), 900); }} /></div>
+            )}
+            <div className="mc-list" style={{ display: (sideTab === 'tasks' || sideTab === 'pins' || sideTab === 'notes') && !staff ? 'none' : undefined }}>
               {groups == null && <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>Loading…</div>}
               {groups && groups.length === 0 && <div style={{ color: '#65676b', fontSize: 14, lineHeight: 1.5, padding: 10 }}>{staff ? 'No groups yet. Create one, then share its code with your students.' : 'You are not in a group yet. Ask your teacher for the group code and type it above.'}</div>}
               {shownGroups.map(g => (
@@ -691,6 +707,7 @@ export default function Messages() {
                         {!m.mine && (showAvatar ? <Avatar name={m.senderName} size={28} color={m.senderName === 'EPIC Daily Task' ? '#f5b400' : undefined} /> : <span style={{ width: 28, flex: 'none' }} />)}
                         {m.mine && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
                           <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>
+                          {!staff && <button type="button" className="mc-act" style={{ color: '#1b7f3b' }} onClick={() => saveNote(m.id)} title="Save a copy in your notes">{savedIds.includes(m.id) ? '✓ Saved' : '📝 Save'}</button>}
                           {staff && <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>}
                           <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
                         </span>)}
@@ -764,6 +781,7 @@ export default function Messages() {
                         {!m.mine && !staff && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
                           <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>
                           <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => toggleMine(m.id)} title={pinnedIds.includes(m.id) ? 'Unpin' : `Pin it for yourself (up to ${pinMax})`}>{pinnedIds.includes(m.id) ? 'Unpin' : '📌 Pin'}</button>
+                          <button type="button" className="mc-act" style={{ color: '#1b7f3b' }} onClick={() => saveNote(m.id)} title="Save a copy in your notes">{savedIds.includes(m.id) ? '✓ Saved' : '📝 Save'}</button>
                         </span>)}
                         {!m.mine && staff && !m.deleted && (<span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
                           <button type="button" className="mc-act" style={{ color: T.primary }} onClick={() => startReply(m)}>Reply</button>

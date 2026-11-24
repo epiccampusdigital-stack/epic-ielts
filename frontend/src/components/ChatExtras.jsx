@@ -433,3 +433,80 @@ export function MyPins({ pins, max, onOpen, onUnpin }) {
     </div>
   );
 }
+
+// Student's notes: saved copies of chat messages plus their own typed notes. Search, add a comment, copy, open in chat, delete.
+const linkify = text => String(text || '').split(URL_RE).map((p, i) => (i % 2 ? <a key={i} href={p} target="_blank" rel="noreferrer" style={{ color: T.primary, wordBreak: 'break-all' }}>{p}</a> : <Fragment key={i}>{p}</Fragment>));
+export function MyNotes({ notes, reload, flash, imgSrc, pdfSrc, onOpen }) {
+  const [q, setQ] = useState('');
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(null); // { id, field, value }
+  if (notes == null) return <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>Loading…</div>;
+  const ql = q.trim().toLowerCase();
+  const shown = ql ? notes.filter(n => [n.text, n.myNote, n.from, n.group, n.fileName].some(x => String(x || '').toLowerCase().includes(ql))) : notes;
+  const add = async () => {
+    if (!draft.trim()) return;
+    setBusy(true);
+    try { await axios.post(`${API_URL}/api/chat/notes`, { text: draft }, api()); setDraft(''); flash('Note saved.'); reload(); } catch (e) { flash(errText(e)); }
+    setBusy(false);
+  };
+  const saveEdit = async () => {
+    const { id, field, value } = editing;
+    try { await axios.patch(`${API_URL}/api/chat/notes/${id}`, { [field]: value }, api()); setEditing(null); reload(); } catch (e) { flash(errText(e)); }
+  };
+  const remove = async n => {
+    if (!window.confirm('Delete this note?')) return;
+    try { await axios.delete(`${API_URL}/api/chat/notes/${n.id}`, api()); flash('Note deleted.'); reload(); } catch (e) { flash(errText(e)); }
+  };
+  const copy = n => {
+    const t = [n.text, n.myNote ? `My note: ${n.myNote}` : ''].filter(Boolean).join('\n\n');
+    (navigator.clipboard?.writeText(t) || Promise.reject()).then(() => flash('Copied.'), () => flash('Could not copy.'));
+  };
+  const small = { border: 0, background: '#f0f2f5', borderRadius: 50, padding: '5px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: '#050505' };
+  const box = { width: '100%', boxSizing: 'border-box', border: '1px solid #e4e6eb', borderRadius: 10, padding: '9px 11px', fontSize: 14.5, fontFamily: 'inherit', resize: 'vertical', minHeight: 70 };
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <div style={{ fontSize: 13.5, color: '#65676b', padding: '2px 6px', lineHeight: 1.5 }}>
+        Your private notes. Tap <b>📝 Save</b> on any message to keep a copy here, or write your own below. Only you can see them.
+      </div>
+      <div style={{ display: 'grid', gap: 6, background: '#f0f2f5', borderRadius: 12, padding: 10 }}>
+        <textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a note: new words, tips, things to remember…" style={{ ...box, background: '#fff' }} />
+        <button type="button" disabled={!draft.trim() || busy} onClick={add} style={{ justifySelf: 'start', height: 36, padding: '0 18px', border: 0, borderRadius: 50, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: draft.trim() ? 1 : 0.5 }}>Save note</button>
+      </div>
+      {notes.length > 3 && <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search your notes" aria-label="Search your notes" style={{ border: '1px solid #e4e6eb', borderRadius: 50, padding: '0 14px', height: 38, fontSize: 14, fontFamily: 'inherit' }} />}
+      {!notes.length && <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>No notes yet.</div>}
+      {notes.length > 0 && !shown.length && <div style={{ color: '#65676b', fontSize: 14, padding: 10 }}>No notes match “{q}”.</div>}
+      {shown.map(n => {
+        const ed = editing?.id === n.id ? editing : null;
+        return (
+          <div key={n.id} style={{ border: '1px solid #d7ecdc', background: '#f4fbf5', borderRadius: 12, padding: 12, display: 'grid', gap: 8, animation: 'mcPinIn .25s' }}>
+            <div style={{ fontSize: 12.5, color: '#65676b' }}>
+              {n.messageId ? <>{n.from}{n.group ? ` · ${n.group}` : ''}</> : 'My note'} · {new Date(n.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+            {ed?.field === 'text' ? (
+              <textarea value={ed.value} onChange={e => setEditing({ ...ed, value: e.target.value })} style={box} autoFocus />
+            ) : n.text && <div style={{ fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{linkify(n.text)}</div>}
+            {n.imageUrl && <a href={imgSrc(n.imageUrl)} target="_blank" rel="noreferrer"><img src={imgSrc(n.imageUrl)} alt="Saved photo" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 10, display: 'block' }} /></a>}
+            {n.fileUrl && <a href={pdfSrc(n.fileUrl, n.fileName)} target="_blank" rel="noreferrer" style={{ color: T.primary, fontWeight: 700, fontSize: 14 }}>📄 {n.fileName || 'Open the PDF'}</a>}
+            {ed?.field === 'myNote' ? (
+              <textarea value={ed.value} onChange={e => setEditing({ ...ed, value: e.target.value })} placeholder="Your own note about this message" style={box} autoFocus />
+            ) : n.myNote && <div style={{ fontSize: 14.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#fff', borderLeft: '3px solid #1b7f3b', borderRadius: 6, padding: '6px 10px' }}><b style={{ color: '#1b7f3b' }}>My note: </b>{n.myNote}</div>}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {ed ? <>
+                <button type="button" onClick={saveEdit} style={{ ...small, background: T.primary, color: '#fff' }}>Save</button>
+                <button type="button" onClick={() => setEditing(null)} style={small}>Cancel</button>
+              </> : <>
+                {n.messageId
+                  ? <button type="button" onClick={() => setEditing({ id: n.id, field: 'myNote', value: n.myNote })} style={small}>{n.myNote ? 'Edit my note' : '+ Add my note'}</button>
+                  : <button type="button" onClick={() => setEditing({ id: n.id, field: 'text', value: n.text })} style={small}>Edit</button>}
+                <button type="button" onClick={() => copy(n)} style={small}>Copy</button>
+                {n.messageId && n.groupId && <button type="button" onClick={() => onOpen(n)} style={small}>Open in chat</button>}
+                <button type="button" onClick={() => remove(n)} style={{ ...small, color: '#b3261e' }}>Delete</button>
+              </>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

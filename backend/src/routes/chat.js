@@ -663,6 +663,52 @@ async function myStatus(studentId, msgs) {
 }
 
 // Student opened a link / paper, or pressed "Mark as done"
+// ---- My notes: anyone can save any message (or their own text) as a private note ----
+const MAX_NOTES = 500;
+const noteOut = n => ({ id: n.id, messageId: n.messageId, groupId: n.groupId, group: n.groupName, from: n.fromName, text: n.text, imageUrl: n.imageUrl, fileUrl: n.fileUrl, fileName: n.fileName, myNote: n.myNote || '', createdAt: n.createdAt, updatedAt: n.updatedAt });
+router.get('/notes', auth, wrap(async (req, res) => {
+  const notes = await prisma.chatNote.findMany({ where: { userId: req.user.id }, orderBy: { id: 'desc' }, take: MAX_NOTES });
+  res.json({ notes: notes.map(noteOut), savedIds: notes.filter(n => n.messageId).map(n => n.messageId) });
+}));
+router.post('/notes', auth, wrap(async (req, res) => {
+  const count = await prisma.chatNote.count({ where: { userId: req.user.id } });
+  if (count >= MAX_NOTES) return res.status(409).json({ error: `You have ${MAX_NOTES} notes. Delete some old ones first.` });
+  const myNote = String(req.body?.myNote || '').slice(0, 5000).trim();
+  const id = parseInt(req.body?.messageId, 10);
+  if (Number.isInteger(id)) {
+    const m = await prisma.chatMessage.findUnique({ where: { id }, include: { group: { select: { name: true } } } });
+    if (!m || m.deletedAt) return res.status(404).json({ error: 'Message not found' });
+    const ok = isStaff(req) || await prisma.chatMember.findFirst({ where: { studentId: req.user.id, groupId: m.groupId } });
+    if (!ok) return res.status(403).json({ error: 'You are not in this chat.' });
+    const have = await prisma.chatNote.findFirst({ where: { userId: req.user.id, messageId: id } });
+    if (have) return res.json({ note: noteOut(have), already: true });
+    let text = m.text || '';
+    if (m.paperId) { const p = await prisma.paper.findUnique({ where: { id: m.paperId }, select: { title: true } }); text = [text, p ? `Paper: ${p.title}` : ''].filter(Boolean).join('\n'); }
+    if (m.lessonId) text = text || 'A lesson shared in the chat';
+    const note = await prisma.chatNote.create({ data: { userId: req.user.id, messageId: id, groupId: m.groupId, groupName: m.group?.name || null, fromName: m.senderName, text: text.slice(0, 20000), imageUrl: m.imageUrl, fileUrl: m.fileUrl, fileName: m.fileName, myNote: myNote || null } });
+    return res.json({ note: noteOut(note) });
+  }
+  const text = String(req.body?.text || '').slice(0, 20000).trim();
+  if (!text) return res.status(400).json({ error: 'Type something to save.' });
+  const note = await prisma.chatNote.create({ data: { userId: req.user.id, text, myNote: myNote || null } });
+  res.json({ note: noteOut(note) });
+}));
+router.patch('/notes/:id', auth, wrap(async (req, res) => {
+  const n = await prisma.chatNote.findUnique({ where: { id: parseInt(req.params.id, 10) || 0 } });
+  if (!n || n.userId !== req.user.id) return res.status(404).json({ error: 'Note not found' });
+  const data = {};
+  if (typeof req.body?.myNote === 'string') data.myNote = req.body.myNote.slice(0, 5000).trim() || null;
+  if (typeof req.body?.text === 'string' && !n.messageId) { const t = req.body.text.slice(0, 20000).trim(); if (!t) return res.status(400).json({ error: 'A note cannot be empty.' }); data.text = t; }
+  const note = await prisma.chatNote.update({ where: { id: n.id }, data });
+  res.json({ note: noteOut(note) });
+}));
+router.delete('/notes/:id', auth, wrap(async (req, res) => {
+  const n = await prisma.chatNote.findUnique({ where: { id: parseInt(req.params.id, 10) || 0 } });
+  if (!n || n.userId !== req.user.id) return res.status(404).json({ error: 'Note not found' });
+  await prisma.chatNote.delete({ where: { id: n.id } });
+  res.json({ ok: true });
+}));
+
 router.post('/messages/:id/click', auth, wrap(async (req, res) => {
   const kind = ['LINK', 'PAPER', 'LESSON', 'DONE'].includes(req.body?.kind) ? req.body.kind : 'LINK';
   const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });

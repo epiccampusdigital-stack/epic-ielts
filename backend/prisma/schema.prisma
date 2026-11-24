@@ -540,3 +540,22 @@ model ChatClick {
 
   @@unique([messageId, studentId, kind])
 }
+
+// A student's own note: a saved copy of a chat message (kept even if the message is later unsent), or their own text
+model ChatNote {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  messageId Int?
+  groupId   Int?
+  groupName String?
+  fromName  String?
+  text      String   @default("") @db.Text
+  imageUrl  String?
+  fileUrl   String?
+  fileName  String?
+  myNote    String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([userId, id])
+}

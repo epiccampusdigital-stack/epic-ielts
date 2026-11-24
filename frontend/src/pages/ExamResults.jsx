@@ -83,9 +83,14 @@ export default function ExamResults() {
                       {p.questions.filter(q => !onlyWrong || !q.isCorrect).map(q => (
                         <tr key={q.n} style={{ borderTop: `1px solid ${T.hairline}`, verticalAlign: 'top', background: q.isCorrect ? 'transparent' : '#fff8f8' }}>
                           <td style={{ padding: 8, fontWeight: 800 }}>{q.isCorrect ? <span style={{ color: T.success }}>✓ {q.n}</span> : <span style={{ color: T.error }}>✗ {q.n}</span>}</td>
-                          <td style={{ padding: 8 }}>{q.question}{!q.isCorrect && q.why && <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{q.why}</div>}</td>
+                          <td style={{ padding: 8 }}>{q.question}{(!q.isCorrect || q.clip) && q.why && <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{q.why}</div>}</td>
                           <td style={{ padding: 8, color: q.isCorrect ? T.success : T.error, fontWeight: 600 }}>{q.yours || <i style={{ color: T.mid }}>(no answer)</i>}</td>
-                          <td style={{ padding: 8, fontWeight: 700 }}>{q.correct}</td>
+                          <td style={{ padding: 8, fontWeight: 700 }}>{q.correct}
+                            {q.clip && <div className="noprint" style={{ marginTop: 6, fontWeight: 400 }}>
+                              <div style={{ fontSize: 12, color: T.muted, marginBottom: 2 }}>▶ Hear where the answer is</div>
+                              <audio controls preload="none" src={API_URL + q.clip} style={{ width: 220, height: 34 }} />
+                            </div>}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

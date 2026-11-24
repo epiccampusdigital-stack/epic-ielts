@@ -9,7 +9,7 @@ const EXAMS = [
   // Midway final exam: 25 + 45 + 60 minutes of work on one 2.5-hour timer
   // oneTimer: one clock for the whole paper; each part opens straight after the one before
   // holdResults: students see no score or answers until a teacher presses "Release results"
-  { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150, holdResults: true },
+  { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
   // Final exam: each part keeps its OWN timer; when a part ends (time up or submitted), a 10-second countdown
   // shows and the next part opens by itself (autoNext). Results stay hidden until a teacher releases them.
   { id: 'final', title: 'Final Exam', subtitle: 'IELTS Listening (40 min), Reading (60 min) and Writing (60 min) · each part has its own timer', codes: ['EX3-L', 'EX3-R', 'EX3-W'], needsAudio: true, autoNext: true, holdResults: true },
@@ -106,6 +106,15 @@ function overallBand(bands) {
   return frac < 0.25 ? Math.floor(avg) : frac < 0.75 ? Math.floor(avg) + 0.5 : Math.ceil(avg); // IELTS rounding
 }
 const firstAnswer = a => String(a || '').split('|')[0];
+// Short audio clips of the moment each listening answer is spoken (cut from the exam recording)
+const CLIP_DIRS = { 'EX2-L': 'exam2-clips' };
+function answerClip(code, n) {
+  const dir = CLIP_DIRS[code];
+  if (!dir) return null;
+  const file = `q${String(n).padStart(2, '0')}.mp3`;
+  return require('fs').existsSync(require('path').join(__dirname, '../../public-media', dir, file)) ? `/media/${dir}/${file}` : null;
+}
+
 // One student's full results sheet for an exam (used by the student page and the teacher PDF)
 async function sheetFor(prisma, exam, studentId) {
     const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } }).catch(() => null);
@@ -134,7 +143,7 @@ async function sheetFor(prisma, exam, studentId) {
         const a = byQ.get(q.id);
         const opts = Array.isArray(q.options) ? q.options : null;
         const show = v => { const t = firstAnswer(v); if (opts && /^[A-H]$/i.test(t)) { const o = opts.find(x => String(x).toUpperCase().startsWith(t.toUpperCase() + '.')); return o || t; } return t; };
-        return { n: q.questionNumber, question: q.content, yours: a?.studentAnswer ? show(a.studentAnswer) : '', correct: show(q.correctAnswer), isCorrect: !!a?.isCorrect, why: q.explanation || null };
+        return { n: q.questionNumber, question: q.content, yours: a?.studentAnswer ? show(a.studentAnswer) : '', correct: show(q.correctAnswer), isCorrect: !!a?.isCorrect, why: q.explanation || null, clip: answerClip(code, q.questionNumber) };
       });
       const score = questions.filter(q => q.isCorrect).length;
       parts.push({ testType: paper.testType, title: paper.title, done: true, attemptId: attempt.id, score, total: questions.length, band: attempt.result?.bandEstimate ?? null, questions });

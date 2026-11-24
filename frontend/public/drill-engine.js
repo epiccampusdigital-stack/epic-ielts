@@ -1,5 +1,11 @@
 // Shared engine for the Class drill pages: each page sets SECS and PAGE_KEY, then loads this file.
 const $ = (s, el = document) => el.querySelector(s);
+// ---- progress: a finished drill shows ✓ on its tab, and the Class page shows how many are done ----
+const PKEY = 'class-progress', PAGE = location.pathname.split('/').pop() || 'page';
+function progGet() { try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; } }
+function progSave(id, got, of, total) { try { const all = progGet(); all[PAGE] = all[PAGE] || {}; all[PAGE][id] = [got, of]; all[PAGE]._total = total; localStorage.setItem(PKEY, JSON.stringify(all)); } catch { /* blocked */ } }
+function tabDone(id, got, of) { const b = document.querySelector(`nav button[data-id="${id}"]`); if (!b) return; b.classList.add('done'); const sc = b.querySelector('.sc'); if (sc) sc.textContent = of ? `✓ ${got}/${of}` : '✓'; }
+
 const norm = s => String(s).toLowerCase().replace(/[^a-z0-9:./%]/g, '');
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(PAGE_KEY + k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(PAGE_KEY + k, JSON.stringify(v)); } catch { /* blocked */ } } };
 let voice = null;
@@ -52,6 +58,7 @@ function mark(S) {
   });
   const end = sec.querySelector('.fbend'); if (end) end.style.display = 'block';
   $(`#${S.id} .score`).textContent = `${g} / ${S.items.length}`; nav.querySelector(`[data-id=${S.id}] .sc`).textContent = `${g}/${S.items.length}`;
+  tabDone(S.id, g, S.items.length); progSave(S.id, g, S.items.length, SECS.length);
 }
 SECS.forEach(S => {
   const sec = $('#' + S.id), t = $('.timer', sec), start = $('.start', sec), check = $('.check', sec);
@@ -62,4 +69,5 @@ SECS.forEach(S => {
   start.onclick = () => { if (iv || done) return; start.textContent = 'Running…'; start.disabled = true; iv = setInterval(() => { left--; t.textContent = fmt(left); t.classList.toggle('low', left <= 60); if (left <= 0) finish(); }, 1000); };
   check.onclick = finish;
 });
+{ const mine = progGet()[PAGE] || {}; SECS.forEach(S => { if (mine[S.id]) tabDone(S.id, mine[S.id][0], mine[S.id][1]); }); }
 show(store.get('tab') || SECS[0].id);

@@ -1,5 +1,5 @@
 // Class: activities the teacher runs in class (timed drills, games), newest first. Each opens inside the site.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
 
@@ -27,6 +27,10 @@ const ACTIVITIES = [
 
 export default function ClassPage() {
   const [open, setOpen] = useState(null);
+  // progress saved by each activity page in this browser: { 'drills.html': { d1: [got, of], _total: 6 } }
+  const [prog, setProg] = useState({});
+  useEffect(() => { if (open) return; try { setProg(JSON.parse(localStorage.getItem('class-progress')) || {}); } catch { setProg({}); } }, [open]);
+  const status = x => { const p = prog[x.src.replace(/^\//, '')]; if (!p) return null; const done = Object.keys(p).filter(k => k !== '_total').length; return { done, total: p._total || done, all: done >= (p._total || done) }; };
   const a = ACTIVITIES.find(x => x.id === open);
   return (
     <div style={{ minHeight: '100vh', background: '#f6f8fc', fontFamily: T.font, color: T.ink }}>
@@ -40,10 +44,13 @@ export default function ClassPage() {
           </div>
           {ACTIVITIES.map((x, i) => (
             <button key={x.id} type="button" onClick={() => setOpen(x.id)}
-              style={{ textAlign: 'left', background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 16, padding: 20, cursor: 'pointer', fontFamily: T.font, display: 'grid', gap: 6 }}>
+              style={{ textAlign: 'left', background: '#fff', border: `1px solid ${status(x)?.all ? T.success : T.hairline}`, borderRadius: 16, padding: 20, cursor: 'pointer', fontFamily: T.font, display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: T.primary, background: T.primarySoft, borderRadius: 20, padding: '3px 10px' }}>{`Activity ${i + 1}`}</span>
                 <span style={{ fontSize: 13, color: T.mid }}>{x.date} · {x.tag}</span>
+                {(() => { const st = status(x); if (!st) return null; return st.all
+                  ? <span style={{ fontSize: 12, fontWeight: 800, color: T.success, background: T.successSoft, borderRadius: 20, padding: '3px 10px' }}>✓ Completed</span>
+                  : <span style={{ fontSize: 12, fontWeight: 700, color: '#8a5a00', background: '#fff4e0', borderRadius: 20, padding: '3px 10px' }}>{st.done} of {st.total} done</span>; })()}
               </div>
               <div style={{ fontSize: 21, fontWeight: 700 }}>{x.title}</div>
               <div style={{ fontSize: 15, color: T.muted, lineHeight: 1.5 }}>{x.desc}</div>

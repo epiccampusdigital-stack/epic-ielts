@@ -45,6 +45,7 @@ input[type=text]{width:260px}textarea{width:100%;min-height:150px;resize:vertica
 table.g{border-collapse:collapse;font-size:15px}table.g td,table.g th{border:1px solid var(--line);padding:5px 10px;text-align:center}
 .hlist{margin:0;padding-left:22px}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+nav button.done{border-color:var(--ok);color:var(--ok);background:var(--okbg)}
 </style>
 </head>
 <body>
@@ -179,6 +180,12 @@ const D = {
 };
 // ---------- helpers ----------
 const $ = (s, el = document) => el.querySelector(s);
+// ---- progress: a finished drill shows ✓ on its tab, and the Class page shows how many are done ----
+const PKEY = 'class-progress', PAGE = location.pathname.split('/').pop() || 'page';
+function progGet() { try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; } }
+function progSave(id, got, of, total) { try { const all = progGet(); all[PAGE] = all[PAGE] || {}; all[PAGE][id] = [got, of]; all[PAGE]._total = total; localStorage.setItem(PKEY, JSON.stringify(all)); } catch { /* blocked */ } }
+function tabDone(id, got, of) { const b = document.querySelector(`nav button[data-id="${id}"]`); if (!b) return; b.classList.add('done'); const sc = b.querySelector('.sc'); if (sc) sc.textContent = of ? `✓ ${got}/${of}` : '✓'; }
+
 const norm = s => String(s).toLowerCase().replace(/[^a-z0-9:.]/g, '');
 const store = { get(k) { try { return JSON.parse(localStorage.getItem('drills-' + k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem('drills-' + k, JSON.stringify(v)); } catch { /* blocked */ } } };
 const scores = {};
@@ -191,7 +198,7 @@ Object.keys(NAMES).forEach((id, i) => {
   b.onclick = () => show(id); nav.appendChild(b);
 });
 function show(id) { document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === id)); nav.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id)); store.set('tab', id); }
-function setScore(id, got, of) { scores[id] = [got, of]; $(`#${id} .score`).textContent = `${got} / ${of}`; nav.querySelector(`[data-id=${id}] .sc`).textContent = `${got}/${of}`; }
+function setScore(id, got, of) { scores[id] = [got, of]; $(`#${id} .score`).textContent = `${got} / ${of}`; nav.querySelector(`[data-id=${id}] .sc`).textContent = `${got}/${of}`; tabDone(id, got, of); progSave(id, got, of, 6); }
 
 // ---------- build questions ----------
 let voice = null;
@@ -220,8 +227,8 @@ const mark = {
   d2() { let g = 0; D.d2.forEach((q, i) => { const c = document.querySelector(`input[name=tf${i}]:checked`); const ok = c && c.value === q[1]; if (ok) g++; document.querySelectorAll(`input[name=tf${i}]`).forEach(r => { r.parentElement.classList.toggle('right', r.value === q[1]); if (r.checked && !ok) r.parentElement.classList.add('wrong'); }); document.querySelectorAll('#d2 .fb')[i].innerHTML = `<b>${tfLab[q[1]]}</b> · ${q[2]}`; }); setScore('d2', g, D.d2.length); },
   d3() { let g = 0; document.querySelectorAll('#d3 select').forEach(s => { const q = D.d3[s.dataset.i]; const ok = s.value === String(q[1]); if (ok) g++; s.classList.add(ok ? 'right' : 'wrong'); s.parentElement.querySelector('.fb').innerHTML = `<b>${roman[q[1]]}. ${D.d3h[q[1]]}</b> · ${q[2]}`; }); setScore('d3', g, D.d3.length); },
   d4() { let g = 0; document.querySelectorAll('#d4 select').forEach(s => { const q = D.d4[s.dataset.i]; const ok = s.value === String(q[2]); if (ok) g++; s.classList.add(ok ? 'right' : 'wrong'); s.parentElement.querySelector('.fb').innerHTML = `<b>${q[1][q[2]]}</b> · ${q[3]}`; }); setScore('d4', g, D.d4.length); },
-  d5() { $('#m5').classList.add('show'); },
-  d6() { $('#m6').classList.add('show'); },
+  d5() { $('#m5').classList.add('show'); tabDone('d5', 0, 0); progSave('d5', 0, 0, 6); },
+  d6() { $('#m6').classList.add('show'); tabDone('d6', 0, 0); progSave('d6', 0, 0, 6); },
 };
 // ---------- timers ----------
 document.querySelectorAll('section').forEach(sec => {
@@ -235,6 +242,7 @@ document.querySelectorAll('section').forEach(sec => {
 });
 // word counts
 [['t5', 'w5'], ['t6', 'w6']].forEach(([a, b]) => { const el = $('#' + a); el.addEventListener('input', () => { const n = el.value.trim() ? el.value.trim().split(/\s+/).length : 0; $('#' + b).textContent = `${n} words`; }); });
+{ const mine = progGet()[PAGE] || {}; Object.keys(NAMES).forEach(id => { if (mine[id]) tabDone(id, mine[id][0], mine[id][1]); }); }
 show(store.get('tab') || 'd1');
 </script>
 </body>

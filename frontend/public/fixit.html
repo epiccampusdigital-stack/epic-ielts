@@ -140,6 +140,7 @@ function next() {
   render();
 }
 function finish() {
+  try { const all = JSON.parse(localStorage.getItem('class-progress')) || {}; all['fixit.html'] = { all: [pts, ITEMS.length * 2], _total: 1 }; localStorage.setItem('class-progress', JSON.stringify(all)); } catch { /* blocked */ }
   over = true; clearInterval(iv); $('#bar').style.width = '100%';
   $('#game').classList.remove('on'); const d = $('#done'); d.classList.add('on');
   const miss = [...new Set(missed)];

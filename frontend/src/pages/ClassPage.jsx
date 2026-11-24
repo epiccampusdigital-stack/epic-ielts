@@ -4,6 +4,9 @@ import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
 
 const ACTIVITIES = [
+  { id: 'drills2-24nov', title: 'IELTS Timed Drills 2', date: 'Tuesday 24 November', tag: 'Spelling · Numbers · Reading · Writing',
+    desc: 'Six drills on the small things that cost the most marks: spelling, numbers and dates, the word limit, paraphrasing, common grammar mistakes and linking words. Use headphones for Drills 1 and 2.',
+    src: '/drills2.html' },
   { id: 'drills-24nov', title: 'IELTS Timed Drills', date: 'Tuesday 24 November', tag: 'Listening · Reading · Writing',
     desc: 'Six timed drills for the Final Exam: listening traps, True/False/Not Given, headings, graph language, a Task 1 overview and a Task 2 introduction. Use headphones for Drill 1.',
     src: '/drills.html' },

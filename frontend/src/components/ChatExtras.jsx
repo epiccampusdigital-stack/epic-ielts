@@ -487,7 +487,9 @@ export function MyNotes({ notes, reload, flash, imgSrc, pdfSrc, onOpen }) {
               <textarea value={ed.value} onChange={e => setEditing({ ...ed, value: e.target.value })} style={box} autoFocus />
             ) : n.text && <div style={{ fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{linkify(n.text)}</div>}
             {n.imageUrl && <a href={imgSrc(n.imageUrl)} target="_blank" rel="noreferrer"><img src={imgSrc(n.imageUrl)} alt="Saved photo" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 10, display: 'block' }} /></a>}
-            {n.fileUrl && <a href={pdfSrc(n.fileUrl, n.fileName)} target="_blank" rel="noreferrer" style={{ color: T.primary, fontWeight: 700, fontSize: 14 }}>📄 {n.fileName || 'Open the PDF'}</a>}
+            {n.fileUrl && (/\/chat-audio\/|\/uploads\/audio\/|\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(n.fileUrl)
+              ? <div><div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>🎵 {n.fileName || 'Audio'}</div><audio controls preload="metadata" src={imgSrc(n.fileUrl)} style={{ width: '100%', height: 40 }} /></div>
+              : <a href={pdfSrc(n.fileUrl, n.fileName)} target="_blank" rel="noreferrer" style={{ color: T.primary, fontWeight: 700, fontSize: 14 }}>📄 {n.fileName || 'Open the PDF'}</a>)}
             {ed?.field === 'myNote' ? (
               <textarea value={ed.value} onChange={e => setEditing({ ...ed, value: e.target.value })} placeholder="Your own note about this message" style={box} autoFocus />
             ) : n.myNote && <div style={{ fontSize: 14.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#fff', borderLeft: '3px solid #1b7f3b', borderRadius: 6, padding: '6px 10px' }}><b style={{ color: '#1b7f3b' }}>My note: </b>{n.myNote}</div>}

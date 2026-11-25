@@ -237,6 +237,8 @@ const CSS = `
 @media (max-width: 819px) { .mc-wrap, .mc-wrap.with-info { grid-template-columns: 1fr; } .mc-side { border-right: 0; } .mc-col { max-width: 84%; } .mc-col.wide { width: 100%; max-width: calc(100% - 36px); } .mc-feed { padding: 10px 10px 8px; } .mc-bub { font-size: 16px; } }
 `;
 
+const isAudioUrl = u => /\/chat-audio\/|\/uploads\/audio\/|\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(u || '');
+
 export default function Messages() {
   const navigate = useNavigate();
   const user = me();
@@ -249,6 +251,7 @@ export default function Messages() {
   const [photo, setPhoto] = useState(null); // { url, preview, uploading }
   const [pdf, setPdf] = useState(null); // { url, name, uploading }
   const pdfRef = useRef(null);
+  const audioRef = useRef(null);
   const fileRef = useRef(null);
   const [picker, setPicker] = useState(null); // 'menu' | 'paper' | 'lesson'
   const [papers, setPapers] = useState([]);
@@ -342,6 +345,19 @@ export default function Messages() {
       const fd = new FormData(); fd.append('file', file);
       const r = await axios.post(`${API_URL}/api/chat/file`, fd, api());
       setPdf({ name: r.data.fileName || file.name, url: r.data.url, uploading: false });
+      inputRef.current?.focus();
+    } catch (e) { setPdf(null); flash(errText(e)); }
+  };
+  // Teachers: send an audio clip (mp3, m4a, wav…). Students get a player in the chat.
+  const pickAudio = async file => {
+    if (!file) return;
+    if (!(/^audio\//.test(file.type) || /\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(file.name))) { flash('Choose an audio file (mp3, m4a or wav).'); return; }
+    if (file.size > 25 * 1024 * 1024) { flash('The audio file is too big (25 MB max).'); return; }
+    setPdf({ name: file.name, uploading: true, audio: true }); setPicker(null);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${API_URL}/api/chat/audio`, fd, api());
+      setPdf({ name: r.data.fileName || file.name, url: r.data.url, uploading: false, audio: true });
       inputRef.current?.focus();
     } catch (e) { setPdf(null); flash(errText(e)); }
   };
@@ -717,7 +733,16 @@ export default function Messages() {
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
                               {m.replyTo && <ReplyQuote reply={m.replyTo} mine={m.mine} onClick={() => jumpTo(m.replyTo.id)} />}
                               {(m.isTask || m.pinned || (!staff && pinnedIds.includes(m.id))) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}{!staff && pinnedIds.includes(m.id) && !m.pinned && <div className="mc-task" style={{ background: '#fff4c2', color: '#8a5a00' }}>📌 MY PIN</div>}</div>}
-                              {m.fileUrl && (
+                              {m.fileUrl && isAudioUrl(m.fileUrl) && (
+                                <div style={{ background: '#fff', borderRadius: 12, padding: '10px 12px', marginBottom: m.text ? 8 : 0, border: '1px solid #e4e6eb', maxWidth: 420 }}>
+                                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, color: '#050505' }}>
+                                    <span style={{ fontSize: 18 }}>🎵</span>
+                                    <b style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{m.fileName || 'Audio'}</b>
+                                  </div>
+                                  <audio controls preload="metadata" src={imgSrc(m.fileUrl)} onPlay={staff ? undefined : () => track(m.id, 'LINK')} style={{ width: '100%', minWidth: 220, height: 40 }} />
+                                </div>
+                              )}
+                              {m.fileUrl && !isAudioUrl(m.fileUrl) && (
                                 <a href={pdfSrc(m.fileUrl, m.fileName)} target="_blank" rel="noreferrer" onClick={staff ? undefined : () => track(m.id, 'LINK')}
                                   style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#fff', color: '#050505', textDecoration: 'none', borderRadius: 12, padding: '10px 12px', marginBottom: m.text ? 8 : 0, border: '1px solid #e4e6eb', maxWidth: 420 }}>
                                   <span style={{ width: 40, height: 50, borderRadius: 6, background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>PDF</span>
@@ -803,6 +828,7 @@ export default function Messages() {
                       <button type="button" className="mc-chip" onClick={() => { setPicker('lesson'); setPickQ(''); }}>Share a lesson</button>
                       <button type="button" className="mc-chip" onClick={() => fileRef.current?.click()}>Send a photo</button>
                       <button type="button" className="mc-chip" onClick={() => pdfRef.current?.click()}>Send a PDF</button>
+                      <button type="button" className="mc-chip" onClick={() => audioRef.current?.click()}>🎵 Send audio</button>
                     </div>
                   )}
                   {staff && (picker === 'paper' || picker === 'lesson') && (
@@ -830,11 +856,12 @@ export default function Messages() {
                   )}
                   {staff && <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />}
                   {staff && <input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={e => { pickPdf(e.target.files?.[0]); e.target.value = ''; }} />}
+                  {staff && <input ref={audioRef} type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.webm,.opus" hidden onChange={e => { pickAudio(e.target.files?.[0]); e.target.value = ''; }} />}
                   {pdf && (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, background: '#f0f2f5', borderRadius: 12, padding: '8px 10px' }}>
-                      <span style={{ width: 40, height: 48, borderRadius: 6, background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', opacity: pdf.uploading ? 0.5 : 1 }}>PDF</span>
+                      <span style={{ width: 40, height: 48, borderRadius: 6, background: pdf.audio ? '#7c3aed' : '#dc2626', color: '#fff', fontWeight: 800, fontSize: pdf.audio ? 20 : 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', opacity: pdf.uploading ? 0.5 : 1 }}>{pdf.audio ? '🎵' : 'PDF'}</span>
                       <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}><b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdf.name}</b><span style={{ fontSize: 13, color: '#65676b' }}>{pdf.uploading ? 'Uploading…' : 'Ready. Add a message or press send.'}</span></span>
-                      <button type="button" onClick={() => setPdf(null)} aria-label="Remove PDF" style={{ width: 28, height: 28, borderRadius: '50%', border: 0, background: '#050505', color: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: 1, flex: 'none' }}>×</button>
+                      <button type="button" onClick={() => setPdf(null)} aria-label={pdf.audio ? 'Remove audio' : 'Remove PDF'} style={{ width: 28, height: 28, borderRadius: '50%', border: 0, background: '#050505', color: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: 1, flex: 'none' }}>×</button>
                     </div>
                   )}
                   {photo && (
@@ -868,7 +895,7 @@ export default function Messages() {
                     </div>
                   )}
                   <div className="mc-bar">
-                    {staff && <button type="button" className="mc-iconbtn" onClick={() => setPicker(p => (p ? null : 'menu'))} aria-label="Share a paper, lesson, photo or PDF" title="Share a paper, lesson, photo or PDF" style={{ height: 42, width: 42 }}>{Icon.plus}</button>}
+                    {staff && <button type="button" className="mc-iconbtn" onClick={() => setPicker(p => (p ? null : 'menu'))} aria-label="Share a paper, lesson, photo, PDF or audio" title="Share a paper, lesson, photo, PDF or audio" style={{ height: 42, width: 42 }}>{Icon.plus}</button>}
                     <textarea ref={inputRef} className="mc-input" value={text} onChange={e => setText(e.target.value)} rows={Math.min(5, Math.max(1, text.split('\n').length))}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
                       onPaste={e => { if (!staff) return; const f = [...(e.clipboardData?.files || [])].find(x => x.type.startsWith('image/')); if (f) { e.preventDefault(); pickPhoto(f); } }}

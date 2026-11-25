@@ -15,7 +15,11 @@ const photoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize
 // Only accept photo links that this server created
 const fileUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: (req, f, cb) => cb(null, f.mimetype === 'application/pdf' || /\.pdf$/i.test(f.originalname || '')) });
 // Only accept PDF links that this server created
-const okFile = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/(raw|image)\/upload\/.+\/epic-ielts\/chat-files\//.test(u) || /^\/uploads\/files\/chat_[\w.-]+\.pdf$/.test(u));
+const okFile = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/(raw|image)\/upload\/.+\/epic-ielts\/chat-files\//.test(u) || /^\/uploads\/files\/chat_[\w.-]+\.pdf$/.test(u) || okAudio(u));
+// Audio clips (teachers): mp3, m4a, wav, ogg, aac, webm, opus. Cloudinary keeps sound files as "video".
+const AUDIO_EXT = /\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i;
+const audioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 }, fileFilter: (req, f, cb) => cb(null, /^audio\//.test(f.mimetype) || AUDIO_EXT.test(f.originalname || '')) });
+function okAudio(u) { return typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/.+\/epic-ielts\/chat-audio\/chat_[\w.-]+$/.test(u) || /^\/uploads\/audio\/chat_[\w.-]+\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(u)); }
 const cleanName = n => String(n || 'document.pdf').replace(/[^\w .()-]+/g, '').trim().slice(0, 120) || 'document.pdf';
 const okImage = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/.+\/epic-ielts\/chat\//.test(u) || /^\/uploads\/images\/chat_[\w.-]+$/.test(u));
 
@@ -64,7 +68,7 @@ router.get('/groups', auth, wrap(async (req, res) => {
   res.json(groups.map(g => ({
     id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
     joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0, unanswered: unanswered[g.id] || 0,
-    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : g.messages[0].kind === 'FILE' ? 'Sent a PDF' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
+    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : g.messages[0].kind === 'FILE' ? 'Sent a PDF' : g.messages[0].kind === 'AUDIO' ? 'Sent an audio clip' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
 }));
 
@@ -181,7 +185,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   const answerRows = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking }, ...(isStaff(req) ? {} : { studentId: req.user.id }) } }) : [];
   const parentIds = [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))];
   const parents = parentIds.length ? await prisma.chatMessage.findMany({ where: { id: { in: parentIds } }, select: { id: true, senderName: true, text: true, imageUrl: true, kind: true, deletedAt: true } }) : [];
-  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
   const replyCounts = rows.length ? await prisma.chatMessage.groupBy({ by: ['replyToId'], where: { replyToId: { in: rows.map(r => r.id) }, deletedAt: null }, _count: { _all: true } }) : [];
   const replyCount = new Map(replyCounts.map(c => [c.replyToId, c._count._all]));
   const pinRow = await prisma.chatMessage.findFirst({ where: { groupId, pinned: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true, text: true, senderName: true, kind: true } });
@@ -193,7 +197,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     canPost: isStaff(req) || (!group.onlyStaffPost && !!member),
     unsent,
     serverTime,
-    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[pinRow.kind] || '' } : null,
+    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[pinRow.kind] || '' } : null,
     updatedIds: changed.map(c => c.id),
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
@@ -270,7 +274,7 @@ router.get('/view/:token/groups', wrap(async (req, res) => {
   if (!(await checkView(req, res))) return;
   const groups = await prisma.chatGroup.findMany({ where: { archived: false }, orderBy: { id: 'asc' }, include: { _count: { select: { members: true, messages: true } }, messages: { where: { deletedAt: null }, orderBy: { id: 'desc' }, take: 1 } } });
   res.json(groups.map(g => ({ id: g.id, name: g.name, description: g.description, members: g._count.members, messages: g._count.messages,
-    last: g.messages[0] ? { text: (g.messages[0].text || '').slice(0, 80) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[g.messages[0].kind] || '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null })));
+    last: g.messages[0] ? { text: (g.messages[0].text || '').slice(0, 80) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[g.messages[0].kind] || '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null })));
 }));
 router.get('/view/:token/groups/:id/messages', wrap(async (req, res) => {
   if (!(await checkView(req, res))) return;
@@ -290,7 +294,7 @@ router.get('/view/:token/groups/:id/messages', wrap(async (req, res) => {
   const asking = rows.filter(m => m.askAnswer).map(m => m.id);
   const answers = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking } }, select: { messageId: true, checkedAt: true } }) : [];
   const parents = await prisma.chatMessage.findMany({ where: { id: { in: [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))] } }, select: { id: true, senderName: true, text: true, kind: true } });
-  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF' })[p.kind] || '' }]));
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[p.kind] || '' }]));
   res.json({
     group: { id: group.id, name: group.name, description: group.description },
     more,
@@ -329,6 +333,33 @@ router.get('/pdf', async (req, res) => {
     console.error('[chat] pdf', e.message);
     res.status(502).send('Could not open the PDF. Please try again.');
   }
+});
+
+router.post('/audio', auth, (req, res, next) => (isStaff(req) ? next() : res.status(403).json({ error: 'Only teachers can send audio.' })), (req, res) => {
+  audioUpload.single('file')(req, res, async err => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'The audio file is too big (25 MB max).' : 'Could not read the file.' });
+    if (!req.file) return res.status(400).json({ error: 'Choose an audio file (mp3, m4a, wav).' });
+    const ext = ((req.file.originalname || '').match(AUDIO_EXT) || [, ({ 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/webm': 'webm' })[req.file.mimetype] || 'mp3'])[1].toLowerCase();
+    const fileName = cleanName(req.file.originalname || `audio.${ext}`);
+    try {
+      const { cloudinary, isLocal } = require('../config/cloudinary');
+      const name = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      if (!isLocal && cloudinary) {
+        const url = await new Promise((resolve, reject) => {
+          const st = cloudinary.uploader.upload_stream({ resource_type: 'video', folder: 'epic-ielts/chat-audio', public_id: name }, (e, r) => (e ? reject(e) : resolve(r.secure_url)));
+          st.end(req.file.buffer);
+        });
+        return res.json({ url, fileName });
+      }
+      const fs = require('fs'); const path = require('path');
+      const dir = path.join(__dirname, '../../uploads/audio'); fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${name}.${ext}`), req.file.buffer);
+      res.json({ url: `/uploads/audio/${name}.${ext}`, fileName });
+    } catch (e) {
+      console.error('[chat] audio upload', e.message);
+      res.status(500).json({ error: 'Could not upload the audio. Please try again.' });
+    }
+  });
 });
 
 router.post('/file', auth, (req, res, next) => (isStaff(req) ? next() : res.status(403).json({ error: 'Only teachers can send files.' })), (req, res) => {
@@ -384,7 +415,7 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
   const askAnswer = isStaff(req) && !paperId && !lessonId && !!req.body?.askAnswer;
   const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId || askAnswer);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : fileUrl ? 'FILE' : 'TEXT', text, paperId, lessonId, imageUrl, fileUrl, fileName, isTask, askAnswer, replyToId: parent ? parent.id : null } });
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : fileUrl ? (okAudio(fileUrl) ? 'AUDIO' : 'FILE') : 'TEXT', text, paperId, lessonId, imageUrl, fileUrl, fileName, isTask, askAnswer, replyToId: parent ? parent.id : null } });
   if (parent) await prisma.chatMessage.update({ where: { id: parent.id }, data: { editedAt: new Date() } }); // reply counts update live
   res.json({ id: m.id });
 }));

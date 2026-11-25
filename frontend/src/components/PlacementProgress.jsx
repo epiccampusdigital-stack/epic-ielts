@@ -34,7 +34,7 @@ export default function PlacementProgress({ data: given }) {
   const SK = { READING: 'R', LISTENING: 'L', WRITING: 'W', SPEAKING: 'S' };
   const steps = [
     { key: 'placement', label: 'Placement test', band: start, score: pl?.score ?? null, level: pl?.level || null, skills: pl?.skills || [],
-      note: !hasPl ? 'Not taken' : pl.level ? `Level ${pl.level}` : 'Your start' },
+      note: !hasPl ? 'Not taken' : pl.estimated && pl.score != null ? `Estimated band · ${pl.score}/100 on the easier placement paper` : pl.level ? `Level ${pl.level}` : 'Your start' },
     ...(data.exams || []).map(e => ({ key: e.id, label: SHORT[e.id] || e.title, band: e.state === 'ready' ? e.band : null, note: e.state === 'ready' ? (e.total ? `${e.score} / ${e.total} correct` : 'Overall band') : STATE[e.state] || '' })),
   ];
   const withBand = steps.filter(s => s.band != null);

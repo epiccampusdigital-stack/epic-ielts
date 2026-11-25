@@ -198,7 +198,11 @@ async function gePlacementFor(prisma, studentId) {
   }
   const got = GE_PARTS.map(p => parts[p]).filter(v => v != null);
   const score = got.length ? Math.round(got.reduce((x, y) => x + y, 0) / got.length) : null;
-  return { score, level: got.length === GE_PARTS.length ? geLevel(score) : null, skills: GE_PARTS.filter(p => p in parts).map(p => ({ testType: p, score: parts[p] })) };
+  // The placement paper was much easier than the exam papers, so its score is turned into a lower,
+  // estimated starting band (0/100 = 2.5 ... 100/100 = 5.5, to the nearest half band). Change PL_MIN / PL_MAX to adjust.
+  const PL_MIN = 2.5, PL_MAX = 5.5;
+  const est = score == null ? null : Math.round((PL_MIN + (PL_MAX - PL_MIN) * (score / 100)) * 2) / 2;
+  return { score, estimated: true, band: est, level: got.length === GE_PARTS.length ? geLevel(score) : null, skills: GE_PARTS.filter(p => p in parts).map(p => ({ testType: p, score: parts[p] })) };
 }
 
 router.get('/progress', auth, async (req, res) => {

@@ -48,7 +48,7 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [attach, setAttach] = useState([]);
-  const [showAnswers, setShowAnswers] = useState(true);
+  const [showAnswers, setShowAnswers] = useState(false);
   const [busy, setBusy] = useState(false);
   const { items, errors } = useMemo(() => parseQuiz(text), [text]);
   const media = (messages || []).filter(m => !m.deleted && (m.imageUrl || m.fileUrl)).slice(-30).reverse();
@@ -96,7 +96,7 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
           </div>
         </div>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14.5 }}>
-          <input type="checkbox" checked={showAnswers} onChange={e => setShowAnswers(e.target.checked)} /> Show students the right answers after they send theirs
+          <input type="checkbox" checked={showAnswers} onChange={e => setShowAnswers(e.target.checked)} /> After they send their answers, also show them the right answers (off: they only see ✓ / ✗ and their score)
         </label>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} style={btn('#e4e6eb', '#050505')}>Cancel</button>
@@ -123,6 +123,7 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
   };
   return (
     <div style={{ marginTop: 6, display: 'grid', gap: 10, minWidth: 'min(520px, 70vw)' }}>
+      {staff && <div style={{ fontSize: 13, fontWeight: 700, color: '#8a5a00', background: '#fff4c2', borderRadius: 8, padding: '6px 10px' }}>Teacher view: only teachers see the green answers. Students see the questions only.</div>}
       {quiz.attach.map(a => (
         <div key={a.id}>
           {a.imageUrl && <a href={imgSrc(a.imageUrl)} target="_blank" rel="noreferrer"><img src={imgSrc(a.imageUrl)} alt="For the questions" style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: 12, border: '1px solid #e4e6eb', background: '#fff', display: 'block' }} /></a>}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
+import { QuizComposer, QuizCard, QuizResults } from '../components/ChatQuiz';
 import { T } from '../theme';
 import { HighlightedText, selectionInMessage, cutRange, HighlightToolbar, AnswerBox, AnswersModal, MyTasks, MyPins, MyNotes, PinBar, ImageViewer, ReplyQuote, RepliesModal } from '../components/ChatExtras';
 
@@ -252,6 +253,8 @@ export default function Messages() {
   const [pdf, setPdf] = useState(null); // { url, name, uploading }
   const pdfRef = useRef(null);
   const audioRef = useRef(null);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [quizResults, setQuizResults] = useState(null);
   const fileRef = useRef(null);
   const [picker, setPicker] = useState(null); // 'menu' | 'paper' | 'lesson'
   const [papers, setPapers] = useState([]);
@@ -396,6 +399,12 @@ export default function Messages() {
       inputRef.current?.focus();
     } catch (e) { flash(errText(e)); }
     setSending(false);
+  };
+  const sendQuiz = async payload => {
+    try {
+      await axios.post(`${API_URL}/api/chat/groups/${sel}/messages`, payload, api());
+      await loadMessages(false); scrollDown(); loadGroups(); flash('Questions sent.');
+    } catch (e) { flash(errText(e)); throw e; }
   };
   const del = async id => {
     if (!window.confirm(staff ? 'Unsend this message? It will be removed for everyone in the group.' : 'Unsend this message?')) return;
@@ -727,12 +736,12 @@ export default function Messages() {
                           {staff && <button type="button" className="mc-act" style={{ color: '#8a5a00' }} onClick={() => togglePin(m)}>{m.pinned ? 'Unpin' : 'Pin'}</button>}
                           <button type="button" className="mc-act" onClick={() => del(m.id)} title="Remove this message for everyone">Unsend</button>
                         </span>)}
-                        <div className={`mc-col${!m.deleted && (m.imageUrl || m.askAnswer) ? ' wide' : ''}`}>
+                        <div className={`mc-col${!m.deleted && (m.imageUrl || m.askAnswer || m.quiz) ? ' wide' : ''}`}>
                           {showName && <div className="mc-name">{m.senderName}{m.staff ? ' · Teacher' : ''}</div>}
                           <div className={`mc-bub${m.deleted ? ' gone' : ''}${cardOnly ? ' cardonly' : ''}`}>
                             {m.deleted ? (m.mine ? 'You unsent a message' : 'This message was unsent') : (<>
                               {m.replyTo && <ReplyQuote reply={m.replyTo} mine={m.mine} onClick={() => jumpTo(m.replyTo.id)} />}
-                              {(m.isTask || m.pinned || (!staff && pinnedIds.includes(m.id))) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}{!staff && pinnedIds.includes(m.id) && !m.pinned && <div className="mc-task" style={{ background: '#fff4c2', color: '#8a5a00' }}>📌 MY PIN</div>}</div>}
+                              {(m.isTask || m.pinned || (!staff && pinnedIds.includes(m.id))) && <div style={{ display: 'flex', gap: 4 }}>{m.isTask && <div className="mc-task">{m.quiz ? 'QUESTIONS' : m.askAnswer ? 'QUESTION' : 'TASK'}</div>}{m.pinned && <div className="mc-task" style={{ background: '#fde68a' }}>PINNED</div>}{!staff && pinnedIds.includes(m.id) && !m.pinned && <div className="mc-task" style={{ background: '#fff4c2', color: '#8a5a00' }}>📌 MY PIN</div>}</div>}
                               {m.fileUrl && isAudioUrl(m.fileUrl) && (
                                 <div style={{ background: '#fff', borderRadius: 12, padding: '10px 12px', marginBottom: m.text ? 8 : 0, border: '1px solid #e4e6eb', maxWidth: 420 }}>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, color: '#050505' }}>
@@ -760,6 +769,7 @@ export default function Messages() {
                                 </button>
                               )}
                               {m.text && <HighlightedText id={m.id} text={m.text} highlights={m.highlights} onLink={staff ? null : () => track(m.id, 'LINK')} />}
+                              {m.quiz && !m.deleted && <QuizCard m={m} staff={staff} imgSrc={imgSrc} pdfSrc={pdfSrc} flash={flash} onResults={() => setQuizResults(m.id)} onDone={r => { setMsgFields(m.id, { myQuiz: r, status: { ...(m.status || {}), done: true } }); }} />}
                               {m.paper && <PaperCard paper={m.paper} staff={staff} onStart={pid => startPaper(pid, m.id)} starting={starting === m.paper.id} />}
                               {m.lesson && <LessonCard lesson={m.lesson} staff={staff} onOpen={l => openLesson(l, m.id)} />}
                               {!staff && m.askAnswer && m.imageUrl && (!m.myAnswer || m.myAnswer.status !== 'GOOD' || !m.myAnswer.checkedAt) && (
@@ -767,7 +777,7 @@ export default function Messages() {
                               )}
                               {!staff && m.askAnswer && !m.myAnswer && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 13, fontWeight: 700, color: '#d30a28' }}><span className="mc-qdot mc-qdot-sm" />Not answered yet</div>}
                               {!staff && m.askAnswer && <AnswerBox m={m} flash={flash} onSaved={a => { setMsgFields(m.id, { myAnswer: a, status: { ...(m.status || {}), done: true } }); answered(); }} />}
-                              {!staff && m.isTask && m.status && !m.paper && !m.askAnswer && (
+                              {!staff && m.isTask && m.status && !m.paper && !m.askAnswer && !m.quiz && (
                                 m.status.done
                                   ? <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: '#276a1a' }}>Done ✓ {!m.lesson && <button type="button" onClick={() => markDone(m, true)} style={{ border: 0, background: 'none', color: 'inherit', opacity: .7, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', fontFamily: 'inherit' }}>undo</button>}</div>
                                   : !m.lesson && <button type="button" onClick={() => markDone(m)} style={{ display: 'block', marginTop: 8, height: 34, padding: '0 14px', border: 0, borderRadius: 50, background: '#2e7d32', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Mark as done</button>
@@ -829,6 +839,7 @@ export default function Messages() {
                       <button type="button" className="mc-chip" onClick={() => fileRef.current?.click()}>Send a photo</button>
                       <button type="button" className="mc-chip" onClick={() => pdfRef.current?.click()}>Send a PDF</button>
                       <button type="button" className="mc-chip" onClick={() => audioRef.current?.click()}>🎵 Send audio</button>
+                      <button type="button" className="mc-chip" onClick={() => { setPicker(null); setQuizOpen(true); }}>📝 Questions</button>
                     </div>
                   )}
                   {staff && (picker === 'paper' || picker === 'lesson') && (
@@ -909,6 +920,8 @@ export default function Messages() {
         )}
         {showInfo && info}
       </div>
+      {quizOpen && staff && <QuizComposer messages={data?.messages} imgSrc={imgSrc} onSend={sendQuiz} onClose={() => setQuizOpen(false)} />}
+      {quizResults && staff && <QuizResults id={quizResults} onClose={() => setQuizResults(null)} />}
       {viewer && (() => { const vm = data?.messages.find(x => x.id === viewer); return vm && vm.imageUrl ? (
         <ImageViewer m={vm} src={imgSrc(vm.imageUrl)} staff={staff} flash={flash} onClose={() => setViewer(null)}
           onSaved={a => { setMsgFields(vm.id, { myAnswer: a, status: { ...(vm.status || {}), done: true } }); answered(); }} />

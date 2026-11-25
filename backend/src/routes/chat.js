@@ -23,6 +23,31 @@ function okAudio(u) { return typeof u === 'string' && (/^https:\/\/res\.cloudina
 const cleanName = n => String(n || 'document.pdf').replace(/[^\w .()-]+/g, '').trim().slice(0, 120) || 'document.pdf';
 const okImage = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/.+\/epic-ielts\/chat\//.test(u) || /^\/uploads\/images\/chat_[\w.-]+$/.test(u));
 
+// ---- Question sets: a teacher posts questions (with earlier photos / audio / PDFs from the chat attached),
+// students answer in the chat, answers are marked automatically. Stored in ChatMessage.quiz; answers in ChatAnswer.
+const qNorm = t => String(t || '').toLowerCase().replace(/[’']/g, "'").replace(/[.,!?;:"]+$/g, '').replace(/\s+/g, ' ').trim();
+function cleanQuiz(raw) {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.items)) return null;
+  const items = raw.items.slice(0, 40).map(it => ({
+    q: String(it?.q || '').trim().slice(0, 500),
+    options: Array.isArray(it?.options) && it.options.length ? it.options.slice(0, 12).map(o => String(o).trim().slice(0, 120)).filter(Boolean) : null,
+    answers: (Array.isArray(it?.answers) ? it.answers : []).slice(0, 10).map(a => String(a).trim().slice(0, 120)).filter(Boolean),
+  })).filter(it => it.q && it.answers.length);
+  if (!items.length) return null;
+  const attach = (Array.isArray(raw.attach) ? raw.attach : []).map(n => parseInt(n, 10)).filter(Number.isInteger).slice(0, 8);
+  return { items, attach, showAnswers: raw.showAnswers !== false };
+}
+function markQuiz(quiz, given) {
+  const answers = quiz.items.map((_, i) => String((Array.isArray(given) ? given[i] : '') || '').trim().slice(0, 200));
+  const results = quiz.items.map((it, i) => !!answers[i] && it.answers.some(a => qNorm(a) === qNorm(answers[i])));
+  return { answers, results, score: results.filter(Boolean).length, total: quiz.items.length };
+}
+function myQuizOut(quiz, row) {
+  if (!row) return null;
+  let d = {}; try { d = JSON.parse(row.text); } catch { d = {}; }
+  return { answers: d.answers || [], results: d.results || [], score: row.score ?? 0, total: quiz.items.length, correct: quiz.showAnswers ? quiz.items.map(it => it.answers[0]) : null };
+}
+
 async function canSee(req, groupId) {
   const group = await prisma.chatGroup.findUnique({ where: { id: groupId } });
   if (!group) return { group: null };
@@ -68,7 +93,7 @@ router.get('/groups', auth, wrap(async (req, res) => {
   res.json(groups.map(g => ({
     id: g.id, name: g.name, description: g.description, onlyStaffPost: g.onlyStaffPost, archived: g.archived, dailyTask: g.dailyTask,
     joinCode: isStaff(req) ? g.joinCode : undefined, members: g._count.members, unread: unread[g.id] || 0, unanswered: unanswered[g.id] || 0,
-    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : g.messages[0].kind === 'FILE' ? 'Sent a PDF' : g.messages[0].kind === 'AUDIO' ? 'Sent an audio clip' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
+    last: g.messages[0] ? { text: (g.messages[0].text || '').trim() ? g.messages[0].text.slice(0, 80) : g.messages[0].kind === 'PAPER' ? 'Shared a paper' : g.messages[0].kind === 'LESSON' ? 'Shared a lesson' : g.messages[0].kind === 'IMAGE' ? 'Sent a photo' : g.messages[0].kind === 'FILE' ? 'Sent a PDF' : g.messages[0].kind === 'AUDIO' ? 'Sent an audio clip' : g.messages[0].kind === 'QUIZ' ? 'Sent questions' : '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null,
   })).sort((a, b) => new Date(b.last?.at || 0) - new Date(a.last?.at || 0)));
 }));
 
@@ -181,11 +206,14 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
   if (member) await prisma.chatMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } });
   const tracked = rows.filter(m => !m.deletedAt && (m.isTask || m.paperId || m.lessonId || HAS_LINK.test(m.text)));
   const stats = isStaff(req) ? await trackStats(groupId, tracked) : null;
-  const asking = rows.filter(m => m.askAnswer && !m.deletedAt).map(m => m.id);
+  const asking = rows.filter(m => (m.askAnswer || m.quiz) && !m.deletedAt).map(m => m.id);
+  const attIds = [...new Set(rows.filter(m => m.quiz && !m.deletedAt).flatMap(m => m.quiz.attach || []))];
+  const attRows = attIds.length ? await prisma.chatMessage.findMany({ where: { id: { in: attIds }, groupId, deletedAt: null }, select: { id: true, kind: true, text: true, imageUrl: true, fileUrl: true, fileName: true } }) : [];
+  const attMap = new Map(attRows.map(a => [a.id, { id: a.id, kind: a.kind, text: (a.text || '').slice(0, 300), imageUrl: a.imageUrl, fileUrl: a.fileUrl, fileName: a.fileName }]));
   const answerRows = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking }, ...(isStaff(req) ? {} : { studentId: req.user.id }) } }) : [];
   const parentIds = [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))];
   const parents = parentIds.length ? await prisma.chatMessage.findMany({ where: { id: { in: parentIds } }, select: { id: true, senderName: true, text: true, imageUrl: true, kind: true, deletedAt: true } }) : [];
-  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: p.deletedAt ? 'This message was unsent' : (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip', QUIZ: 'Questions' })[p.kind] || '', imageUrl: p.deletedAt ? null : p.imageUrl }]));
   const replyCounts = rows.length ? await prisma.chatMessage.groupBy({ by: ['replyToId'], where: { replyToId: { in: rows.map(r => r.id) }, deletedAt: null }, _count: { _all: true } }) : [];
   const replyCount = new Map(replyCounts.map(c => [c.replyToId, c._count._all]));
   const pinRow = await prisma.chatMessage.findFirst({ where: { groupId, pinned: true, deletedAt: null }, orderBy: { id: 'desc' }, select: { id: true, text: true, senderName: true, kind: true } });
@@ -197,7 +225,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
     canPost: isStaff(req) || (!group.onlyStaffPost && !!member),
     unsent,
     serverTime,
-    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[pinRow.kind] || '' } : null,
+    pin: pinRow ? { id: pinRow.id, by: pinRow.senderName, text: (pinRow.text || '').slice(0, 220) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip', QUIZ: 'Questions' })[pinRow.kind] || '' } : null,
     updatedIds: changed.map(c => c.id),
     messages: rows.map(m => ({
       id: m.id, senderId: m.senderId, senderName: m.senderName, staff: STAFF.includes(m.senderRole), kind: m.kind, createdAt: m.createdAt, isTask: m.isTask,
@@ -212,6 +240,13 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
       replies: replyCount.get(m.id) || 0,
       answers: m.askAnswer && isStaff(req) ? { total: answerRows.filter(a => a.messageId === m.id).length, checked: answerRows.filter(a => a.messageId === m.id && a.checkedAt).length } : undefined,
       myAnswer: m.askAnswer && !isStaff(req) ? (answerRows.some(a => a.messageId === m.id) ? pickAnswer(answerRows.find(a => a.messageId === m.id)) : null) : undefined,
+      quiz: m.quiz && !m.deletedAt ? {
+        items: m.quiz.items.map(it => (isStaff(req) ? it : { q: it.q, options: it.options })),
+        attach: (m.quiz.attach || []).map(id => attMap.get(id)).filter(Boolean),
+        showAnswers: m.quiz.showAnswers !== false, total: m.quiz.items.length,
+        submitted: isStaff(req) ? answerRows.filter(a => a.messageId === m.id).length : undefined,
+      } : null,
+      myQuiz: m.quiz && !m.deletedAt && !isStaff(req) ? myQuizOut(m.quiz, answerRows.find(a => a.messageId === m.id)) : undefined,
       stats: stats ? stats.get(m.id) || null : undefined,
       status: mine ? mine.get(m.id) || null : undefined,
     })),
@@ -274,7 +309,7 @@ router.get('/view/:token/groups', wrap(async (req, res) => {
   if (!(await checkView(req, res))) return;
   const groups = await prisma.chatGroup.findMany({ where: { archived: false }, orderBy: { id: 'asc' }, include: { _count: { select: { members: true, messages: true } }, messages: { where: { deletedAt: null }, orderBy: { id: 'desc' }, take: 1 } } });
   res.json(groups.map(g => ({ id: g.id, name: g.name, description: g.description, members: g._count.members, messages: g._count.messages,
-    last: g.messages[0] ? { text: (g.messages[0].text || '').slice(0, 80) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[g.messages[0].kind] || '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null })));
+    last: g.messages[0] ? { text: (g.messages[0].text || '').slice(0, 80) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip', QUIZ: 'Questions' })[g.messages[0].kind] || '', by: g.messages[0].senderName, at: g.messages[0].createdAt } : null })));
 }));
 router.get('/view/:token/groups/:id/messages', wrap(async (req, res) => {
   if (!(await checkView(req, res))) return;
@@ -294,7 +329,7 @@ router.get('/view/:token/groups/:id/messages', wrap(async (req, res) => {
   const asking = rows.filter(m => m.askAnswer).map(m => m.id);
   const answers = asking.length ? await prisma.chatAnswer.findMany({ where: { messageId: { in: asking } }, select: { messageId: true, checkedAt: true } }) : [];
   const parents = await prisma.chatMessage.findMany({ where: { id: { in: [...new Set(rows.filter(r => r.replyToId).map(r => r.replyToId))] } }, select: { id: true, senderName: true, text: true, kind: true } });
-  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip' })[p.kind] || '' }]));
+  const parentMap = new Map(parents.map(p => [p.id, { id: p.id, by: p.senderName, text: (p.text || '').slice(0, 160) || ({ IMAGE: 'A photo', PAPER: 'A paper', LESSON: 'A lesson', FILE: 'A PDF', AUDIO: 'An audio clip', QUIZ: 'Questions' })[p.kind] || '' }]));
   res.json({
     group: { id: group.id, name: group.name, description: group.description },
     more,
@@ -403,7 +438,13 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const imageUrl = isStaff(req) && okImage(req.body?.imageUrl) ? req.body.imageUrl : null;
   const fileUrl = isStaff(req) && okFile(req.body?.fileUrl) ? req.body.fileUrl : null;
   const fileName = fileUrl ? cleanName(req.body?.fileName) : null;
-  if (!text && !paperId && !lessonId && !imageUrl && !fileUrl) return res.status(400).json({ error: 'Type a message' });
+  let quiz = isStaff(req) && req.body?.quiz ? cleanQuiz(req.body.quiz) : null;
+  if (isStaff(req) && req.body?.quiz && !quiz) return res.status(400).json({ error: 'Add at least one question with an answer.' });
+  if (quiz && quiz.attach.length) {
+    const ok = await prisma.chatMessage.findMany({ where: { id: { in: quiz.attach }, groupId, deletedAt: null }, select: { id: true } });
+    quiz.attach = quiz.attach.filter(id => ok.some(o => o.id === id));
+  }
+  if (!text && !paperId && !lessonId && !imageUrl && !fileUrl && !quiz) return res.status(400).json({ error: 'Type a message' });
   if (!isStaff(req)) {
     const last = lastPost.get(req.user.id) || 0;
     if (Date.now() - last < 2000) return res.status(429).json({ error: 'Slow down a little.' });
@@ -414,8 +455,8 @@ router.post('/groups/:id/messages', auth, wrap(async (req, res) => {
   const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { name: true, role: true } });
   if (!member) await prisma.chatMember.upsert({ where: { groupId_studentId: { groupId, studentId: req.user.id } }, update: {}, create: { groupId, studentId: req.user.id } });
   const askAnswer = isStaff(req) && !paperId && !lessonId && !!req.body?.askAnswer;
-  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId || askAnswer);
-  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : fileUrl ? (okAudio(fileUrl) ? 'AUDIO' : 'FILE') : 'TEXT', text, paperId, lessonId, imageUrl, fileUrl, fileName, isTask, askAnswer, replyToId: parent ? parent.id : null } });
+  const isTask = isStaff(req) && (!!req.body?.isTask || !!paperId || !!lessonId || askAnswer || !!quiz);
+  const m = await prisma.chatMessage.create({ data: { groupId, senderId: req.user.id, senderName: me?.name || 'Someone', senderRole: me?.role || req.user.role || 'STUDENT', kind: quiz ? 'QUIZ' : paperId ? 'PAPER' : lessonId ? 'LESSON' : imageUrl ? 'IMAGE' : fileUrl ? (okAudio(fileUrl) ? 'AUDIO' : 'FILE') : 'TEXT', text, paperId, lessonId, imageUrl, fileUrl, fileName, isTask, askAnswer, ...(quiz ? { quiz } : {}), replyToId: parent ? parent.id : null } });
   if (parent) await prisma.chatMessage.update({ where: { id: parent.id }, data: { editedAt: new Date() } }); // reply counts update live
   res.json({ id: m.id });
 }));
@@ -477,6 +518,33 @@ router.patch('/messages/:id/pin', auth, wrap(async (req, res) => {
 function pickAnswer(a) {
   return { id: a.id, text: a.text, status: a.status, score: a.score, feedback: a.feedback, checkedBy: a.checkedBy, checkedAt: a.checkedAt, updatedAt: a.updatedAt };
 }
+router.post('/messages/:id/quiz', auth, wrap(async (req, res) => {
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m || m.deletedAt || !m.quiz) return res.status(404).json({ error: 'These questions are not open any more.' });
+  if (isStaff(req)) return res.status(400).json({ error: 'Teachers see the answers already.' });
+  const member = await prisma.chatMember.findUnique({ where: { groupId_studentId: { groupId: m.groupId, studentId: req.user.id } } });
+  if (!member) return res.status(403).json({ error: 'Not in this group' });
+  const old = await prisma.chatAnswer.findUnique({ where: { messageId_studentId: { messageId: m.id, studentId: req.user.id } } });
+  if (old) return res.json(myQuizOut(m.quiz, old)); // one try only
+  const r = markQuiz(m.quiz, req.body?.answers);
+  if (!r.answers.some(Boolean)) return res.status(400).json({ error: 'Answer at least one question first.' });
+  const a = await prisma.chatAnswer.create({ data: { messageId: m.id, studentId: req.user.id, text: JSON.stringify({ answers: r.answers, results: r.results }), score: r.score, status: 'AUTO', checkedBy: 'Auto' } });
+  await prisma.chatClick.upsert({ where: { messageId_studentId_kind: { messageId: m.id, studentId: req.user.id, kind: 'DONE' } }, update: {}, create: { messageId: m.id, studentId: req.user.id, kind: 'DONE' } });
+  await prisma.chatMessage.update({ where: { id: m.id }, data: { editedAt: new Date() } });
+  res.json(myQuizOut(m.quiz, a));
+}));
+router.get('/messages/:id/quiz-results', auth, wrap(async (req, res) => {
+  if (!isStaff(req)) return res.status(403).json({ error: 'Only staff' });
+  const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
+  if (!m || !m.quiz) return res.status(404).json({ error: 'Question set not found' });
+  const people = await studentMembers(m.groupId);
+  const rows = await prisma.chatAnswer.findMany({ where: { messageId: m.id } });
+  const by = new Map(rows.map(a => [a.studentId, a]));
+  const students = people.map(p => { const r = by.get(p.id); return { id: p.id, name: p.name, done: !!r, ...(r ? myQuizOut(m.quiz, r) : {}) }; })
+    .sort((a, b) => (b.done - a.done) || ((b.score || 0) - (a.score || 0)) || String(a.name).localeCompare(String(b.name)));
+  const perQuestion = m.quiz.items.map((it, i) => ({ q: it.q, answer: it.answers.join(' / '), right: rows.filter(r => { try { return JSON.parse(r.text).results[i]; } catch { return false; } }).length }));
+  res.json({ title: m.text, total: m.quiz.items.length, submitted: rows.length, students, perQuestion });
+}));
 router.post('/messages/:id/answer', auth, wrap(async (req, res) => {
   const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });
   if (!m || m.deletedAt || !m.askAnswer) return res.status(404).json({ error: 'This question is not open for answers.' });
@@ -577,8 +645,8 @@ router.get('/my-tasks', auth, wrap(async (req, res) => {
     const state = m.askAnswer ? (!a ? 'TODO' : a.checkedAt ? (a.status === 'GOOD' ? 'GOOD' : 'REDO') : 'SENT') : (st.done ? 'DONE' : 'TODO');
     const title = m.paperId ? (papers.find(p => p.id === m.paperId)?.title || 'A paper')
       : m.lessonId ? `Lesson: ${lessons.find(l => l.id === m.lessonId)?.title || 'a lesson'}`
-      : (m.text || (m.imageUrl ? 'A photo task' : 'Task')).split('\n')[0].slice(0, 120);
-    return { id: m.id, groupId: m.groupId, group: gname.get(m.groupId), from: m.senderName, createdAt: m.createdAt, state, title, kind: m.paperId ? 'PAPER' : m.lessonId ? 'LESSON' : m.askAnswer ? 'ANSWER' : 'TASK', score: a?.score ?? null, feedback: a?.checkedAt ? a.feedback : null };
+      : (m.text || (m.imageUrl ? 'A photo task' : m.quiz ? 'Questions' : 'Task')).split('\n')[0].slice(0, 120);
+    return { id: m.id, groupId: m.groupId, group: gname.get(m.groupId), from: m.senderName, createdAt: m.createdAt, state, title, kind: m.paperId ? 'PAPER' : m.lessonId ? 'LESSON' : m.askAnswer ? 'ANSWER' : 'TASK', score: m.askAnswer ? a?.score ?? null : null, feedback: a?.checkedAt ? a.feedback : null };
   }));
 }));
 

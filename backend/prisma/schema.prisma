@@ -492,6 +492,7 @@ model ChatMessage {
   pinned     Boolean   @default(false) // shown at the top of the chat
   replyToId  Int?      // a reply to another message in the same group
   highlights Json?     // [{ s, e, c }] character ranges highlighted by the teacher
+  quiz       Json?     // question set: { items: [{ q, options, answers }], attach: [messageIds], showAnswers }
   editedAt   DateTime? // last highlight / pin change, so open chats can update
   createdAt  DateTime  @default(now())
   deletedAt  DateTime?

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
+import SplitHandle, { useSplit, SPLIT_CSS } from '../components/SplitHandle';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
@@ -306,15 +307,48 @@ function ChartRenderer({ chartData, taskType }) {
   return null;
 }
 
+// Some papers store the task as plain text: keep its line breaks, show "a | b | c" lines as a table
+// and "- point" lines as a list. Prompts that are already HTML are shown as they are.
+function promptHtml(p) {
+  if (!p) return '';
+  const text = String(p);
+  if (/<\/?(p|br|table|ul|ol|li|div|strong|b|em)\b/i.test(text)) return text;
+  const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = text.replace(/\r/g, '').split('\n');
+  let out = '', i = 0;
+  while (i < lines.length) {
+    const ln = lines[i].trim();
+    if (!ln) { i++; continue; }
+    if (ln.includes('|') && ln.split('|').length >= 3) {
+      const rows = [];
+      while (i < lines.length && lines[i].includes('|') && lines[i].split('|').length >= 3) {
+        const cells = lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+        if (!cells.every(c => /^:?-{2,}:?$/.test(c))) rows.push(cells);
+        i++;
+      }
+      out += '<table><thead><tr>' + rows[0].map(c => `<th>${esc(c)}</th>`).join('') + '</tr></thead><tbody>' + rows.slice(1).map(r => '<tr>' + r.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+      continue;
+    }
+    if (/^[-•*]\s+/.test(ln)) {
+      let li = '';
+      while (i < lines.length && /^[-•*]\s+/.test(lines[i].trim())) { li += `<li>${esc(lines[i].trim().replace(/^[-•*]\s+/, ''))}</li>`; i++; }
+      out += `<ul>${li}</ul>`;
+      continue;
+    }
+    out += `<p>${esc(ln)}</p>`; i++;
+  }
+  return out;
+}
+
 export default function WritingExam() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState(null);
   const [paper, setPaper] = useState(null);
   const [task, setTask] = useState(1);
-  // Phones: one pane at a time (task question or writing box), switched with the tabs under the header
-  const [mobileView, setMobileView] = useState('task');
-  useEffect(() => { setMobileView('task'); }, [task]);
+  // Phones: the task question on top and the writing box below, with a bar to drag between them
+  const [split, setSplit] = useSplit('writing-split', 42);
+  const layoutRef = useRef(null);
   const [task1, setTask1] = useState('');
   const [task2, setTask2] = useState('');
   const [task3, setTask3] = useState(''); // three-task papers: the second report (taskNumber 3)
@@ -717,10 +751,9 @@ export default function WritingExam() {
         .eh-title { display: none; }
         @media (max-width: 1023px) {
           .exam-layout > .passage-section, .exam-layout > .questions-section { flex: 1; min-height: 0 !important; border-right: 0 !important; }
-          .exam-layout[data-view="task"] > .questions-section { display: none !important; }
-          .exam-layout[data-view="write"] > .passage-section { display: none !important; }
           .questions-section { padding: 12px !important; }
-          .writing-area { min-height: 240px; font-size: 16px; }
+          .writing-area { min-height: 120px; font-size: 16px; }
+          .passage-section { padding: 14px !important; }
           .wa-head { flex-wrap: wrap; gap: 6px; }
         }
         @media (min-width: 1024px) { .mobile-tabs { display: none; } }
@@ -907,13 +940,10 @@ export default function WritingExam() {
         </div>
       </div>
 
-      <div className="mobile-tabs">
-        <button type="button" className={mobileView === 'task' ? 'on' : ''} onClick={() => setMobileView('task')}>Task {shownNo(task)} question</button>
-        <button type="button" className={mobileView === 'write' ? 'on' : ''} onClick={() => setMobileView('write')}>Your answer ({wc} words)</button>
-      </div>
+      <style>{SPLIT_CSS}</style>
 
       {/* Body */}
-      <div className="exam-layout" data-view={mobileView}>
+      <div className="exam-layout" ref={layoutRef} style={{ '--split': `${split}%` }}>
 
         {/* Left — Task prompt */}
         <div className="passage-section" style={{ background: '#f7f9fc', borderRight: '1px solid #e3eeff', overflowY: 'auto' }}>
@@ -932,7 +962,7 @@ export default function WritingExam() {
           <div
             className="writing-prompt-content"
             style={{ fontSize: 14, color: '#0f1114', lineHeight: 1.8, marginBottom: 20, fontWeight: 400 }}
-            dangerouslySetInnerHTML={{ __html: (task === 1 ? writingTask1?.prompt : task === 2 ? writingTask2?.prompt : currentTask?.prompt) || `<p>No prompt text for Task ${task}. Ask your administrator to edit this paper.</p>` }}
+            dangerouslySetInnerHTML={{ __html: promptHtml((task === 1 ? writingTask1?.prompt : task === 2 ? writingTask2?.prompt : currentTask?.prompt)) || `<p>No prompt text for Task ${task}. Ask your administrator to edit this paper.</p>` }}
           />
           {currentTask?.tableData && (() => {
             const tdRaw = parseTaskTableData(currentTask);
@@ -1073,6 +1103,7 @@ export default function WritingExam() {
         </div>
 
         {/* Right — Writing area */}
+        <SplitHandle layoutRef={layoutRef} value={split} onChange={setSplit} label={`Question ↑ · Your answer ↓ (${wc} words)`} />
         <div className="questions-section" style={{ display: 'flex', flexDirection: 'column', padding: 20, gap: 12 }}>
           {teachingMode && (
             <div style={{

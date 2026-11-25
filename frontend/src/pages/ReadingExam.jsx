@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../api';
 import useAnswerAutosave, { localAnswers } from '../utils/useAnswerAutosave';
+import SplitHandle, { useSplit, SPLIT_CSS } from '../components/SplitHandle';
 
 const api = () => ({
    headers: {
@@ -29,7 +30,9 @@ export default function ReadingExam() {
    const [wordLoading, setWordLoading] = useState(false);
    const [teachingMode, setTeachingMode] = useState(false);
    // Phones: one pane at a time (passage or questions), switched with the tabs under the header
-   const [mobileView, setMobileView] = useState('passage');
+   // Phones: passage on top, questions below, with a bar to drag between them
+   const [split, setSplit] = useSplit('reading-split', 45);
+   const layoutRef = useRef(null);
    const qPaneRef = useRef(null);
 
    const navigate = useNavigate();
@@ -994,8 +997,6 @@ export default function ReadingExam() {
         .passage-body { line-height: 1.75 !important; text-align: left !important; }
         @media (max-width: 1023px) {
           .exam-layout > .passage-section, .exam-layout > .questions-section { flex: 1; min-height: 0 !important; border-right: 0; }
-          .exam-layout[data-view="passage"] > .questions-section { display: none; }
-          .exam-layout[data-view="questions"] > .passage-section { display: none; }
         }
         @media (min-width: 1024px) {
           .mobile-tabs { display: none; }
@@ -1127,12 +1128,8 @@ export default function ReadingExam() {
             </div>
          </div>
 
-         <div className="mobile-tabs">
-            <button type="button" className={mobileView === 'passage' ? 'on' : ''} onClick={() => setMobileView('passage')}>Passage {currentPassage}</button>
-            <button type="button" className={mobileView === 'questions' ? 'on' : ''} onClick={() => setMobileView('questions')}>Questions ({answeredCount}/{questions.length})</button>
-         </div>
-
-         <div className="exam-layout" data-view={mobileView}>
+         <style>{SPLIT_CSS}</style>
+         <div className="exam-layout" ref={layoutRef} style={{ '--split': `${split}%` }}>
             <div className="passage-section" ref={passPaneRef}>
                <div style={{
                   borderLeft: '4px solid #0056d2',
@@ -1201,6 +1198,7 @@ export default function ReadingExam() {
                </div>
             </div>
 
+            <SplitHandle layoutRef={layoutRef} value={split} onChange={setSplit} label={`Passage ↑ · Questions ↓ (${answeredCount}/${questions.length})`} />
             <div className="questions-section" ref={qPaneRef}>
                {teachingMode && (
                   <div style={{

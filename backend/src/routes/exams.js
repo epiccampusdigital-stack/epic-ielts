@@ -179,6 +179,28 @@ router.get('/:id/class', auth, async (req, res) => {
 
 // A student's journey: placement band, then each class exam's score and band (only when results are released).
 // Used at the top of the Exam tab and on the dashboard.
+// The General English placement test (Day 1): latest score per skill out of 100, the average and the level.
+const GE_PARTS = ['READING', 'LISTENING', 'WRITING', 'SPEAKING'];
+const geLevel = n => (n == null ? null : n >= 90 ? 'B2' : n >= 75 ? 'B1' : n >= 50 ? 'A2' : n >= 25 ? 'A1' : 'Pre-A1');
+async function gePlacementFor(prisma, studentId) {
+  const rows = await prisma.attempt.findMany({
+    where: { studentId, isPlacement: true, status: 'COMPLETED', paper: { track: 'GENERAL', paperCode: { startsWith: 'GE-PT' } } },
+    orderBy: { endedAt: 'desc' },
+    select: { paper: { select: { testType: true, _count: { select: { questions: true } } } }, result: { select: { rawScore: true } } },
+  });
+  if (!rows.length) return null;
+  const parts = {};
+  for (const a of rows) {
+    const t = a.paper.testType;
+    if (t in parts) continue;
+    const raw = a.result?.rawScore;
+    parts[t] = raw == null ? null : (t === 'WRITING' || t === 'SPEAKING') ? Math.round(raw) : a.paper._count.questions ? Math.round((raw / a.paper._count.questions) * 100) : null;
+  }
+  const got = GE_PARTS.map(p => parts[p]).filter(v => v != null);
+  const score = got.length ? Math.round(got.reduce((x, y) => x + y, 0) / got.length) : null;
+  return { score, level: got.length === GE_PARTS.length ? geLevel(score) : null, skills: GE_PARTS.filter(p => p in parts).map(p => ({ testType: p, score: parts[p] })) };
+}
+
 router.get('/progress', auth, async (req, res) => {
   try {
     const { prisma } = require('../services/programService');
@@ -201,7 +223,11 @@ router.get('/progress', auth, async (req, res) => {
         skills: sh.parts.filter(p => p.done).map(p => ({ testType: p.testType, band: p.band ?? null, score: p.score ?? null, total: p.total ?? null, marking: p.testType === 'WRITING' && p.band == null })),
       });
     }
-    res.json({ staff: isStaff(req), placement: me?.placementDone && me.placementBand != null ? { band: Number(me.placementBand) } : null, exams });
+    // Programme students took the General English placement (scores out of 100); others may have an IELTS placement band
+    const ge = await gePlacementFor(prisma, req.user.id);
+    const placement = ge || (me?.placementDone && me.placementBand != null ? { band: Number(me.placementBand) } : null);
+    if (placement && ge && me?.placementDone && me.placementBand != null) placement.band = Number(me.placementBand);
+    res.json({ staff: isStaff(req), placement, exams });
   } catch (err) {
     console.error('[exams] progress', err.message);
     res.status(500).json({ error: 'Could not load your progress' });

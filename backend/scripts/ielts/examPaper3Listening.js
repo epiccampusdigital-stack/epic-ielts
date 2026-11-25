@@ -112,7 +112,7 @@ This system had a big effect on daily life. Because the floor was the warmest pl
 There were some problems, of course. The system used a lot of wood, and in some areas this led to the loss of forests. There was also a danger from the smoke. If the floor was cracked, gas could leak into the room, and this could be deadly.
 In the modern version, there is no smoke at all. Instead, hot water runs through plastic pipes under the floor. The water is heated by a boiler, usually powered by gas. Almost all apartments in Korea now have this kind of underfloor heating.
 Why is ondol so efficient? The main reason is that warm air rises. With most heaters, the warm air goes up to the ceiling, so the top of the room is hot but the floor stays cold. With ondol, the heat starts at the floor, where people are, so the whole room feels comfortable at a lower temperature. And because the floor holds heat for a long time, the room stays warm.
-Interestingly, underfloor heating has now become popular in other countries too, especially in northern Europe. And in 2023, ondol was officially recognised as part of Korea's national heritage.
+Interestingly, underfloor heating has now become popular in other countries too, especially in northern Europe. And today, ondol is officially recognised as part of Korea's cultural heritage.
 NARRATOR: That is the end of Part 4. You now have half a minute to check your answers.
 [PAUSE 30]
 NARRATOR: That is the end of the listening test.`;

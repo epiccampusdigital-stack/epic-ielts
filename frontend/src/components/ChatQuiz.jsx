@@ -10,13 +10,15 @@ import SplitHandle, { useSplit, SPLIT_CSS } from './SplitHandle';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
+const words = t => (String(t || '').trim().match(/\S+/g) || []).length;
 const isAudio = u => /\/chat-audio\/|\/uploads\/audio\/|\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(u || '');
 
 export const QUIZ_HELP = `Choices: A B C D E F G H
 1. Toilets = A | They are on your left as you come in.
 2. Café = C
 Choices: none
-6. What time does the café open? = nine / 9 / 9 am | "It opens at nine."`;
+6. What time does the café open? = nine / 9 / 9 am | "It opens at nine."
+Write: Describe the process in at least 150 words. | (optional) a model answer they see after sending`;
 
 // Text → questions. "Choices: A B C" applies to the questions after it, until "Choices: none".
 export function parseQuiz(text) {
@@ -29,6 +31,15 @@ export function parseQuiz(text) {
     if (c) {
       const v = c[1].trim();
       options = !v || /^none$/i.test(v) ? null : v.split(/\s*[,|]\s*|\s+/).filter(Boolean).slice(0, 12);
+      return;
+    }
+    // "Write: task | model answer" = a written answer box (not marked automatically)
+    const w = line.match(/^write\s*:\s*(.*)$/i);
+    if (w) {
+      const b = w[1].indexOf(' | ');
+      const q = (b >= 0 ? w[1].slice(0, b) : w[1]).trim();
+      if (!q) { errors.push(`Line ${i + 1}: write the task after "Write:"`); return; }
+      items.push({ q, write: true, options: null, answers: [], why: b >= 0 ? w[1].slice(b + 3).trim() || null : null });
       return;
     }
     const bar = line.indexOf(' | ');
@@ -91,11 +102,11 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title or instructions (e.g. Lakeside Park map: answer questions 1 to 10)" style={box} />
         <div>
           <div style={{ fontSize: 13.5, color: '#65676b', marginBottom: 4 }}>
-            One question per line: <b>question = answer</b>. Several right answers? Separate them with <b>/</b>. Buttons instead of typing? Put <b>Choices: A B C</b> on a line before the questions (and <b>Choices: none</b> to stop). Add <b>| a short reason</b> at the end of a line to explain the answer after students send theirs.
+            One question per line: <b>question = answer</b>. Several right answers? Separate them with <b>/</b>. Buttons instead of typing? Put <b>Choices: A B C</b> on a line before the questions (and <b>Choices: none</b> to stop). Add <b>| a short reason</b> at the end of a line to explain the answer after students send theirs. For a written answer (a paragraph or a report), start the line with <b>Write:</b> (add <b>| model answer</b> if you want them to see one after).
           </div>
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder={QUIZ_HELP} rows={10} style={{ ...box, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 14 }} />
           <div style={{ fontSize: 13.5, marginTop: 4, color: errors.length ? '#b3261e' : '#15803d', fontWeight: 600 }}>
-            {errors.length ? errors.slice(0, 4).join(' · ') : items.length ? `${items.length} question${items.length === 1 ? '' : 's'} ready` : ''}
+            {errors.length ? errors.slice(0, 4).join(' · ') : items.length ? `${items.length} question${items.length === 1 ? '' : 's'} ready${items.some(x => x.write) ? ` (${items.filter(x => x.write).length} written)` : ''}` : ''}
           </div>
         </div>
         <div>
@@ -186,8 +197,16 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
           const given = done ? mine.answers[i] : ans[i];
           return (
             <li key={i} style={{ fontSize: 15 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>{it.q}{done && <span style={{ marginLeft: 6, color: ok ? '#15803d' : '#b3261e', fontWeight: 800 }}>{ok ? '✓' : '✗'}</span>}</div>
-              {staff ? (
+              <div style={{ fontWeight: 600, marginBottom: 4, whiteSpace: 'pre-wrap' }}>{it.q}{done && !it.write && <span style={{ marginLeft: 6, color: ok ? '#15803d' : '#b3261e', fontWeight: 800 }}>{ok ? '✓' : '✗'}</span>}</div>
+              {staff && it.write ? (
+                <div style={{ fontSize: 14, color: '#8a5a00', fontWeight: 700 }}>Written answer · you read these in Results</div>
+              ) : it.write ? (
+                <div>
+                  <textarea value={given || ''} disabled={done} onChange={e => setAns(a => a.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Write your answer here" rows={done ? 8 : 10}
+                    style={{ width: '100%', boxSizing: 'border-box', borderRadius: 10, border: `1.5px solid ${done ? '#0b3d91' : '#ced0d4'}`, padding: 10, fontSize: 15, lineHeight: 1.5, fontFamily: 'inherit', background: done ? '#f6f8fc' : '#fff', resize: 'vertical' }} />
+                  <div style={{ fontSize: 13, color: '#65676b', fontWeight: 700 }}>{words(given)} words{done ? ' · sent to your teacher' : ''}</div>
+                </div>
+              ) : staff ? (
                 <div style={{ fontSize: 14, color: '#15803d', fontWeight: 700 }}>Answer: {it.answers.join(' / ')}{it.options ? `  ·  choices ${it.options.join(' ')}` : ''}</div>
               ) : it.options ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -202,14 +221,15 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
                   style={{ width: '100%', maxWidth: 360, boxSizing: 'border-box', height: 38, borderRadius: 10, border: `1.5px solid ${done ? (ok ? '#15803d' : '#b3261e') : '#ced0d4'}`, padding: '0 10px', fontSize: 15, fontFamily: 'inherit', background: done ? (ok ? '#e9f7ee' : '#fdecea') : '#fff' }} />
               )}
               {done && !ok && mine.correct?.[i] && <div style={{ fontSize: 13.5, color: '#15803d', fontWeight: 700, marginTop: 3 }}>Right answer: {mine.correct[i]}</div>}
-              {done && mine.why?.[i] && <div style={{ fontSize: 13.5, color: '#44506a', marginTop: 3, background: '#f6f8fc', borderRadius: 8, padding: '4px 8px' }}>💡 {mine.why[i]}</div>}
-              {staff && it.why && <div style={{ fontSize: 13, color: '#44506a', marginTop: 2 }}>💡 {it.why}</div>}
+              {done && mine.why?.[i] && <div style={{ fontSize: 13.5, color: '#44506a', marginTop: 3, background: '#f6f8fc', borderRadius: 8, padding: '4px 8px', whiteSpace: 'pre-wrap' }}>{it.write ? <b>Model answer: </b> : '💡 '}{mine.why[i]}</div>}
+              {staff && it.why && <div style={{ fontSize: 13, color: '#44506a', marginTop: 2, whiteSpace: 'pre-wrap' }}>{it.write ? <b>Model answer (students see it after sending): </b> : '💡 '}{it.why}</div>}
             </li>
           );
         })}
       </ol>
       {!staff && !mine && <button type="button" onClick={submit} disabled={busy} style={{ ...btn(T.primary), justifySelf: 'start' }}>{busy ? 'Sending…' : 'Send my answers'}</button>}
-      {!staff && mine && <div style={{ fontWeight: 800, fontSize: 16, color: '#0b3d91' }}>Your score: {mine.score} / {mine.total}</div>}
+      {!staff && mine && mine.total > 0 && <div style={{ fontWeight: 800, fontSize: 16, color: '#0b3d91' }}>Your score: {mine.score} / {mine.total}{quiz.items.some(x => x.write) ? ' · your writing goes to your teacher' : ''}</div>}
+      {!staff && mine && !mine.total && <div style={{ fontWeight: 800, fontSize: 16, color: '#0b3d91' }}>Sent to your teacher ✓</div>}
     </>
   );
   return (
@@ -224,7 +244,7 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
           <style>{SPLIT_CSS}</style>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid #e4e6eb', flex: 'none' }}>
             <b style={{ flex: 1, fontSize: 15.5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.text || 'Questions'}</b>
-            {mine && <b style={{ color: '#0b3d91' }}>{mine.score}/{mine.total}</b>}
+            {mine && mine.total > 0 && <b style={{ color: '#0b3d91' }}>{mine.score}/{mine.total}</b>}
             <button type="button" onClick={() => setFocus(false)} style={btn('#e4e6eb', '#050505')}>Close</button>
           </div>
           <div className="exam-layout" ref={layoutRef} style={{ '--split': `${split}%`, flex: 1, minHeight: 0, display: 'flex' }}>
@@ -264,13 +284,16 @@ export function QuizResults({ id, onClose }) {
             <tbody>{data.students.map(s => (
               <tr key={s.id}>
                 <td style={{ padding: 6, borderBottom: '1px solid #f0f2f5', fontWeight: 700 }}>{s.name}</td>
-                <td style={{ padding: 6, borderBottom: '1px solid #f0f2f5', fontWeight: 800, color: s.done ? '#0b3d91' : '#8a8d91' }}>{s.done ? `${s.score}/${s.total}` : 'not yet'}</td>
-                <td style={{ padding: 6, borderBottom: '1px solid #f0f2f5' }}>{s.done && s.answers.map((a, i) => <span key={i} style={{ display: 'inline-block', margin: '1px 4px 1px 0', padding: '1px 6px', borderRadius: 6, background: s.results[i] ? '#e9f7ee' : '#fdecea', color: s.results[i] ? '#15803d' : '#b3261e', fontWeight: 700 }}>{i + 1}. {a || '—'}</span>)}</td>
+                <td style={{ padding: 6, borderBottom: '1px solid #f0f2f5', fontWeight: 800, color: s.done ? '#0b3d91' : '#8a8d91' }}>{s.done ? (s.total ? `${s.score}/${s.total}` : 'sent') : 'not yet'}</td>
+                <td style={{ padding: 6, borderBottom: '1px solid #f0f2f5' }}>{s.done && s.answers.map((a, i) => (data.perQuestion[i]?.write ? (
+                  <details key={i} style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 700, color: '#0b3d91' }}>{i + 1}. Writing · {words(a)} words</summary>
+                    <div style={{ whiteSpace: 'pre-wrap', background: '#f6f8fc', borderRadius: 8, padding: 8, marginTop: 4, lineHeight: 1.5 }}>{a || '—'}</div></details>
+                ) : <span key={i} style={{ display: 'inline-block', margin: '1px 4px 1px 0', padding: '1px 6px', borderRadius: 6, background: s.results[i] ? '#e9f7ee' : '#fdecea', color: s.results[i] ? '#15803d' : '#b3261e', fontWeight: 700 }}>{i + 1}. {a || '—'}</span>))}</td>
               </tr>
             ))}</tbody>
           </table>
           <div style={{ marginTop: 14, fontWeight: 700 }}>Each question</div>
-          <ol style={{ paddingLeft: 22, fontSize: 14 }}>{data.perQuestion.map((q, i) => <li key={i} style={{ margin: '3px 0' }}>{q.q} <span style={{ color: '#15803d', fontWeight: 700 }}>({q.answer})</span> · <b>{q.right}/{data.submitted}</b> right</li>)}</ol>
+          <ol style={{ paddingLeft: 22, fontSize: 14 }}>{data.perQuestion.map((q, i) => <li key={i} style={{ margin: '3px 0' }}>{q.q} {q.write ? <span style={{ color: '#8a5a00', fontWeight: 700 }}>(written answer · open each student above)</span> : <><span style={{ color: '#15803d', fontWeight: 700 }}>({q.answer})</span> · <b>{q.right}/{data.submitted}</b> right</>}</li>)}</ol>
         </>}
       </div>
     </div>

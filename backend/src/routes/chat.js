@@ -28,12 +28,16 @@ const okImage = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\
 const qNorm = t => String(t || '').toLowerCase().replace(/[’']/g, "'").replace(/[.,!?;:"]+$/g, '').replace(/\s+/g, ' ').trim();
 function cleanQuiz(raw) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.items)) return null;
-  const items = raw.items.slice(0, 40).map(it => ({
+  // write: true = a written answer (a paragraph or a Task 1 report). Not marked automatically; the teacher reads it.
+  const items = raw.items.slice(0, 40).map(it => (it?.write ? {
+    q: String(it?.q || '').trim().slice(0, 1500), write: true, options: null, answers: [],
+    why: String(it?.why || '').trim().slice(0, 4000) || null,
+  } : {
     q: String(it?.q || '').trim().slice(0, 500),
     options: Array.isArray(it?.options) && it.options.length ? it.options.slice(0, 12).map(o => String(o).trim().slice(0, 120)).filter(Boolean) : null,
     answers: (Array.isArray(it?.answers) ? it.answers : []).slice(0, 10).map(a => String(a).trim().slice(0, 120)).filter(Boolean),
     why: String(it?.why || '').trim().slice(0, 400) || null,
-  })).filter(it => it.q && it.answers.length);
+  })).filter(it => it.q && (it.write || it.answers.length));
   if (!items.length) return null;
   const attach = (Array.isArray(raw.attach) ? raw.attach : []).map(n => parseInt(n, 10)).filter(Number.isInteger).slice(0, 8);
   // photos / audio uploaded straight into the question set (not sent to the chat first)
@@ -41,15 +45,16 @@ function cleanQuiz(raw) {
     : okFile(x?.fileUrl) ? { fileUrl: x.fileUrl, fileName: cleanName(x.fileName || 'audio') } : null)).filter(Boolean);
   return { items, attach, media, showAnswers: raw.showAnswers !== false };
 }
+const autoTotal = quiz => quiz.items.filter(it => !it.write).length;
 function markQuiz(quiz, given) {
-  const answers = quiz.items.map((_, i) => String((Array.isArray(given) ? given[i] : '') || '').trim().slice(0, 200));
-  const results = quiz.items.map((it, i) => !!answers[i] && it.answers.some(a => qNorm(a) === qNorm(answers[i])));
-  return { answers, results, score: results.filter(Boolean).length, total: quiz.items.length };
+  const answers = quiz.items.map((it, i) => String((Array.isArray(given) ? given[i] : '') || '').trim().slice(0, it.write ? 8000 : 200));
+  const results = quiz.items.map((it, i) => (it.write ? null : !!answers[i] && it.answers.some(a => qNorm(a) === qNorm(answers[i]))));
+  return { answers, results, score: results.filter(r => r === true).length, total: autoTotal(quiz) };
 }
 function myQuizOut(quiz, row) {
   if (!row) return null;
   let d = {}; try { d = JSON.parse(row.text); } catch { d = {}; }
-  return { answers: d.answers || [], results: d.results || [], score: row.score ?? 0, total: quiz.items.length, correct: quiz.items.map(it => (quiz.showAnswers || it.why ? it.answers[0] : null)), why: quiz.items.map(it => it.why || null) };
+  return { answers: d.answers || [], results: d.results || [], score: row.score ?? 0, total: autoTotal(quiz), correct: quiz.items.map(it => (it.write ? null : quiz.showAnswers || it.why ? it.answers[0] : null)), why: quiz.items.map(it => it.why || null) };
 }
 
 async function canSee(req, groupId) {
@@ -245,9 +250,9 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
       answers: m.askAnswer && isStaff(req) ? { total: answerRows.filter(a => a.messageId === m.id).length, checked: answerRows.filter(a => a.messageId === m.id && a.checkedAt).length } : undefined,
       myAnswer: m.askAnswer && !isStaff(req) ? (answerRows.some(a => a.messageId === m.id) ? pickAnswer(answerRows.find(a => a.messageId === m.id)) : null) : undefined,
       quiz: m.quiz && !m.deletedAt ? {
-        items: m.quiz.items.map(it => (isStaff(req) ? it : { q: it.q, options: it.options })),
+        items: m.quiz.items.map(it => (isStaff(req) ? it : { q: it.q, options: it.options, ...(it.write ? { write: true } : {}) })),
         attach: [...(m.quiz.attach || []).map(id => attMap.get(id)).filter(Boolean), ...(m.quiz.media || []).map((x, i) => ({ id: `m${i}`, ...x }))],
-        showAnswers: m.quiz.showAnswers !== false, total: m.quiz.items.length,
+        showAnswers: m.quiz.showAnswers !== false, total: autoTotal(m.quiz),
         submitted: isStaff(req) ? answerRows.filter(a => a.messageId === m.id).length : undefined,
       } : null,
       myQuiz: m.quiz && !m.deletedAt && !isStaff(req) ? myQuizOut(m.quiz, answerRows.find(a => a.messageId === m.id)) : undefined,
@@ -546,8 +551,8 @@ router.get('/messages/:id/quiz-results', auth, wrap(async (req, res) => {
   const by = new Map(rows.map(a => [a.studentId, a]));
   const students = people.map(p => { const r = by.get(p.id); return { id: p.id, name: p.name, done: !!r, ...(r ? myQuizOut(m.quiz, r) : {}) }; })
     .sort((a, b) => (b.done - a.done) || ((b.score || 0) - (a.score || 0)) || String(a.name).localeCompare(String(b.name)));
-  const perQuestion = m.quiz.items.map((it, i) => ({ q: it.q, answer: it.answers.join(' / '), right: rows.filter(r => { try { return JSON.parse(r.text).results[i]; } catch { return false; } }).length }));
-  res.json({ title: m.text, total: m.quiz.items.length, submitted: rows.length, students, perQuestion });
+  const perQuestion = m.quiz.items.map((it, i) => ({ q: it.q, write: !!it.write, answer: it.write ? 'written answer' : it.answers.join(' / '), right: rows.filter(r => { try { return JSON.parse(r.text).results[i]; } catch { return false; } }).length }));
+  res.json({ title: m.text, total: autoTotal(m.quiz), submitted: rows.length, students, perQuestion });
 }));
 router.post('/messages/:id/answer', auth, wrap(async (req, res) => {
   const m = await prisma.chatMessage.findUnique({ where: { id: parseInt(req.params.id, 10) } });

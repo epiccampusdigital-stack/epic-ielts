@@ -5,6 +5,7 @@ import API_URL from '../api';
 import StudentNav from '../components/StudentNav';
 import { T } from '../theme';
 import { enterFullscreen, exitFullscreen } from '../utils/examMode';
+import PlacementProgress, { useExamProgress } from '../components/PlacementProgress';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const card = { background: '#fff', border: `1px solid ${T.hairline}`, borderRadius: 16, padding: 20 };
@@ -20,6 +21,8 @@ export default function Exams() {
   const [countdown, setCountdown] = useState(0);
   const [oneClock, setOneClock] = useState(true);
   const pending = useRef(null);
+  const progress = useExamProgress();
+  const prog = id => (progress?.exams || []).find(e => e.id === id);
 
   const load = useCallback(() => axios.get(`${API_URL}/api/exams`, api())
     .then(r => { setExams(r.data.exams || []); setError(''); return r.data.exams || []; })
@@ -92,6 +95,7 @@ export default function Exams() {
           <h1 style={{ margin: '4px 0 6px', fontSize: 28 }}>Class exams</h1>
           <div style={{ fontSize: 15, color: T.navyText, lineHeight: 1.5 }}>Your teacher opens each exam in class. The exam fills the whole screen, there are no word meanings, and you can do each part only once.</div>
         </div>
+        {progress && !progress.staff && <PlacementProgress data={progress} />}
         {error && <div style={{ ...card, background: T.errorSoft, borderColor: T.errorSoft, color: T.error, fontWeight: 600 }}>{error}</div>}
         {!exams && !error && <div style={card}>Loading…</div>}
         {exams && !exams.length && <div style={card}>No exams yet.</div>}
@@ -143,11 +147,38 @@ export default function Exams() {
               {allDone && exam.released === false && <div style={{ background: T.primaryXSoft, borderRadius: 12, padding: '14px 16px', color: T.ink, fontSize: 15, lineHeight: 1.5 }}>
                 <b>Well done, you have finished this exam.</b> Your results are being marked. Your teacher will share your scores and answers in class.
               </div>}
-              {allDone && exam.released !== false && <div style={{ display: 'grid', gap: 8 }}>
-                <div style={{ color: T.muted, fontSize: 15 }}>Well done, you have finished this exam. You cannot do it again, but you can see your results:</div>
+              {allDone && exam.released !== false && <div style={{ display: 'grid', gap: 10 }}>
+                {(() => {
+                  const r = prog(exam.id);
+                  if (!r || (r.state !== 'ready' && r.state !== 'marking')) return null;
+                  const start = progress?.placement?.band;
+                  const d = r.band != null && start != null ? r.band - start : null;
+                  return (
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'stretch' }}>
+                      <div style={{ flex: '1 1 150px', maxWidth: 260, background: T.navy, color: '#fff', borderRadius: 14, padding: '14px 18px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', color: '#b0e5fb' }}>YOUR BAND</div>
+                        <div style={{ fontSize: 46, fontWeight: 800, lineHeight: 1.05 }}>{r.band != null ? Number(r.band).toFixed(1) : '…'}</div>
+                        <div style={{ fontSize: 13, color: T.navyText }}>{r.band == null ? 'Writing is still being marked' : d == null ? 'Overall' : `${d > 0 ? '▲ +' : d < 0 ? '▼ ' : ''}${d.toFixed(1)} since placement (${Number(start).toFixed(1)})`}</div>
+                      </div>
+                      {r.total > 0 && <div style={{ flex: '1 1 130px', maxWidth: 220, background: T.primaryXSoft, borderRadius: 14, padding: '14px 18px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', color: T.primary }}>CORRECT</div>
+                        <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.2 }}>{r.score}<span style={{ fontSize: 18, color: T.muted }}> / {r.total}</span></div>
+                        <div style={{ fontSize: 13, color: T.muted }}>{(r.skills || []).filter(k => k.total).map(k => SKILL[k.testType] || k.testType).join(' + ')}</div>
+                      </div>}
+                      {(r.skills || []).map(k => (
+                        <div key={k.testType} style={{ flex: '1 1 120px', background: '#f6f8fc', borderRadius: 14, padding: '14px 16px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', color: T.mid }}>{(SKILL[k.testType] || k.testType).toUpperCase()}</div>
+                          <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2 }}>{k.band != null ? Number(k.band).toFixed(1) : '…'}</div>
+                          <div style={{ fontSize: 13, color: T.muted }}>{k.total ? `${k.score} / ${k.total} correct` : k.marking ? 'Being marked' : 'Band'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <div style={{ color: T.muted, fontSize: 15 }}>Well done, you have finished this exam. You cannot do it again, but you can check every answer:</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" onClick={() => navigate(`/exams/${exam.id}/results`)}
-                    style={{ height: 42, padding: '0 20px', borderRadius: 50, border: 0, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>See all results and answers ›</button>
+                    style={{ height: 42, padding: '0 20px', borderRadius: 50, border: 0, background: T.primary, color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>See my answers ›</button>
                   {exam.parts.filter(p => p.attemptId).map(p => (
                     <button key={p.paperId} type="button" onClick={() => navigate(p.testType === 'WRITING' ? `/exam/${p.attemptId}/writing-results` : `/exam/${p.attemptId}/results`)}
                       style={{ height: 42, padding: '0 18px', borderRadius: 50, border: `1.5px solid ${T.primary}`, background: '#fff', color: T.primary, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>{SKILL[p.testType] || p.testType} results ›</button>

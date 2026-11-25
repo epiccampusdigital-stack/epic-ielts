@@ -947,7 +947,7 @@ function IeltsDashboard() {
         className="dash-page-inner"
         style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 48px' }}
       >
-        <PlacementProgress />
+        <div style={{ marginBottom: 20 }}><PlacementProgress /></div>
         {/* Hero */}
         <div
           className="dash-hero"

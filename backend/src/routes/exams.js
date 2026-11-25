@@ -177,6 +177,37 @@ router.get('/:id/class', auth, async (req, res) => {
   }
 });
 
+// A student's journey: placement band, then each class exam's score and band (only when results are released).
+// Used at the top of the Exam tab and on the dashboard.
+router.get('/progress', auth, async (req, res) => {
+  try {
+    const { prisma } = require('../services/programService');
+    const me = await prisma.student.findUnique({ where: { id: req.user.id }, select: { placementDone: true, placementBand: true } });
+    const list = await build(prisma, req.user.id, false);
+    const held = await heldExamIds();
+    const exams = [];
+    for (const e of list) {
+      const allDone = e.parts.every(p => p.done);
+      const anyDone = e.parts.some(p => p.done);
+      const row = { id: e.id, title: e.title, parts: e.parts.length };
+      if (!anyDone) { exams.push({ ...row, state: e.open ? 'open' : 'locked' }); continue; }
+      if (!allDone) { exams.push({ ...row, state: 'in-progress' }); continue; }
+      if (held.has(e.id)) { exams.push({ ...row, state: 'held' }); continue; }
+      const sh = await sheetFor(prisma, EXAMS.find(x => x.id === e.id), req.user.id);
+      exams.push({
+        ...row, state: sh.overall?.complete ? 'ready' : 'marking',
+        band: sh.overall?.complete ? sh.overall.band : null,
+        score: sh.totalScore, total: sh.totalQuestions,
+        skills: sh.parts.filter(p => p.done).map(p => ({ testType: p.testType, band: p.band ?? null, score: p.score ?? null, total: p.total ?? null, marking: p.testType === 'WRITING' && p.band == null })),
+      });
+    }
+    res.json({ staff: isStaff(req), placement: me?.placementDone && me.placementBand != null ? { band: Number(me.placementBand) } : null, exams });
+  } catch (err) {
+    console.error('[exams] progress', err.message);
+    res.status(500).json({ error: 'Could not load your progress' });
+  }
+});
+
 router.get('/:id/results', auth, async (req, res) => {
   try {
     const { prisma } = require('../services/programService');

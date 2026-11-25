@@ -34,7 +34,7 @@ const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
 const signToken = (user) => jwt.sign(
   { id: user.id, role: user.role, name: user.name, email: user.email, batch: user.batch, isPaid: user.isPaid },
   process.env.JWT_SECRET || 'epic-ielts-secret',
-  { expiresIn: '12h' }
+  { expiresIn: '7d' }
 );
 
 // LOGIN
@@ -60,7 +60,7 @@ router.post('/login', async (req, res) => {
       const token = jwt.sign(
         { id: 0, role: 'ADMIN', name: 'Admin', email: normalizedEmail, batch: null },
         process.env.JWT_SECRET || 'epic-ielts-secret',
-        { expiresIn: '12h' }
+        { expiresIn: '7d' }
       );
       clearRateLimit(ip, emailForLimit);
       return res.json({

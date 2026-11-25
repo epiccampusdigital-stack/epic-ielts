@@ -51,8 +51,22 @@ function getUser() {
   }
 }
 
+// A login token lasts a limited time. An expired one counts as logged out, so the student is sent to log in
+// again instead of seeing empty pages (this was why phones showed no data).
+function tokenExpired(t) {
+  try {
+    const p = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return !!p.exp && p.exp * 1000 < Date.now();
+  } catch { return false; }
+}
+
 function isLoggedIn() {
-  return !!localStorage.getItem('token') && !!getUser();
+  const t = localStorage.getItem('token');
+  if (t && tokenExpired(t)) {
+    try { localStorage.removeItem('token'); localStorage.removeItem('user'); sessionStorage.setItem('session-expired', '1'); } catch { /* storage blocked */ }
+    return false;
+  }
+  return !!t && !!getUser();
 }
 
 function isAdmin() {

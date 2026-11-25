@@ -124,7 +124,10 @@ export default function Login() {
   const [mode, setMode] = useState('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() => {
+    try { if (sessionStorage.getItem('session-expired')) { sessionStorage.removeItem('session-expired'); return 'Your login timed out. Please log in again.'; } } catch { /* storage blocked */ }
+    return '';
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const firstFieldRef = useRef(null);

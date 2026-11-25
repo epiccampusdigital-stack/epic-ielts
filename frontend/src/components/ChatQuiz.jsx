@@ -2,10 +2,11 @@
 // Teachers paste questions in a simple text format (one per line, "question = answer / other answer"),
 // tick earlier photos / audio / PDFs from the chat to go with them, and send. Students answer in the chat,
 // answers are marked straight away, and the teacher sees everyone's score.
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import API_URL from '../api';
 import { T } from '../theme';
+import SplitHandle, { useSplit, SPLIT_CSS } from './SplitHandle';
 
 const api = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 const errText = e => e?.response?.data?.error || 'Something went wrong. Please try again.';
@@ -113,6 +114,10 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
   const mine = m.myQuiz;
   const [ans, setAns] = useState(() => quiz.items.map(() => ''));
   const [busy, setBusy] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const [zoom, setZoom] = useState(false);
+  const [split, setSplit] = useSplit('quiz-split', 45);
+  const layoutRef = useRef(null);
   const left = ans.filter(a => !String(a).trim()).length;
   const submit = async () => {
     if (left && !window.confirm(`${left} question${left === 1 ? ' is' : 's are'} still empty. Send anyway? You can only send once.`)) return;
@@ -121,16 +126,22 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
     catch (e) { flash(errText(e)); }
     setBusy(false);
   };
-  return (
-    <div style={{ marginTop: 6, display: 'grid', gap: 10, minWidth: 'min(520px, 70vw)' }}>
-      {staff && <div style={{ fontSize: 13, fontWeight: 700, color: '#8a5a00', background: '#fff4c2', borderRadius: 8, padding: '6px 10px' }}>Teacher view: only teachers see the green answers. Students see the questions only.</div>}
+  const hasMedia = quiz.attach.some(a => a.imageUrl || a.fileUrl);
+  const mediaBlock = full => (
+    <>
       {quiz.attach.map(a => (
         <div key={a.id}>
-          {a.imageUrl && <a href={imgSrc(a.imageUrl)} target="_blank" rel="noreferrer"><img src={imgSrc(a.imageUrl)} alt="For the questions" style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: 12, border: '1px solid #e4e6eb', background: '#fff', display: 'block' }} /></a>}
+          {a.imageUrl && (full
+            ? <img src={imgSrc(a.imageUrl)} alt="For the questions" onClick={() => setZoom(z => !z)} title={zoom ? 'Tap to fit' : 'Tap to zoom in'} style={{ width: zoom ? '200%' : '100%', maxWidth: 'none', cursor: zoom ? 'zoom-out' : 'zoom-in', borderRadius: 10, border: '1px solid #e4e6eb', background: '#fff', display: 'block' }} />
+            : <a href={imgSrc(a.imageUrl)} target="_blank" rel="noreferrer"><img src={imgSrc(a.imageUrl)} alt="For the questions" style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: 12, border: '1px solid #e4e6eb', background: '#fff', display: 'block' }} /></a>)}
           {a.fileUrl && isAudio(a.fileUrl) && <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', border: '1px solid #e4e6eb' }}><div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>🎵 {a.fileName || 'Audio'}</div><audio controls preload="metadata" src={imgSrc(a.fileUrl)} style={{ width: '100%', height: 40 }} /></div>}
           {a.fileUrl && !isAudio(a.fileUrl) && <a href={pdfSrc(a.fileUrl, a.fileName)} target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: T.primary }}>📄 {a.fileName || 'Open the PDF'}</a>}
         </div>
       ))}
+    </>
+  );
+  const questionBlock = (
+    <>
       <ol style={{ margin: 0, paddingLeft: 24, display: 'grid', gap: 10 }}>
         {quiz.items.map((it, i) => {
           const done = !!mine;
@@ -160,7 +171,35 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
       </ol>
       {!staff && !mine && <button type="button" onClick={submit} disabled={busy} style={{ ...btn(T.primary), justifySelf: 'start' }}>{busy ? 'Sending…' : 'Send my answers'}</button>}
       {!staff && mine && <div style={{ fontWeight: 800, fontSize: 16, color: '#0b3d91' }}>Your score: {mine.score} / {mine.total}</div>}
+    </>
+  );
+  return (
+    <div style={{ marginTop: 6, display: 'grid', gap: 10, minWidth: 'min(520px, 70vw)' }}>
+      {staff && <div style={{ fontSize: 13, fontWeight: 700, color: '#8a5a00', background: '#fff4c2', borderRadius: 8, padding: '6px 10px' }}>Teacher view: only teachers see the green answers. Students see the questions only.</div>}
+      {hasMedia && <button type="button" onClick={() => setFocus(true)} style={{ ...btn('#050505'), justifySelf: 'start' }}>⤢ Open picture and questions together</button>}
+      {mediaBlock(false)}
+      {questionBlock}
       {staff && <button type="button" onClick={onResults} style={{ ...btn('#050505'), justifySelf: 'start' }}>Results · {quiz.submitted || 0} answered ›</button>}
+      {focus && (
+        <div role="dialog" aria-modal="true" aria-label="Picture and questions" style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#fff', display: 'flex', flexDirection: 'column', fontFamily: T.font }}>
+          <style>{SPLIT_CSS}</style>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid #e4e6eb', flex: 'none' }}>
+            <b style={{ flex: 1, fontSize: 15.5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.text || 'Questions'}</b>
+            {mine && <b style={{ color: '#0b3d91' }}>{mine.score}/{mine.total}</b>}
+            <button type="button" onClick={() => setFocus(false)} style={btn('#e4e6eb', '#050505')}>Close</button>
+          </div>
+          <div className="exam-layout" ref={layoutRef} style={{ '--split': `${split}%`, flex: 1, minHeight: 0, display: 'flex' }}>
+            <div className="passage-section" style={{ flex: '1 1 55%', overflow: 'auto', padding: 12, background: '#f6f8fc', display: 'grid', gap: 10, alignContent: 'start' }}>
+              {mediaBlock(true)}
+              <div style={{ fontSize: 12.5, color: '#65676b' }}>Tap the picture to zoom in or out.</div>
+            </div>
+            <SplitHandle layoutRef={layoutRef} value={split} onChange={setSplit} label="Picture ↑ · Questions ↓" />
+            <div className="questions-section" style={{ flex: '1 1 45%', overflowY: 'auto', padding: 14, display: 'grid', gap: 10, alignContent: 'start', borderLeft: '1px solid #e4e6eb' }}>
+              {questionBlock}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

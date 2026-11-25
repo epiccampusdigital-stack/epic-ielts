@@ -32,10 +32,14 @@ function cleanQuiz(raw) {
     q: String(it?.q || '').trim().slice(0, 500),
     options: Array.isArray(it?.options) && it.options.length ? it.options.slice(0, 12).map(o => String(o).trim().slice(0, 120)).filter(Boolean) : null,
     answers: (Array.isArray(it?.answers) ? it.answers : []).slice(0, 10).map(a => String(a).trim().slice(0, 120)).filter(Boolean),
+    why: String(it?.why || '').trim().slice(0, 400) || null,
   })).filter(it => it.q && it.answers.length);
   if (!items.length) return null;
   const attach = (Array.isArray(raw.attach) ? raw.attach : []).map(n => parseInt(n, 10)).filter(Number.isInteger).slice(0, 8);
-  return { items, attach, showAnswers: raw.showAnswers !== false };
+  // photos / audio uploaded straight into the question set (not sent to the chat first)
+  const media = (Array.isArray(raw.media) ? raw.media : []).slice(0, 8).map(x => (okImage(x?.imageUrl) ? { imageUrl: x.imageUrl }
+    : okFile(x?.fileUrl) ? { fileUrl: x.fileUrl, fileName: cleanName(x.fileName || 'audio') } : null)).filter(Boolean);
+  return { items, attach, media, showAnswers: raw.showAnswers !== false };
 }
 function markQuiz(quiz, given) {
   const answers = quiz.items.map((_, i) => String((Array.isArray(given) ? given[i] : '') || '').trim().slice(0, 200));
@@ -45,7 +49,7 @@ function markQuiz(quiz, given) {
 function myQuizOut(quiz, row) {
   if (!row) return null;
   let d = {}; try { d = JSON.parse(row.text); } catch { d = {}; }
-  return { answers: d.answers || [], results: d.results || [], score: row.score ?? 0, total: quiz.items.length, correct: quiz.showAnswers ? quiz.items.map(it => it.answers[0]) : null };
+  return { answers: d.answers || [], results: d.results || [], score: row.score ?? 0, total: quiz.items.length, correct: quiz.items.map(it => (quiz.showAnswers || it.why ? it.answers[0] : null)), why: quiz.items.map(it => it.why || null) };
 }
 
 async function canSee(req, groupId) {
@@ -242,7 +246,7 @@ router.get('/groups/:id/messages', auth, wrap(async (req, res) => {
       myAnswer: m.askAnswer && !isStaff(req) ? (answerRows.some(a => a.messageId === m.id) ? pickAnswer(answerRows.find(a => a.messageId === m.id)) : null) : undefined,
       quiz: m.quiz && !m.deletedAt ? {
         items: m.quiz.items.map(it => (isStaff(req) ? it : { q: it.q, options: it.options })),
-        attach: (m.quiz.attach || []).map(id => attMap.get(id)).filter(Boolean),
+        attach: [...(m.quiz.attach || []).map(id => attMap.get(id)).filter(Boolean), ...(m.quiz.media || []).map((x, i) => ({ id: `m${i}`, ...x }))],
         showAnswers: m.quiz.showAnswers !== false, total: m.quiz.items.length,
         submitted: isStaff(req) ? answerRows.filter(a => a.messageId === m.id).length : undefined,
       } : null,

@@ -13,10 +13,10 @@ const errText = e => e?.response?.data?.error || 'Something went wrong. Please t
 const isAudio = u => /\/chat-audio\/|\/uploads\/audio\/|\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(u || '');
 
 export const QUIZ_HELP = `Choices: A B C D E F G H
-1. Toilets = A
+1. Toilets = A | They are on your left as you come in.
 2. Café = C
 Choices: none
-6. What time does the café open? = nine / 9 / 9 am`;
+6. What time does the café open? = nine / 9 / 9 am | "It opens at nine."`;
 
 // Text → questions. "Choices: A B C" applies to the questions after it, until "Choices: none".
 export function parseQuiz(text) {
@@ -31,13 +31,16 @@ export function parseQuiz(text) {
       options = !v || /^none$/i.test(v) ? null : v.split(/\s*[,|]\s*|\s+/).filter(Boolean).slice(0, 12);
       return;
     }
-    const at = line.lastIndexOf('=');
+    const bar = line.indexOf(' | ');
+    const main = bar > 0 ? line.slice(0, bar) : line;
+    const why = bar > 0 ? line.slice(bar + 3).trim() : '';
+    const at = main.lastIndexOf('=');
     if (at < 1) { errors.push(`Line ${i + 1}: add "= answer" at the end`); return; }
-    const q = line.slice(0, at).replace(/^\s*\d+\s*[.)]\s*/, '').trim();
-    const answers = line.slice(at + 1).split('/').map(a => a.trim()).filter(Boolean);
+    const q = main.slice(0, at).replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+    const answers = main.slice(at + 1).split('/').map(a => a.trim()).filter(Boolean);
     if (!q || !answers.length) { errors.push(`Line ${i + 1}: needs a question and an answer`); return; }
     if (options && !answers.some(a => options.some(o => o.toLowerCase() === a.toLowerCase()))) errors.push(`Line ${i + 1}: the answer "${answers[0]}" is not one of the choices`);
-    items.push({ q, options, answers });
+    items.push({ q, options, answers, why: why || null });
   });
   return { items, errors };
 }
@@ -51,13 +54,30 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
   const [attach, setAttach] = useState([]);
   const [showAnswers, setShowAnswers] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [uploads, setUploads] = useState([]); // new photos / audio added here: { key, imageUrl | fileUrl, fileName, preview, uploading }
+  const photoIn = useRef(null);
+  const audioIn = useRef(null);
+  const upload = async (file, kind) => {
+    if (!file) return;
+    const key = `${Date.now()}${Math.random()}`;
+    const isPic = kind === 'photo';
+    if (isPic && !file.type?.startsWith('image/')) return;
+    if (!isPic && !(/^audio\//.test(file.type) || /\.(mp3|m4a|wav|ogg|oga|aac|webm|opus)$/i.test(file.name))) return;
+    setUploads(u => [...u, { key, fileName: file.name, preview: isPic ? URL.createObjectURL(file) : null, audio: !isPic, uploading: true }]);
+    try {
+      const fd = new FormData(); fd.append(isPic ? 'photo' : 'file', file);
+      const r = await axios.post(`${API_URL}/api/chat/${isPic ? 'photo' : 'audio'}`, fd, api());
+      setUploads(u => u.map(x => (x.key === key ? { ...x, uploading: false, ...(isPic ? { imageUrl: r.data.url } : { fileUrl: r.data.url, fileName: r.data.fileName || file.name }) } : x)));
+    } catch (e) { setUploads(u => u.filter(x => x.key !== key)); alert(errText(e)); }
+  };
   const { items, errors } = useMemo(() => parseQuiz(text), [text]);
   const media = (messages || []).filter(m => !m.deleted && (m.imageUrl || m.fileUrl)).slice(-30).reverse();
   const toggle = id => setAttach(a => (a.includes(id) ? a.filter(x => x !== id) : a.length >= 8 ? a : [...a, id]));
   const send = async () => {
     if (!items.length || errors.length) return;
     setBusy(true);
-    try { await onSend({ text: title.trim() || 'Answer these questions', quiz: { items, attach, showAnswers } }); onClose(); } catch { /* parent shows the error */ }
+    const media = uploads.filter(u => u.imageUrl || u.fileUrl).map(u => (u.imageUrl ? { imageUrl: u.imageUrl } : { fileUrl: u.fileUrl, fileName: u.fileName }));
+    try { await onSend({ text: title.trim() || 'Answer these questions', quiz: { items, attach, media, showAnswers } }); onClose(); } catch { /* parent shows the error */ }
     setBusy(false);
   };
   const box = { width: '100%', boxSizing: 'border-box', border: '1px solid #ced0d4', borderRadius: 10, padding: '10px 12px', fontSize: 15, fontFamily: 'inherit' };
@@ -71,7 +91,7 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title or instructions (e.g. Lakeside Park map: answer questions 1 to 10)" style={box} />
         <div>
           <div style={{ fontSize: 13.5, color: '#65676b', marginBottom: 4 }}>
-            One question per line: <b>question = answer</b>. Several right answers? Separate them with <b>/</b>. Buttons instead of typing? Put <b>Choices: A B C</b> on a line before the questions (and <b>Choices: none</b> to stop).
+            One question per line: <b>question = answer</b>. Several right answers? Separate them with <b>/</b>. Buttons instead of typing? Put <b>Choices: A B C</b> on a line before the questions (and <b>Choices: none</b> to stop). Add <b>| a short reason</b> at the end of a line to explain the answer after students send theirs.
           </div>
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder={QUIZ_HELP} rows={10} style={{ ...box, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 14 }} />
           <div style={{ fontSize: 13.5, marginTop: 4, color: errors.length ? '#b3261e' : '#15803d', fontWeight: 600 }}>
@@ -79,8 +99,25 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
           </div>
         </div>
         <div>
-          <b style={{ fontSize: 14.5 }}>Show with the questions</b> <span style={{ fontSize: 13, color: '#65676b' }}>(tick earlier photos, audio or PDFs from this chat, up to 8)</span>
-          {!media.length && <div style={{ fontSize: 13.5, color: '#65676b', marginTop: 4 }}>Nothing to attach yet. Send the photo or audio in the chat first, then come back here.</div>}
+          <b style={{ fontSize: 14.5 }}>Show with the questions</b> <span style={{ fontSize: 13, color: '#65676b' }}>(upload new ones, or tick earlier photos, audio or PDFs from this chat)</span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '6px 0' }}>
+            <button type="button" onClick={() => photoIn.current?.click()} style={btn('#eef4ff', T.primary)}>📷 Upload a photo</button>
+            <button type="button" onClick={() => audioIn.current?.click()} style={btn('#f3ecff', '#6d28d9')}>🎵 Upload audio</button>
+            <input ref={photoIn} type="file" accept="image/*" hidden onChange={e => { upload(e.target.files?.[0], 'photo'); e.target.value = ''; }} />
+            <input ref={audioIn} type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.webm,.opus" hidden onChange={e => { upload(e.target.files?.[0], 'audio'); e.target.value = ''; }} />
+          </div>
+          {uploads.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8 }}>
+              {uploads.map(u => (
+                <div key={u.key} style={{ position: 'relative', border: `2px solid ${T.primary}`, background: '#eef4ff', borderRadius: 12, padding: 6 }}>
+                  {u.preview ? <img src={u.preview} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, display: 'block', opacity: u.uploading ? 0.5 : 1 }} />
+                    : <div style={{ height: 80, borderRadius: 8, background: '#7c3aed', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, opacity: u.uploading ? 0.5 : 1 }}>🎵</div>}
+                  <div style={{ fontSize: 12.5, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.uploading ? 'Uploading…' : `New: ${u.fileName}`}</div>
+                  <button type="button" aria-label="Remove" onClick={() => setUploads(x => x.filter(y => y.key !== u.key))} style={{ position: 'absolute', top: 2, right: 2, width: 24, height: 24, borderRadius: '50%', border: 0, background: '#050505', color: '#fff', cursor: 'pointer' }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginTop: 6 }}>
             {media.map(m => {
               const on = attach.includes(m.id);
@@ -101,7 +138,7 @@ export function QuizComposer({ messages, imgSrc, onSend, onClose }) {
         </label>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} style={btn('#e4e6eb', '#050505')}>Cancel</button>
-          <button type="button" disabled={!items.length || !!errors.length || busy} onClick={send} style={{ ...btn(T.primary), opacity: !items.length || errors.length || busy ? 0.5 : 1 }}>{busy ? 'Sending…' : `Send ${items.length || ''} question${items.length === 1 ? '' : 's'}`}</button>
+          <button type="button" disabled={!items.length || !!errors.length || busy || uploads.some(u => u.uploading)} onClick={send} style={{ ...btn(T.primary), opacity: !items.length || errors.length || busy ? 0.5 : 1 }}>{busy ? 'Sending…' : `Send ${items.length || ''} question${items.length === 1 ? '' : 's'}`}</button>
         </div>
       </div>
     </div>
@@ -164,7 +201,9 @@ export function QuizCard({ m, staff, imgSrc, pdfSrc, flash, onDone, onResults })
                 <input value={given || ''} disabled={done} onChange={e => setAns(a => a.map((x, j) => (j === i ? e.target.value : x)))} placeholder="Your answer"
                   style={{ width: '100%', maxWidth: 360, boxSizing: 'border-box', height: 38, borderRadius: 10, border: `1.5px solid ${done ? (ok ? '#15803d' : '#b3261e') : '#ced0d4'}`, padding: '0 10px', fontSize: 15, fontFamily: 'inherit', background: done ? (ok ? '#e9f7ee' : '#fdecea') : '#fff' }} />
               )}
-              {done && !ok && mine.correct && <div style={{ fontSize: 13.5, color: '#15803d', fontWeight: 700, marginTop: 3 }}>Right answer: {mine.correct[i]}</div>}
+              {done && !ok && mine.correct?.[i] && <div style={{ fontSize: 13.5, color: '#15803d', fontWeight: 700, marginTop: 3 }}>Right answer: {mine.correct[i]}</div>}
+              {done && mine.why?.[i] && <div style={{ fontSize: 13.5, color: '#44506a', marginTop: 3, background: '#f6f8fc', borderRadius: 8, padding: '4px 8px' }}>💡 {mine.why[i]}</div>}
+              {staff && it.why && <div style={{ fontSize: 13, color: '#44506a', marginTop: 2 }}>💡 {it.why}</div>}
             </li>
           );
         })}

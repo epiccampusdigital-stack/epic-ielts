@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IELTS Recap Workbook</title>
+<style>
+:root { --navy:#002761; --blue:#0056d2; --bg:#f6f8fc; --line:#dae1ed; --muted:#5b6780; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); font-family: 'Source Sans Pro', Arial, sans-serif; color:#0f1114; }
+header { background:#fff; border-bottom:1px solid var(--line); padding:14px 16px; }
+header h1 { margin:0 0 4px; font-size:20px; color:var(--navy); }
+header p { margin:0; font-size:14px; color:var(--muted); line-height:1.45; }
+nav { position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line); display:flex; gap:8px; padding:8px 12px; overflow-x:auto; scrollbar-width:none; }
+nav a { flex:none; text-decoration:none; font-weight:700; font-size:14px; color:var(--navy); background:#eef3fb; border-radius:999px; padding:8px 14px; }
+nav a.dl { background:var(--blue); color:#fff; margin-left:auto; }
+main { max-width:900px; margin:0 auto; padding:12px; display:grid; gap:12px; }
+h2 { margin:14px 4px 0; font-size:17px; color:var(--blue); scroll-margin-top:60px; }
+img { width:100%; height:auto; display:block; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.tip { font-size:13px; color:var(--muted); margin:0 4px; }
+</style></head><body>
+<header><h1>My IELTS recap workbook</h1><p>How to tackle every question type in Listening, Reading, Writing and Speaking. Pinch to zoom on a phone. You can also download the PDF to print or keep.</p></header>
+<nav>
+  <a href="#listening">Listening</a><a href="#reading">Reading</a><a href="#writing">Writing</a><a href="#speaking">Speaking</a>
+  <a class="dl" href="/recap/IELTS-recap-workbook.pdf" download>⬇ Download PDF</a>
+</nav>
+<main id="pages"></main>
+<script>
+const SECTIONS = [['', 'Contents', [1]], ['listening', 'Part 1 · Listening', [2, 3, 4]], ['reading', 'Part 2 · Reading', [5, 6, 7]], ['writing', 'Part 3 · Writing', [8, 9, 10, 11, 12]], ['speaking', 'Part 4 · Speaking', [13, 14]]];
+const m = document.getElementById('pages');
+for (const [id, title, pages] of SECTIONS) {
+  const h = document.createElement('h2'); h.textContent = title; if (id) h.id = id; m.appendChild(h);
+  for (const n of pages) { const i = document.createElement('img'); i.src = `/recap/p-${String(n).padStart(2, '0')}.jpg`; i.alt = `${title}, page ${n}`; i.loading = n > 2 ? 'lazy' : 'eager'; m.appendChild(i); }
+}
+// tick it as done on the Class page once opened
+try { const k = 'class-progress', p = JSON.parse(localStorage.getItem(k) || '{}'); p['recap.html'] = { read: [1, 1], _total: 1 }; localStorage.setItem(k, JSON.stringify(p)); } catch (e) {}
+</script>
+</body></html>

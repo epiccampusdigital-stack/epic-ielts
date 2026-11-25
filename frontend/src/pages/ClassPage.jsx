@@ -26,6 +26,9 @@ const ACTIVITIES = [
   { id: 'drills6-25nov', title: 'Skimming and Scanning', date: 'Wednesday 25 November', tag: 'Reading speed · 6 timed drills',
     desc: 'Read fast for the main idea, match headings, scan a table, find numbers and names, find paraphrased ideas, and short answers with a word limit. The text only appears when you press Start, so the clock is real.',
     src: '/drills6.html' },
+  { id: 'recap-25nov', title: 'IELTS Recap Workbook', date: 'Wednesday 25 November', tag: 'Listening · Reading · Writing · Speaking',
+    desc: 'How to tackle every question type: forms, maps, True/False/Not Given, headings, line graphs, bar charts, pie charts, tables, maps, processes, the 5 essay types and Speaking Parts 1 to 3. Read it before the Final Exam. You can download the PDF too.',
+    src: '/recap.html' },
 ];
 
 export default function ClassPage() {

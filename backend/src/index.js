@@ -184,6 +184,9 @@ require('./ensureSchema').ensureSchema(prisma)
       // Final Exam (Sun 29 Nov): listening, reading and writing, all locked; each part has its own timer
       const { addExamPaper3 } = require('../scripts/ielts/examPaper3');
       console.log('[ielts] final exam:', JSON.stringify(await addExamPaper3(prisma)));
+      // Writing Task 1 training paper (Exam tab, locked): five parts on one 2.5-hour timer
+      const { addWritingT1Training } = require('../scripts/ielts/writingT1Training');
+      console.log('[ielts] writing task 1 training:', JSON.stringify(await addWritingT1Training(prisma)));
       // Listening audio jobs (record or re-record single parts) run in the background
       require('../scripts/ielts/audioJobs').runAudioJobs(prisma).then(r => console.log('[ielts] audio jobs:', JSON.stringify(r))).catch(e => console.error('[ielts] audio jobs:', e.message));
       const { addSleepTreesReading } = require('../scripts/ielts/readingSleepTreesFailure');

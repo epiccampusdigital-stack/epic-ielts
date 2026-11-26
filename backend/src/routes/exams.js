@@ -12,6 +12,8 @@ const EXAMS = [
   { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
   // Final exam: each part keeps its OWN timer; when a part ends (time up or submitted), a 10-second countdown
   // shows and the next part opens by itself (autoNext). Results stay hidden until a teacher releases them.
+  // Writing Task 1 training: nine Task 1 questions in five parts on one 2.5-hour timer. Shown only once every chart image is uploaded.
+  { id: 'wt1', title: 'IELTS Writing Task 1 Training Paper', subtitle: 'Nine Task 1 questions: bar, line, pie, table, map, process, mixed chart, email and letter · one timer, 2.5 hours', codes: ['WT1-A', 'WT1-B', 'WT1-C', 'WT1-D', 'WT1-E'], needsFiles: () => require('../../scripts/ielts/writingT1Training').FILES, oneTimer: true, totalMinutes: 150, training: true },
   { id: 'final', title: 'Final Exam', subtitle: 'IELTS Listening (40 min), Reading (60 min) and Writing (60 min) · each part has its own timer', codes: ['EX3-L', 'EX3-R', 'EX3-W'], needsAudio: true, autoNext: true, holdResults: true },
 ];
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];
@@ -58,6 +60,7 @@ async function build(prisma, studentId, staff) {
     });
     if (!parts.length || parts.length < e.codes.length) return null;
     // an exam with listening appears only when every listening part has its recording
+    if (e.needsFiles && e.needsFiles().some(f => !require('fs').existsSync(require('path').join(__dirname, '../../public-media', f)))) return null;
     if (e.needsAudio && papers.some(p => e.codes.includes(p.paperCode) && p.testType === 'LISTENING' && (!p.sections.length || p.sections.some(s => !s.audioUrl)))) return null;
     const open = parts.every(p => papers.find(x => x.id === p.paperId).status === 'EXAM_OPEN');
     return { id: e.id, title: e.title, subtitle: e.subtitle, open, released: !held.has(e.id), oneTimer: !!e.oneTimer, autoNext: !!(e.oneTimer || e.autoNext), totalMinutes: e.totalMinutes || parts.reduce((a, p) => a + p.timeLimitMin, 0), parts };
@@ -213,6 +216,7 @@ router.get('/progress', auth, async (req, res) => {
     const held = await heldExamIds();
     const exams = [];
     for (const e of list) {
+      if (EXAMS.find(x => x.id === e.id)?.training) continue; // practice sittings are not steps in the progress journey
       const allDone = e.parts.every(p => p.done);
       const anyDone = e.parts.some(p => p.done);
       const row = { id: e.id, title: e.title, parts: e.parts.length };

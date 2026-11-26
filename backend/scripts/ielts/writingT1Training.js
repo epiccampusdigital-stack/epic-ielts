@@ -85,6 +85,8 @@ function papers() {
 async function addWritingT1Training(prisma) {
   const { addIeltsPapers } = require('./kit');
   const out = { papers: await addIeltsPapers(prisma, papers(), { status: 'EXAM_LOCKED' }) };
+  // keep the part titles (an older start-up step renamed them to "IELTS Writing 0xx")
+  for (const p of papers()) await prisma.paper.updateMany({ where: { paperCode: p.code, testType: 'WRITING' }, data: { title: p.title, instructions: p.instructions } });
   let attached = 0;
   for (const p of PARTS) {
     const paper = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: 'WRITING' }, include: { writingTasks: true } });

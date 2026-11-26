@@ -12,8 +12,6 @@ const EXAMS = [
   { id: 'paper2', title: 'Exam Paper 2 · Midway Final Exam', subtitle: 'IELTS Listening, Reading and Writing · one timer, 2.5 hours', codes: ['EX2-L', 'EX2-R', 'EX2-W'], needsAudio: true, oneTimer: true, totalMinutes: 150 },
   // Final exam: each part keeps its OWN timer; when a part ends (time up or submitted), a 10-second countdown
   // shows and the next part opens by itself (autoNext). Results stay hidden until a teacher releases them.
-  // Writing Task 1 training: nine Task 1 questions in five parts on one 2.5-hour timer. Shown only once every chart image is uploaded.
-  { id: 'wt1', title: 'IELTS Writing Task 1 Training Paper', subtitle: 'Nine Task 1 questions: bar, line, pie, table, map, process, mixed chart, email and letter · one timer, 2.5 hours', codes: ['WT1-A', 'WT1-B', 'WT1-C', 'WT1-D', 'WT1-E'], needsFiles: () => require('../../scripts/ielts/writingT1Training').FILES, oneTimer: true, totalMinutes: 150, training: true },
   { id: 'final', title: 'Final Exam', subtitle: 'IELTS Listening (40 min), Reading (60 min) and Writing (60 min) · each part has its own timer', codes: ['EX3-L', 'EX3-R', 'EX3-W'], needsAudio: true, autoNext: true, holdResults: true },
 ];
 const STAFF = ['ADMIN', 'TEACHER', 'PROGRAM_TEACHER'];

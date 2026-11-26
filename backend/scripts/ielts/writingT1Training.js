@@ -1,8 +1,8 @@
-// IELTS Writing Task 1 Training Paper (Exam tab): nine Task 1 questions in one 2.5-hour sitting.
-// Five parts on ONE timer (150 minutes): A bar + line, B pie + table, C map + process, D mixed chart + email, E letter.
+// IELTS Writing Task 1 Training Paper (Practice papers, Writing): nine Task 1 questions in five parts.
+// A bar + line, B pie + table, C map + process, D mixed chart + email, E letter. About 2.5 hours for all five.
 // Each part is a "two reports, no essay" writing paper (taskNumber 1 and 3), so the marker uses Task 1 criteria
 // for both answers. Part E has one task only. The charts are images made in ChatGPT and saved in public-media;
-// the exam stays hidden until every image is there (see FILES and routes/exams.js).
+// each image is attached once its file is there.
 const fs = require('fs');
 const path = require('path');
 
@@ -69,24 +69,26 @@ const PARTS = [
   },
 ];
 
-const intro = p => `IELTS Writing Task 1 Training Paper (2.5 hours, one timer for all five parts). ${p.title.split(' · ').slice(1).join(' · ')}. ` +
-  `${p.tasks.length === 2 ? 'Two Task 1 questions' : 'One Task 1 question'}: spend about 17 minutes on each and write at least 150 words. ` +
-  'When you submit this part, the next part opens straight away and the clock keeps running.';
+const intro = p => `IELTS Writing Task 1 Training Paper, ${p.title.split(' · ').slice(1).join(' · ')} (one of five parts, about 2.5 hours for all five). ` +
+  `${p.tasks.length === 2 ? 'Two Task 1 questions' : 'One Task 1 question'}: spend about 17 minutes on each and write at least 150 words.`;
 
 function papers() {
   return PARTS.map(p => ({
-    code: p.code, testType: 'WRITING', title: p.title, timeLimitMin: 30, difficulty: 3, topic: 'Writing Task 1 Training',
+    code: p.code, testType: 'WRITING', title: p.title, timeLimitMin: p.tasks.length * 17, difficulty: 3, topic: 'Writing Task 1 Training',
     instructions: intro(p),
     tasks: p.tasks.map(t => ({ taskNumber: t.taskNumber, minWords: t.minWords, timeMinutes: t.timeMinutes, prompt: t.prompt, chartDescription: t.chartDescription, ...(t.key && img(t.key) ? { chartImageUrl: img(t.key) } : {}) })),
   }));
 }
 
-// Adds the five parts (locked, Exam tab) and attaches each chart image once its file is in public-media. Safe to run on every start.
+// Adds the five parts as normal practice papers (ACTIVE) and attaches each chart image once its file is in public-media. Safe to run on every start.
 async function addWritingT1Training(prisma) {
   const { addIeltsPapers } = require('./kit');
-  const out = { papers: await addIeltsPapers(prisma, papers(), { status: 'EXAM_LOCKED' }) };
+  const out = { papers: await addIeltsPapers(prisma, papers(), { status: 'ACTIVE' }) };
   // keep the part titles (an older start-up step renamed them to "IELTS Writing 0xx")
-  for (const p of papers()) await prisma.paper.updateMany({ where: { paperCode: p.code, testType: 'WRITING' }, data: { title: p.title, instructions: p.instructions } });
+  for (const p of papers()) await prisma.paper.updateMany({ where: { paperCode: p.code, testType: 'WRITING' }, data: { title: p.title, instructions: p.instructions, timeLimitMin: p.timeLimitMin } });
+  // moved from the Exam tab to the normal papers (26 Nov): unlock the parts that were added as exam papers
+  const moved = await prisma.paper.updateMany({ where: { paperCode: { in: PARTS.map(p => p.code) }, testType: 'WRITING', status: { startsWith: 'EXAM' } }, data: { status: 'ACTIVE' } });
+  if (moved.count) out.moved = `${moved.count} parts moved to practice papers`;
   let attached = 0;
   for (const p of PARTS) {
     const paper = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: 'WRITING' }, include: { writingTasks: true } });

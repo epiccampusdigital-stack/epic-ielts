@@ -352,7 +352,9 @@ export default function WritingExam() {
   const [task1, setTask1] = useState('');
   const [task2, setTask2] = useState('');
   const [task3, setTask3] = useState(''); // three-task papers: the second report (taskNumber 3)
-  const [extra, setExtra] = useState({}); // papers with more than three tasks: answers for taskNumber 4, 5 ...
+  const [extra, setExtra] = useState({});
+  // Writing Task 1 Training Paper only: add 30 minutes once when 5 minutes are left
+  const [extraTime, setExtraTime] = useState({ allowed: false, used: false, busy: false }); // papers with more than three tasks: answers for taskNumber 4, 5 ...
   const [timeLeft, setTimeLeft] = useState(null);
   const getFullUrl = (url) => {
     if (!url) return '';
@@ -421,6 +423,7 @@ export default function WritingExam() {
             if (d.extra && typeof d.extra === 'object') setExtra(prev => { const v = { ...d.extra, ...Object.fromEntries(Object.entries(prev).filter(([, x]) => x)) }; extraRef.current = v; return v; });
           } catch { /* ignore a broken draft */ }
         }
+        setExtraTime({ allowed: !!r.data.extraTimeAllowed, used: !!r.data.extraMinutes, busy: false });
         const totalSeconds = ((r.data.paper?.timeLimitMin || 60) + (r.data.extraMinutes || 0)) * 60;
         const startedAt = r.data.startedAt ? new Date(r.data.startedAt).getTime() : null;
         const elapsed = startedAt ? Math.floor(((r.data.serverNow || Date.now()) - startedAt) / 1000) : 0;
@@ -1188,6 +1191,26 @@ export default function WritingExam() {
           </div>
         </div>
       </div>
+
+      {extraTime.allowed && !extraTime.used && timeLeft !== null && timeLeft > 0 && timeLeft <= 300 && attempt?.status !== 'COMPLETED' && (
+        <div role="alertdialog" aria-label="Add more time" style={{ position: 'fixed', top: 76, left: '50%', transform: 'translateX(-50%)', zIndex: 60, background: '#fff7ed', border: '2px solid #f59e0b', borderRadius: 14, padding: '12px 16px', boxShadow: '0 10px 30px rgba(0,0,0,.18)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', maxWidth: 'calc(100vw - 24px)' }}>
+          <span style={{ fontWeight: 700, color: '#9a3412', fontSize: 14 }}>⏰ Less than 5 minutes left. Need more time?</span>
+          <button type="button" disabled={extraTime.busy}
+            onClick={async () => {
+              setExtraTime(x => ({ ...x, busy: true }));
+              try {
+                const r = await axios.post(`${API_URL}/api/attempts/${attemptId}/extra-time`, {}, api());
+                const add = (r.data?.extraMinutes || 30) * 60;
+                if (!r.data?.already) setTimeLeft(t => (t || 0) + add);
+                setExtraTime(x => ({ ...x, used: true, busy: false }));
+              } catch { setExtraTime(x => ({ ...x, busy: false })); alert('Could not add time. Please try again.'); }
+            }}
+            style={{ background: '#ea580c', color: '#fff', border: 0, borderRadius: 10, padding: '8px 16px', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+            {extraTime.busy ? 'Adding…' : '+ Add 30 minutes'}
+          </button>
+          <span style={{ fontSize: 12, color: '#7c2d12' }}>You can do this once.</span>
+        </div>
+      )}
 
       {/* Bottom bar */}
       <div style={{ background: '#ffffff', borderTop: '1px solid #e3eeff', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>

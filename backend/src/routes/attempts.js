@@ -711,6 +711,26 @@ router.put('/:id/writing/draft', auth, async (req, res) => {
   }
 });
 
+// Writing Task 1 Training Paper only: when time is running out the student can add 30 minutes, once.
+// Kept in AppSetting (attempt.<id>.extraMinutes), so no table change; the exam page adds it to its timer.
+const extraKey = id => `attempt.${id}.extraMinutes`;
+router.post('/:id/extra-time', auth, async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id, 10);
+    const attempt = await prisma.attempt.findUnique({ where: { id: attemptId }, select: { studentId: true, status: true, paper: { select: { paperCode: true, testType: true } } } });
+    const { CODE, EXTRA_MINUTES } = require('../../scripts/ielts/writingT1Training');
+    if (!attempt || attempt.paper?.paperCode !== CODE || attempt.paper?.testType !== 'WRITING') return res.status(400).json({ error: 'Extra time is not available for this paper.' });
+    if (attempt.studentId !== req.user.id) return res.status(403).json({ error: 'Not your attempt' });
+    if (attempt.status === 'COMPLETED') return res.status(400).json({ error: 'This paper is already submitted.' });
+    const have = await prisma.appSetting.findUnique({ where: { key: extraKey(attemptId) } });
+    if (have) return res.json({ extraMinutes: parseInt(have.value, 10) || 0, already: true });
+    await prisma.appSetting.create({ data: { key: extraKey(attemptId), value: String(EXTRA_MINUTES) } });
+    res.json({ extraMinutes: EXTRA_MINUTES });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const attemptId = parseInt(req.params.id);
@@ -760,7 +780,9 @@ router.get('/:id', auth, async (req, res) => {
       (attempt.paper?.passages || []).forEach(p => (p.groups || []).forEach(g => (g.questions || []).forEach(hide)));
       (attempt.paper?.sections || []).forEach(sec => (sec.groups || []).forEach(g => (g.questions || []).forEach(hide)));
     }
-    res.json({ ...attempt, serverNow: Date.now() });
+    let extraMinutes = 0;
+    try { const x = await prisma.appSetting.findUnique({ where: { key: extraKey(attemptId) } }); extraMinutes = x ? parseInt(x.value, 10) || 0 : 0; } catch { extraMinutes = 0; }
+    res.json({ ...attempt, ...(extraMinutes ? { extraMinutes } : {}), extraTimeAllowed: attempt.paper?.paperCode === require('../../scripts/ielts/writingT1Training').CODE && attempt.paper?.testType === 'WRITING', serverNow: Date.now() });
   } catch (error) {
     console.error('Attempt fetch error:', error);
     res.status(500).json({ message: 'Error fetching attempt', details: error.message });

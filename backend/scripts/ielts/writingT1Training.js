@@ -72,18 +72,21 @@ const PARTS = [
 // ONE paper (27 Nov): all nine questions in a single 2.5-hour paper, code WT1. Task numbers 1, 3, 4 ... 10
 // (2 is kept for essays). The five part papers from the day before are hidden (DRAFT), not deleted.
 const NUMS = [1, 3, 4, 5, 6, 7, 8, 9, 10];
+const REMOVED = [5, 8]; // the table and the mixed chart
+const EXTRA_MINUTES = 30; // this paper only: students can add 30 minutes once, when 5 minutes are left
 const ONE = {
   code: 'WT1', title: 'IELTS Writing Task 1 Training Paper (2.5 hours)', timeLimitMin: 150,
-  instructions: 'IELTS Writing Task 1 Training Paper: nine Task 1 questions in one sitting, 2 hours 30 minutes. ' +
-    'Questions 1 to 7 are Academic reports (bar chart, line graph, pie charts, table, maps, process, mixed chart); questions 8 and 9 are an email and a letter. ' +
-    'Spend about 17 minutes on each question and write at least 150 words. Use the Task buttons to move between questions. When the time is up, all your answers are sent automatically.',
+  instructions: 'IELTS Writing Task 1 Training Paper: seven Task 1 questions in one sitting, 2 hours 30 minutes. ' +
+    'Questions 1 to 5 are Academic reports (bar chart, line graph, pie charts, maps, process); questions 6 and 7 are an email and a letter. ' +
+    'Spend about 20 minutes on each question and write at least 150 words. Use the number buttons to move between questions. ' +
+    'When 5 minutes are left you can add 30 more minutes once. When the time is up, all your answers are sent automatically.',
 };
 function papers() {
   const all = PARTS.flatMap(p => p.tasks);
   return [{
     code: ONE.code, testType: 'WRITING', title: ONE.title, timeLimitMin: ONE.timeLimitMin, difficulty: 3, topic: 'Writing Task 1 Training',
     instructions: ONE.instructions,
-    tasks: all.map((t, i) => ({ taskNumber: NUMS[i], minWords: t.minWords, timeMinutes: t.timeMinutes, prompt: t.prompt, chartDescription: t.chartDescription, ...(t.key && img(t.key) ? { chartImageUrl: img(t.key) } : {}) })),
+    tasks: all.map((t, i) => ({ taskNumber: NUMS[i], minWords: t.minWords, timeMinutes: t.timeMinutes, prompt: t.prompt, chartDescription: t.chartDescription, ...(t.key && img(t.key) ? { chartImageUrl: img(t.key) } : {}) })).filter(t => !REMOVED.includes(t.taskNumber)),
   }];
 }
 
@@ -94,6 +97,9 @@ async function addWritingT1Training(prisma) {
   await prisma.paper.updateMany({ where: { paperCode: ONE.code, testType: 'WRITING' }, data: { title: ONE.title, instructions: ONE.instructions, timeLimitMin: ONE.timeLimitMin } });
   const hidden = await prisma.paper.updateMany({ where: { paperCode: { in: PARTS.map(p => p.code) }, testType: 'WRITING', status: { not: 'DRAFT' } }, data: { status: 'DRAFT' } });
   if (hidden.count) out.hidden = `${hidden.count} old parts hidden`;
+  // 27 Nov: the table (question 4) and the mixed chart (question 7) were taken out of the paper
+  const one = await prisma.paper.findFirst({ where: { paperCode: ONE.code, testType: 'WRITING' }, select: { id: true } });
+  if (one) { const del = await prisma.writingTask.deleteMany({ where: { paperId: one.id, taskNumber: { in: REMOVED } } }); if (del.count) out.removed = `${del.count} questions removed`; }
   let attached = 0;
   const paper = await prisma.paper.findFirst({ where: { paperCode: ONE.code, testType: 'WRITING' }, include: { writingTasks: true } });
   const all = PARTS.flatMap(p => p.tasks);
@@ -108,4 +114,4 @@ async function addWritingT1Training(prisma) {
   return out;
 }
 
-module.exports = { addWritingT1Training, PARTS, FILES, IMG };
+module.exports = { addWritingT1Training, PARTS, FILES, IMG, CODE: ONE.code, EXTRA_MINUTES };

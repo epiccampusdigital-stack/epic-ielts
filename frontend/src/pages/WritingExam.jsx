@@ -352,6 +352,7 @@ export default function WritingExam() {
   const [task1, setTask1] = useState('');
   const [task2, setTask2] = useState('');
   const [task3, setTask3] = useState(''); // three-task papers: the second report (taskNumber 3)
+  const [extra, setExtra] = useState({}); // papers with more than three tasks: answers for taskNumber 4, 5 ...
   const [timeLeft, setTimeLeft] = useState(null);
   const getFullUrl = (url) => {
     if (!url) return '';
@@ -386,6 +387,7 @@ export default function WritingExam() {
   const task1Ref = useRef('');
   const task2Ref = useRef('');
   const task3Ref = useRef('');
+  const extraRef = useRef({});
   const teachingModeRef = useRef(false);
   const examRef = useRef(null); // set for Exam tab papers
   // Admin can switch off the student pause button (Admin dashboard → Exam timer)
@@ -416,6 +418,7 @@ export default function WritingExam() {
             if (d.task1) setTask1(prev => { const v = prev || d.task1; task1Ref.current = v; return v; });
             if (d.task2) setTask2(prev => { const v = prev || d.task2; task2Ref.current = v; return v; });
             if (d.task3) setTask3(prev => { const v = prev || d.task3; task3Ref.current = v; return v; });
+            if (d.extra && typeof d.extra === 'object') setExtra(prev => { const v = { ...d.extra, ...Object.fromEntries(Object.entries(prev).filter(([, x]) => x)) }; extraRef.current = v; return v; });
           } catch { /* ignore a broken draft */ }
         }
         const totalSeconds = ((r.data.paper?.timeLimitMin || 60) + (r.data.extraMinutes || 0)) * 60;
@@ -507,7 +510,9 @@ export default function WritingExam() {
   // Task 2 shows unless the paper's tasks are known and none is the essay (Task 1 only, or two reports)
   const hasTask2 = wTasks.some(t => t.taskNumber === 2) || (!hasTask3 && !wTasks.length);
   // Only the tasks this paper has (a paper with taskNumber 1 and 3 and no essay shows two tasks)
-  const ORDER = (hasTask3 ? [1, 3, 2] : [1, 2]).filter(n => n !== 2 || hasTask2);
+  // Training papers with many Task 1 questions (taskNumber 4 or more): every task in number order
+  const multi = wTasks.some(t => t.taskNumber >= 4);
+  const ORDER = multi ? wTasks.map(t => t.taskNumber).sort((a, b) => a - b) : (hasTask3 ? [1, 3, 2] : [1, 2]).filter(n => n !== 2 || hasTask2);
   const shownNo = n => ORDER.indexOf(n) + 1;
   const nextTask = ORDER[ORDER.indexOf(task) + 1];
   const prevTask = ORDER[ORDER.indexOf(task) - 1];
@@ -526,7 +531,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: finalTask1, ...(hasTask2 ? { task2Response: finalTask2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
+        { task1Response: finalTask1, ...(hasTask2 ? { task2Response: finalTask2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}), ...(multi ? { extraResponses: { ...extra, ...extraRef.current } } : {}) },
         api()
       );
       navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/writing-results`);
@@ -544,7 +549,7 @@ export default function WritingExam() {
     try {
       await axios.post(
         `${API_URL}/api/attempts/${attemptId}/writing/submit`,
-        { task1Response: task1Ref.current || task1, ...(hasTask2 ? { task2Response: task2Ref.current || task2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}) },
+        { task1Response: task1Ref.current || task1, ...(hasTask2 ? { task2Response: task2Ref.current || task2 } : {}), ...(hasTask3 ? { task3Response: task3Ref.current || task3 } : {}), ...(multi ? { extraResponses: { ...extra, ...extraRef.current } } : {}) },
         api()
       );
       navigate(examRef.current ? afterExamSubmit(examRef.current) : `/exam/${attemptId}/writing-results`);
@@ -563,7 +568,8 @@ export default function WritingExam() {
   const saveDraft = useRef(null);
   saveDraft.current = (keepalive = false) => {
     if (!attemptId || attempt?.status === 'COMPLETED' || submitting) return;
-    const body = JSON.stringify({ task1: task1Ref.current || '', task2: task2Ref.current || '', task3: task3Ref.current || '' });
+    const ex = Object.fromEntries(Object.entries(extraRef.current || {}).filter(([, v]) => v));
+    const body = JSON.stringify({ task1: task1Ref.current || '', task2: task2Ref.current || '', task3: task3Ref.current || '', ...(Object.keys(ex).length ? { extra: ex } : {}) });
     if (body === draftSaved.current || body === '{"task1":"","task2":"","task3":""}') return;
     draftSaved.current = body;
     try {
@@ -576,12 +582,13 @@ export default function WritingExam() {
   };
   useEffect(() => {
     if (!attempt) return undefined;
-    if (attempt.status !== 'COMPLETED' && (task1 || task2 || task3)) {
-      try { localStorage.setItem(`epic-essays-${attemptId}`, JSON.stringify({ task1: task1 || '', task2: task2 || '', task3: task3 || '', at: Date.now() })); } catch { /* storage blocked */ }
+    const hasExtra = Object.values(extra).some(Boolean);
+    if (attempt.status !== 'COMPLETED' && (task1 || task2 || task3 || hasExtra)) {
+      try { localStorage.setItem(`epic-essays-${attemptId}`, JSON.stringify({ task1: task1 || '', task2: task2 || '', task3: task3 || '', ...(hasExtra ? { extra } : {}), at: Date.now() })); } catch { /* storage blocked */ }
     }
     const t = setTimeout(() => saveDraft.current(), 2000);
     return () => clearTimeout(t);
-  }, [task1, task2, task3, attempt]);
+  }, [task1, task2, task3, extra, attempt]);
   useEffect(() => {
     if (!attempt) return undefined;
     const id = setInterval(() => saveDraft.current(), 20000);
@@ -611,19 +618,22 @@ export default function WritingExam() {
     return null;
   };
   const lwTask = chartTask && visualOf(chartTask) ? chartTask : null;
-  const currentText = task === 1 ? task1 : task === 3 ? task3 : task2;
+  const currentText = task === 1 ? task1 : task === 3 ? task3 : task >= 4 ? (extra[task] || '') : task2;
   const setCurrentText = task === 1
     ? (v) => { setTask1(v); task1Ref.current = v; }
     : task === 3
       ? (v) => { setTask3(v); task3Ref.current = v; }
-      : (v) => { setTask2(v); task2Ref.current = v; };
+      : task >= 4
+        ? (v) => { extraRef.current = { ...extraRef.current, [task]: v }; setExtra(e => ({ ...e, [task]: v })); }
+        : (v) => { setTask2(v); task2Ref.current = v; };
   const writingTask3 = writingTasks.find(t => t.taskNumber === 3);
   const min3 = writingTask3?.minWords || 150;
 
-  const minWords = currentTask?.minWords || (task === 1 ? 150 : 250);
+  const minWords = currentTask?.minWords || (task === 1 || task >= 3 ? 150 : 250);
   const min1 = writingTask1?.minWords || 150;
   const min2 = writingTask2?.minWords || 250;
   const TEXTS = { 1: [task1, min1], 2: [task2, min2], 3: [task3, min3] };
+  writingTasks.filter(t => t.taskNumber >= 4).forEach(t => { TEXTS[t.taskNumber] = [extra[t.taskNumber] || '', t.minWords || 150]; });
   const wc = wordCount(currentText);
   const wcColor = wc >= minWords ? '#16a34a' : wc >= minWords * 0.8 ? '#d97706' : '#dc2626';
 
@@ -874,12 +884,12 @@ export default function WritingExam() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Task tabs */}
-          <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 4 }}>
+          <div style={{ display: 'flex', gap: multi ? 3 : 6, flexWrap: 'wrap', background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 4 }}>
             {ORDER.map(t => (
               <button key={t} className="task-tab"
-                style={{ background: task === t ? '#ffffff' : 'transparent', color: task === t ? '#002761' : 'rgba(255,255,255,0.7)', padding: '6px 14px', fontSize: '11px' }}
+                style={{ background: task === t ? '#ffffff' : 'transparent', color: task === t ? '#002761' : 'rgba(255,255,255,0.7)', padding: multi ? '6px 8px' : '6px 14px', fontSize: '11px' }}
                 onClick={() => setTask(t)}>
-                Task {shownNo(t)}
+                {multi ? shownNo(t) : `Task ${shownNo(t)}`}
               </button>
             ))}
           </div>

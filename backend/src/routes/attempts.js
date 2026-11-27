@@ -195,6 +195,9 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     // Delay to avoid rate limit bursts
     await new Promise(resolve => setTimeout(resolve, 2000));
 
+    if (multiTasks(attempt.paper?.writingTasks)) {
+      aiFeedback = await gradeMultiTasks(sub, attempt.paper.writingTasks, studentName);
+    } else {
     const task1Prompt = reportPrompt(attempt.paper?.writingTasks);
     const task2Prompt = essayPrompt(attempt.paper?.writingTasks);
 
@@ -206,6 +209,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       twoReports(attempt.paper?.writingTasks) ? { secondReport: true, task2Min: (attempt.paper.writingTasks.find(t => t.taskNumber === 3)?.minWords) || 150 }
         : onlyReport(attempt.paper?.writingTasks) ? { onlyReport: true } : undefined
     );
+    }
   } else {
     const answerReview = savedAnswers.map((a) => ({
       questionNumber: a.question?.questionNumber,
@@ -245,7 +249,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
     if (testType === 'WRITING') {
       const result = aiFeedback;
       const task1Band = parseFloat(result.task1?.band || result.task1Band) || 5.0;
-      const task2Band = onlyReport(attempt.paper?.writingTasks) ? null : (parseFloat(result.task2?.band || result.task2Band) || 5.0);
+      const task2Band = (onlyReport(attempt.paper?.writingTasks) || multiTasks(attempt.paper?.writingTasks)) ? null : (parseFloat(result.task2?.band || result.task2Band) || 5.0);
       const overallBand = parseFloat(result.overallBand) || 5.0;
 
       await prisma.writingSubmission.update({
@@ -263,7 +267,7 @@ async function createAiFeedback(attempt, result, savedAnswers) {
       try {
         const task1P = reportPrompt(attempt.paper?.writingTasks);
         const task2P = essayPrompt(attempt.paper?.writingTasks);
-        if (task1P || task2P) {
+        if ((task1P || task2P) && !multiTasks(attempt.paper?.writingTasks)) {
           const Anthropic = require('@anthropic-ai/sdk');
           const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
           const modelRes = await claude.messages.create({
@@ -324,6 +328,46 @@ async function createAiFeedback(attempt, result, savedAnswers) {
 // A paper with Task 1 only (e.g. the writing part of Exam Paper 1)
 function onlyReport(tasks) {
   return (tasks || []).length > 0 && (tasks || []).every(t => t.taskNumber === 1);
+}
+// Training papers with many Task 1 questions (taskNumber 1, 3, 4, 5 ...; no essay): every answer is kept in
+// WritingSubmission.responses and each one is marked as a Task 1 report.
+function multiTasks(tasks) {
+  return (tasks || []).some(t => t.taskNumber >= 4);
+}
+const sortedTasks = tasks => (tasks || []).slice().sort((a, b) => a.taskNumber - b.taskNumber);
+const words = t => String(t || '').trim().split(/\s+/).filter(Boolean).length;
+async function gradeMultiTasks(sub, tasks, studentName) {
+  const { gradeWritingAttempt } = require('../services/claudeMarking');
+  const list = sortedTasks(tasks);
+  const resp = sub.responses || {};
+  const entries = [];
+  const strengths = []; const improvements = []; let plan = null; let target = null;
+  const crit = (d, ta) => ({ band: d?.band != null ? parseFloat(d.band) : null, taskAchievement: d?.[ta] ?? d?.taskAchievement ?? null, coherenceCohesion: d?.coherenceCohesion ?? null, lexicalResource: d?.lexicalResource ?? null, grammaticalRange: d?.grammaticalRange ?? null, feedback: d?.feedback || null });
+  // two answers per call (the second marked as a second report), so nine questions take five calls
+  for (let i = 0; i < list.length; i += 2) {
+    const a = list[i]; const b = list[i + 1];
+    const ta = String(resp[a.taskNumber] || ''); const tb = b ? String(resp[b.taskNumber] || '') : '';
+    let r = null;
+    try {
+      r = await gradeWritingAttempt(ta, a.prompt, tb, b ? b.prompt : '', studentName, undefined, b ? { secondReport: true, task2Min: b.minWords || 150 } : { onlyReport: true });
+    } catch (e) { r = null; }
+    entries.push({ taskNumber: a.taskNumber, n: i + 1, words: words(ta), ...crit(r?.task1 || (r ? { band: r.task1Band } : null), 'taskAchievement') });
+    if (b) entries.push({ taskNumber: b.taskNumber, n: i + 2, words: words(tb), ...crit(r?.task2 || (r ? { band: r.task2Band } : null), 'taskResponse') });
+    (r?.strengths || []).forEach(x => { if (x && !strengths.includes(x)) strengths.push(x); });
+    (r?.improvements || []).forEach(x => { if (x && !improvements.includes(x)) improvements.push(x); });
+    plan = plan || r?.weeklyActionPlan || null; target = target || r?.progressToTarget || null;
+    if (i + 2 < list.length) await new Promise(ok => setTimeout(ok, 1500));
+  }
+  const bands = entries.map(e => e.band).filter(b => typeof b === 'number' && !Number.isNaN(b));
+  if (!bands.length) return null;
+  const avg = bands.reduce((x, y) => x + y, 0) / bands.length;
+  const overall = Math.round(avg * 2) / 2;
+  return {
+    multi: true, tasks: entries, task1Band: overall, task2Band: null, overallBand: overall,
+    task1: { band: overall, feedback: `Average of ${bands.length} Task 1 answers. See the feedback for each question below.` },
+    task2: { band: null, feedback: '' },
+    strengths: strengths.slice(0, 4), improvements: improvements.slice(0, 5), weeklyActionPlan: plan, progressToTarget: target,
+  };
 }
 function twoReports(tasks) {
   const nums = (tasks || []).map(t => t.taskNumber);
@@ -657,7 +701,10 @@ router.put('/:id/writing/draft', auth, async (req, res) => {
     const task1 = String(req.body?.task1 || '').slice(0, 20000);
     const task2 = String(req.body?.task2 || '').slice(0, 20000);
     const task3 = String(req.body?.task3 || '').slice(0, 20000);
-    await prisma.attempt.update({ where: { id: attemptId }, data: { draft: JSON.stringify({ task1, task2, ...(task3 ? { task3 } : {}), at: Date.now() }) } });
+    // papers with more than three tasks also send { extra: { "4": text, ... } }
+    const extra = {};
+    if (req.body?.extra && typeof req.body.extra === 'object') for (const [k, v] of Object.entries(req.body.extra).slice(0, 20)) if (/^\d{1,2}$/.test(k) && v) extra[k] = String(v).slice(0, 20000);
+    await prisma.attempt.update({ where: { id: attemptId }, data: { draft: JSON.stringify({ task1, task2, ...(task3 ? { task3 } : {}), ...(Object.keys(extra).length ? { extra } : {}), at: Date.now() }) } });
     res.json({ saved: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1236,6 +1283,40 @@ router.post('/:id/writing/submit', auth, async (req, res) => {
       where: { id: attemptId },
       include: { student: { select: STUDENT_PUBLIC }, paper: { include: { writingTasks: true } } }
     });
+    if (attempt && multiTasks(attempt.paper?.writingTasks)) {
+      // Many Task 1 questions: keep every answer by task number; Task 1 text holds them all for older views
+      const extra = req.body?.extraResponses && typeof req.body.extraResponses === 'object' ? req.body.extraResponses : {};
+      const existing = await prisma.writingSubmission.findUnique({ where: { attemptId } });
+      const old = existing?.responses || {};
+      const responses = {};
+      for (const t of sortedTasks(attempt.paper.writingTasks)) {
+        const given = t.taskNumber === 1 ? task1Response : t.taskNumber === 3 ? task3Response : extra[t.taskNumber];
+        const txt = String(given || '').trim() ? String(given).slice(0, 20000) : String(old[t.taskNumber] || '');
+        responses[t.taskNumber] = txt;
+      }
+      const list = sortedTasks(attempt.paper.writingTasks);
+      const joined = list.map((t, i) => `--- Question ${i + 1} ---\n${responses[t.taskNumber] || '(no answer)'}`).join('\n\n');
+      const total = Object.values(responses).reduce((n, t) => n + words(t), 0);
+      await prisma.writingSubmission.upsert({
+        where: { attemptId },
+        create: { attemptId, responses, task1Response: joined, task2Response: '', task1WordCount: total, task2WordCount: 0, markingStatus: 'PENDING_AI' },
+        update: { responses, task1Response: joined, task1WordCount: total, markingStatus: 'PENDING_AI' },
+      });
+      await prisma.attempt.update({ where: { id: attemptId }, data: { status: 'COMPLETED', endedAt: new Date() } });
+      await prisma.result.deleteMany({ where: { attemptId } });
+      await prisma.result.create({ data: { attemptId, rawScore: null, bandEstimate: null } });
+      res.json({ message: 'Writing submitted', task1Words: total, task2Words: 0 });
+      setTimeout(async () => {
+        try {
+          const updatedAttempt = await prisma.attempt.findUnique({ where: { id: attemptId }, include: { student: { select: STUDENT_PUBLIC }, paper: { include: { writingTasks: true } }, result: true } });
+          if (updatedAttempt?.result) await createAiFeedback(updatedAttempt, updatedAttempt.result, []);
+        } catch (aiErr) {
+          console.error(`Writing AI background error for ${attemptId}:`, aiErr);
+          await prisma.writingSubmission.update({ where: { attemptId }, data: { markingStatus: 'FAILED' } }).catch(() => {});
+        }
+      }, 500);
+      return;
+    }
     if (attempt && twoReports(attempt.paper?.writingTasks)) {
       // Two reports, no essay: the second report (taskNumber 3) is saved and marked as Task 2
       task2Response = task3Response || '';

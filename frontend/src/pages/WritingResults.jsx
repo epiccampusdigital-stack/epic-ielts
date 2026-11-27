@@ -116,6 +116,11 @@ export default function WritingResults() {
 
   const sub = data?.writingSubmission;
   const writingTasks = data?.paper?.writingTasks || [];
+  // Training papers with many Task 1 questions: one answer and one mark per question
+  const multiList = writingTasks.some(t => t.taskNumber >= 4) ? writingTasks.slice().sort((a, b) => a.taskNumber - b.taskNumber) : null;
+  const multiResp = (sub && sub.responses) || {};
+  const multiMarks = Array.isArray(feedback?.tasks) ? feedback.tasks : [];
+  const wc = t => String(t || '').trim().split(/\s+/).filter(Boolean).length;
   const t1Band = sub?.task1Band || feedback?.task1?.band;
   const t2Band = sub?.task2Band || feedback?.task2?.band;
   const overall = sub?.overallBand || feedback?.overallBand ||
@@ -186,7 +191,7 @@ export default function WritingResults() {
             { label: 'Task 1 Band', value: t1Band },
             { label: 'Overall Band', value: overall, large: true },
             { label: 'Task 2 Band', value: t2Band }
-          ].map(({ label, value, large }) => (
+          ].filter(x => !multiList || x.large).map(({ label, value, large }) => (
             <div key={label} className={`band-circle ${large ? 'large' : ''}`}>
               <span style={{ fontFamily: 'Source Sans Pro, Arial, sans-serif', fontSize: large ? 36 : 28, fontWeight: 700, color: getBandColor(value), lineHeight: 1 }}>
                 {value ? Number(value).toFixed(1) : '—'}
@@ -201,11 +206,15 @@ export default function WritingResults() {
 
         {/* Score cards */}
         <div className="scores-grid">
-          {[
+          {(multiList ? [
+            { label: 'Questions answered', value: `${multiList.filter(t => wc(multiResp[t.taskNumber]) > 0).length} / ${multiList.length}`, icon: '📝', note: `${multiList.filter(t => wc(multiResp[t.taskNumber]) >= (t.minWords || 150)).length} with 150+ words` },
+            { label: 'Total words', value: sub?.task1WordCount || 0, icon: '✍️', note: 'All questions' },
+            { label: 'Overall Band', value: overall ? Number(overall).toFixed(1) : '—', icon: '⭐', note: 'Average of all questions' }
+          ] : [
             { label: 'Task 1 Words', value: sub?.task1WordCount || 0, icon: '📝', note: sub?.task1WordCount >= 150 ? '✅ Meets min' : '⚠️ Under 150' },
             { label: 'Task 2 Words', value: sub?.task2WordCount || 0, icon: '✍️', note: sub?.task2WordCount >= 250 ? '✅ Meets min' : '⚠️ Under 250' },
             { label: 'Overall Band', value: overall ? Number(overall).toFixed(1) : '—', icon: '⭐', note: 'AI Estimated' }
-          ].map(({ label, value, icon, note }) => (
+          ]).map(({ label, value, icon, note }) => (
             <div key={label} className="score-card">
               <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
               <div style={{ fontFamily: 'Source Sans Pro, Arial, sans-serif', fontSize: 24, fontWeight: 700, color: '#002761', marginBottom: 4 }}>{value}</div>
@@ -233,8 +242,28 @@ export default function WritingResults() {
               </div>
             </div>
 
+            {multiList && (
+              <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
+                {multiList.map((t, i) => {
+                  const m = multiMarks.find(x => x.taskNumber === t.taskNumber) || {};
+                  return (
+                    <div key={t.taskNumber} style={{ background: '#f7f9fc', borderRadius: 14, padding: 18, border: '1px solid #e3eeff' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#002761' }}>Question {i + 1} <span style={{ fontWeight: 400, color: '#5b6780' }}>· {String(t.prompt || '').split('\n')[0].slice(0, 90)}</span></h3>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: getBandColor(m.band) }}>{m.band ? Number(m.band).toFixed(1) : '—'}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0 16px' }}>
+                        {[['taskAchievement', 'Task Achievement'], ['coherenceCohesion', 'Coherence & Cohesion'], ['lexicalResource', 'Lexical Resource'], ['grammaticalRange', 'Grammatical Range']].map(([k, l]) => <CriterionBar key={k} label={l} score={m[k]} />)}
+                      </div>
+                      {m.feedback && <p style={{ margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.7, color: '#002761' }}>{m.feedback}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Final report */}
-            {(feedback.task1?.feedback || feedback.task2?.feedback) && (
+            {!multiList && (feedback.task1?.feedback || feedback.task2?.feedback) && (
               <div style={{ background: 'linear-gradient(135deg, #f0f6ff, #e3eeff)', borderRadius: 14, padding: 22, border: '1px solid #c9dcfb', marginBottom: 20 }}>
                 <h3 style={{ marginTop: 0, color: '#0048b0', fontSize: 15, fontWeight: 700, marginBottom: 10 }}>📜 Examiner's Report</h3>
                 <p style={{ lineHeight: 1.8, marginBottom: 0, color: '#002761', fontSize: 14 }}>
@@ -244,7 +273,7 @@ export default function WritingResults() {
             )}
 
             {/* Task 1 and Task 2 breakdown */}
-            <div className="feedback-split">
+            {!multiList && <div className="feedback-split">
               {[
                 { label: 'Task 1 Analysis', taskData: feedback.task1, criteria: ['taskAchievement', 'coherenceCohesion', 'lexicalResource', 'grammaticalRange'], criteriaLabels: ['Task Achievement', 'Coherence & Cohesion', 'Lexical Resource', 'Grammatical Range'] },
                 { label: 'Task 2 Analysis', taskData: feedback.task2, criteria: ['taskResponse', 'coherenceCohesion', 'lexicalResource', 'grammaticalRange'], criteriaLabels: ['Task Response', 'Coherence & Cohesion', 'Lexical Resource', 'Grammatical Range'] }
@@ -266,7 +295,7 @@ export default function WritingResults() {
                   )}
                 </div>
               ))}
-            </div>
+            </div>}
 
             {/* Strengths and improvements */}
             <div className="feedback-split" style={{ marginTop: 20 }}>
@@ -418,13 +447,13 @@ export default function WritingResults() {
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #e3eeff', background: '#f7f9fc' }}>
             <h2 style={{ margin: 0, color: '#002761', fontSize: 18, fontWeight: 700 }}>Your Responses</h2>
           </div>
-          {[
+          {(multiList ? multiList.map((t, i) => ({ taskNum: i + 1, response: multiResp[t.taskNumber], wordCount: wc(multiResp[t.taskNumber]), prompt: t.prompt, last: i === multiList.length - 1 })) : [
             { taskNum: 1, response: sub?.task1Response, wordCount: sub?.task1WordCount, prompt: writingTasks.find(t => t.taskNumber === 1)?.prompt },
-            { taskNum: 2, response: sub?.task2Response, wordCount: sub?.task2WordCount, prompt: writingTasks.find(t => t.taskNumber === 2)?.prompt }
-          ].map(({ taskNum, response, wordCount, prompt }) => (
-            <div key={taskNum} style={{ padding: 24, borderBottom: taskNum === 1 ? '1px solid #e8eef7' : 'none' }}>
+            { taskNum: 2, response: sub?.task2Response, wordCount: sub?.task2WordCount, prompt: writingTasks.find(t => t.taskNumber === 2)?.prompt, last: true }
+          ]).map(({ taskNum, response, wordCount, prompt, last }) => (
+            <div key={taskNum} style={{ padding: 24, borderBottom: !last ? '1px solid #e8eef7' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#002761' }}>Task {taskNum}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#002761' }}>{multiList ? 'Question' : 'Task'} {taskNum}</span>
                 <span style={{ fontSize: 12, color: '#5b6780' }}>{wordCount || 0} words</span>
               </div>
               {prompt && <p style={{ fontSize: 12, color: '#5b6780', marginBottom: 12, fontStyle: 'italic', lineHeight: 1.6 }}>{prompt.substring(0, 150)}...</p>}

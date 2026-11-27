@@ -69,33 +69,38 @@ const PARTS = [
   },
 ];
 
-const intro = p => `IELTS Writing Task 1 Training Paper, ${p.title.split(' · ').slice(1).join(' · ')} (one of five parts, about 2.5 hours for all five). ` +
-  `${p.tasks.length === 2 ? 'Two Task 1 questions' : 'One Task 1 question'}: spend about 17 minutes on each and write at least 150 words.`;
-
+// ONE paper (27 Nov): all nine questions in a single 2.5-hour paper, code WT1. Task numbers 1, 3, 4 ... 10
+// (2 is kept for essays). The five part papers from the day before are hidden (DRAFT), not deleted.
+const NUMS = [1, 3, 4, 5, 6, 7, 8, 9, 10];
+const ONE = {
+  code: 'WT1', title: 'IELTS Writing Task 1 Training Paper (2.5 hours)', timeLimitMin: 150,
+  instructions: 'IELTS Writing Task 1 Training Paper: nine Task 1 questions in one sitting, 2 hours 30 minutes. ' +
+    'Questions 1 to 7 are Academic reports (bar chart, line graph, pie charts, table, maps, process, mixed chart); questions 8 and 9 are an email and a letter. ' +
+    'Spend about 17 minutes on each question and write at least 150 words. Use the Task buttons to move between questions. When the time is up, all your answers are sent automatically.',
+};
 function papers() {
-  return PARTS.map(p => ({
-    code: p.code, testType: 'WRITING', title: p.title, timeLimitMin: p.tasks.length * 17, difficulty: 3, topic: 'Writing Task 1 Training',
-    instructions: intro(p),
-    tasks: p.tasks.map(t => ({ taskNumber: t.taskNumber, minWords: t.minWords, timeMinutes: t.timeMinutes, prompt: t.prompt, chartDescription: t.chartDescription, ...(t.key && img(t.key) ? { chartImageUrl: img(t.key) } : {}) })),
-  }));
+  const all = PARTS.flatMap(p => p.tasks);
+  return [{
+    code: ONE.code, testType: 'WRITING', title: ONE.title, timeLimitMin: ONE.timeLimitMin, difficulty: 3, topic: 'Writing Task 1 Training',
+    instructions: ONE.instructions,
+    tasks: all.map((t, i) => ({ taskNumber: NUMS[i], minWords: t.minWords, timeMinutes: t.timeMinutes, prompt: t.prompt, chartDescription: t.chartDescription, ...(t.key && img(t.key) ? { chartImageUrl: img(t.key) } : {}) })),
+  }];
 }
 
-// Adds the five parts as normal practice papers (ACTIVE) and attaches each chart image once its file is in public-media. Safe to run on every start.
+// Adds the one 2.5-hour paper (ACTIVE, practice papers), hides the old five parts and attaches each chart image. Safe to run on every start.
 async function addWritingT1Training(prisma) {
   const { addIeltsPapers } = require('./kit');
   const out = { papers: await addIeltsPapers(prisma, papers(), { status: 'ACTIVE' }) };
-  // keep the part titles (an older start-up step renamed them to "IELTS Writing 0xx")
-  for (const p of papers()) await prisma.paper.updateMany({ where: { paperCode: p.code, testType: 'WRITING' }, data: { title: p.title, instructions: p.instructions, timeLimitMin: p.timeLimitMin } });
-  // moved from the Exam tab to the normal papers (26 Nov): unlock the parts that were added as exam papers
-  const moved = await prisma.paper.updateMany({ where: { paperCode: { in: PARTS.map(p => p.code) }, testType: 'WRITING', status: { startsWith: 'EXAM' } }, data: { status: 'ACTIVE' } });
-  if (moved.count) out.moved = `${moved.count} parts moved to practice papers`;
+  await prisma.paper.updateMany({ where: { paperCode: ONE.code, testType: 'WRITING' }, data: { title: ONE.title, instructions: ONE.instructions, timeLimitMin: ONE.timeLimitMin } });
+  const hidden = await prisma.paper.updateMany({ where: { paperCode: { in: PARTS.map(p => p.code) }, testType: 'WRITING', status: { not: 'DRAFT' } }, data: { status: 'DRAFT' } });
+  if (hidden.count) out.hidden = `${hidden.count} old parts hidden`;
   let attached = 0;
-  for (const p of PARTS) {
-    const paper = await prisma.paper.findFirst({ where: { paperCode: p.code, testType: 'WRITING' }, include: { writingTasks: true } });
-    if (!paper) continue;
-    for (const t of p.tasks) {
-      const url = t.key ? img(t.key) : null;
-      const row = paper.writingTasks.find(w => w.taskNumber === t.taskNumber);
+  const paper = await prisma.paper.findFirst({ where: { paperCode: ONE.code, testType: 'WRITING' }, include: { writingTasks: true } });
+  const all = PARTS.flatMap(p => p.tasks);
+  if (paper) {
+    for (let i = 0; i < all.length; i++) {
+      const url = all[i].key ? img(all[i].key) : null;
+      const row = paper.writingTasks.find(w => w.taskNumber === NUMS[i]);
       if (row && url && row.chartImageUrl !== url) { await prisma.writingTask.update({ where: { id: row.id }, data: { chartImageUrl: url } }); attached++; }
     }
   }

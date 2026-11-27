@@ -181,6 +181,7 @@ model WritingSubmission {
   aiFeedback      String?     @db.Text
   markingStatus   String      @default("PENDING")
   modelAnswers    String?     @db.Text
+  responses       Json?       // papers with more than three tasks: { "1": text, "3": text, "4": text, ... }
 }
 
 model Result {

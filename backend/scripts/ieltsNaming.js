@@ -14,7 +14,7 @@ async function renameIeltsPapers(prisma) {
       orderBy: [{ order: 'asc' }, { id: 'asc' }],
     });
     // Mock exams (codes starting IM-) keep their own titles, e.g. "Halfway Mock 1 of 3 · Listening"
-    for (let i = papers.length - 1; i >= 0; i--) if (/^(IM|EX\d*|WT1)-/.test(String(papers[i].paperCode || ''))) papers.splice(i, 1);
+    for (let i = papers.length - 1; i >= 0; i--) if (/^(IM-|EX\d*-|WT1)/.test(String(papers[i].paperCode || ''))) papers.splice(i, 1);
     const used = new Set();
     papers.forEach(p => { const m = String(p.title || '').match(NAMED); if (m && TYPES[type] === m[1]) used.add(parseInt(m[2], 10)); });
     const numeric = p => { const c = String(p.paperCode || '').trim(); return /^\d{1,3}$/.test(c) ? parseInt(c, 10) : null; };
